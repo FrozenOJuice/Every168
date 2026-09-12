@@ -1,7 +1,13 @@
+import { changed } from "../../shared/errors/revision.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import { and, eq, desc } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { WeightInput, PageQuery } from "@168hours/contracts";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import { weightEntries as table } from "./body.table.js";
 export function bodyRepository(db: Database) {
   const owned = (u: string, id: string) =>
@@ -21,32 +27,52 @@ export function bodyRepository(db: Database) {
         .limit(q.limit + 1);
       return pageResult(rows, q.limit);
     },
-    async get(u: string, id: string) {
-      return (await db.select().from(table).where(owned(u, id)))[0];
-    },
-    async create(u: string, v: WeightInput) {
+    async get(u: string, id: string, context?: TransactionContext) {
       return (
-        await db
+        await databaseFor(db, context).select().from(table).where(owned(u, id))
+      )[0];
+    },
+    async create(u: string, v: WeightInput, context?: TransactionContext) {
+      return (
+        await databaseFor(db, context)
           .insert(table)
           .values({ ...v, userId: u, measuredAt: new Date(v.measuredAt) })
           .returning()
       )[0]!;
     },
-    async update(u: string, id: string, v: WeightInput) {
-      return (
-        await db
+    async update(
+      u: string,
+      id: string,
+      v: WeightInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const row = (
+        await databaseFor(db, context)
           .update(table)
           .set({
             ...v,
             measuredAt: new Date(v.measuredAt),
             updatedAt: new Date(),
           })
-          .where(owned(u, id))
+          .where(and(owned(u, id), eq(table.version, version)))
           .returning()
       )[0];
+      return changed(row, () => this.get(u, id, context));
     },
-    async remove(u: string, id: string) {
-      return (await db.delete(table).where(owned(u, id)).returning())[0];
+    async remove(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const row = (
+        await databaseFor(db, context)
+          .delete(table)
+          .where(and(owned(u, id), eq(table.version, version)))
+          .returning()
+      )[0];
+      return changed(row, () => this.get(u, id, context));
     },
     async latest(u: string) {
       return (

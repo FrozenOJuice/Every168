@@ -28,9 +28,9 @@ export function GoalForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
-        if (goal) await api.updateGoal(goal.id, v);
-        else await api.createGoal(v);
+      onSubmit={async (v, key) => {
+        if (goal) await api.updateGoal(goal.id, v, goal.version, key);
+        else await api.createGoal(v, key);
         await cache.invalidateQueries({ queryKey: ["goals"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
         onSaved();

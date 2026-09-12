@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/infrastructure/database/migrate.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:provision": "tsx src/infrastructure/database/provision-local.ts"
   },
   "dependencies": {
     "@168hours/contracts": "workspace:*",
@@ -21,6 +22,7 @@
     "dotenv": "17.4.2",
     "drizzle-orm": "0.45.2",
     "express": "5.2.1",
+    "express-rate-limit": "8.7.0",
     "helmet": "8.3.0",
     "pg": "8.23.0",
     "pino": "10.3.1",

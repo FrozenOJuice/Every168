@@ -4,7 +4,7 @@ import { measurementsClient } from "./measurements";
 import { goalsClient } from "./goals";
 import { planningClient } from "./planning";
 import type { Me, Preferences } from "@168hours/contracts";
-import { createHttp, body, type ClientOptions } from "./http";
+import { writeHeaders, createHttp, body, type ClientOptions } from "./http";
 export * from "./http";
 export function createClient(options: ClientOptions = {}) {
   const http = createHttp(options);
@@ -15,9 +15,10 @@ export function createClient(options: ClientOptions = {}) {
     ...goalsClient(http),
     ...planningClient(http),
     getCurrentUser: () => http<Me>("/api/v1/me"),
-    savePreferences: (input: Preferences) =>
-      http<Preferences>("/api/v1/preferences", {
+    savePreferences: (input: Preferences, version: number, key?: string) =>
+      http<Me["preferences"]>("/api/v1/preferences", {
         method: "PUT",
+        headers: writeHeaders(key, version),
         body: body(input),
       }),
     signUp: (input: { name: string; email: string; password: string }) =>
@@ -28,7 +29,7 @@ export function createClient(options: ClientOptions = {}) {
     signIn: (input: { email: string; password: string }) =>
       http<unknown>("/api/auth/sign-in/email", {
         method: "POST",
-        body: body(input),
+        body: body({ email: input.email, password: input.password }),
       }),
     signOut: () =>
       http<unknown>("/api/auth/sign-out", { method: "POST", body: "{}" }),

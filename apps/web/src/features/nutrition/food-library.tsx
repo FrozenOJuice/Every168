@@ -1,10 +1,7 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Food } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { Empty, ErrorState, Loading } from "@/components/ui/feedback";
@@ -30,8 +27,9 @@ export function FoodLibrary({
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   const cache = useQueryClient();
-  const archive = useMutation({
-    mutationFn: api.archiveFood,
+  const archive = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.archiveFood(item.id, item.version, key),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["foods"] }),
   });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -96,7 +94,7 @@ export function FoodLibrary({
                           "Archive this food? Your past food entries will stay unchanged.",
                         )
                       )
-                        archive.mutate(f.id);
+                        archive.mutate(f);
                     }}
                   >
                     Archive
@@ -116,11 +114,7 @@ export function FoodLibrary({
           Load more foods
         </button>
       )}
-      {archive.error && (
-        <p role="alert" className="error">
-          {archive.error.message}
-        </p>
-      )}
+      <CommandError command={archive} />
     </section>
   );
 }

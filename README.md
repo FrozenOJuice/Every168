@@ -13,12 +13,15 @@ pnpm install --frozen-lockfile
 pnpm setup:env
 pnpm db:up
 pnpm db:migrate
+pnpm db:provision
 pnpm dev
 ```
 
 Open **http://localhost:3000** and create an account. In Settings, select your timezone and units, then create your categories. Start planning from Week.
 
 `setup:env` creates `apps/api/.env` with a random authentication secret and `apps/web/.env.local`. It keeps existing files unchanged. Example files document the configuration. Do not commit the generated files. Use the same configured browser origin (`http://localhost:3000` by default) for cookies and write requests.
+
+`db:provision` creates the restricted local `hours_app` login and updates `apps/api/.env`, keeping the admin connection in `MIGRATION_DATABASE_URL`. It preserves existing data. Run it once after initial migrations (or when upgrading an existing local setup), then restart the API. Subsequent migrations use the admin connection and refresh runtime grants.
 
 The browser calls `/api/*`; Next.js proxies it to the independent Express API at **http://127.0.0.1:3001**. Readiness is available through **http://localhost:3000/api/ready**. Development PostgreSQL is `hours_dev` on port 54320. Tests use `hours_test` on port 54321.
 
@@ -38,8 +41,9 @@ Sign in as `demo@example.com` with the password you supplied. The seed is limite
 | `pnpm setup:env`                    | Create missing local environment files safely                               |
 | `pnpm db:up`                        | Start and wait for separate development/test PostgreSQL containers          |
 | `pnpm db:down`                      | Stop containers; keep the development volume; test storage is ephemeral     |
-| `pnpm db:generate`                  | Generate Drizzle SQL migrations from module schemas                         |
+| `pnpm db:generate`                  | Generate Drizzle SQL migrations from application schemas                    |
 | `pnpm db:migrate`                   | Apply tracked migrations to the configured development database             |
+| `pnpm db:provision`                 | Create restricted local runtime role and separate migration credentials     |
 | `pnpm db:seed`                      | Seed synthetic local demo data; requires `SEED_PASSWORD`                    |
 | `pnpm dev`                          | Run API and web together                                                    |
 | `pnpm dev:api` / `pnpm dev:web`     | Run either app independently                                                |
@@ -82,3 +86,13 @@ Save a workout before leaving; unsaved navigation warns you. Completing a streng
 Histories page through newly recorded rows; displayed event times and weight chart points use measurement/activity dates. Local date/time forms reject nonexistent or ambiguous DST times with a clear error. Advanced recurrence, drag/drop, offline synchronization, account recovery/verification emails, and public deployment are outside this Core.
 
 Direct package versions and the lockfile are pinned. ESLint 9.39.5 is retained for compatibility with Next.js's current plugins despite its upstream deprecation. See [architecture](docs/architecture.md), [verification](docs/verification.md), and [implementation status](docs/IMPLEMENTATION.md).
+
+## Backend foundation
+
+The API verifies database connectivity/schema and runtime permissions before listening. Readiness returns 503 on database failure; shutdown drains active requests with a ten-second deadline. Connection acquisition, statements, locks, idle transactions, and HTTP sockets have bounded waits. See [foundation operations](docs/foundation.md) for settings and deployment requirements.
+
+Forwarded IP headers are ignored by default. Local requests through Next.js share the loopback rate-limit bucket: 600 API requests/minute, and 10 signup or signin requests/minute per auth endpoint. For deployment, configure explicit trusted proxy addresses only after ensuring the edge overwrites untrusted forwarding headers. Limits live in the single API process and reset on restart.
+
+Authentication policy, session renewal/revocation, password storage, supported endpoints and the public-release boundary are documented in [docs/security.md](docs/security.md).
+
+Core writes use required revisions and durable retry receipts. After updating this checkout, run `pnpm db:migrate` and restart the API/web processes. See [write integrity](docs/decisions/003-write-integrity.md) for API headers, concurrency behavior and retry limits.

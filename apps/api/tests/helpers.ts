@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
+import { createServer, type Server } from "node:http";
 import { beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -26,17 +27,47 @@ export function testApp() {
     WEB_ORIGIN: origin,
     LOG_LEVEL: "silent",
   });
-  const app = createApp(deps);
+  const app = createServer(createApp(deps));
+  const servers = [app];
+  async function listen(server: Server) {
+    // Supertest connects to IPv4; a default IPv6 listener can share a port
+    // with an unrelated IPv4 service on macOS. Bind the same address we use.
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+    return server;
+  }
+  async function serve(
+    overrides: Partial<Parameters<typeof createApp>[0]> = {},
+  ) {
+    const server = createServer(createApp({ ...deps, ...overrides }));
+    servers.push(server);
+    return listen(server);
+  }
   const users: string[] = [];
   beforeAll(async () => {
     await migrate(deps.db, { migrationsFolder: "./drizzle" });
+    await listen(app);
   });
   afterAll(async () => {
+    for (const server of servers) {
+      if (server.listening)
+        await new Promise<void>((resolve) => {
+          server.close(() => resolve());
+          server.closeAllConnections();
+        });
+    }
     for (const id of users) await deps.db.delete(user).where(eq(user.id, id));
     await deps.pool.end();
   });
-  async function signUp() {
-    const email = "test-" + randomUUID() + "@example.com";
+  async function signUp(
+    input: { name?: string; email?: string; password?: string } = {},
+  ) {
+    const email = input.email ?? "test-" + randomUUID() + "@example.com";
     const response = await request(app)
       .post("/api/auth/sign-up/email")
       .set("Origin", origin)
@@ -44,6 +75,7 @@ export function testApp() {
         name: "Test member",
         email,
         password: "Synthetic-test-password-123",
+        ...input,
       })
       .expect((r) => {
         if (r.status !== 200)
@@ -53,7 +85,17 @@ export function testApp() {
     const cookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
     const cookie = cookies.map((v) => v.split(";")[0]).join("; ");
     users.push(response.body.user.id as string);
-    return { id: response.body.user.id as string, email, cookie };
+    return {
+      id: response.body.user.id as string,
+      email: response.body.user.email as string,
+      cookie,
+      response,
+    };
   }
-  return { app, deps, signUp };
+  return { app, deps, signUp, serve };
+}
+
+/** Ordinary fixtures start at revision 1; tests advancing a record pass its returned revision explicitly. */
+export function commandHeaders(version = 1) {
+  return { "Idempotency-Key": randomUUID(), "If-Match": `"${version}"` };
 }

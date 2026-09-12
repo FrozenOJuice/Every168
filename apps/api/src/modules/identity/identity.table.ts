@@ -1,4 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
+  unique,
   pgTable,
   uuid,
   text,
@@ -60,7 +63,10 @@ export const account = pgTable(
     password: text("password"),
     ...dates(),
   },
-  (t) => [index("account_user_idx").on(t.userId)],
+  (t) => [
+    index("account_user_idx").on(t.userId),
+    unique("account_provider_identity").on(t.providerId, t.accountId),
+  ],
 );
 export const verification = pgTable(
   "verifications",
@@ -73,17 +79,27 @@ export const verification = pgTable(
   },
   (t) => [index("verification_identifier_idx").on(t.identifier)],
 );
-export const preferences = pgTable("preferences", {
-  userId: uuid("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  timezone: text("timezone").notNull().default("UTC"),
-  weekStartsOn: integer("week_starts_on").notNull().default(1),
-  weightUnit: text("weight_unit", { enum: ["kg", "lb"] })
-    .notNull()
-    .default("kg"),
-  distanceUnit: text("distance_unit", { enum: ["km", "mi"] })
-    .notNull()
-    .default("km"),
-  ...dates(),
-});
+export const preferences = pgTable(
+  "preferences",
+  {
+    version: integer("version").default(1).notNull(),
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    timezone: text("timezone").notNull().default("UTC"),
+    weekStartsOn: integer("week_starts_on").notNull().default(1),
+    weightUnit: text("weight_unit", { enum: ["kg", "lb"] })
+      .notNull()
+      .default("kg"),
+    distanceUnit: text("distance_unit", { enum: ["km", "mi"] })
+      .notNull()
+      .default("km"),
+    ...dates(),
+  },
+  (t) => [
+    check(
+      "preferences_values",
+      sql`${t.version}>0 and ${t.weekStartsOn} in (0,1) and ${t.weightUnit} in ('kg','lb') and ${t.distanceUnit} in ('km','mi') and char_length(${t.timezone}) between 1 and 100`,
+    ),
+  ],
+);

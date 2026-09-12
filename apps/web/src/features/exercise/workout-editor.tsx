@@ -20,7 +20,12 @@ import { ExerciseForm } from "./exercise-form";
 import { WorkoutExerciseFields } from "./workout-exercise-fields";
 import { workoutFormSchema } from "./workout-form-schema";
 import { invalidateExercise } from "./invalidate";
-export function WorkoutEditor({ workout }: { workout: Workout }) {
+export function WorkoutEditor({
+  workout: initialWorkout,
+}: {
+  workout: Workout;
+}) {
+  const [workout, setWorkout] = useState(initialWorkout);
   const {
     preferences: { timezone, weightUnit },
   } = useMe();
@@ -71,7 +76,7 @@ export function WorkoutEditor({ workout }: { workout: Workout }) {
     <>
       <Form
         form={form}
-        onSubmit={async (v) => {
+        onSubmit={async (v, key) => {
           const finishing = finish.current;
           finish.current = false;
           const start =
@@ -87,7 +92,6 @@ export function WorkoutEditor({ workout }: { workout: Workout }) {
                 ? workout.endedAt
                 : localInputToInstant(v.endedAt, timezone);
           const input = workoutUpdateInput.parse({
-            expectedUpdatedAt: workout.updatedAt,
             title: v.title,
             startedAt: start,
             endedAt: end,
@@ -106,8 +110,24 @@ export function WorkoutEditor({ workout }: { workout: Workout }) {
               })),
             })),
           });
-          await api.saveWorkout(workout.id, input);
-          form.reset(v);
+          const result = await api.saveWorkout(
+            workout.id,
+            input,
+            workout.version,
+            key,
+          );
+          setWorkout(result);
+          form.reset({
+            ...v,
+            endedAt: result.endedAt
+              ? instantToLocalInput(result.endedAt, timezone)
+              : null,
+            exercises: result.exercises.map((exercise, index) => ({
+              ...v.exercises[index]!,
+              id: exercise.id,
+              exerciseNameSnapshot: exercise.exerciseNameSnapshot,
+            })),
+          });
           setSaved(true);
           await invalidateExercise(cache);
         }}

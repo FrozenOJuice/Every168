@@ -42,6 +42,7 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
             : "Pick up where you left off."}
         </p>
         <Form
+          retrySafe={false}
           form={form}
           onSubmit={async (input) => {
             if (signUp) await api.signUp(input);

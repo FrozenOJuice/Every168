@@ -63,7 +63,7 @@ export function TimeForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
+      onSubmit={async (v, key) => {
         const times = {
           title: v.title,
           categoryId: v.categoryId,
@@ -80,15 +80,17 @@ export function TimeForm({
             goalId: v.goalId,
             notes: v.notes,
           });
-          if (item) await api.updateTimeBlock(item.id, input);
-          else await api.createTimeBlock(input);
+          if (item)
+            await api.updateTimeBlock(item.id, input, item.version, key);
+          else await api.createTimeBlock(input, key);
         } else {
           const input = timeEntryInput.parse({
             ...times,
             timeBlockId: v.timeBlockId,
           });
-          if (item) await api.updateTimeEntry(item.id, input);
-          else await api.createTimeEntry(input);
+          if (item)
+            await api.updateTimeEntry(item.id, input, item.version, key);
+          else await api.createTimeEntry(input, key);
         }
         await cache.invalidateQueries({ queryKey: ["week"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });

@@ -15,10 +15,10 @@ export function ExerciseForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
+      onSubmit={async (v, key) => {
         const saved = exercise
-          ? await api.updateExercise(exercise.id, v)
-          : await api.createExercise(v);
+          ? await api.updateExercise(exercise.id, v, exercise.version, key)
+          : await api.createExercise(v, key);
         await cache.invalidateQueries({ queryKey: ["exercises"] });
         await cache.invalidateQueries({ queryKey: ["progress", saved.id] });
         onSaved();

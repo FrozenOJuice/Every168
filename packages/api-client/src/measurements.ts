@@ -7,32 +7,48 @@ import type {
   PageQuery,
   Page,
 } from "@168hours/contracts";
-import { body, query, type Http } from "./http";
+import { writeHeaders, body, query, type Http } from "./http";
 export function measurementsClient(http: Http) {
   return {
     getWater: (q: Partial<PageQuery> = {}) =>
       http<Page<Water>>("/api/v1/water-entries" + query(q)),
-    logWater: (v: WaterInput) =>
-      http<Water>("/api/v1/water-entries", { method: "POST", body: body(v) }),
-    updateWater: (id: string, v: WaterInput) =>
-      http<Water>("/api/v1/water-entries/" + id, {
-        method: "PUT",
+    logWater: (v: WaterInput, key?: string) =>
+      http<Water>("/api/v1/water-entries", {
+        method: "POST",
+        headers: writeHeaders(key),
         body: body(v),
       }),
-    deleteWater: (id: string) =>
-      http<{ ok: true }>("/api/v1/water-entries/" + id, { method: "DELETE" }),
+    updateWater: (id: string, v: WaterInput, version: number, key?: string) =>
+      http<Water>("/api/v1/water-entries/" + id, {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    deleteWater: (id: string, version: number, key?: string) =>
+      http<{ ok: true }>("/api/v1/water-entries/" + id, {
+        method: "DELETE",
+        headers: writeHeaders(key, version),
+      }),
     getWaterDaily: (date: string) =>
       http<WaterDaily>("/api/v1/hydration/daily" + query({ date })),
     getWeight: (q: Partial<PageQuery> = {}) =>
       http<Page<Weight>>("/api/v1/weight-entries" + query(q)),
-    logWeight: (v: WeightInput) =>
-      http<Weight>("/api/v1/weight-entries", { method: "POST", body: body(v) }),
-    updateWeight: (id: string, v: WeightInput) =>
-      http<Weight>("/api/v1/weight-entries/" + id, {
-        method: "PUT",
+    logWeight: (v: WeightInput, key?: string) =>
+      http<Weight>("/api/v1/weight-entries", {
+        method: "POST",
+        headers: writeHeaders(key),
         body: body(v),
       }),
-    deleteWeight: (id: string) =>
-      http<{ ok: true }>("/api/v1/weight-entries/" + id, { method: "DELETE" }),
+    updateWeight: (id: string, v: WeightInput, version: number, key?: string) =>
+      http<Weight>("/api/v1/weight-entries/" + id, {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    deleteWeight: (id: string, version: number, key?: string) =>
+      http<{ ok: true }>("/api/v1/weight-entries/" + id, {
+        method: "DELETE",
+        headers: writeHeaders(key, version),
+      }),
   };
 }

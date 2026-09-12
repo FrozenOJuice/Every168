@@ -1,3 +1,4 @@
+import { apiRateLimit } from "./shared/http/rate-limit.js";
 import { exerciseRoutes } from "./modules/exercise/exercise.routes.js";
 import { bodyRoutes } from "./modules/body/body.routes.js";
 import { hydrationRoutes } from "./modules/hydration/hydration.routes.js";
@@ -16,7 +17,9 @@ import { requireSession, requireOrigin } from "./shared/auth/middleware.js";
 import { identityRoutes } from "./modules/identity/identity.routes.js";
 import { AppError } from "./shared/errors/app-error.js";
 export function createApp({
-  pool,
+  writes,
+  databaseHealth,
+  lifecycle,
   logger,
   auth,
   config,
@@ -31,31 +34,52 @@ export function createApp({
   exercises,
   strength,
   cardio,
-}: Dependencies) {
+}: Omit<Dependencies, "db" | "pool">) {
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", config.TRUSTED_PROXY_CIDRS);
   app.use(helmet());
   app.use(requestLog(logger));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.use("/api", (_req, _res, next) =>
+    lifecycle.draining
+      ? next(
+          new AppError(
+            503,
+            "SHUTTING_DOWN",
+            "The server is restarting. Please try again shortly.",
+          ),
+        )
+      : next(),
+  );
+  app.use("/api", apiRateLimit(config.API_RATE_LIMIT));
   app.get("/api/ready", async (_req, res) => {
-    await pool.query("select 1");
+    await databaseHealth.ready();
+    res.setHeader("Cache-Control", "no-store");
     res.json({ status: "ready" });
   });
-  app.all("/api/auth/*splat", authHandler(auth, config.BETTER_AUTH_URL));
+  app.use("/api/auth", apiRateLimit(100));
+  app.post("/api/auth/sign-in/email", apiRateLimit(10));
+  app.post("/api/auth/sign-up/email", apiRateLimit(10));
+  app.all(
+    "/api/auth/*splat",
+    express.raw({ type: () => true, limit: "256kb", inflate: false }),
+    authHandler(auth, config.BETTER_AUTH_URL, config.WEB_ORIGIN, identity),
+  );
   app.use(express.json({ limit: "256kb" }));
   app.use(
     "/api/v1",
     requireOrigin(config.WEB_ORIGIN),
     requireSession(auth),
-    identityRoutes(identity),
-    categoriesRoutes(categories),
-    planningRoutes(planning),
-    goalsRoutes(goals),
+    identityRoutes(identity, writes),
+    categoriesRoutes(categories, writes),
+    planningRoutes(planning, writes),
+    goalsRoutes(goals, writes),
     dashboardRoutes(dashboard),
-    nutritionRoutes(nutrition),
-    hydrationRoutes(hydration),
-    bodyRoutes(body),
-    exerciseRoutes(exercises, strength, cardio),
+    nutritionRoutes(nutrition, writes),
+    hydrationRoutes(hydration, writes),
+    bodyRoutes(body, writes),
+    exerciseRoutes(exercises, strength, cardio, writes),
   );
   app.use((_req, _res, next) =>
     next(new AppError(404, "NOT_FOUND", "Route not found.")),

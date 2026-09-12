@@ -1,7 +1,19 @@
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
+import type { Block } from "@168hours/contracts";
 import { randomUUID } from "node:crypto";
 test("complete Core planning and tracking flow", async ({ page }, testInfo) => {
+  async function loseFirstWriteResponse(path: string) {
+    let lost = false;
+    await page.route("**/api/v1/" + path, async (route) => {
+      if (route.request().method() === "POST" && !lost) {
+        lost = true;
+        const committed = await route.fetch();
+        expect(committed.status()).toBe(201);
+        await route.abort("failed");
+      } else await route.continue();
+    });
+  }
   await page.goto("/");
   await expect(page).toHaveURL(/login/);
   await page.getByRole("link", { name: "Create an account" }).click();
@@ -85,10 +97,44 @@ test("complete Core planning and tracking flow", async ({ page }, testInfo) => {
       response.request().method() === "PUT",
   );
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
-  expect(((await (await savedBlock).json()) as { goalId: string }).goalId).toBe(
-    linkedGoalId,
-  );
+  const block = (await (await savedBlock).json()) as Block;
+  expect(block.goalId).toBe(linkedGoalId);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: /Read a chapter/ }).click();
+  await page
+    .getByLabel("Notes (optional)", { exact: true })
+    .fill("My unsaved notes");
+  const elsewhere = await page.request.put("/api/v1/time-blocks/" + block.id, {
+    headers: {
+      Origin: "http://localhost:3100",
+      "Idempotency-Key": randomUUID(),
+      "If-Match": `"${block.version}"`,
+    },
+    data: {
+      title: block.title,
+      categoryId: block.categoryId,
+      goalId: block.goalId,
+      startsAt: block.startsAt,
+      endsAt: block.endsAt,
+      notes: "Saved elsewhere",
+    },
+  });
+  expect(elsewhere.status()).toBe(200);
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+    "changed since you opened it",
+  );
+  await expect(
+    page.getByLabel("Notes (optional)", { exact: true }),
+  ).toHaveValue("My unsaved notes");
+  await page
+    .getByRole("button", { name: "Reload latest (discard edits)" })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(
+    (await (await page.request.get("/api/v1/time-blocks/" + block.id)).json())
+      .notes,
+  ).toBe("Saved elsewhere");
   await page.getByRole("link", { name: "Goals", exact: true }).click();
   await page.getByRole("button", { name: "completed", exact: true }).click();
   await page.getByRole("button", { name: "Reopen", exact: true }).click();
@@ -169,9 +215,7 @@ test("complete Core planning and tracking flow", async ({ page }, testInfo) => {
     .click();
   await expect(page).toHaveURL(/exercise\/workout/);
   await page.getByRole("button", { name: "Save workout", exact: true }).click();
-  await expect(
-    page.getByText("Your saved workout.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Changes saved.", { exact: true })).toBeVisible();
   await page
     .getByRole("link", { name: "Workout history", exact: true })
     .click();
@@ -203,16 +247,32 @@ test("complete Core planning and tracking flow", async ({ page }, testInfo) => {
     page.getByRole("heading", { name: "Test skipping" }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+  await loseFirstWriteResponse("water-entries");
   await page.getByRole("button", { name: "+ 250 ml", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "+ 500 ml", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Retry same change", exact: true })
+    .click();
   await expect(page.getByText("250 ml", { exact: true })).toBeVisible();
+  expect(
+    (await (await page.request.get("/api/v1/water-entries")).json()).items,
+  ).toHaveLength(1);
+  await loseFirstWriteResponse("weight-entries");
   await page.getByRole("button", { name: "Log weight", exact: true }).click();
   await page.getByLabel("Weight (lb)").fill("154.3");
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Log weight", exact: true })
     .click();
+  await expect(page.getByLabel("Weight (lb)")).toBeDisabled();
+  await page.getByRole("button", { name: "Retry save", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByText("154.3 lb", { exact: true })).toBeVisible();
+  expect(
+    (await (await page.request.get("/api/v1/weight-entries")).json()).items,
+  ).toHaveLength(1);
   await expect(
     page.getByRole("link", { name: "Test strength", exact: true }),
   ).toBeVisible();

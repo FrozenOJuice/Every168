@@ -1,12 +1,21 @@
-import type { RequestHandler, Response } from "express";
+import type { Request, RequestHandler, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import { AppError } from "../errors/app-error.js";
 import type { Auth } from "./auth.js";
 export function requireSession(auth: Auth): RequestHandler {
   return async (req, res, next) => {
-    const session = await auth.api.getSession({
+    const { response: session, headers } = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
+      query: {
+        disableCookieCache: true,
+        // Server Components cannot forward Set-Cookie to the browser. Skipping
+        // renewal is safe for any caller; it never extends session validity.
+        disableRefresh: req.headers["x-168hours-session-refresh"] === "skip",
+      },
+      returnHeaders: true,
     });
+    for (const cookie of headers.getSetCookie())
+      res.append("Set-Cookie", cookie);
     if (!session)
       throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
     res.locals.user = session.user;
@@ -23,11 +32,15 @@ export function currentUser(res: Response): {
 }
 export function requireOrigin(origin: string): RequestHandler {
   return (req, _res, next) => {
-    if (
-      !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-      req.headers.origin !== origin
-    )
-      throw new AppError(403, "FORBIDDEN", "Request origin is not allowed.");
+    checkOrigin(req, origin);
     next();
   };
+}
+export function checkOrigin(req: Request, origin: string) {
+  if (
+    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+    (req.headers.origin !== origin ||
+      req.headers["sec-fetch-site"] === "cross-site")
+  )
+    throw new AppError(403, "FORBIDDEN", "Request origin is not allowed.");
 }

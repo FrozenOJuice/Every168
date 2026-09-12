@@ -9,7 +9,10 @@ export default async function AuthenticatedLayout({
 }) {
   const client = createClient({
     baseUrl: process.env.API_URL ?? "http://127.0.0.1:3001",
-    headers: { cookie: (await cookies()).toString() },
+    headers: {
+      cookie: (await cookies()).toString(),
+      "x-168hours-session-refresh": "skip",
+    },
   });
   let me;
   try {

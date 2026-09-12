@@ -48,7 +48,7 @@ export function CardioForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
+      onSubmit={async (v, key) => {
         const input = cardioInput.parse({
           title: v.title,
           activityType: v.activityType,
@@ -59,8 +59,9 @@ export function CardioForm({
           notes: v.notes,
           linkedTimeBlockId: v.linkedTimeBlockId,
         });
-        if (activity) await api.updateCardio(activity.id, input);
-        else await api.logCardio(input);
+        if (activity)
+          await api.updateCardio(activity.id, input, activity.version, key);
+        else await api.logCardio(input, key);
         await invalidateExercise(cache);
         onSaved();
       }}

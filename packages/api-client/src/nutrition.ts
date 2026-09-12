@@ -8,37 +8,57 @@ import type {
   LibraryQuery,
   Page,
 } from "@168hours/contracts";
-import { body, query, type Http } from "./http";
+import { writeHeaders, body, query, type Http } from "./http";
 export function nutritionClient(http: Http) {
   return {
     getFoods: (q: Partial<LibraryQuery> = {}) =>
       http<Page<Food>>("/api/v1/foods" + query(q)),
-    createFood: (v: FoodInput) =>
-      http<Food>("/api/v1/foods", { method: "POST", body: body(v) }),
-    updateFood: (id: string, v: FoodInput) =>
-      http<Food>("/api/v1/foods/" + id, { method: "PUT", body: body(v) }),
-    archiveFood: (id: string) =>
+    createFood: (v: FoodInput, key?: string) =>
+      http<Food>("/api/v1/foods", {
+        method: "POST",
+        headers: writeHeaders(key),
+        body: body(v),
+      }),
+    updateFood: (id: string, v: FoodInput, version: number, key?: string) =>
+      http<Food>("/api/v1/foods/" + id, {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    archiveFood: (id: string, version: number, key?: string) =>
       http<Food>("/api/v1/foods/" + id + "/archive", {
         method: "POST",
+        headers: writeHeaders(key, version),
         body: "{}",
       }),
-    logFood: (v: FoodEntryInput) =>
+    logFood: (v: FoodEntryInput, key?: string) =>
       http<FoodEntry>("/api/v1/food-entries", {
         method: "POST",
+        headers: writeHeaders(key),
         body: body(v),
       }),
-    updateFoodEntry: (id: string, v: FoodEntryUpdate) =>
+    updateFoodEntry: (
+      id: string,
+      v: FoodEntryUpdate,
+      version: number,
+      key?: string,
+    ) =>
       http<FoodEntry>("/api/v1/food-entries/" + id, {
         method: "PUT",
+        headers: writeHeaders(key, version),
         body: body(v),
       }),
-    repeatFoodEntry: (id: string, v: FoodEntryUpdate) =>
+    repeatFoodEntry: (id: string, v: FoodEntryUpdate, key?: string) =>
       http<FoodEntry>("/api/v1/food-entries/" + id + "/repeat", {
         method: "POST",
+        headers: writeHeaders(key),
         body: body(v),
       }),
-    deleteFoodEntry: (id: string) =>
-      http<{ ok: true }>("/api/v1/food-entries/" + id, { method: "DELETE" }),
+    deleteFoodEntry: (id: string, version: number, key?: string) =>
+      http<{ ok: true }>("/api/v1/food-entries/" + id, {
+        method: "DELETE",
+        headers: writeHeaders(key, version),
+      }),
     getNutritionDaily: (date: string) =>
       http<NutritionDaily>("/api/v1/nutrition/daily" + query({ date })),
   };

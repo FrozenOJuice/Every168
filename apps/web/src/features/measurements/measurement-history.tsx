@@ -1,10 +1,7 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Water, Weight, Page } from "@168hours/contracts";
 import { fromKilograms, localDate } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
@@ -28,9 +25,11 @@ export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   const cache = useQueryClient();
-  const remove = useMutation({
-    mutationFn: (id: string) =>
-      kind === "water" ? api.deleteWater(id) : api.deleteWeight(id),
+  const remove = useCommand({
+    mutationFn: (item: Water | Weight, key: string) =>
+      kind === "water"
+        ? api.deleteWater(item.id, item.version, key)
+        : api.deleteWeight(item.id, item.version, key),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: [kind] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -96,7 +95,7 @@ export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
                     disabled={remove.isPending}
                     onClick={() => {
                       if (confirm("Delete this " + kind + " entry?"))
-                        remove.mutate(e.id);
+                        remove.mutate(e);
                     }}
                   >
                     Delete
@@ -116,11 +115,7 @@ export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
           Load more records
         </button>
       )}
-      {remove.error && (
-        <p role="alert" className="error">
-          {remove.error.message}
-        </p>
-      )}
+      <CommandError command={remove} />
     </>
   );
 }

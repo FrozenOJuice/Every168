@@ -7,18 +7,27 @@ export function requestLog(logger: Logger): RequestHandler {
     res.locals.requestId = requestId;
     res.setHeader("x-request-id", requestId);
     const started = performance.now();
-    res.on("finish", () =>
-      logger.info(
+    let recorded = false;
+    const record = () => {
+      if (recorded) return;
+      recorded = true;
+      const aborted = !res.writableFinished;
+      const level = aborted || res.statusCode >= 400 ? "warn" : "info";
+      logger[level](
         {
           requestId,
           method: req.method,
-          path: req.path,
-          statusCode: res.statusCode,
+          // Matched route templates avoid logging arbitrary private URL segments.
+          route: req.route ? req.baseUrl + req.route.path : "unmatched",
+          statusCode: aborted ? 499 : res.statusCode,
+          aborted,
           durationMs: Math.round(performance.now() - started),
         },
-        "Request completed",
-      ),
-    );
+        aborted ? "Request aborted" : "Request completed",
+      );
+    };
+    res.once("finish", record);
+    res.once("close", record);
     next();
   };
 }

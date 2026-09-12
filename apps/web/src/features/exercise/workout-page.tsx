@@ -26,10 +26,7 @@ export function WorkoutPage({ id }: { id: string }) {
       ) : query.error ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       ) : (
-        <WorkoutEditor
-          key={query.data.id + query.data.updatedAt}
-          workout={query.data}
-        />
+        <WorkoutEditor key={query.data.id} workout={query.data} />
       )}
     </>
   );

@@ -1,7 +1,13 @@
+import { changed } from "../../shared/errors/revision.js";
 import { and, eq, desc, isNull, isNotNull, ilike } from "drizzle-orm";
-import type { Db, Database } from "../../infrastructure/database/client.js";
+import type { Database } from "../../infrastructure/database/client.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import type { ExerciseInput, LibraryQuery } from "@168hours/contracts";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import { exercises } from "./exercise.table.js";
 export function exerciseRepository(db: Database) {
   const owned = (u: string, id: string) =>
@@ -25,12 +31,16 @@ export function exerciseRepository(db: Database) {
         .limit(q.limit + 1);
       return pageResult(rows, q.limit);
     },
-    async get(u: string, id: string, tx: Db = db) {
-      return (await tx.select().from(exercises).where(owned(u, id)))[0];
+    async get(u: string, id: string, context?: TransactionContext) {
+      const query = databaseFor(db, context)
+        .select()
+        .from(exercises)
+        .where(owned(u, id));
+      return (await (context ? query.for("share") : query))[0];
     },
-    async create(u: string, v: ExerciseInput) {
+    async create(u: string, v: ExerciseInput, context?: TransactionContext) {
       return (
-        await db
+        await databaseFor(db, context)
           .insert(exercises)
           .values({ ...v, userId: u })
           .returning()
@@ -40,14 +50,17 @@ export function exerciseRepository(db: Database) {
       u: string,
       id: string,
       v: Partial<ExerciseInput> & { archivedAt?: Date },
+      version: number,
+      context?: TransactionContext,
     ) {
-      return (
-        await db
+      const row = (
+        await databaseFor(db, context)
           .update(exercises)
           .set({ ...v, updatedAt: new Date() })
-          .where(owned(u, id))
+          .where(and(owned(u, id), eq(exercises.version, version)))
           .returning()
       )[0];
+      return changed(row, () => this.get(u, id, context));
     },
   };
 }

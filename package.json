@@ -6,6 +6,11 @@
   "engines": {
     "node": ">=22.12"
   },
+  "pnpm": {
+    "overrides": {
+      "@esbuild-kit/core-utils>esbuild": "0.25.12"
+    }
+  },
   "scripts": {
     "db:up": "docker compose -f infra/compose.yaml up -d --wait",
     "db:down": "docker compose -f infra/compose.yaml down",
@@ -19,12 +24,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts && node --test scripts/boundaries.test.mjs",
     "test:integration": "pnpm --filter @168hours/api test:integration",
     "test:e2e": "playwright test",
     "build": "pnpm -r build",
     "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e",
-    "setup:env": "node scripts/setup-env.mjs"
+    "setup:env": "node scripts/setup-env.mjs",
+    "db:provision": "pnpm --filter @168hours/api db:provision"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

@@ -31,11 +31,14 @@ export function WorkoutStartForm() {
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
-        const workout = await api.startWorkout({
-          ...v,
-          startedAt: localInputToInstant(v.startedAt, timezone),
-        });
+      onSubmit={async (v, key) => {
+        const workout = await api.startWorkout(
+          {
+            ...v,
+            startedAt: localInputToInstant(v.startedAt, timezone),
+          },
+          key,
+        );
         await cache.invalidateQueries({ queryKey: ["workouts"] });
         router.push("/exercise/workout/" + workout.id);
       }}

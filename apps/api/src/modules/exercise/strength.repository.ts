@@ -1,15 +1,19 @@
 import { and, eq, asc, desc, inArray, isNotNull, sql } from "drizzle-orm";
 import type {
-  Db,
   Database,
   Transaction,
 } from "../../infrastructure/database/client.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import type {
   PageQuery,
   WorkoutStartInput,
   WorkoutUpdateInput,
 } from "@168hours/contracts";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import {
   strengthWorkouts as workouts,
   workoutExercises,
@@ -18,7 +22,12 @@ import {
 export function strengthRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(workouts.userId, u), eq(workouts.id, id));
-  async function get(u: string, id: string, tx: Db = db, lock = false) {
+  async function read(
+    tx: Database | Transaction,
+    u: string,
+    id: string,
+    lock = false,
+  ) {
     const query = tx.select().from(workouts).where(owned(u, id));
     const row = (await (lock ? query.for("update") : query))[0];
     if (!row) return undefined;
@@ -52,11 +61,23 @@ export function strengthRepository(db: Database) {
       })),
     };
   }
+  function get(
+    u: string,
+    id: string,
+    context?: TransactionContext,
+    lock = false,
+  ) {
+    if (context) return read(databaseFor(db, context), u, id, lock);
+    return db.transaction((tx) => read(tx, u, id), {
+      isolationLevel: "repeatable read",
+      accessMode: "read only",
+    });
+  }
   return {
     get,
-    async start(u: string, v: WorkoutStartInput) {
+    async start(u: string, v: WorkoutStartInput, context?: TransactionContext) {
       return (
-        await db
+        await databaseFor(db, context)
           .insert(workouts)
           .values({ ...v, userId: u, startedAt: new Date(v.startedAt) })
           .returning()
@@ -77,12 +98,13 @@ export function strengthRepository(db: Database) {
       return pageResult(rows, q.limit);
     },
     async replace(
-      tx: Transaction,
+      context: TransactionContext,
       u: string,
       id: string,
       v: WorkoutUpdateInput,
       names: string[],
     ) {
+      const tx = databaseFor(db, context);
       await tx
         .update(workouts)
         .set({
@@ -127,9 +149,10 @@ export function strengthRepository(db: Database) {
             })),
           );
       }
-      return get(u, id, tx);
+      return get(u, id, context);
     },
-    async remove(tx: Transaction, u: string, id: string) {
+    async remove(context: TransactionContext, u: string, id: string) {
+      const tx = databaseFor(db, context);
       return (await tx.delete(workouts).where(owned(u, id)).returning())[0];
     },
     async latest(u: string) {

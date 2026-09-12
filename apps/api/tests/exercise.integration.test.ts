@@ -1,3 +1,4 @@
+import { commandHeaders } from "./helpers.js";
 import { it, expect } from "vitest";
 import request from "supertest";
 import { testApp, origin } from "./helpers.js";
@@ -10,12 +11,14 @@ it("persists multi-exercise workouts, keeps snapshots, protects nested IDs and d
       .post("/api/v1/" + path)
       .set("Cookie", cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input);
-  const put = (path: string, input: object, cookie = a.cookie) =>
+  const put = (path: string, input: object, cookie = a.cookie, version = 1) =>
     request(app)
       .put("/api/v1/" + path)
       .set("Cookie", cookie)
       .set("Origin", origin)
+      .set(commandHeaders(version))
       .send(input);
   const category = await post("categories", { name: "Exercise" }).expect(201);
   const block = await post("time-blocks", {
@@ -86,18 +89,32 @@ it("persists multi-exercise workouts, keeps snapshots, protects nested IDs and d
       }),
     ),
   };
-  await put("exercises/" + squat.body.id, { name: "Renamed squat" }).expect(
-    200,
-  );
+  const renamed = await put("exercises/" + squat.body.id, {
+    name: "Renamed squat",
+  }).expect(200);
   const finished = await put(
     "strength-workouts/" + workout.body.id,
     input,
+    a.cookie,
+    saved.body.version,
   ).expect(200);
   expect(finished.body.exercises[0].exerciseNameSnapshot).toBe("Squat");
-  await Promise.all([
-    put("strength-workouts/" + workout.body.id, input).expect(200),
-    put("strength-workouts/" + workout.body.id, input).expect(200),
+  const concurrent = await Promise.all([
+    put(
+      "strength-workouts/" + workout.body.id,
+      input,
+      a.cookie,
+      finished.body.version,
+    ),
+    put(
+      "strength-workouts/" + workout.body.id,
+      input,
+      a.cookie,
+      finished.body.version,
+    ),
   ]);
+  expect(concurrent.map((r) => r.status).sort()).toEqual([200, 409]);
+  const winner = concurrent.find((r) => r.status === 200)!;
   let week = await request(app)
     .get("/api/v1/weeks/2026-09-07")
     .set("Cookie", a.cookie)
@@ -133,6 +150,7 @@ it("persists multi-exercise workouts, keeps snapshots, protects nested IDs and d
     .delete("/api/v1/strength-workouts/" + workout.body.id)
     .set("Cookie", b.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .expect(404);
   await post("strength-workouts", start, b.cookie).expect(404);
   const bWorkout = await post(
@@ -145,12 +163,20 @@ it("persists multi-exercise workouts, keeps snapshots, protects nested IDs and d
     { ...input, linkedTimeBlockId: null },
     b.cookie,
   ).expect(404);
-  await post("exercises/" + squat.body.id + "/archive", {}).expect(200);
-  await put("strength-workouts/" + workout.body.id, input).expect(200);
+  await post("exercises/" + squat.body.id + "/archive", {})
+    .set(commandHeaders(renamed.body.version))
+    .expect(200);
+  await put(
+    "strength-workouts/" + workout.body.id,
+    input,
+    a.cookie,
+    winner.body.version,
+  ).expect(200);
   await request(app)
     .delete("/api/v1/time-blocks/" + block.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .expect(200);
   const retained = await request(app)
     .get("/api/v1/strength-workouts/" + workout.body.id)
@@ -161,6 +187,7 @@ it("persists multi-exercise workouts, keeps snapshots, protects nested IDs and d
     .delete("/api/v1/strength-workouts/" + workout.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(retained.body.version))
     .expect(200);
   week = await request(app)
     .get("/api/v1/weeks/2026-09-07")
@@ -184,6 +211,7 @@ it("logs cardio with/without distance, updates one source entry and removes it a
     .post("/api/v1/cardio-activities")
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send(input)
     .expect(201);
   expect(created.body.paceSecondsPerKm).toBe(300);
@@ -195,17 +223,20 @@ it("logs cardio with/without distance, updates one source entry and removes it a
     .put("/api/v1/cardio-activities/" + created.body.id)
     .set("Cookie", b.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send(input)
     .expect(404);
   await request(app)
     .delete("/api/v1/cardio-activities/" + created.body.id)
     .set("Cookie", b.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .expect(404);
   const updated = await request(app)
     .put("/api/v1/cardio-activities/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({
       ...input,
       activityType: "skip",
@@ -224,6 +255,7 @@ it("logs cardio with/without distance, updates one source entry and removes it a
     .delete("/api/v1/cardio-activities/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(updated.body.version))
     .expect(200);
   const empty = await request(app)
     .get("/api/v1/weeks/2026-09-07")
@@ -244,6 +276,7 @@ it("rejects stale workout saves without changing persisted sets", async () => {
     .post("/api/v1/strength-workouts")
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send(start)
     .expect(201);
   const input = {
@@ -251,21 +284,22 @@ it("rejects stale workout saves without changing persisted sets", async () => {
     title: "New title",
     endedAt: null,
     exercises: [],
-    expectedUpdatedAt: created.body.updatedAt,
   };
   await request(app)
     .put("/api/v1/strength-workouts/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send(input)
     .expect(200);
   const stale = await request(app)
     .put("/api/v1/strength-workouts/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({ ...input, title: "Stale title" })
     .expect(409);
-  expect(stale.body.error.code).toBe("CONFLICT");
+  expect(stale.body.error.code).toBe("STALE_REVISION");
   const retained = await request(app)
     .get("/api/v1/strength-workouts/" + created.body.id)
     .set("Cookie", a.cookie)

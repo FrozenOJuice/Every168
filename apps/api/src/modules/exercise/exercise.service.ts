@@ -1,3 +1,4 @@
+import type { TransactionContext } from "../../shared/transactions.js";
 import type { ExerciseInput, PageQuery } from "@168hours/contracts";
 import { found } from "../../shared/errors/app-error.js";
 import type { exerciseRepository } from "./exercise.repository.js";
@@ -12,11 +13,24 @@ export function exerciseService(
     async get(u: string, id: string) {
       return found(await repo.get(u, id));
     },
-    async update(u: string, id: string, v: ExerciseInput) {
-      return found(await repo.update(u, id, v));
+    async update(
+      u: string,
+      id: string,
+      v: ExerciseInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(await repo.update(u, id, v, version, context));
     },
-    async archive(u: string, id: string) {
-      return found(await repo.update(u, id, { archivedAt: new Date() }));
+    async archive(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(
+        await repo.update(u, id, { archivedAt: new Date() }, version, context),
+      );
     },
     async progress(u: string, id: string, q: PageQuery) {
       const exercise = found(await repo.get(u, id));

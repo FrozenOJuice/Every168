@@ -56,16 +56,16 @@ export function FoodEntryForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
+      onSubmit={async (v, key) => {
         const input = {
           quantity: v.quantity,
           mealType: v.mealType,
           consumedAt: localInputToInstant(v.consumedAt, timezone),
         };
         if (entry) {
-          if (repeat) await api.repeatFoodEntry(entry.id, input);
-          else await api.updateFoodEntry(entry.id, input);
-        } else await api.logFood({ ...input, foodId: v.foodId });
+          if (repeat) await api.repeatFoodEntry(entry.id, input, key);
+          else await api.updateFoodEntry(entry.id, input, entry.version, key);
+        } else await api.logFood({ ...input, foodId: v.foodId }, key);
         await cache.invalidateQueries({ queryKey: ["nutrition"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
         onSaved();

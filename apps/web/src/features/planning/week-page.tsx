@@ -1,7 +1,8 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { localDate, addDays } from "@168hours/domain-utils";
 import { dateSchema, type Block, type TimeEntry } from "@168hours/contracts";
@@ -48,9 +49,18 @@ export function WeekPage({
   const [editor, setEditor] = useState<Editor | null>(
     add ? { kind: "block", date: today } : null,
   );
-  const remove = useMutation({
-    mutationFn: ({ kind, id }: { kind: "block" | "entry"; id: string }) =>
-      kind === "block" ? api.deleteTimeBlock(id) : api.deleteTimeEntry(id),
+  const remove = useCommand({
+    mutationFn: (
+      {
+        kind,
+        id,
+        version,
+      }: { kind: "block" | "entry"; id: string; version: number },
+      key: string,
+    ) =>
+      kind === "block"
+        ? api.deleteTimeBlock(id, version, key)
+        : api.deleteTimeEntry(id, version, key),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["week"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -221,6 +231,7 @@ export function WeekPage({
                                     remove.mutate({
                                       kind: "block",
                                       id: block.id,
+                                      version: block.version,
                                     });
                                 }}
                               >
@@ -283,7 +294,11 @@ export function WeekPage({
                             disabled={remove.isPending}
                             onClick={() => {
                               if (confirm("Delete this recorded time entry?"))
-                                remove.mutate({ kind: "entry", id: entry.id });
+                                remove.mutate({
+                                  kind: "entry",
+                                  id: entry.id,
+                                  version: entry.version,
+                                });
                             }}
                           >
                             Delete
@@ -300,11 +315,7 @@ export function WeekPage({
           </div>
         )
       )}
-      {remove.error && (
-        <p role="alert" className="error">
-          {remove.error.message}
-        </p>
-      )}
+      <CommandError command={remove} />
       {editor && (
         <Dialog
           title={

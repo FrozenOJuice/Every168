@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { compose } from "../src/composition.js";
-import { createApp } from "../src/app.js";
+import { startServer } from "../src/infrastructure/lifecycle.js";
 const url =
   process.env.TEST_DATABASE_URL ??
   "postgresql://hours:hours_test_only@localhost:54321/hours_test";
@@ -20,10 +20,11 @@ const deps = compose({
   LOG_LEVEL: "silent",
 });
 await migrate(deps.db, { migrationsFolder: "./drizzle" });
-const server = createApp(deps).listen(3101, "127.0.0.1");
-for (const signal of ["SIGTERM", "SIGINT"])
-  process.once(signal, () =>
-    server.close(() => {
-      void deps.pool.end().then(() => process.exit(0));
-    }),
-  );
+const running = await startServer(deps);
+let exiting = false;
+for (const signal of ["SIGTERM", "SIGINT"] as const)
+  process.on(signal, () => {
+    if (exiting) return;
+    exiting = true;
+    void running.shutdown(signal).then((code) => process.exit(code));
+  });

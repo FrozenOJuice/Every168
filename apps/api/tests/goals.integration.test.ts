@@ -1,3 +1,4 @@
+import { commandHeaders } from "./helpers.js";
 import { it, expect } from "vitest";
 import request from "supertest";
 import { testApp, origin } from "./helpers.js";
@@ -10,6 +11,7 @@ it("creates, edits, completes/reopens goals, enforces goal/category links and co
       .post("/api/v1/" + path)
       .set("Cookie", cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input);
   const category = await post("categories", { name: "Learning" }).expect(201);
   const input = {
@@ -28,6 +30,7 @@ it("creates, edits, completes/reopens goals, enforces goal/category links and co
     .put("/api/v1/goals/" + goal.body.id)
     .set("Cookie", b.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send(input)
     .expect(404);
   await post("goals", input, b.cookie).expect(404);
@@ -45,6 +48,7 @@ it("creates, edits, completes/reopens goals, enforces goal/category links and co
     .put("/api/v1/goals/" + goal.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({ ...input, status: "completed" })
     .expect(200);
   expect(completed.body.completedAt).toBeTruthy();
@@ -52,6 +56,7 @@ it("creates, edits, completes/reopens goals, enforces goal/category links and co
     .put("/api/v1/goals/" + goal.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(completed.body.version))
     .send(input)
     .expect(200);
   expect(reopened.body.completedAt).toBeNull();

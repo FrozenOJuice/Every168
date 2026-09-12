@@ -1,5 +1,6 @@
 "use client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCommand, CommandError } from "@/lib/use-command";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, RotateCcw } from "lucide-react";
 import type { Goal } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -12,15 +13,20 @@ export function GoalCard({
   onEdit?: (g: Goal) => void;
 }) {
   const cache = useQueryClient();
-  const update = useMutation({
-    mutationFn: () =>
-      api.updateGoal(goal.id, {
-        title: goal.title,
-        description: goal.description,
-        categoryId: goal.categoryId,
-        targetDate: goal.targetDate,
-        status: goal.status === "completed" ? "active" : "completed",
-      }),
+  const update = useCommand({
+    mutationFn: (goal: Goal, key: string) =>
+      api.updateGoal(
+        goal.id,
+        {
+          title: goal.title,
+          description: goal.description,
+          categoryId: goal.categoryId,
+          targetDate: goal.targetDate,
+          status: goal.status === "completed" ? "active" : "completed",
+        },
+        goal.version,
+        key,
+      ),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["goals"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -49,7 +55,7 @@ export function GoalCard({
         <button
           className="button"
           disabled={update.isPending}
-          onClick={() => update.mutate()}
+          onClick={() => update.mutate(goal)}
         >
           {goal.status === "completed" ? (
             <RotateCcw size={15} />
@@ -64,11 +70,7 @@ export function GoalCard({
           </button>
         )}
       </div>
-      {update.error && (
-        <p role="alert" className="error">
-          {update.error.message}
-        </p>
-      )}
+      <CommandError command={update} />
     </article>
   );
 }

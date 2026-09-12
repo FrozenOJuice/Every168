@@ -21,11 +21,13 @@ pnpm verify
 
 Unit coverage: configuration failures, timezone/week starts and DST, interval clipping/union/overlap, unit round trips, meaningful cardio pace, nutrition aggregation with unknowns.
 
-Integration coverage: live migrations/readiness; signup/signin/signout, invalid/expired sessions, preferences/origins/errors; planning, goals, snapshots, water/weight CRUD/pagination, nested workouts/progress/cardio; concurrent source deduplication; owner-scoped reads/updates/deletes and cross-owner references; dashboard composition.
+Integration coverage: live migrations/readiness; signup/signin/signout, invalid/expired sessions, preferences/origins/errors; planning, goals, snapshots, water/weight CRUD/pagination, nested workouts/progress/cardio; required revisions across every mutable Core resource; concurrent edit/delete rejection; durable request replay, receipt failure rollback, consistent aggregate reads and archive/link races; owner-scoped reads/updates/deletes and cross-owner references; dashboard composition.
 
-Browser coverage: full account → preferences → category → plan → actual → goal → food → strength → cardio → water → weight → dashboard/week → signout. Separate-browser account isolation uses known private IDs. Runs at desktop, iPhone-sized, and tablet-sized viewports using Chromium. Automated WCAG checks supplement explicit label/keyboard/dialog and no-horizontal-overflow assertions. These are browser viewport tests, not a claim of physical-device Safari testing.
+Phase 2 adds password format/salt checks and rejection of legacy formats; signup rollback on credential/session insertion failures; signed-cookie production attributes, renewal headers, expiry, replay, secret rotation and database-failure logout; auth endpoint allowlisting, origin/content-type/input limits and safe response DTOs; every registered domain route's session guard; mass assignment across all create/update families; private lists/summaries and foreign nested workout IDs. Policy and scope are in [security.md](security.md).
 
-Final run results and clean-source-copy evidence are recorded in `IMPLEMENTATION.md`.
+Browser coverage: full account → preferences → category → plan → actual → goal → food → strength → cardio → water → weight → dashboard/week → signout. Separate-browser account isolation uses known private IDs; same-browser account switching checks cookie privacy, logout replay and old-page navigation. Runs at desktop, iPhone-sized, and tablet-sized viewports using Chromium. Automated WCAG checks supplement explicit label/keyboard/dialog and no-horizontal-overflow assertions. These are browser viewport tests, not a claim of physical-device Safari testing.
+
+Foundation failure coverage and operational settings are detailed in [foundation.md](foundation.md). Final run results and the original Core clean-source-copy evidence are recorded in `IMPLEMENTATION.md`.
 
 ## Manual review flows
 
@@ -38,3 +40,5 @@ Final run results and clean-source-copy evidence are recorded in `IMPLEMENTATION
 7. Sign into a second account. Lists/dashboard must be empty, and known IDs from the first account must return 404 for reads/mutations. Sign out and confirm protected routes redirect to sign in.
 
 A public deployment, email delivery, device-native testing and backup operations are not part of this local Core verification.
+
+Integrity browser checks deliberately lose successful water/weight responses before retrying, verify that only one record exists, and simulate a competing planner edit while a form is open. All three viewport projects run these checks as part of the Core flow.

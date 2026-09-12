@@ -1,3 +1,7 @@
+import { transactionRunner } from "./infrastructure/database/transactions.js";
+import { writesService } from "./infrastructure/writes/writes.service.js";
+import { writesRepository } from "./infrastructure/writes/writes.repository.js";
+import { databaseHealth } from "./infrastructure/database/health.js";
 import { cardioRepository } from "./modules/exercise/cardio.repository.js";
 import { cardioService } from "./modules/exercise/cardio.service.js";
 import { strengthRepository } from "./modules/exercise/strength.repository.js";
@@ -19,16 +23,15 @@ import { planningRepository } from "./modules/planning/planning.repository.js";
 import { planningService } from "./modules/planning/planning.service.js";
 import { createDatabase } from "./infrastructure/database/client.js";
 import { createLogger } from "./infrastructure/logging/logger.js";
-import type { Config } from "./infrastructure/config/env.js";
+import { envSchema, type ConfigInput } from "./infrastructure/config/env.js";
 import { createAuth } from "./shared/auth/auth.js";
 import { identityRepository } from "./modules/identity/identity.repository.js";
 import { identityService } from "./modules/identity/identity.service.js";
-export function compose(config: Config) {
-  const { db, pool } = createDatabase(config.DATABASE_URL);
+export function compose(input: ConfigInput) {
+  const config = envSchema.parse(input);
   const logger = createLogger(config.LOG_LEVEL);
-  pool.on("error", (error) =>
-    logger.error({ errorType: error.name }, "Database pool error"),
-  );
+  const { db, pool } = createDatabase(config.DATABASE_URL, config, logger);
+  const runInTransaction = transactionRunner(db);
   const identity = identityService(identityRepository(db));
   const categories = categoriesService(categoriesRepository(db));
   const goals = goalsService(goalsRepository(db), categories);
@@ -38,14 +41,27 @@ export function compose(config: Config) {
     identity,
     goals,
   );
-  const nutrition = nutritionService(nutritionRepository(db), identity);
+  const nutrition = nutritionService(
+    nutritionRepository(db),
+    identity,
+    runInTransaction,
+  );
   const hydration = hydrationService(hydrationRepository(db), identity);
   const body = bodyService(bodyRepository(db));
   const exerciseRepo = exerciseRepository(db);
   const strengthRepo = strengthRepository(db);
   const exercises = exerciseService(exerciseRepo, strengthRepo);
-  const strength = strengthService(db, strengthRepo, exerciseRepo, planning);
-  const cardio = cardioService(db, cardioRepository(db), planning);
+  const strength = strengthService(
+    runInTransaction,
+    strengthRepo,
+    exerciseRepo,
+    planning,
+  );
+  const cardio = cardioService(
+    runInTransaction,
+    cardioRepository(db),
+    planning,
+  );
   const dashboard = dashboardService(
     identity,
     planning,
@@ -57,6 +73,13 @@ export function compose(config: Config) {
     cardio,
   );
   return {
+    writes: writesService(runInTransaction, writesRepository(db)),
+    databaseHealth: databaseHealth(
+      pool,
+      config.NODE_ENV === "production",
+      logger,
+    ),
+    lifecycle: { draining: false },
     exercises,
     strength,
     cardio,
@@ -71,7 +94,7 @@ export function compose(config: Config) {
     pool,
     config,
     logger,
-    auth: createAuth(db, config),
+    auth: createAuth(db, config, logger),
     identity,
   };
 }

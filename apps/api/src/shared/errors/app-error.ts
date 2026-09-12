@@ -4,8 +4,10 @@ export class AppError extends Error {
     public code: string,
     message: string,
     public details?: unknown,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
+    this.name = "AppError";
   }
 }
 export function found<T>(value: T | undefined): T {

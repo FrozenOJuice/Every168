@@ -1,8 +1,9 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localDate, addDays } from "@168hours/domain-utils";
 import { dateSchema, type Food, type FoodEntry } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -37,8 +38,9 @@ export function FoodPage({ date }: { date?: string }) {
     queryFn: () => api.getNutritionDaily(selected),
   });
   const cache = useQueryClient();
-  const remove = useMutation({
-    mutationFn: api.deleteFoodEntry,
+  const remove = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.deleteFoodEntry(item.id, item.version, key),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["nutrition"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -190,7 +192,7 @@ export function FoodPage({ date }: { date?: string }) {
                                     disabled={remove.isPending}
                                     onClick={() => {
                                       if (confirm("Delete this food entry?"))
-                                        remove.mutate(e.id);
+                                        remove.mutate(e);
                                     }}
                                   >
                                     Delete
@@ -207,11 +209,7 @@ export function FoodPage({ date }: { date?: string }) {
               </section>
             </>
           )}
-          {remove.error && (
-            <p role="alert" className="error">
-              {remove.error.message}
-            </p>
-          )}
+          <CommandError command={remove} />
         </div>
       )}
       {editor && (

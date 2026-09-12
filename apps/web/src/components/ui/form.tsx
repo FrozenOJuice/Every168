@@ -1,5 +1,6 @@
 "use client";
-import { useId } from "react";
+import { useId, useRef, useState } from "react";
+import { ApiError, uncertainWrite } from "@168hours/api-client";
 import {
   FormProvider,
   useForm,
@@ -32,46 +33,94 @@ export function Form<T extends FieldValues>({
   form,
   onSubmit,
   children,
+  retrySafe = true,
 }: {
   form: UseFormReturn<T>;
-  onSubmit: (values: T) => Promise<void>;
+  retrySafe?: boolean;
+  onSubmit: (values: T, requestKey: string) => Promise<void>;
   children: React.ReactNode;
 }) {
+  const [pending, setPending] = useState<{ values: T; key: string } | null>(
+    null,
+  );
+  const [saving, setSaving] = useState(false);
+  const [stale, setStale] = useState(false);
+  const running = useRef(false);
+  async function save(values: T) {
+    if (running.current) return;
+    running.current = true;
+    setSaving(true);
+    const attempt = pending ?? {
+      values: structuredClone(values),
+      key: crypto.randomUUID(),
+    };
+    form.clearErrors("root");
+    setStale(false);
+    try {
+      await onSubmit(attempt.values, attempt.key);
+      setPending(null);
+    } catch (error) {
+      setPending(retrySafe && uncertainWrite(error) ? attempt : null);
+      setStale(error instanceof ApiError && error.code === "STALE_REVISION");
+      if (error instanceof z.ZodError) {
+        for (const issue of error.issues)
+          if (issue.path.length)
+            form.setError(issue.path.join(".") as Path<T>, {
+              message: issue.message,
+            });
+      }
+      form.setError("root", {
+        message:
+          error instanceof z.ZodError
+            ? error.issues.map((issue) => issue.message).join(" ")
+            : error instanceof Error
+              ? error.message
+              : "Unable to save. Please try again.",
+      });
+    } finally {
+      running.current = false;
+      setSaving(false);
+    }
+  }
   return (
     <FormProvider {...form}>
       <form
         noValidate
-        onSubmit={form.handleSubmit(async (values) => {
-          form.clearErrors("root");
-          try {
-            await onSubmit(values);
-          } catch (error) {
-            if (error instanceof z.ZodError) {
-              for (const issue of error.issues)
-                if (issue.path.length)
-                  form.setError(issue.path.join(".") as Path<T>, {
-                    message: issue.message,
-                  });
-              form.setError("root", {
-                message: error.issues.map((issue) => issue.message).join(" "),
-              });
-              return;
-            }
-            form.setError("root", {
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to save. Please try again.",
-            });
-          }
-        })}
+        onSubmit={(event) => void form.handleSubmit(save)(event)}
         className="form-stack"
       >
-        {children}
+        <fieldset className="form-stack" disabled={!!pending || saving}>
+          {children}
+        </fieldset>
         {form.formState.errors.root && (
           <p role="alert" className="error">
             {form.formState.errors.root.message}
           </p>
+        )}
+        {pending && (
+          <div role="status">
+            <p>
+              The save could not be confirmed. Retry this same change before
+              making another.
+            </p>
+            <button
+              className="button primary"
+              type="button"
+              onClick={() => void save(pending.values)}
+              disabled={saving}
+            >
+              Retry save
+            </button>
+          </div>
+        )}
+        {stale && (
+          <button
+            className="button"
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            Reload latest (discard edits)
+          </button>
         )}
       </form>
     </FormProvider>

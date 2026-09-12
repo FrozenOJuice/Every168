@@ -1,7 +1,8 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import Link from "next/link";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Droplets, Scale, Utensils, Dumbbell } from "lucide-react";
 import type { Dashboard } from "@168hours/contracts";
 import { fromKilograms, localDate } from "@168hours/domain-utils";
@@ -21,9 +22,9 @@ export function HealthPanel({ data }: { data: Dashboard }) {
     history: boolean;
   } | null>(null);
   const cache = useQueryClient();
-  const water = useMutation({
-    mutationFn: (amountMl: number) =>
-      api.logWater({ amountMl, consumedAt: new Date().toISOString() }),
+  const water = useCommand({
+    mutationFn: (amountMl: number, key: string) =>
+      api.logWater({ amountMl, consumedAt: new Date().toISOString() }, key),
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["water"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -75,11 +76,7 @@ export function HealthPanel({ data }: { data: Dashboard }) {
             </button>
           </div>
           {water.isSuccess && <small role="status">Water logged.</small>}
-          {water.error && (
-            <p className="error" role="alert">
-              {water.error.message}
-            </p>
-          )}
+          <CommandError command={water} />
         </div>
         <div className="health-section">
           <div className="row between">

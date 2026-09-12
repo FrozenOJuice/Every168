@@ -30,6 +30,14 @@ export const foods = pgTable(
     archivedAt: instant("archived_at"),
   },
   (t) => [
+    check(
+      "foods_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "food_bounds",
+      sql`char_length(btrim(${t.name})) between 1 and 160 and ${t.servingUnit} in ('g','ml','item','serving') and ${t.servingAmount}<=100000 and ${t.calories}<=100000 and ${t.proteinG}<=100000 and ${t.carbsG}<=100000 and ${t.fatG}<=100000 and ${t.fiberG}<=100000`,
+    ),
     unique("food_owner_id").on(t.userId, t.id),
     index("food_user_created_idx").on(t.userId, t.createdAt, t.id),
     check("food_positive_serving", sql`${t.servingAmount}>0`),
@@ -59,6 +67,18 @@ export const foodEntries = pgTable(
     fiberGSnapshot: doublePrecision("fiber_g_snapshot"),
   },
   (t) => [
+    check(
+      "foodEntries_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "food_entry_bounds",
+      sql`${t.quantity}<=1000 and isfinite(${t.consumedAt}) and ${t.mealType} in ('breakfast','lunch','dinner','snack','other')`,
+    ),
+    check(
+      "food_snapshot_bounds",
+      sql`char_length(btrim(${t.nameSnapshot})) between 1 and 160 and ${t.servingUnitSnapshot} in ('g','ml','item','serving') and ${t.servingAmountSnapshot}>0 and ${t.servingAmountSnapshot}<=100000 and ${t.caloriesSnapshot} between 0 and 100000 and ${t.proteinGSnapshot} between 0 and 100000 and ${t.carbsGSnapshot} between 0 and 100000 and ${t.fatGSnapshot} between 0 and 100000 and ${t.fiberGSnapshot} between 0 and 100000`,
+    ),
     index("food_entry_user_consumed_idx").on(t.userId, t.consumedAt),
     foreignKey({
       columns: [t.userId, t.foodId],

@@ -1,3 +1,4 @@
+import type { TransactionContext } from "../../shared/transactions.js";
 import type { WeightInput } from "@168hours/contracts";
 import { found } from "../../shared/errors/app-error.js";
 import type { bodyRepository } from "./body.repository.js";
@@ -9,11 +10,22 @@ export function bodyService(repo: ReturnType<typeof bodyRepository>) {
     async get(u: string, id: string) {
       return found(await repo.get(u, id));
     },
-    async update(u: string, id: string, v: WeightInput) {
-      return found(await repo.update(u, id, v));
+    async update(
+      u: string,
+      id: string,
+      v: WeightInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(await repo.update(u, id, v, version, context));
     },
-    async remove(u: string, id: string) {
-      found(await repo.remove(u, id));
+    async remove(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      found(await repo.remove(u, id, version, context));
       return { ok: true as const };
     },
   };

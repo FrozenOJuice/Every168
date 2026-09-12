@@ -1,10 +1,7 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Exercise } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { Empty, Loading, ErrorState } from "@/components/ui/feedback";
@@ -30,8 +27,9 @@ export function ExerciseLibrary({
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   const cache = useQueryClient();
-  const archive = useMutation({
-    mutationFn: api.archiveExercise,
+  const archive = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.archiveExercise(item.id, item.version, key),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["exercises"] }),
   });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -90,7 +88,7 @@ export function ExerciseLibrary({
                           "Archive this exercise? Past workouts will remain intact.",
                         )
                       )
-                        archive.mutate(e.id);
+                        archive.mutate(e);
                     }}
                   >
                     Archive
@@ -110,11 +108,7 @@ export function ExerciseLibrary({
           Load more exercises
         </button>
       )}
-      {archive.error && (
-        <p role="alert" className="error">
-          {archive.error.message}
-        </p>
-      )}
+      <CommandError command={archive} />
     </section>
   );
 }

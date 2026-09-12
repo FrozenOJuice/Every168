@@ -1,3 +1,4 @@
+import { commandHeaders } from "./helpers.js";
 import { it, expect } from "vitest";
 import request from "supertest";
 import { testApp, origin } from "./helpers.js";
@@ -18,6 +19,7 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
       .post("/api/v1/" + path)
       .set("Cookie", cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(data);
   const cat = await post("categories", { name: "Learning" }).expect(201);
   const created = await post("time-blocks", {
@@ -63,6 +65,7 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
       .put("/api/v1/" + family + "/" + id)
       .set("Cookie", b.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input)
       .expect(404);
     if (family === "categories")
@@ -72,6 +75,7 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
         .delete("/api/v1/" + family + "/" + id)
         .set("Cookie", b.cookie)
         .set("Origin", origin)
+        .set(commandHeaders())
         .expect(404);
   }
   await post(
@@ -81,10 +85,11 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
   ).expect(404);
   await post("time-entries", actual, b.cookie).expect(404);
   await post("time-blocks", { ...block, endsAt: block.startsAt }).expect(422);
-  await request(app)
+  const updated = await request(app)
     .put("/api/v1/time-blocks/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({ ...block, title: "Updated", categoryId: cat.body.id })
     .expect(200);
   await post("categories/" + cat.body.id + "/archive", {}).expect(200);
@@ -92,6 +97,7 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
     .delete("/api/v1/time-blocks/" + created.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(updated.body.version))
     .expect(200);
   const surviving = await request(app)
     .get("/api/v1/time-entries/" + entry.body.id)
@@ -102,6 +108,7 @@ it("persists plans and actuals, clips overlap coverage and isolates every planni
     .delete("/api/v1/time-entries/" + entry.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(surviving.body.version))
     .expect(200);
   const other = await request(app)
     .get("/api/v1/weeks/2026-09-07")

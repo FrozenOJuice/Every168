@@ -1,6 +1,7 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { categoryInput, type Category } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
@@ -21,9 +22,9 @@ function CategoryForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
-        if (item) await api.updateCategory(item.id, v);
-        else await api.createCategory(v);
+      onSubmit={async (v, key) => {
+        if (item) await api.updateCategory(item.id, v, item.version, key);
+        else await api.createCategory(v, key);
         await cache.invalidateQueries({ queryKey: ["categories"] });
         await cache.invalidateQueries({ queryKey: ["week"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
@@ -48,8 +49,9 @@ export function CategoriesPanel() {
   });
   const cache = useQueryClient();
   const [editing, setEditing] = useState<Category | "new" | null>(null);
-  const archive = useMutation({
-    mutationFn: api.archiveCategory,
+  const archive = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.archiveCategory(item.id, item.version, key),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["categories"] }),
   });
   return (
@@ -99,7 +101,7 @@ export function CategoriesPanel() {
                           "Archive this category? Existing records will keep their category.",
                         )
                       )
-                        archive.mutate(c.id);
+                        archive.mutate(c);
                     }}
                   >
                     Archive
@@ -110,11 +112,7 @@ export function CategoriesPanel() {
           ))}
         </ul>
       )}
-      {archive.error && (
-        <p role="alert" className="error">
-          {archive.error.message}
-        </p>
-      )}
+      <CommandError command={archive} />
       {editing && (
         <Dialog
           title={editing === "new" ? "Add category" : "Edit category"}

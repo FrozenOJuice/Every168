@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+  check,
   pgTable,
   uuid,
   text,
@@ -28,6 +30,18 @@ export const goals = pgTable(
     completedAt: instant("completed_at"),
   },
   (t) => [
+    check(
+      "goals_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "goal_fields",
+      sql`char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.description})<=4000`,
+    ),
+    check(
+      "goal_status",
+      sql`${t.status} in ('active','completed','paused','archived') and ((${t.status}='completed') = (${t.completedAt} is not null)) and isfinite(${t.completedAt}) and isfinite(${t.targetDate})`,
+    ),
     unique("goal_owner_id").on(t.userId, t.id),
     index("goal_user_created_idx").on(t.userId, t.createdAt, t.id),
     foreignKey({

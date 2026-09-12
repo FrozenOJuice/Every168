@@ -1,9 +1,17 @@
-import { eq } from "drizzle-orm";
+import { changed } from "../../shared/errors/revision.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
+import { and, eq } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
-import { preferences } from "./identity.table.js";
+import { preferences, session } from "./identity.table.js";
 import type { Preferences } from "@168hours/contracts";
 export function identityRepository(db: Database) {
   return {
+    async revokeSession(userId: string, token: string) {
+      await db
+        .delete(session)
+        .where(and(eq(session.userId, userId), eq(session.token, token)));
+    },
     async getPreferences(userId: string) {
       await db.insert(preferences).values({ userId }).onConflictDoNothing();
       return (
@@ -13,17 +21,35 @@ export function identityRepository(db: Database) {
           .where(eq(preferences.userId, userId))
       )[0]!;
     },
-    async savePreferences(userId: string, input: Preferences) {
-      return (
-        await db
-          .insert(preferences)
-          .values({ userId, ...input })
-          .onConflictDoUpdate({
-            target: preferences.userId,
-            set: { ...input, updatedAt: new Date() },
-          })
+    async savePreferences(
+      userId: string,
+      input: Preferences,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const tx = databaseFor(db, context);
+      const row = (
+        await tx
+          .update(preferences)
+          .set(input)
+          .where(
+            and(
+              eq(preferences.userId, userId),
+              eq(preferences.version, version),
+            ),
+          )
           .returning()
-      )[0]!;
+      )[0];
+      return changed(
+        row,
+        async () =>
+          (
+            await tx
+              .select()
+              .from(preferences)
+              .where(eq(preferences.userId, userId))
+          )[0],
+      );
     },
   };
 }

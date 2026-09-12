@@ -6,6 +6,7 @@ export const titleSchema = z.string().trim().min(1).max(160);
 export const notesSchema = z.string().trim().max(4000).nullable().default(null);
 export const recordSchema = z.object({
   id: idSchema,
+  version: z.number().int().positive(),
   createdAt: instantSchema,
   updatedAt: instantSchema,
 });

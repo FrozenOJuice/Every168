@@ -51,7 +51,6 @@ export const workoutStartInput = z
 export const workoutUpdateInput = workoutStartInput
   .extend({
     endedAt: instantSchema.nullable(),
-    expectedUpdatedAt: instantSchema.optional(),
     exercises: z.array(workoutExerciseInput).max(50),
   })
   .refine(

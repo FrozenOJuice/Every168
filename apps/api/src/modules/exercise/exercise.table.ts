@@ -25,6 +25,14 @@ export const exercises = pgTable(
     archivedAt: instant("archived_at"),
   },
   (t) => [
+    check(
+      "exercises_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "exercise_fields",
+      sql`char_length(btrim(${t.name})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
     unique("exercise_owner_id").on(t.userId, t.id),
     index("exercise_user_created_idx").on(t.userId, t.createdAt, t.id),
   ],
@@ -43,6 +51,18 @@ export const strengthWorkouts = pgTable(
     ),
   },
   (t) => [
+    check(
+      "strengthWorkouts_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "workout_bounds",
+      sql`isfinite(${t.startedAt}) and isfinite(${t.endedAt}) and ${t.endedAt}-${t.startedAt}<=interval '31 days' and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
+    foreignKey({
+      columns: [t.userId, t.linkedTimeBlockId],
+      foreignColumns: [timeBlocks.userId, timeBlocks.id],
+    }),
     unique("workout_owner_id").on(t.userId, t.id),
     index("workout_user_created_idx").on(t.userId, t.createdAt, t.id),
     index("workout_user_start_idx").on(t.userId, t.startedAt),
@@ -60,6 +80,15 @@ export const workoutExercises = pgTable(
     notes: text("notes"),
   },
   (t) => [
+    check(
+      "workoutExercises_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "workout_exercise_fields",
+      sql`${t.position} between 0 and 49 and char_length(btrim(${t.exerciseNameSnapshot})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
+    unique("workout_exercise_position").on(t.userId, t.workoutId, t.position),
     unique("workout_exercise_owner_id").on(t.userId, t.id),
     foreignKey({
       columns: [t.userId, t.workoutId],
@@ -85,6 +114,15 @@ export const strengthSets = pgTable(
     completed: boolean("completed").notNull(),
   },
   (t) => [
+    check(
+      "strengthSets_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "set_bounds",
+      sql`${t.position} between 0 and 99 and ${t.reps}<=10000 and ${t.durationSeconds}<=86400 and ${t.weightKg}<=2000`,
+    ),
+    unique("set_position").on(t.userId, t.workoutExerciseId, t.position),
     foreignKey({
       columns: [t.userId, t.workoutExerciseId],
       foreignColumns: [workoutExercises.userId, workoutExercises.id],
@@ -114,6 +152,18 @@ export const cardioActivities = pgTable(
     ),
   },
   (t) => [
+    check(
+      "cardioActivities_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "cardio_bounds",
+      sql`${t.activityType} in ('run','walk','swim','cycle','skip','other') and isfinite(${t.startedAt}) and ${t.durationSeconds}<=2678400 and ${t.distanceMeters}<=10000000 and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
+    foreignKey({
+      columns: [t.userId, t.linkedTimeBlockId],
+      foreignColumns: [timeBlocks.userId, timeBlocks.id],
+    }),
     index("cardio_user_created_idx").on(t.userId, t.createdAt, t.id),
     index("cardio_user_start_idx").on(t.userId, t.startedAt),
     check(

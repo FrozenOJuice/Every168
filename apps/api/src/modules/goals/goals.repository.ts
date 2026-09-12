@@ -1,14 +1,22 @@
+import { changed } from "../../shared/errors/revision.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import { and, eq, desc } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import type { GoalInput, GoalsQuery } from "@168hours/contracts";
 import { goals } from "./goals.table.js";
 export function goalsRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(goals.userId, u), eq(goals.id, id));
   return {
-    async get(u: string, id: string) {
-      return (await db.select().from(goals).where(owned(u, id)))[0];
+    async get(u: string, id: string, context?: TransactionContext) {
+      return (
+        await databaseFor(db, context).select().from(goals).where(owned(u, id))
+      )[0];
     },
     async list(u: string, q: GoalsQuery) {
       const rows = await db
@@ -25,9 +33,14 @@ export function goalsRepository(db: Database) {
         .limit(q.limit + 1);
       return pageResult(rows, q.limit);
     },
-    async create(u: string, v: GoalInput, completedAt: Date | null) {
+    async create(
+      u: string,
+      v: GoalInput,
+      completedAt: Date | null,
+      context?: TransactionContext,
+    ) {
       return (
-        await db
+        await databaseFor(db, context)
           .insert(goals)
           .values({ ...v, userId: u, completedAt })
           .returning()
@@ -38,14 +51,17 @@ export function goalsRepository(db: Database) {
       id: string,
       v: GoalInput,
       completedAt: Date | null,
+      version: number,
+      context?: TransactionContext,
     ) {
-      return (
-        await db
+      const row = (
+        await databaseFor(db, context)
           .update(goals)
           .set({ ...v, completedAt, updatedAt: new Date() })
-          .where(owned(u, id))
+          .where(and(owned(u, id), eq(goals.version, version)))
           .returning()
       )[0];
+      return changed(row, () => this.get(u, id, context));
     },
   };
 }

@@ -1,7 +1,7 @@
 import { sql, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 import type { Page, PageQuery } from "@168hours/contracts";
-import { AppError } from "../errors/app-error.js";
+import { AppError } from "../../shared/errors/app-error.js";
 const cursorSchema = z.object({ createdAt: z.iso.datetime(), id: z.uuid() });
 export function cursorCondition(
   query: PageQuery,

@@ -1,3 +1,4 @@
+import { commandHeaders } from "./helpers.js";
 import { eq } from "drizzle-orm";
 import { session } from "../src/modules/identity/identity.table.js";
 import { describe, it, expect } from "vitest";
@@ -15,10 +16,15 @@ describe("identity and request boundary", () => {
   it("creates independent accounts, persists preferences and revokes sessions", async () => {
     const a = await signUp(),
       b = await signUp();
+    const me = await request(app)
+      .get("/api/v1/me")
+      .set("Cookie", a.cookie)
+      .expect(200);
     const result = await request(app)
       .put("/api/v1/preferences")
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders(me.body.preferences.version))
       .send({
         timezone: "America/Edmonton",
         weekStartsOn: 0,
@@ -37,12 +43,14 @@ describe("identity and request boundary", () => {
       .post("/api/auth/sign-out")
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send({})
       .expect(200);
     await request(app).get("/api/v1/me").set("Cookie", a.cookie).expect(401);
     await request(app)
       .post("/api/auth/sign-in/email")
       .set("Origin", origin)
+      .set(commandHeaders())
       .send({ email: a.email, password: "Synthetic-test-password-123" })
       .expect(200);
   });
@@ -58,6 +66,7 @@ describe("identity and request boundary", () => {
       .put("/api/v1/preferences")
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send({ timezone: "invalid" })
       .expect(422);
     expect(r.body.error.code).toBe("VALIDATION_ERROR");
@@ -87,6 +96,7 @@ it("rejects expired sessions and enforces bounded request/error handling", async
     const response = await request(app)
       .post(path)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send({ name: "x".repeat(270000) })
       .expect(413);
     expect(response.body.error.code).toBe("PAYLOAD_TOO_LARGE");
@@ -94,6 +104,7 @@ it("rejects expired sessions and enforces bounded request/error handling", async
   const failed = await request(app)
     .post("/api/auth/sign-in/email")
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({
       email: "missing@example.com",
       password: "Wrong-synthetic-password",

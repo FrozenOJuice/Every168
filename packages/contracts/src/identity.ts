@@ -19,12 +19,26 @@ export const preferencesInput = z
   .strict();
 export const meSchema = z.object({
   user: z.object({ id: z.uuid(), name: z.string(), email: z.email() }),
-  preferences: preferencesInput,
+  preferences: preferencesInput.extend({
+    version: z.number().int().positive(),
+  }),
 });
-export const authInput = z.object({
+export const signInInput = z
+  .object({
+    email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+    password: z.string().min(1).max(128),
+  })
+  .strict();
+export const authInput = signInInput.extend({
   name: z.string().trim().min(1).max(100),
-  email: z.email().max(254),
   password: z.string().min(12).max(128),
 });
+export const authUserSchema = meSchema.shape.user;
+export const authSessionSchema = z
+  .object({
+    user: authUserSchema,
+    session: z.object({ expiresAt: z.iso.datetime() }),
+  })
+  .nullable();
 export type Preferences = z.infer<typeof preferencesInput>;
 export type Me = z.infer<typeof meSchema>;

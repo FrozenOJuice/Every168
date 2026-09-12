@@ -1,3 +1,4 @@
+import { assertRevision } from "../../shared/errors/revision.js";
 import type { GoalsService } from "../goals/goals.service.js";
 import {
   blockInput,
@@ -6,7 +7,7 @@ import {
   type TimeEntryInput,
 } from "@168hours/contracts";
 import { weekRange, overlaps } from "@168hours/domain-utils";
-import type { Db } from "../../infrastructure/database/client.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import { found } from "../../shared/errors/app-error.js";
 import type { CategoriesService } from "../categories/categories.service.js";
 import type { IdentityService } from "../identity/identity.service.js";
@@ -18,11 +19,15 @@ export function planningService(
   identity: IdentityService,
   goals: GoalsService,
 ) {
-  async function category(u: string, id: string | null) {
-    if (id) await categories.get(u, id);
+  async function category(
+    u: string,
+    id: string | null,
+    context?: TransactionContext,
+  ) {
+    if (id) await categories.get(u, id, context);
   }
   return {
-    async getBlock(u: string, id: string, tx?: Db) {
+    async getBlock(u: string, id: string, tx?: TransactionContext) {
       return found(await repo.getBlock(u, id, tx));
     },
     async getEntry(u: string, id: string) {
@@ -31,9 +36,8 @@ export function planningService(
     async getWeek(u: string, date: string) {
       const prefs = await identity.getPreferences(u);
       const range = weekRange(date, prefs.timezone, prefs.weekStartsOn);
-      const [blocks, entries, cats] = await Promise.all([
-        repo.blocks(u, range.startsAt, range.endsAt),
-        repo.entries(u, range.startsAt, range.endsAt),
+      const [{ blocks, entries }, cats] = await Promise.all([
+        repo.weekRecords(u, range.startsAt, range.endsAt),
         categories.list(u),
       ]);
       return {
@@ -49,40 +53,73 @@ export function planningService(
         })),
       };
     },
-    async createBlock(u: string, input: BlockInput) {
+    async createBlock(
+      u: string,
+      input: BlockInput,
+      context?: TransactionContext,
+    ) {
       const data = blockInput.parse(input);
-      await category(u, data.categoryId);
-      if (data.goalId) await goals.get(u, data.goalId);
-      return repo.createBlock(u, data);
+      await category(u, data.categoryId, context);
+      if (data.goalId) await goals.get(u, data.goalId, context);
+      return repo.createBlock(u, data, context);
     },
-    async updateBlock(u: string, id: string, input: BlockInput) {
+    async updateBlock(
+      u: string,
+      id: string,
+      input: BlockInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
       const data = blockInput.parse(input);
-      await category(u, data.categoryId);
-      if (data.goalId) await goals.get(u, data.goalId);
-      return found(await repo.updateBlock(u, id, data));
+      await category(u, data.categoryId, context);
+      if (data.goalId) await goals.get(u, data.goalId, context);
+      return found(await repo.updateBlock(u, id, data, version, context));
     },
-    async deleteBlock(u: string, id: string) {
-      found(await repo.deleteBlock(u, id));
+    async deleteBlock(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      found(await repo.deleteBlock(u, id, version, context));
       return { ok: true as const };
     },
-    async createEntry(u: string, input: TimeEntryInput) {
+    async createEntry(
+      u: string,
+      input: TimeEntryInput,
+      context?: TransactionContext,
+    ) {
       const data = timeEntryInput.parse(input);
-      await category(u, data.categoryId);
-      if (data.timeBlockId) found(await repo.getBlock(u, data.timeBlockId));
-      return repo.createEntry(u, data);
+      await category(u, data.categoryId, context);
+      if (data.timeBlockId)
+        found(await repo.getBlock(u, data.timeBlockId, context));
+      return repo.createEntry(u, data, context);
     },
-    async updateEntry(u: string, id: string, input: TimeEntryInput) {
+    async updateEntry(
+      u: string,
+      id: string,
+      input: TimeEntryInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      assertRevision(await repo.getEntry(u, id, context), version);
       const data = timeEntryInput.parse(input);
-      await category(u, data.categoryId);
-      if (data.timeBlockId) found(await repo.getBlock(u, data.timeBlockId));
-      return found(await repo.updateEntry(u, id, data));
+      await category(u, data.categoryId, context);
+      if (data.timeBlockId)
+        found(await repo.getBlock(u, data.timeBlockId, context));
+      return found(await repo.updateEntry(u, id, data, version, context));
     },
-    async deleteEntry(u: string, id: string) {
-      found(await repo.deleteEntry(u, id));
+    async deleteEntry(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      found(await repo.deleteEntry(u, id, version, context));
       return { ok: true as const };
     },
     async recordSource(
-      tx: Db,
+      tx: TransactionContext,
       u: string,
       input: TimeEntryInput & {
         sourceType: "strength_workout" | "cardio_activity";

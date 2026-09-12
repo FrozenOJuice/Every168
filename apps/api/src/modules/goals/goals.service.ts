@@ -1,3 +1,4 @@
+import type { TransactionContext } from "../../shared/transactions.js";
 import type { GoalInput } from "@168hours/contracts";
 import { found } from "../../shared/errors/app-error.js";
 import type { CategoriesService } from "../categories/categories.service.js";
@@ -8,16 +9,27 @@ export function goalsService(
 ) {
   return {
     list: repo.list,
-    async get(u: string, id: string) {
-      return found(await repo.get(u, id));
+    async get(u: string, id: string, context?: TransactionContext) {
+      return found(await repo.get(u, id, context));
     },
-    async create(u: string, v: GoalInput) {
-      if (v.categoryId) await categories.get(u, v.categoryId);
-      return repo.create(u, v, v.status === "completed" ? new Date() : null);
+    async create(u: string, v: GoalInput, context?: TransactionContext) {
+      if (v.categoryId) await categories.get(u, v.categoryId, context);
+      return repo.create(
+        u,
+        v,
+        v.status === "completed" ? new Date() : null,
+        context,
+      );
     },
-    async update(u: string, id: string, v: GoalInput) {
-      const existing = found(await repo.get(u, id));
-      if (v.categoryId) await categories.get(u, v.categoryId);
+    async update(
+      u: string,
+      id: string,
+      v: GoalInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const existing = found(await repo.get(u, id, context));
+      if (v.categoryId) await categories.get(u, v.categoryId, context);
       return found(
         await repo.update(
           u,
@@ -26,6 +38,8 @@ export function goalsService(
           v.status === "completed"
             ? (existing.completedAt ?? new Date())
             : null,
+          version,
+          context,
         ),
       );
     },

@@ -27,9 +27,9 @@ export function FoodForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
-        if (food) await api.updateFood(food.id, v);
-        else await api.createFood(v);
+      onSubmit={async (v, key) => {
+        if (food) await api.updateFood(food.id, v, food.version, key);
+        else await api.createFood(v, key);
         await cache.invalidateQueries({ queryKey: ["foods"] });
         onSaved();
       }}

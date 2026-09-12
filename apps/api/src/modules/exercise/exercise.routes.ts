@@ -1,3 +1,5 @@
+import { mutation, emptyInput } from "../../shared/http/mutation.js";
+import type { WritesService } from "../../infrastructure/writes/writes.service.js";
 import { Router } from "express";
 import {
   exerciseInput,
@@ -16,6 +18,7 @@ export function exerciseRoutes(
   exercises: ExerciseService,
   strength: StrengthService,
   cardio: CardioService,
+  writes: WritesService,
 ) {
   const r = Router();
   r.get("/exercises", async (req, res) =>
@@ -23,36 +26,38 @@ export function exerciseRoutes(
       await exercises.list(currentUser(res).id, libraryQuery.parse(req.query)),
     ),
   );
-  r.post("/exercises", async (req, res) =>
-    res
-      .status(201)
-      .json(
-        await exercises.create(
-          currentUser(res).id,
-          exerciseInput.parse(req.body),
-        ),
-      ),
+  r.post(
+    "/exercises",
+    mutation(
+      writes,
+      exerciseInput,
+      ({ userId, input, context }) => exercises.create(userId, input, context),
+      { status: 201 },
+    ),
   );
   r.get("/exercises/:id", async (req, res) =>
     res.json(
       await exercises.get(currentUser(res).id, idSchema.parse(req.params.id)),
     ),
   );
-  r.put("/exercises/:id", async (req, res) =>
-    res.json(
-      await exercises.update(
-        currentUser(res).id,
-        idSchema.parse(req.params.id),
-        exerciseInput.parse(req.body),
-      ),
+  r.put(
+    "/exercises/:id",
+    mutation(
+      writes,
+      exerciseInput,
+      ({ userId, id, input, version, context }) =>
+        exercises.update(userId, id, input, version, context),
+      { versioned: true },
     ),
   );
-  r.post("/exercises/:id/archive", async (req, res) =>
-    res.json(
-      await exercises.archive(
-        currentUser(res).id,
-        idSchema.parse(req.params.id),
-      ),
+  r.post(
+    "/exercises/:id/archive",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        exercises.archive(userId, id, version, context),
+      { versioned: true },
     ),
   );
   r.get("/strength-progress/:id", async (req, res) =>
@@ -72,33 +77,38 @@ export function exerciseRoutes(
       ),
     ),
   );
-  r.post("/strength-workouts", async (req, res) =>
-    res
-      .status(201)
-      .json(
-        await strength.start(
-          currentUser(res).id,
-          workoutStartInput.parse(req.body),
-        ),
-      ),
+  r.post(
+    "/strength-workouts",
+    mutation(
+      writes,
+      workoutStartInput,
+      ({ userId, input, context }) => strength.start(userId, input, context),
+      { status: 201 },
+    ),
   );
   r.get("/strength-workouts/:id", async (req, res) =>
     res.json(
       await strength.get(currentUser(res).id, idSchema.parse(req.params.id)),
     ),
   );
-  r.put("/strength-workouts/:id", async (req, res) =>
-    res.json(
-      await strength.save(
-        currentUser(res).id,
-        idSchema.parse(req.params.id),
-        workoutUpdateInput.parse(req.body),
-      ),
+  r.put(
+    "/strength-workouts/:id",
+    mutation(
+      writes,
+      workoutUpdateInput,
+      ({ userId, id, input, version, context }) =>
+        strength.save(userId, id, input, version, context),
+      { versioned: true },
     ),
   );
-  r.delete("/strength-workouts/:id", async (req, res) =>
-    res.json(
-      await strength.remove(currentUser(res).id, idSchema.parse(req.params.id)),
+  r.delete(
+    "/strength-workouts/:id",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        strength.remove(userId, id, version, context),
+      { versioned: true },
     ),
   );
   r.get("/cardio-activities", async (req, res) =>
@@ -106,30 +116,38 @@ export function exerciseRoutes(
       await cardio.list(currentUser(res).id, pageQuerySchema.parse(req.query)),
     ),
   );
-  r.post("/cardio-activities", async (req, res) =>
-    res
-      .status(201)
-      .json(
-        await cardio.create(currentUser(res).id, cardioInput.parse(req.body)),
-      ),
+  r.post(
+    "/cardio-activities",
+    mutation(
+      writes,
+      cardioInput,
+      ({ userId, input, context }) => cardio.create(userId, input, context),
+      { status: 201 },
+    ),
   );
   r.get("/cardio-activities/:id", async (req, res) =>
     res.json(
       await cardio.get(currentUser(res).id, idSchema.parse(req.params.id)),
     ),
   );
-  r.put("/cardio-activities/:id", async (req, res) =>
-    res.json(
-      await cardio.update(
-        currentUser(res).id,
-        idSchema.parse(req.params.id),
-        cardioInput.parse(req.body),
-      ),
+  r.put(
+    "/cardio-activities/:id",
+    mutation(
+      writes,
+      cardioInput,
+      ({ userId, id, input, version, context }) =>
+        cardio.update(userId, id, input, version, context),
+      { versioned: true },
     ),
   );
-  r.delete("/cardio-activities/:id", async (req, res) =>
-    res.json(
-      await cardio.remove(currentUser(res).id, idSchema.parse(req.params.id)),
+  r.delete(
+    "/cardio-activities/:id",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        cardio.remove(userId, id, version, context),
+      { versioned: true },
     ),
   );
   return r;

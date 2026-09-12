@@ -1,3 +1,4 @@
+import { commandHeaders } from "./helpers.js";
 import { it, expect } from "vitest";
 import request from "supertest";
 import { testApp, origin } from "./helpers.js";
@@ -10,6 +11,7 @@ it("preserves food snapshots, distinguishes missing nutrients, and isolates food
       .post("/api/v1/" + path)
       .set("Cookie", cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(data);
   const input = {
     name: "Test oats",
@@ -29,10 +31,11 @@ it("preserves food snapshots, distinguishes missing nutrients, and isolates food
     consumedAt: "2026-09-12T12:00:00Z",
   };
   const entry = await post("food-entries", log).expect(201);
-  await request(app)
+  const changed = await request(app)
     .put("/api/v1/foods/" + food.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({ ...input, name: "Changed oats", calories: 999 })
     .expect(200);
   const daily = await request(app)
@@ -59,6 +62,7 @@ it("preserves food snapshots, distinguishes missing nutrients, and isolates food
       .put("/api/v1/" + family + "/" + id)
       .set("Cookie", b.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(data)
       .expect(404);
   }
@@ -68,8 +72,11 @@ it("preserves food snapshots, distinguishes missing nutrients, and isolates food
     .delete("/api/v1/food-entries/" + entry.body.id)
     .set("Cookie", b.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .expect(404);
-  await post("foods/" + food.body.id + "/archive", {}).expect(200);
+  await post("foods/" + food.body.id + "/archive", {})
+    .set(commandHeaders(changed.body.version))
+    .expect(200);
   await post("food-entries", log).expect(422);
   const copy = await post("food-entries/" + entry.body.id + "/repeat", {
     quantity: 1,
@@ -77,16 +84,18 @@ it("preserves food snapshots, distinguishes missing nutrients, and isolates food
     consumedAt: log.consumedAt,
   }).expect(201);
   expect(copy.body.caloriesSnapshot).toBe(150);
-  await request(app)
+  const updated = await request(app)
     .put("/api/v1/food-entries/" + entry.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders())
     .send({ quantity: 3, mealType: "lunch", consumedAt: log.consumedAt })
     .expect(200);
   await request(app)
     .delete("/api/v1/food-entries/" + entry.body.id)
     .set("Cookie", a.cookie)
     .set("Origin", origin)
+    .set(commandHeaders(updated.body.version))
     .expect(200);
 });
 it("logs, edits, paginates and isolates water/weight; dashboard shows real data only", async () => {
@@ -115,6 +124,7 @@ it("logs, edits, paginates and isolates water/weight; dashboard shows real data 
       .post("/api/v1/" + family)
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input)
       .expect(201);
     await request(app)
@@ -125,17 +135,20 @@ it("logs, edits, paginates and isolates water/weight; dashboard shows real data 
       .put("/api/v1/" + family + "/" + created.body.id)
       .set("Cookie", b.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input)
       .expect(404);
     await request(app)
       .delete("/api/v1/" + family + "/" + created.body.id)
       .set("Cookie", b.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .expect(404);
     const update = await request(app)
       .put("/api/v1/" + family + "/" + created.body.id)
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send({ ...input, [field]: field === "amountMl" ? 500 : 71 })
       .expect(200);
     expect(update.body[field]).toBe(field === "amountMl" ? 500 : 71);
@@ -143,6 +156,7 @@ it("logs, edits, paginates and isolates water/weight; dashboard shows real data 
       .post("/api/v1/" + family)
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .send(input)
       .expect(201);
     const page = await request(app)
@@ -159,6 +173,7 @@ it("logs, edits, paginates and isolates water/weight; dashboard shows real data 
       .delete("/api/v1/" + family + "/" + second.body.id)
       .set("Cookie", a.cookie)
       .set("Origin", origin)
+      .set(commandHeaders())
       .expect(200);
   }
   const dashboard = await request(app)

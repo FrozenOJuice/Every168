@@ -118,23 +118,28 @@ try {
       notes: null,
       linkedTimeBlockId: block.id,
     });
-    await deps.strength.save(id, workout.id, {
-      title: workout.title,
-      startedAt: at(today, "07:00"),
-      endedAt: at(today, "07:45"),
-      notes: null,
-      linkedTimeBlockId: block.id,
-      exercises: [
-        {
-          exerciseId: squat.id,
-          notes: null,
-          sets: [
-            { reps: 5, weightKg: 40, durationSeconds: null, completed: true },
-            { reps: 5, weightKg: 45, durationSeconds: null, completed: true },
-          ],
-        },
-      ],
-    });
+    await deps.strength.save(
+      id,
+      workout.id,
+      {
+        title: workout.title,
+        startedAt: at(today, "07:00"),
+        endedAt: at(today, "07:45"),
+        notes: null,
+        linkedTimeBlockId: block.id,
+        exercises: [
+          {
+            exerciseId: squat.id,
+            notes: null,
+            sets: [
+              { reps: 5, weightKg: 40, durationSeconds: null, completed: true },
+              { reps: 5, weightKg: 45, durationSeconds: null, completed: true },
+            ],
+          },
+        ],
+      },
+      workout.version,
+    );
     console.log(
       "Synthetic demo created. Sign in as demo@example.com using your SEED_PASSWORD.",
     );

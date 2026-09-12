@@ -1,10 +1,7 @@
 "use client";
+import { useCommand, CommandError } from "@/lib/use-command";
 import Link from "next/link";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { localDate, durationSeconds } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
@@ -23,8 +20,9 @@ export function WorkoutHistory() {
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   const cache = useQueryClient();
-  const remove = useMutation({
-    mutationFn: api.deleteWorkout,
+  const remove = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.deleteWorkout(item.id, item.version, key),
     onSuccess: () => invalidateExercise(cache),
   });
   if (query.isPending) return <Loading />;
@@ -76,7 +74,7 @@ export function WorkoutHistory() {
                         "Delete this workout, all its sets, and its recorded weekly time?",
                       )
                     )
-                      remove.mutate(w.id);
+                      remove.mutate(w);
                   }}
                 >
                   Delete
@@ -95,11 +93,7 @@ export function WorkoutHistory() {
           Load more workouts
         </button>
       )}
-      {remove.error && (
-        <p role="alert" className="error">
-          {remove.error.message}
-        </p>
-      )}
+      <CommandError command={remove} />
     </section>
   );
 }

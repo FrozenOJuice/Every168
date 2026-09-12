@@ -1,3 +1,6 @@
+import { changed } from "../../shared/errors/revision.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import {
   and,
   eq,
@@ -15,7 +18,10 @@ import type {
   FoodEntryUpdate,
   LibraryQuery,
 } from "@168hours/contracts";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import { foods, foodEntries } from "./nutrition.table.js";
 export function nutritionRepository(db: Database) {
   const foodOwner = (u: string, id: string) =>
@@ -43,12 +49,16 @@ export function nutritionRepository(db: Database) {
         .limit(q.limit + 1);
       return pageResult(rows, q.limit);
     },
-    async getFood(u: string, id: string) {
-      return (await db.select().from(foods).where(foodOwner(u, id)))[0];
+    async getFood(u: string, id: string, context?: TransactionContext) {
+      const query = databaseFor(db, context)
+        .select()
+        .from(foods)
+        .where(foodOwner(u, id));
+      return (await (context ? query.for("share") : query))[0];
     },
-    async createFood(u: string, v: FoodInput) {
+    async createFood(u: string, v: FoodInput, context?: TransactionContext) {
       return (
-        await db
+        await databaseFor(db, context)
           .insert(foods)
           .values({ ...v, userId: u })
           .returning()
@@ -58,46 +68,71 @@ export function nutritionRepository(db: Database) {
       u: string,
       id: string,
       v: Partial<FoodInput> & { archivedAt?: Date },
+      version: number,
+      context?: TransactionContext,
     ) {
-      return (
-        await db
+      const row = (
+        await databaseFor(db, context)
           .update(foods)
           .set({ ...v, updatedAt: new Date() })
-          .where(foodOwner(u, id))
+          .where(and(foodOwner(u, id), eq(foods.version, version)))
           .returning()
       )[0];
+      return changed(row, () => this.getFood(u, id, context));
     },
-    async getEntry(u: string, id: string) {
-      return (await db.select().from(foodEntries).where(entryOwner(u, id)))[0];
+    async getEntry(u: string, id: string, context?: TransactionContext) {
+      return (
+        await databaseFor(db, context)
+          .select()
+          .from(foodEntries)
+          .where(entryOwner(u, id))
+      )[0];
     },
     async createEntry(
       u: string,
       v: Omit<typeof foodEntries.$inferInsert, "userId">,
+      context?: TransactionContext,
     ) {
       return (
-        await db
+        await databaseFor(db, context)
           .insert(foodEntries)
           .values({ ...v, userId: u })
           .returning()
       )[0]!;
     },
-    async updateEntry(u: string, id: string, v: FoodEntryUpdate) {
-      return (
-        await db
+    async updateEntry(
+      u: string,
+      id: string,
+      v: FoodEntryUpdate,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const row = (
+        await databaseFor(db, context)
           .update(foodEntries)
           .set({
             ...v,
             consumedAt: new Date(v.consumedAt),
             updatedAt: new Date(),
           })
-          .where(entryOwner(u, id))
+          .where(and(entryOwner(u, id), eq(foodEntries.version, version)))
           .returning()
       )[0];
+      return changed(row, () => this.getEntry(u, id, context));
     },
-    async deleteEntry(u: string, id: string) {
-      return (
-        await db.delete(foodEntries).where(entryOwner(u, id)).returning()
+    async deleteEntry(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const row = (
+        await databaseFor(db, context)
+          .delete(foodEntries)
+          .where(and(entryOwner(u, id), eq(foodEntries.version, version)))
+          .returning()
       )[0];
+      return changed(row, () => this.getEntry(u, id, context));
     },
     entriesInRange: (u: string, start: string, end: string) =>
       db

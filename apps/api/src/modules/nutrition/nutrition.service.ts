@@ -1,4 +1,8 @@
 import type {
+  RunInTransaction,
+  TransactionContext,
+} from "../../shared/transactions.js";
+import type {
   FoodInput,
   FoodEntryInput,
   FoodEntryUpdate,
@@ -11,6 +15,7 @@ import { nutritionTotals } from "./nutrition.calculations.js";
 export function nutritionService(
   repo: ReturnType<typeof nutritionRepository>,
   identity: IdentityService,
+  runInTransaction: RunInTransaction,
 ) {
   return {
     listFoods: repo.listFoods,
@@ -18,60 +23,105 @@ export function nutritionService(
       return found(await repo.getFood(u, id));
     },
     createFood: repo.createFood,
-    async updateFood(u: string, id: string, v: FoodInput) {
-      return found(await repo.updateFood(u, id, v));
+    async updateFood(
+      u: string,
+      id: string,
+      v: FoodInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(await repo.updateFood(u, id, v, version, context));
     },
-    async archiveFood(u: string, id: string) {
-      return found(await repo.updateFood(u, id, { archivedAt: new Date() }));
+    async archiveFood(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(
+        await repo.updateFood(
+          u,
+          id,
+          { archivedAt: new Date() },
+          version,
+          context,
+        ),
+      );
     },
     async getEntry(u: string, id: string) {
       return found(await repo.getEntry(u, id));
     },
-    async logFood(u: string, v: FoodEntryInput) {
-      const food = found(await repo.getFood(u, v.foodId));
-      if (food.archivedAt)
-        throw new AppError(
-          422,
-          "BUSINESS_RULE",
-          "This food is archived. Choose an active food.",
+    async logFood(u: string, v: FoodEntryInput, context?: TransactionContext) {
+      return runInTransaction(async (scope) => {
+        const food = found(await repo.getFood(u, v.foodId, scope));
+        if (food.archivedAt)
+          throw new AppError(
+            422,
+            "BUSINESS_RULE",
+            "This food is archived. Choose an active food.",
+          );
+        return repo.createEntry(
+          u,
+          {
+            foodId: food.id,
+            consumedAt: new Date(v.consumedAt),
+            quantity: v.quantity,
+            mealType: v.mealType,
+            nameSnapshot: food.name,
+            servingAmountSnapshot: food.servingAmount,
+            servingUnitSnapshot: food.servingUnit,
+            caloriesSnapshot: food.calories,
+            proteinGSnapshot: food.proteinG,
+            carbsGSnapshot: food.carbsG,
+            fatGSnapshot: food.fatG,
+            fiberGSnapshot: food.fiberG,
+          },
+          scope,
         );
-      return repo.createEntry(u, {
-        foodId: food.id,
-        consumedAt: new Date(v.consumedAt),
-        quantity: v.quantity,
-        mealType: v.mealType,
-        nameSnapshot: food.name,
-        servingAmountSnapshot: food.servingAmount,
-        servingUnitSnapshot: food.servingUnit,
-        caloriesSnapshot: food.calories,
-        proteinGSnapshot: food.proteinG,
-        carbsGSnapshot: food.carbsG,
-        fatGSnapshot: food.fatG,
-        fiberGSnapshot: food.fiberG,
-      });
+      }, context);
     },
-    async repeatEntry(u: string, id: string, v: FoodEntryUpdate) {
-      const e = found(await repo.getEntry(u, id));
-      return repo.createEntry(u, {
-        foodId: e.foodId,
-        consumedAt: new Date(v.consumedAt),
-        quantity: v.quantity,
-        mealType: v.mealType,
-        nameSnapshot: e.nameSnapshot,
-        servingAmountSnapshot: e.servingAmountSnapshot,
-        servingUnitSnapshot: e.servingUnitSnapshot,
-        caloriesSnapshot: e.caloriesSnapshot,
-        proteinGSnapshot: e.proteinGSnapshot,
-        carbsGSnapshot: e.carbsGSnapshot,
-        fatGSnapshot: e.fatGSnapshot,
-        fiberGSnapshot: e.fiberGSnapshot,
-      });
+    async repeatEntry(
+      u: string,
+      id: string,
+      v: FoodEntryUpdate,
+      context?: TransactionContext,
+    ) {
+      const e = found(await repo.getEntry(u, id, context));
+      return repo.createEntry(
+        u,
+        {
+          foodId: e.foodId,
+          consumedAt: new Date(v.consumedAt),
+          quantity: v.quantity,
+          mealType: v.mealType,
+          nameSnapshot: e.nameSnapshot,
+          servingAmountSnapshot: e.servingAmountSnapshot,
+          servingUnitSnapshot: e.servingUnitSnapshot,
+          caloriesSnapshot: e.caloriesSnapshot,
+          proteinGSnapshot: e.proteinGSnapshot,
+          carbsGSnapshot: e.carbsGSnapshot,
+          fatGSnapshot: e.fatGSnapshot,
+          fiberGSnapshot: e.fiberGSnapshot,
+        },
+        context,
+      );
     },
-    async updateEntry(u: string, id: string, v: FoodEntryUpdate) {
-      return found(await repo.updateEntry(u, id, v));
+    async updateEntry(
+      u: string,
+      id: string,
+      v: FoodEntryUpdate,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(await repo.updateEntry(u, id, v, version, context));
     },
-    async deleteEntry(u: string, id: string) {
-      found(await repo.deleteEntry(u, id));
+    async deleteEntry(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      found(await repo.deleteEntry(u, id, version, context));
       return { ok: true as const };
     },
     async daily(u: string, date: string) {

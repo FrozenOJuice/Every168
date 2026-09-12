@@ -1,21 +1,29 @@
 import { and, eq, desc } from "drizzle-orm";
-import type {
-  Db,
-  Database,
-  Transaction,
-} from "../../infrastructure/database/client.js";
+import type { Database } from "../../infrastructure/database/client.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
+import type { TransactionContext } from "../../shared/transactions.js";
 import type { CardioInput, PageQuery } from "@168hours/contracts";
-import { cursorCondition, pageResult } from "../../shared/http/pagination.js";
+import {
+  cursorCondition,
+  pageResult,
+} from "../../infrastructure/database/pagination.js";
 import { cardioActivities as table } from "./exercise.table.js";
 export function cardioRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
-    async get(u: string, id: string, tx: Db = db, lock = false) {
+    async get(
+      u: string,
+      id: string,
+      context?: TransactionContext,
+      lock = false,
+    ) {
+      const tx = databaseFor(db, context);
       const q = tx.select().from(table).where(owned(u, id));
       return (await (lock ? q.for("update") : q))[0];
     },
-    async create(tx: Transaction, u: string, v: CardioInput) {
+    async create(context: TransactionContext, u: string, v: CardioInput) {
+      const tx = databaseFor(db, context);
       return (
         await tx
           .insert(table)
@@ -23,7 +31,13 @@ export function cardioRepository(db: Database) {
           .returning()
       )[0]!;
     },
-    async update(tx: Transaction, u: string, id: string, v: CardioInput) {
+    async update(
+      context: TransactionContext,
+      u: string,
+      id: string,
+      v: CardioInput,
+    ) {
+      const tx = databaseFor(db, context);
       return (
         await tx
           .update(table)
@@ -36,7 +50,8 @@ export function cardioRepository(db: Database) {
           .returning()
       )[0];
     },
-    async remove(tx: Transaction, u: string, id: string) {
+    async remove(context: TransactionContext, u: string, id: string) {
+      const tx = databaseFor(db, context);
       return (await tx.delete(table).where(owned(u, id)).returning())[0];
     },
     async list(u: string, q: PageQuery) {

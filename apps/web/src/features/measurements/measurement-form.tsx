@@ -53,19 +53,19 @@ export function MeasurementForm({
   return (
     <Form
       form={form}
-      onSubmit={async (v) => {
+      onSubmit={async (v, key) => {
         const at = localInputToInstant(v.at, timezone);
         if (weight) {
           const input = {
             weightKg: toKilograms(v.amount, weightUnit),
             measuredAt: at,
           };
-          if (item) await api.updateWeight(item.id, input);
-          else await api.logWeight(input);
+          if (item) await api.updateWeight(item.id, input, item.version, key);
+          else await api.logWeight(input, key);
         } else {
           const input = { amountMl: v.amount, consumedAt: at };
-          if (item) await api.updateWater(item.id, input);
-          else await api.logWater(input);
+          if (item) await api.updateWater(item.id, input, item.version, key);
+          else await api.logWater(input, key);
         }
         await cache.invalidateQueries({ queryKey: [kind] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });

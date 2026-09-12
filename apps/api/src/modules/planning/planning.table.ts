@@ -27,6 +27,14 @@ export const timeBlocks = pgTable(
     endsAt: instant("ends_at").notNull(),
   },
   (t) => [
+    check(
+      "timeBlocks_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "block_bounds",
+      sql`isfinite(${t.startsAt}) and isfinite(${t.endsAt}) and ${t.endsAt}-${t.startsAt}<=interval '31 days' and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
     unique("block_owner_id").on(t.userId, t.id),
     index("block_user_start_idx").on(t.userId, t.startsAt),
     foreignKey({
@@ -57,6 +65,18 @@ export const timeEntries = pgTable(
     sourceId: uuid("source_id"),
   },
   (t) => [
+    check(
+      "timeEntries_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
+    check(
+      "entry_bounds",
+      sql`isfinite(${t.startsAt}) and isfinite(${t.endsAt}) and ${t.endsAt}-${t.startsAt}<=interval '31 days' and char_length(btrim(${t.title})) between 1 and 160`,
+    ),
+    check(
+      "entry_source_kind",
+      sql`(${t.sourceType}='manual' and ${t.sourceId} is null) or (${t.sourceType} in ('strength_workout','cardio_activity') and ${t.sourceId} is not null)`,
+    ),
     index("entry_user_start_idx").on(t.userId, t.startsAt),
     foreignKey({
       columns: [t.userId, t.categoryId],

@@ -1,9 +1,6 @@
 "use client";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useCommand, CommandError } from "@/lib/use-command";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Cardio } from "@168hours/contracts";
 import { localDate, fromMeters, toMeters } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
@@ -22,8 +19,9 @@ export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   const cache = useQueryClient();
-  const remove = useMutation({
-    mutationFn: api.deleteCardio,
+  const remove = useCommand({
+    mutationFn: (item: { id: string; version: number }, key: string) =>
+      api.deleteCardio(item.id, item.version, key),
     onSuccess: () => invalidateExercise(cache),
   });
   if (query.isPending) return <Loading />;
@@ -87,7 +85,7 @@ export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
                           "Delete this cardio activity and its recorded weekly time?",
                         )
                       )
-                        remove.mutate(c.id);
+                        remove.mutate(c);
                     }}
                   >
                     Delete
@@ -107,11 +105,7 @@ export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
           Load more activities
         </button>
       )}
-      {remove.error && (
-        <p role="alert" className="error">
-          {remove.error.message}
-        </p>
-      )}
+      <CommandError command={remove} />
     </section>
   );
 }

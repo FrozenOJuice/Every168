@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { preferencesInput } from "@168hours/contracts";
 import { useMe } from "./me";
@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 export function PreferencesForm() {
   const me = useMe();
+  const version = useRef(me.preferences.version);
   const form = useZodForm(preferencesInput, me.preferences);
   const cache = useQueryClient();
   const [saved, setSaved] = useState(false);
@@ -15,8 +16,10 @@ export function PreferencesForm() {
       <h2>Your preferences</h2>
       <Form
         form={form}
-        onSubmit={async (input) => {
-          await api.savePreferences(input);
+        onSubmit={async (input, key) => {
+          const saved = await api.savePreferences(input, version.current, key);
+          version.current = saved.version;
+          form.reset(input);
           await cache.invalidateQueries();
           setSaved(true);
         }}

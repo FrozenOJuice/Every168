@@ -1,0 +1,120 @@
+"use client";
+import { useState } from "react";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { Exercise } from "@168hours/contracts";
+import { api } from "@/lib/api";
+import { Empty, Loading, ErrorState } from "@/components/ui/feedback";
+export function ExerciseLibrary({
+  onEdit,
+  onProgress,
+}: {
+  onEdit: (e: Exercise) => void;
+  onProgress: (e: Exercise) => void;
+}) {
+  const [archived, setArchived] = useState(false);
+  const [search, setSearch] = useState("");
+  const query = useInfiniteQuery({
+    queryKey: ["exercises", "library", archived, search],
+    queryFn: ({ pageParam }) =>
+      api.getExercises({
+        archived: archived ? "true" : "false",
+        search,
+        cursor: pageParam,
+        limit: 30,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (p) => p.nextCursor ?? undefined,
+  });
+  const cache = useQueryClient();
+  const archive = useMutation({
+    mutationFn: api.archiveExercise,
+    onSuccess: () => cache.invalidateQueries({ queryKey: ["exercises"] }),
+  });
+  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  return (
+    <section className="panel">
+      <div className="row between">
+        <h2>Your exercises</h2>
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={archived}
+            onChange={(e) => setArchived(e.target.checked)}
+          />
+          Show archived
+        </label>
+      </div>
+      <div className="field">
+        <label htmlFor="exercise-library-search">Search exercise library</label>
+        <input
+          id="exercise-library-search"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      {query.isPending ? (
+        <Loading />
+      ) : query.error ? (
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+      ) : !items.length ? (
+        <Empty>
+          Add exercises you use, such as Squat, Bench Press, or Plank.
+        </Empty>
+      ) : (
+        <ul className="record-list">
+          {items.map((e) => (
+            <li key={e.id}>
+              <div>
+                <strong>{e.name}</strong>
+                {e.notes && <small>{e.notes}</small>}
+              </div>
+              <div className="row">
+                <button className="button" onClick={() => onProgress(e)}>
+                  Progress
+                </button>
+                <button className="button" onClick={() => onEdit(e)}>
+                  Edit
+                </button>
+                {!e.archivedAt && (
+                  <button
+                    className="button"
+                    disabled={archive.isPending}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "Archive this exercise? Past workouts will remain intact.",
+                        )
+                      )
+                        archive.mutate(e.id);
+                    }}
+                  >
+                    Archive
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {query.hasNextPage && (
+        <button
+          className="button"
+          disabled={query.isFetchingNextPage}
+          onClick={() => void query.fetchNextPage()}
+        >
+          Load more exercises
+        </button>
+      )}
+      {archive.error && (
+        <p role="alert" className="error">
+          {archive.error.message}
+        </p>
+      )}
+    </section>
+  );
+}

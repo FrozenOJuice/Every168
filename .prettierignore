@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+168HOURS_BUILD_SPEC.md
+LICENSE
+.next
+node_modules
+dist
+playwright-report
+test-results
+apps/api/drizzle/meta
+.next-e2e

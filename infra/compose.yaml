@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hours
+      POSTGRES_PASSWORD: hours_local_only
+      POSTGRES_DB: hours_dev
+    ports:
+      - "127.0.0.1:54320:5432"
+    volumes:
+      - hours_pg:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hours -d hours_dev"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+  postgres-test:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: hours
+      POSTGRES_PASSWORD: hours_test_only
+      POSTGRES_DB: hours_test
+    ports:
+      - "127.0.0.1:54321:5432"
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hours -d hours_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+volumes:
+  hours_pg:

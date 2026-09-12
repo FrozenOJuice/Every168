@@ -1,0 +1,83 @@
+import { paceSecondsPerKm } from "@168hours/domain-utils";
+import type { CardioInput, PageQuery } from "@168hours/contracts";
+import type {
+  Database,
+  Transaction,
+} from "../../infrastructure/database/client.js";
+import { found } from "../../shared/errors/app-error.js";
+import type { PlanningService } from "../planning/planning.service.js";
+import type { cardioRepository } from "./cardio.repository.js";
+type Row = NonNullable<
+  Awaited<ReturnType<ReturnType<typeof cardioRepository>["get"]>>
+>;
+const view = (row: Row) => ({
+  ...row,
+  paceSecondsPerKm: paceSecondsPerKm(
+    row.activityType,
+    row.durationSeconds,
+    row.distanceMeters,
+  ),
+});
+export function cardioService(
+  db: Database,
+  repo: ReturnType<typeof cardioRepository>,
+  planning: PlanningService,
+) {
+  async function record(tx: Transaction, u: string, row: Row) {
+    const block = row.linkedTimeBlockId
+      ? await planning.getBlock(u, row.linkedTimeBlockId, tx)
+      : null;
+    await planning.recordSource(tx, u, {
+      title: row.title,
+      categoryId: block?.categoryId ?? null,
+      timeBlockId: row.linkedTimeBlockId,
+      startsAt: row.startedAt.toISOString(),
+      endsAt: new Date(
+        row.startedAt.getTime() + row.durationSeconds * 1000,
+      ).toISOString(),
+      sourceType: "cardio_activity",
+      sourceId: row.id,
+    });
+  }
+  return {
+    async list(u: string, q: PageQuery) {
+      const result = await repo.list(u, q);
+      return { ...result, items: result.items.map(view) };
+    },
+    async get(u: string, id: string) {
+      return view(found(await repo.get(u, id)));
+    },
+    async latest(u: string) {
+      const row = await repo.latest(u);
+      return row ? view(row) : null;
+    },
+    async create(u: string, v: CardioInput) {
+      return db.transaction(async (tx) => {
+        if (v.linkedTimeBlockId)
+          await planning.getBlock(u, v.linkedTimeBlockId, tx);
+        const row = await repo.create(tx, u, v);
+        await record(tx, u, row);
+        return view(row);
+      });
+    },
+    async update(u: string, id: string, v: CardioInput) {
+      return db.transaction(async (tx) => {
+        found(await repo.get(u, id, tx, true));
+        if (v.linkedTimeBlockId)
+          await planning.getBlock(u, v.linkedTimeBlockId, tx);
+        const row = found(await repo.update(tx, u, id, v));
+        await record(tx, u, row);
+        return view(row);
+      });
+    },
+    async remove(u: string, id: string) {
+      return db.transaction(async (tx) => {
+        found(await repo.get(u, id, tx, true));
+        await planning.removeSource(tx, u, "cardio_activity", id);
+        found(await repo.remove(tx, u, id));
+        return { ok: true as const };
+      });
+    },
+  };
+}
+export type CardioService = ReturnType<typeof cardioService>;

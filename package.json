@@ -1,0 +1,43 @@
+{
+  "name": "168hours",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "db:up": "docker compose -f infra/compose.yaml up -d --wait",
+    "db:down": "docker compose -f infra/compose.yaml down",
+    "db:generate": "pnpm --filter @168hours/api db:generate",
+    "db:migrate": "pnpm --filter @168hours/api db:migrate",
+    "db:seed": "pnpm --filter @168hours/api db:seed",
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "dev:api": "pnpm --filter @168hours/api dev",
+    "dev:web": "pnpm --filter @168hours/web dev",
+    "lint": "eslint . --max-warnings=0 && node scripts/check-boundaries.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "pnpm --filter @168hours/api test:integration",
+    "test:e2e": "playwright test",
+    "build": "pnpm -r build",
+    "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e",
+    "setup:env": "node scripts/setup-env.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.5",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "tsup": "8.5.1",
+    "tsx": "4.23.13",
+    "typescript": "6.0.2",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.0"
+  }
+}

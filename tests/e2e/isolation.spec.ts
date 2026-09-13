@@ -64,9 +64,9 @@ test("second browser account cannot access known private record IDs", async ({
       expect(response.status()).toBe(404);
     }
     const page = await second.newPage();
-    await page.goto("/week?date=2026-09-07");
+    await page.goto("/?date=2026-09-07");
     await expect(
-      page.getByRole("heading", { name: "Your week", exact: true }),
+      page.getByRole("heading", { name: "Calendar", exact: true }),
     ).toBeVisible();
     await expect(page.getByText("Private planning block")).toHaveCount(0);
     const stillThere = await first.request.get(
@@ -74,7 +74,7 @@ test("second browser account cannot access known private record IDs", async ({
     );
     expect(stillThere.status()).toBe(200);
     const ownerPage = await first.newPage();
-    await ownerPage.goto("/week?date=2026-09-07");
+    await ownerPage.goto("/?date=2026-09-07");
     await expect(ownerPage.getByText("Private planning block")).toBeVisible();
     expect(await ownerPage.evaluate(() => document.cookie)).not.toContain(
       "session_token",
@@ -84,6 +84,7 @@ test("second browser account cannot access known private record IDs", async ({
     )!;
     expect(sessionCookie.httpOnly).toBe(true);
     expect(sessionCookie.sameSite).toBe("Lax");
+    await ownerPage.getByRole("button", { name: "Account menu" }).click();
     await ownerPage
       .getByRole("button", { name: "Sign out", exact: true })
       .click();
@@ -103,17 +104,33 @@ test("second browser account cannot access known private record IDs", async ({
       .getByRole("button", { name: "Sign in", exact: true })
       .click();
     await expect(ownerPage).toHaveURL("http://localhost:3100/");
-    await ownerPage.goto("/week?date=2026-09-07");
     await expect(
-      ownerPage.getByRole("heading", { name: "Your week", exact: true }),
+      ownerPage.getByRole("heading", { name: "Calendar", exact: true }),
+    ).toBeVisible();
+    await ownerPage.goto("/?date=2026-09-07");
+    await expect(
+      ownerPage.getByRole("heading", { name: "Calendar", exact: true }),
     ).toBeVisible();
     await expect(ownerPage.getByText("Private planning block")).toHaveCount(0);
     // Traversing old history must not restore the first account's cached page.
     await ownerPage.goBack();
-    await ownerPage.goBack();
-    await ownerPage.goBack();
+    await expect(
+      ownerPage.getByRole("heading", { name: "Calendar", exact: true }),
+    ).toBeVisible();
     await expect(ownerPage.getByText("Private planning block")).toHaveCount(0);
-    await ownerPage.goto("/week?date=2026-09-07");
+    await ownerPage.goBack();
+    await expect(
+      ownerPage.getByRole("heading", { name: "Welcome back", exact: true }),
+    ).toBeVisible();
+    await ownerPage.goBack();
+    await expect(
+      ownerPage.getByRole("heading", { name: "Calendar", exact: true }),
+    ).toBeVisible();
+    await expect(
+      ownerPage.getByRole("region", { name: "Weekly time grid" }),
+    ).toBeVisible();
+    await expect(ownerPage.getByText("Private planning block")).toHaveCount(0);
+    await ownerPage.goto("/?date=2026-09-07");
     await expect(ownerPage.getByText("Private planning block")).toHaveCount(0);
   } finally {
     await first.close();

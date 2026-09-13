@@ -17,6 +17,7 @@ import type {
   FoodInput,
   FoodEntryUpdate,
   LibraryQuery,
+  FoodHistoryQuery,
 } from "@168hours/contracts";
 import {
   cursorCondition,
@@ -40,7 +41,10 @@ export function nutritionRepository(db: Database) {
               ? isNotNull(foods.archivedAt)
               : isNull(foods.archivedAt),
             q.search
-              ? ilike(foods.name, "%" + q.search.replace(/[\%_]/g, "\$&") + "%")
+              ? ilike(
+                  foods.name,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
               : undefined,
             cursorCondition(q, foods.createdAt, foods.id),
           ),
@@ -67,7 +71,7 @@ export function nutritionRepository(db: Database) {
     async updateFood(
       u: string,
       id: string,
-      v: Partial<FoodInput> & { archivedAt?: Date },
+      v: Partial<FoodInput> & { archivedAt?: Date | null },
       version: number,
       context?: TransactionContext,
     ) {
@@ -87,6 +91,36 @@ export function nutritionRepository(db: Database) {
           .from(foodEntries)
           .where(entryOwner(u, id))
       )[0];
+    },
+    async listEntries(
+      u: string,
+      q: FoodHistoryQuery,
+      range?: { startsAt: string; endsAt: string },
+    ) {
+      const rows = await db
+        .select()
+        .from(foodEntries)
+        .where(
+          and(
+            eq(foodEntries.userId, u),
+            q.search
+              ? ilike(
+                  foodEntries.nameSnapshot,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
+              : undefined,
+            range
+              ? gte(foodEntries.consumedAt, new Date(range.startsAt))
+              : undefined,
+            range
+              ? lt(foodEntries.consumedAt, new Date(range.endsAt))
+              : undefined,
+            cursorCondition(q, foodEntries.createdAt, foodEntries.id),
+          ),
+        )
+        .orderBy(desc(foodEntries.createdAt), desc(foodEntries.id))
+        .limit(q.limit + 1);
+      return pageResult(rows, q.limit);
     },
     async createEntry(
       u: string,

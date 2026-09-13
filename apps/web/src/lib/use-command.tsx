@@ -7,6 +7,7 @@ import { ApiError, uncertainWrite } from "@168hours/api-client";
 export function useCommand<T, V = void>(options: {
   mutationFn: (variables: V, key: string) => Promise<T>;
   onSuccess?: (result: T) => unknown;
+  onError?: (error: Error) => unknown;
 }) {
   const attempt = useRef<{ variables: V; key: string } | null>(null);
   const running = useRef(false);
@@ -14,6 +15,7 @@ export function useCommand<T, V = void>(options: {
     mutationFn: ({ variables, key }: { variables: V; key: string }) =>
       options.mutationFn(variables, key),
     onSuccess: options.onSuccess,
+    onError: options.onError,
     retry: false,
     onSettled: (_data, error) => {
       running.current = false;

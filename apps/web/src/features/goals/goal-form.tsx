@@ -5,8 +5,10 @@ import { api } from "@/lib/api";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
 export function GoalForm({
   goal,
+  date,
   onSaved,
 }: {
+  date?: string;
   goal?: Goal;
   onSaved: () => void;
 }) {
@@ -16,7 +18,7 @@ export function GoalForm({
       title: "",
       description: null,
       categoryId: null,
-      targetDate: null,
+      targetDate: date ?? null,
       status: "active",
     },
   );

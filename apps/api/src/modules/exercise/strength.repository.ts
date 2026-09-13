@@ -1,4 +1,14 @@
-import { and, eq, asc, desc, inArray, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  asc,
+  desc,
+  inArray,
+  isNotNull,
+  isNull,
+  ilike,
+  sql,
+} from "drizzle-orm";
 import type {
   Database,
   Transaction,
@@ -7,6 +17,7 @@ import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
 import type {
   PageQuery,
+  WorkoutHistoryQuery,
   WorkoutStartInput,
   WorkoutUpdateInput,
 } from "@168hours/contracts";
@@ -83,13 +94,24 @@ export function strengthRepository(db: Database) {
           .returning()
       )[0]!;
     },
-    async list(u: string, q: PageQuery) {
+    async list(u: string, q: WorkoutHistoryQuery) {
       const rows = await db
         .select()
         .from(workouts)
         .where(
           and(
             eq(workouts.userId, u),
+            q.search
+              ? ilike(
+                  workouts.title,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
+              : undefined,
+            q.status === "active"
+              ? isNull(workouts.endedAt)
+              : q.status === "completed"
+                ? isNotNull(workouts.endedAt)
+                : undefined,
             cursorCondition(q, workouts.createdAt, workouts.id),
           ),
         )
@@ -103,6 +125,7 @@ export function strengthRepository(db: Database) {
       id: string,
       v: WorkoutUpdateInput,
       names: string[],
+      previous: NonNullable<Awaited<ReturnType<typeof get>>>,
     ) {
       const tx = databaseFor(db, context);
       await tx
@@ -125,11 +148,14 @@ export function strengthRepository(db: Database) {
           ),
         );
       for (const [position, e] of v.exercises.entries()) {
+        const old = previous.exercises.find((item) => item.id === e.id);
         const row = (
           await tx
             .insert(workoutExercises)
             .values({
               id: e.id,
+              createdAt: old?.createdAt,
+              version: old ? old.version + 1 : 1,
               userId: u,
               workoutId: id,
               exerciseId: e.exerciseId,
@@ -141,12 +167,17 @@ export function strengthRepository(db: Database) {
         )[0]!;
         if (e.sets.length)
           await tx.insert(strengthSets).values(
-            e.sets.map((s, position) => ({
-              ...s,
-              userId: u,
-              workoutExerciseId: row.id,
-              position,
-            })),
+            e.sets.map((s, position) => {
+              const oldSet = old?.sets.find((item) => item.id === s.id);
+              return {
+                ...s,
+                createdAt: oldSet?.createdAt,
+                version: oldSet ? oldSet.version + 1 : 1,
+                userId: u,
+                workoutExerciseId: row.id,
+                position,
+              };
+            }),
           );
       }
       return get(u, id, context);
@@ -168,56 +199,61 @@ export function strengthRepository(db: Database) {
       );
     },
     async progress(u: string, exerciseId: string, q: PageQuery) {
-      const scope = and(
-        eq(strengthSets.userId, u),
-        eq(workoutExercises.userId, u),
-        eq(workouts.userId, u),
-        eq(workoutExercises.exerciseId, exerciseId),
-        eq(strengthSets.completed, true),
-        isNotNull(workouts.endedAt),
+      return db.transaction(
+        async (tx) => {
+          const scope = and(
+            eq(strengthSets.userId, u),
+            eq(workoutExercises.userId, u),
+            eq(workouts.userId, u),
+            eq(workoutExercises.exerciseId, exerciseId),
+            eq(strengthSets.completed, true),
+            isNotNull(workouts.endedAt),
+          );
+          const rows = await tx
+            .select({
+              id: strengthSets.id,
+              createdAt: strengthSets.createdAt,
+              workoutId: workouts.id,
+              startedAt: workouts.startedAt,
+              exerciseNameSnapshot: workoutExercises.exerciseNameSnapshot,
+              reps: strengthSets.reps,
+              weightKg: strengthSets.weightKg,
+              durationSeconds: strengthSets.durationSeconds,
+            })
+            .from(strengthSets)
+            .innerJoin(
+              workoutExercises,
+              eq(strengthSets.workoutExerciseId, workoutExercises.id),
+            )
+            .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+            .where(
+              and(
+                scope,
+                cursorCondition(q, strengthSets.createdAt, strengthSets.id),
+              ),
+            )
+            .orderBy(desc(strengthSets.createdAt), desc(strengthSets.id))
+            .limit(q.limit + 1);
+          const [max] = await tx
+            .select({
+              weight: sql<number | null>`max(${strengthSets.weightKg})`.mapWith(
+                Number,
+              ),
+            })
+            .from(strengthSets)
+            .innerJoin(
+              workoutExercises,
+              eq(strengthSets.workoutExerciseId, workoutExercises.id),
+            )
+            .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+            .where(scope);
+          return {
+            maxWeightKg: max?.weight ?? null,
+            history: pageResult(rows, q.limit),
+          };
+        },
+        { isolationLevel: "repeatable read", accessMode: "read only" },
       );
-      const rows = await db
-        .select({
-          id: strengthSets.id,
-          createdAt: strengthSets.createdAt,
-          workoutId: workouts.id,
-          startedAt: workouts.startedAt,
-          exerciseNameSnapshot: workoutExercises.exerciseNameSnapshot,
-          reps: strengthSets.reps,
-          weightKg: strengthSets.weightKg,
-          durationSeconds: strengthSets.durationSeconds,
-        })
-        .from(strengthSets)
-        .innerJoin(
-          workoutExercises,
-          eq(strengthSets.workoutExerciseId, workoutExercises.id),
-        )
-        .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-        .where(
-          and(
-            scope,
-            cursorCondition(q, strengthSets.createdAt, strengthSets.id),
-          ),
-        )
-        .orderBy(desc(strengthSets.createdAt), desc(strengthSets.id))
-        .limit(q.limit + 1);
-      const [max] = await db
-        .select({
-          weight: sql<number | null>`max(${strengthSets.weightKg})`.mapWith(
-            Number,
-          ),
-        })
-        .from(strengthSets)
-        .innerJoin(
-          workoutExercises,
-          eq(strengthSets.workoutExerciseId, workoutExercises.id),
-        )
-        .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-        .where(scope);
-      return {
-        maxWeightKg: max?.weight ?? null,
-        history: pageResult(rows, q.limit),
-      };
     },
   };
 }

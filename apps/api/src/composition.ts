@@ -1,3 +1,11 @@
+import { calendarItemsRepository } from "./modules/planning/calendar-items.repository.js";
+import { calendarItemsService } from "./modules/planning/calendar-items.service.js";
+import { seriesRepository } from "./modules/planning/series.repository.js";
+import { seriesService } from "./modules/planning/series.service.js";
+import { templatesRepository } from "./modules/planning/templates.repository.js";
+import { templatesService } from "./modules/planning/templates.service.js";
+import { calendarSearchRepository } from "./modules/planning/calendar-search.repository.js";
+import { calendarSearchService } from "./modules/planning/calendar-search.service.js";
 import { transactionRunner } from "./infrastructure/database/transactions.js";
 import { writesService } from "./infrastructure/writes/writes.service.js";
 import { writesRepository } from "./infrastructure/writes/writes.repository.js";
@@ -41,13 +49,38 @@ export function compose(input: ConfigInput) {
     identity,
     goals,
   );
+  const calendarItems = calendarItemsService(
+    calendarItemsRepository(db),
+    categories,
+    goals,
+    planning,
+    runInTransaction,
+  );
+  const series = seriesService(
+    seriesRepository(db),
+    categories,
+    goals,
+    planning,
+    runInTransaction,
+  );
+  const templates = templatesService(
+    templatesRepository(db),
+    identity,
+    planning,
+    calendarItems,
+    runInTransaction,
+  );
+  const calendarSearch = calendarSearchService(
+    calendarSearchRepository(db),
+    identity,
+  );
   const nutrition = nutritionService(
     nutritionRepository(db),
     identity,
     runInTransaction,
   );
   const hydration = hydrationService(hydrationRepository(db), identity);
-  const body = bodyService(bodyRepository(db));
+  const body = bodyService(bodyRepository(db), identity);
   const exerciseRepo = exerciseRepository(db);
   const strengthRepo = strengthRepository(db);
   const exercises = exerciseService(exerciseRepo, strengthRepo);
@@ -73,6 +106,10 @@ export function compose(input: ConfigInput) {
     cardio,
   );
   return {
+    calendarItems,
+    series,
+    templates,
+    calendarSearch,
     writes: writesService(runInTransaction, writesRepository(db)),
     databaseHealth: databaseHealth(
       pool,

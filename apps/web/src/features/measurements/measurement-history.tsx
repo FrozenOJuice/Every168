@@ -1,43 +1,37 @@
 "use client";
-import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import type { Water, Weight, Page } from "@168hours/contracts";
-import { fromKilograms, localDate } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { Empty, ErrorState, Loading } from "@/components/ui/feedback";
+import { formatDate } from "@/lib/format";
 import { MeasurementForm } from "./measurement-form";
-import { WeightChart } from "./weight-chart";
-import { formatDate, formatTime, number } from "@/lib/format";
-export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
+import { MeasurementList } from "./measurement-list";
+
+export function MeasurementHistory({
+  kind,
+  through,
+}: {
+  kind: "water" | "weight";
+  through?: string;
+}) {
   const {
-    preferences: { timezone, weightUnit },
+    preferences: { timezone },
   } = useMe();
   const [editing, setEditing] = useState<Water | Weight | null>(null);
   const query = useInfiniteQuery({
-    queryKey: [kind, "history"],
+    queryKey: [kind, "history", through, timezone],
     queryFn: async ({ pageParam }): Promise<Page<Water | Weight>> =>
       kind === "water"
-        ? api.getWater({ cursor: pageParam, limit: 30 })
-        : api.getWeight({ cursor: pageParam, limit: 30 }),
+        ? api.getWater({ cursor: pageParam, limit: 30, through })
+        : api.getWeight({ cursor: pageParam, limit: 30, through }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (p) => p.nextCursor ?? undefined,
-  });
-  const cache = useQueryClient();
-  const remove = useCommand({
-    mutationFn: (item: Water | Weight, key: string) =>
-      kind === "water"
-        ? api.deleteWater(item.id, item.version, key)
-        : api.deleteWeight(item.id, item.version, key),
-    onSuccess: async () => {
-      await cache.invalidateQueries({ queryKey: [kind] });
-      await cache.invalidateQueries({ queryKey: ["dashboard"] });
-    },
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
   if (editing)
     return (
-      <>
+      <div className="stack">
         <button className="button" onClick={() => setEditing(null)}>
           Back to history
         </button>
@@ -46,65 +40,35 @@ export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
           item={editing}
           onSaved={() => setEditing(null)}
         />
-      </>
+      </div>
     );
-  if (query.isPending) return <Loading />;
-  if (query.error)
-    return (
-      <ErrorState error={query.error} retry={() => void query.refetch()} />
-    );
-  const items = query.data.pages.flatMap((p) => p.items);
   return (
-    <>
-      {kind === "weight" && items.length > 0 && (
-        <WeightChart
-          entries={items.filter((e): e is Weight => "weightKg" in e)}
-        />
-      )}
-      {!items.length ? (
-        <Empty>No {kind} entries yet.</Empty>
+    <div className="stack">
+      <p className="muted text-small">
+        Recently added entries
+        {through
+          ? " through " +
+            formatDate(through, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })
+          : ""}
+        . Each entry shows when it was measured or consumed.
+      </p>
+      {query.isPending ? (
+        <Loading />
+      ) : query.error ? (
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+      ) : !query.data.pages[0]?.items.length ? (
+        <Empty>No {kind} entries in this history.</Empty>
       ) : (
-        <ul className="record-list">
-          {items.map((e) => {
-            const at = "measuredAt" in e ? e.measuredAt : e.consumedAt;
-            return (
-              <li key={e.id}>
-                <div>
-                  <strong>
-                    {"weightKg" in e
-                      ? number(fromKilograms(e.weightKg, weightUnit)) +
-                        " " +
-                        weightUnit
-                      : e.amountMl + " ml"}
-                  </strong>
-                  <small>
-                    {formatDate(localDate(at, timezone), {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}{" "}
-                    · {formatTime(at, timezone)}
-                  </small>
-                </div>
-                <div className="row">
-                  <button className="button" onClick={() => setEditing(e)}>
-                    Edit
-                  </button>
-                  <button
-                    className="button danger"
-                    disabled={remove.isPending}
-                    onClick={() => {
-                      if (confirm("Delete this " + kind + " entry?"))
-                        remove.mutate(e);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <MeasurementList
+          kind={kind}
+          entries={query.data.pages.flatMap((page) => page.items)}
+          onEdit={setEditing}
+          showDate
+        />
       )}
       {query.hasNextPage && (
         <button
@@ -115,7 +79,6 @@ export function MeasurementHistory({ kind }: { kind: "water" | "weight" }) {
           Load more records
         </button>
       )}
-      <CommandError command={remove} />
-    </>
+    </div>
   );
 }

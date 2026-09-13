@@ -12,14 +12,14 @@ export function identityRepository(db: Database) {
         .delete(session)
         .where(and(eq(session.userId, userId), eq(session.token, token)));
     },
-    async getPreferences(userId: string) {
-      await db.insert(preferences).values({ userId }).onConflictDoNothing();
-      return (
-        await db
-          .select()
-          .from(preferences)
-          .where(eq(preferences.userId, userId))
-      )[0]!;
+    async getPreferences(userId: string, context?: TransactionContext) {
+      const tx = databaseFor(db, context);
+      await tx.insert(preferences).values({ userId }).onConflictDoNothing();
+      const q = tx
+        .select()
+        .from(preferences)
+        .where(eq(preferences.userId, userId));
+      return (await (context ? q.for("share") : q))[0]!;
     },
     async savePreferences(
       userId: string,

@@ -7,12 +7,37 @@ import type { TransactionContext } from "../../shared/transactions.js";
 import { and, eq, lt, gt, asc, sql } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { BlockInput, TimeEntryInput } from "@168hours/contracts";
+import { calendarSeries } from "./calendar.table.js";
 import { timeBlocks, timeEntries } from "./planning.table.js";
 export function planningRepository(db: Database) {
   const blockOwner = (u: string, id: string) =>
     and(eq(timeBlocks.userId, u), eq(timeBlocks.id, id));
   const entryOwner = (u: string, id: string) =>
     and(eq(timeEntries.userId, u), eq(timeEntries.id, id));
+  async function lockFamily(
+    u: string,
+    id: string,
+    context: TransactionContext,
+  ) {
+    const tx = databaseFor(db, context);
+    const row = (
+      await tx
+        .select({ seriesId: timeBlocks.seriesId })
+        .from(timeBlocks)
+        .where(blockOwner(u, id))
+    )[0];
+    if (row?.seriesId)
+      await tx
+        .select()
+        .from(calendarSeries)
+        .where(
+          and(
+            eq(calendarSeries.userId, u),
+            eq(calendarSeries.id, row.seriesId),
+          ),
+        )
+        .for("update");
+  }
   return {
     async getBlock(u: string, id: string, context?: TransactionContext) {
       const tx = databaseFor(db, context);
@@ -73,29 +98,34 @@ export function planningRepository(db: Database) {
       version: number,
       context?: TransactionContext,
     ) {
-      const row = (
-        await databaseFor(db, context)
-          .update(timeBlocks)
-          .set({
-            ...input,
-            startsAt: new Date(input.startsAt),
-            endsAt: new Date(input.endsAt),
-            updatedAt: new Date(),
-          })
-          .where(and(blockOwner(u, id), eq(timeBlocks.version, version)))
-          .returning()
-      )[0];
-      return changed(row, () => this.getBlock(u, id, context));
+      return transactionRunner(db)(async (scope) => {
+        await lockFamily(u, id, scope);
+        const row = (
+          await databaseFor(db, scope)
+            .update(timeBlocks)
+            .set({
+              ...input,
+              startsAt: new Date(input.startsAt),
+              endsAt: new Date(input.endsAt),
+              isException: sql`${timeBlocks.seriesId} is not null`,
+            })
+            .where(and(blockOwner(u, id), eq(timeBlocks.version, version)))
+            .returning()
+        )[0];
+        return changed(row, () => this.getBlock(u, id, scope));
+      }, context);
     },
     async deleteBlock(
       u: string,
       id: string,
       version: number,
       context?: TransactionContext,
+      excludeOccurrence = true,
     ) {
       return transactionRunner(db)(async (scope) => {
+        await lockFamily(u, id, scope);
         const tx = databaseFor(db, scope);
-        assertRevision(
+        const block = assertRevision(
           (
             await tx
               .select()
@@ -105,6 +135,18 @@ export function planningRepository(db: Database) {
           )[0],
           version,
         );
+        if (excludeOccurrence && block.seriesId)
+          await tx
+            .update(calendarSeries)
+            .set({
+              excludedDates: sql`case when ${block.occurrenceDate}::date=any(${calendarSeries.excludedDates}) then ${calendarSeries.excludedDates} else array_append(${calendarSeries.excludedDates},${block.occurrenceDate}::date) end`,
+            })
+            .where(
+              and(
+                eq(calendarSeries.userId, u),
+                eq(calendarSeries.id, block.seriesId),
+              ),
+            );
         await tx
           .update(timeEntries)
           .set({ timeBlockId: null })

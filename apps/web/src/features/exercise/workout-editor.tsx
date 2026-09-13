@@ -2,8 +2,12 @@
 import { useRef, useState } from "react";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { useFieldArray } from "react-hook-form";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import type { Workout } from "@168hours/contracts";
+import { useQueryClient } from "@tanstack/react-query";
+import type {
+  Workout,
+  WorkoutUpdateInput,
+  Exercise,
+} from "@168hours/contracts";
 import { workoutUpdateInput } from "@168hours/contracts";
 import {
   fromKilograms,
@@ -19,6 +23,7 @@ import { BlockPicker } from "./block-picker";
 import { ExerciseForm } from "./exercise-form";
 import { WorkoutExerciseFields } from "./workout-exercise-fields";
 import { workoutFormSchema } from "./workout-form-schema";
+import { WorkoutExercisePicker } from "./workout-exercise-picker";
 import { invalidateExercise } from "./invalidate";
 export function WorkoutEditor({
   workout: initialWorkout,
@@ -30,12 +35,14 @@ export function WorkoutEditor({
     preferences: { timezone, weightUnit },
   } = useMe();
   const cache = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState("");
+  const [createdExercise, setCreatedExercise] = useState<Exercise>();
   const [newExercise, setNewExercise] = useState(false);
   const [saved, setSaved] = useState(false);
   const finish = useRef(false);
-  const form = useZodForm(workoutFormSchema(timezone), {
+  const prepared = useRef<{ key: string; input: WorkoutUpdateInput } | null>(
+    null,
+  );
+  const form = useZodForm(workoutFormSchema(timezone, weightUnit, workout), {
     title: workout.title,
     startedAt: instantToLocalInput(workout.startedAt, timezone),
     endedAt: workout.endedAt
@@ -49,6 +56,7 @@ export function WorkoutEditor({
       exerciseNameSnapshot: e.exerciseNameSnapshot,
       notes: e.notes,
       sets: e.sets.map((s) => ({
+        id: s.id,
         reps: s.reps,
         weight:
           s.weightKg === null ? null : fromKilograms(s.weightKg, weightUnit),
@@ -62,14 +70,6 @@ export function WorkoutEditor({
     name: "exercises",
     keyName: "formKey",
   });
-  const library = useInfiniteQuery({
-    queryKey: ["exercises", "picker", search],
-    queryFn: ({ pageParam }) =>
-      api.getExercises({ search, cursor: pageParam, limit: 30 }),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (p) => p.nextCursor ?? undefined,
-  });
-  const options = library.data?.pages.flatMap((p) => p.items) ?? [];
   const dirty = form.formState.isDirty;
   useUnsavedChanges(dirty);
   return (
@@ -78,38 +78,55 @@ export function WorkoutEditor({
         form={form}
         onSubmit={async (v, key) => {
           const finishing = finish.current;
-          finish.current = false;
           const start =
             v.startedAt === instantToLocalInput(workout.startedAt, timezone)
               ? workout.startedAt
               : localInputToInstant(v.startedAt, timezone);
-          const end = finishing
-            ? new Date().toISOString()
-            : v.endedAt === null
-              ? null
+          const end =
+            v.endedAt === null
+              ? finishing
+                ? new Date().toISOString()
+                : null
               : workout.endedAt &&
                   v.endedAt === instantToLocalInput(workout.endedAt, timezone)
                 ? workout.endedAt
                 : localInputToInstant(v.endedAt, timezone);
-          const input = workoutUpdateInput.parse({
-            title: v.title,
-            startedAt: start,
-            endedAt: end,
-            notes: v.notes,
-            linkedTimeBlockId: v.linkedTimeBlockId,
-            exercises: v.exercises.map((e) => ({
-              id: e.id,
-              exerciseId: e.exerciseId,
-              notes: e.notes,
-              sets: e.sets.map((s) => ({
-                reps: s.reps,
-                weightKg:
-                  s.weight === null ? null : toKilograms(s.weight, weightUnit),
-                durationSeconds: s.durationSeconds,
-                completed: s.completed,
-              })),
-            })),
-          });
+          const input =
+            prepared.current?.key === key
+              ? prepared.current.input
+              : workoutUpdateInput.parse({
+                  title: v.title,
+                  startedAt: start,
+                  endedAt: end,
+                  notes: v.notes,
+                  linkedTimeBlockId: v.linkedTimeBlockId,
+                  exercises: v.exercises.map((e) => ({
+                    id: e.id,
+                    exerciseId: e.exerciseId,
+                    notes: e.notes,
+                    sets: e.sets.map((s) => ({
+                      id: s.id,
+                      reps: s.reps,
+                      weightKg:
+                        s.weight === null
+                          ? null
+                          : toKilograms(s.weight, weightUnit),
+                      durationSeconds: s.durationSeconds,
+                      completed: s.completed,
+                    })),
+                  })),
+                });
+          if (
+            prepared.current?.key !== key &&
+            workout.endedAt &&
+            !input.endedAt &&
+            !confirm(
+              "Reopen this workout and remove its completed time from Calendar until you finish it again?",
+            )
+          )
+            return;
+          // Capture generated finish time with the request key, including when the successful response is lost.
+          prepared.current = { key, input };
           const result = await api.saveWorkout(
             workout.id,
             input,
@@ -126,20 +143,33 @@ export function WorkoutEditor({
               ...v.exercises[index]!,
               id: exercise.id,
               exerciseNameSnapshot: exercise.exerciseNameSnapshot,
+              sets: v.exercises[index]!.sets.map((set, setIndex) => ({
+                ...set,
+                id: exercise.sets[setIndex]!.id,
+              })),
             })),
           });
           setSaved(true);
           await invalidateExercise(cache);
         }}
       >
-        <section className="panel">
+        <section className="panel form-stack">
           <div className="form-grid">
             <Field name="title" label="Workout title" />
-            <Field name="startedAt" label="Started at" type="datetime-local" />
+            <Field
+              name="startedAt"
+              label="Started at"
+              type="datetime-local"
+              help={"In " + timezone}
+            />
           </div>
-          {workout.endedAt && (
-            <Field name="endedAt" label="Finished at" type="datetime-local" />
-          )}
+          <Field
+            name="endedAt"
+            label="Finished at"
+            type="datetime-local"
+            optional
+            help="Leave blank while training. For a past workout, enter its real finish time. Clearing this reopens a completed workout."
+          />
           <BlockPicker existingId={workout.linkedTimeBlockId} />
           <Field
             name="notes"
@@ -161,85 +191,27 @@ export function WorkoutEditor({
             }
           />
         ))}
-        <section className="panel">
-          <h2>Add an exercise</h2>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="exercise-search">Search exercises</label>
-              <input
-                id="exercise-search"
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="exercise-picker">Saved exercise</label>
-              <select
-                id="exercise-picker"
-                value={selected}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                <option value="">Choose an exercise</option>
-                {options.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="row exercise-picker-actions">
-            <button
-              className="button primary"
-              type="button"
-              disabled={!selected}
-              onClick={() => {
-                const definition = options.find((e) => e.id === selected);
-                if (definition) {
-                  array.append({
-                    exerciseId: definition.id,
-                    exerciseNameSnapshot: definition.name,
-                    notes: null,
-                    sets: [
-                      {
-                        reps: null,
-                        weight: null,
-                        durationSeconds: null,
-                        completed: true,
-                      },
-                    ],
-                  });
-                  setSelected("");
-                }
-              }}
-            >
-              Add to workout
-            </button>
-            <button
-              className="button"
-              type="button"
-              onClick={() => setNewExercise(true)}
-            >
-              New exercise
-            </button>
-            {library.hasNextPage && (
-              <button
-                className="button"
-                type="button"
-                disabled={library.isFetchingNextPage}
-                onClick={() => void library.fetchNextPage()}
-              >
-                Load more exercises
-              </button>
-            )}
-          </div>
-          {library.error && (
-            <p className="error" role="alert">
-              {library.error.message}
-            </p>
-          )}
-        </section>
+        <WorkoutExercisePicker
+          key={createdExercise?.id ?? "picker"}
+          recent={createdExercise}
+          full={array.fields.length >= 50}
+          onNew={() => setNewExercise(true)}
+          onAdd={(exercise) =>
+            array.append({
+              exerciseId: exercise.id,
+              exerciseNameSnapshot: exercise.name,
+              notes: null,
+              sets: [
+                {
+                  reps: null,
+                  weight: null,
+                  durationSeconds: null,
+                  completed: true,
+                },
+              ],
+            })
+          }
+        />
         <div className="save-workout">
           <div>
             <strong>
@@ -281,7 +253,12 @@ export function WorkoutEditor({
       </Form>
       {newExercise && (
         <Dialog title="New exercise" onClose={() => setNewExercise(false)}>
-          <ExerciseForm onSaved={() => setNewExercise(false)} />
+          <ExerciseForm
+            onSaved={(exercise) => {
+              setCreatedExercise(exercise);
+              setNewExercise(false);
+            }}
+          />
         </Dialog>
       )}
     </>

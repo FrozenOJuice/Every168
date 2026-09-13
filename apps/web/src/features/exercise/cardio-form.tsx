@@ -16,8 +16,10 @@ import { BlockPicker } from "./block-picker";
 import { invalidateExercise } from "./invalidate";
 export function CardioForm({
   activity,
+  date,
   onSaved,
 }: {
+  date?: string;
   activity?: Cardio;
   onSaved: () => void;
 }) {
@@ -27,16 +29,29 @@ export function CardioForm({
   const schema = z.object({
     activityType: cardioInput.shape.activityType,
     title: cardioInput.shape.title,
-    startedAt: localTimeField(timezone),
-    minutes: z.number().finite().positive().max(44640),
-    distance: z.number().finite().positive().nullable(),
+    startedAt: localTimeField(timezone, activity?.startedAt),
+    minutes: z
+      .number()
+      .finite()
+      .min(1 / 60, "Enter at least one second.")
+      .max(44640),
+    distance: z
+      .number()
+      .finite()
+      .positive()
+      .max(fromMeters(10000000, distanceUnit))
+      .nullable(),
     notes: cardioInput.shape.notes,
     linkedTimeBlockId: cardioInput.shape.linkedTimeBlockId,
   });
   const form = useZodForm(schema, {
     activityType: activity?.activityType ?? "run",
     title: activity?.title ?? "Cardio activity",
-    startedAt: instantToLocalInput(activity?.startedAt ?? new Date(), timezone),
+    startedAt: activity
+      ? instantToLocalInput(activity.startedAt, timezone)
+      : date
+        ? date + "T09:00"
+        : instantToLocalInput(new Date(), timezone),
     minutes: activity ? activity.durationSeconds / 60 : 30,
     distance: activity?.distanceMeters
       ? fromMeters(activity.distanceMeters, distanceUnit)
@@ -52,7 +67,11 @@ export function CardioForm({
         const input = cardioInput.parse({
           title: v.title,
           activityType: v.activityType,
-          startedAt: localInputToInstant(v.startedAt, timezone),
+          startedAt:
+            activity &&
+            v.startedAt === instantToLocalInput(activity.startedAt, timezone)
+              ? activity.startedAt
+              : localInputToInstant(v.startedAt, timezone),
           durationSeconds: Math.round(v.minutes * 60),
           distanceMeters:
             v.distance === null ? null : toMeters(v.distance, distanceUnit),
@@ -85,7 +104,7 @@ export function CardioForm({
           name="minutes"
           label="Duration (minutes)"
           type="number"
-          min={0.1}
+          min={1 / 60}
           step="any"
         />
         <Field

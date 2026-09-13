@@ -6,7 +6,7 @@ export default function Settings() {
     <>
       <PageHeading
         title="Settings"
-        description="Make this space work for you."
+        description="Your timezone, units, and planning categories."
       />
       <div className="two-column">
         <PreferencesForm />

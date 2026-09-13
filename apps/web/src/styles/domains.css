@@ -1,0 +1,233 @@
+.auth-page {
+  min-height: 100dvh;
+  max-width: 1120px;
+  margin: auto;
+  padding: 60px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 100px;
+  align-items: center;
+}
+.auth-intro .brand {
+  margin-bottom: 72px;
+}
+.auth-intro h1 {
+  font-size: 3.5rem;
+  margin-bottom: 22px;
+}
+.auth-intro > p {
+  max-width: 340px;
+  font-size: 0.95rem;
+}
+.auth-intro .eyebrow {
+  font-size: 0.7rem;
+}
+.auth-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 36px;
+  border-radius: 12px;
+}
+.auth-card > h2 {
+  font-size: 1.5rem;
+}
+.auth-card > p {
+  font-size: 0.88rem;
+  margin-bottom: 25px;
+}
+.auth-switch {
+  font-size: 0.8rem;
+  margin: 24px 0 0 !important;
+}
+.week-mark {
+  display: flex;
+  gap: 9px;
+  margin: 28px 0 18px;
+}
+.week-mark span {
+  width: 32px;
+  height: 40px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  font-size: 0.75rem;
+}
+.week-mark span:nth-child(3) {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.goal-card {
+  padding: 22px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.panel > .goal-card {
+  padding: 20px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+.panel > .goal-card:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.goal-card h3 {
+  font-size: 1rem;
+  margin: 15px 0;
+}
+.badge {
+  font-size: 0.65rem;
+  padding: 5px 8px;
+  background: var(--muted);
+  color: var(--primary);
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  overflow: auto;
+}
+.tabs button {
+  min-height: 46px;
+  min-width: 74px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  text-transform: capitalize;
+}
+.tabs button[aria-pressed="true"] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.empty-icon {
+  display: block;
+  margin: 0 auto 12px;
+  color: var(--primary);
+}
+
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+}
+.nutrition-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nutrition-grid > div > span {
+  font-size: 0.76rem;
+  color: var(--muted-foreground);
+}
+.nutrition-grid strong {
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.nutrition-grid small {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: normal;
+  font-weight: 400;
+  margin-top: 7px;
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 0.8rem;
+}
+.checkbox-label input {
+  width: 18px;
+  min-height: 18px;
+  accent-color: var(--primary);
+}
+@media (max-width: 700px) {
+  .nutrition-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .nutrition-grid > div:first-child {
+    grid-column: 1/-1;
+  }
+  .nutrition-grid strong {
+    font-size: 1.4rem;
+  }
+  .record-list .row {
+    gap: 8px;
+  }
+}
+
+.text-button {
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 0.75rem;
+  padding: 8px;
+}
+.weight-chart {
+  margin: 10px 0 20px;
+}
+.weight-chart figcaption {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1100px) {
+  .goal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .auth-page {
+    gap: 45px;
+    padding: 40px;
+  }
+}
+@media (max-width: 700px) {
+  .goal-grid {
+    grid-template-columns: 1fr;
+  }
+  .auth-page {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    padding: 30px 20px;
+    justify-content: center;
+  }
+  .auth-intro {
+    width: 100%;
+    max-width: 430px;
+  }
+  .auth-intro .brand {
+    margin-bottom: 28px;
+  }
+  .auth-intro h1 {
+    font-size: 2.5rem;
+  }
+  .auth-intro > p:not(.eyebrow),
+  .week-mark {
+    display: none;
+  }
+  .auth-card {
+    padding: 24px;
+    width: 100%;
+    max-width: 430px;
+  }
+}

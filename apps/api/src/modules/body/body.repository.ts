@@ -1,7 +1,7 @@
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, gte, lt } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { WeightInput, PageQuery } from "@168hours/contracts";
 import {
@@ -13,13 +13,14 @@ export function bodyRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
-    async list(u: string, q: PageQuery) {
+    async list(u: string, q: PageQuery, before?: string) {
       const rows = await db
         .select()
         .from(table)
         .where(
           and(
             eq(table.userId, u),
+            before ? lt(table.measuredAt, new Date(before)) : undefined,
             cursorCondition(q, table.createdAt, table.id),
           ),
         )
@@ -84,6 +85,36 @@ export function bodyRepository(db: Database) {
             .orderBy(desc(table.measuredAt), desc(table.id))
             .limit(1)
         )[0] ?? null
+      );
+    },
+    async review(u: string, start: string, end: string, trendStart: string) {
+      // The latest value, day's records and chart must describe one database snapshot.
+      return db.transaction(
+        async (tx) => {
+          const beforeEnd = and(
+            eq(table.userId, u),
+            lt(table.measuredAt, new Date(end)),
+          );
+          const [latest] = await tx
+            .select()
+            .from(table)
+            .where(beforeEnd)
+            .orderBy(desc(table.measuredAt), desc(table.id))
+            .limit(1);
+          const entries = await tx
+            .select()
+            .from(table)
+            .where(and(beforeEnd, gte(table.measuredAt, new Date(start))))
+            .orderBy(desc(table.measuredAt), desc(table.id));
+          const trend = await tx
+            .select()
+            .from(table)
+            .where(and(beforeEnd, gte(table.measuredAt, new Date(trendStart))))
+            .orderBy(desc(table.measuredAt), desc(table.id))
+            .limit(201);
+          return { latest: latest ?? null, entries, trend };
+        },
+        { isolationLevel: "repeatable read", accessMode: "read only" },
       );
     },
   };

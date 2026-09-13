@@ -11,23 +11,32 @@ import { useMe } from "@/features/identity/me";
 import { api } from "@/lib/api";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { localTimeField } from "@/lib/format";
+import { ErrorState, Loading } from "@/components/ui/feedback";
+import { timeForLogDate } from "@/features/measurements/log-time";
 export function FoodEntryForm({
   food,
   entry,
   date,
   repeat = false,
+  meal,
+  onCreateFood,
+  onRecent,
   onSaved,
 }: {
   food?: Food;
   entry?: FoodEntry;
   date: string;
   repeat?: boolean;
-  onSaved: () => void;
+  meal?: FoodEntry["mealType"];
+  onCreateFood?: () => void;
+  onRecent?: () => void;
+  onSaved: (entry: FoodEntry) => void;
 }) {
   const {
     preferences: { timezone },
   } = useMe();
   const [search, setSearch] = useState("");
+  const [chosen, setChosen] = useState(food);
   const foods = useInfiniteQuery({
     queryKey: ["foods", "picker", search],
     queryFn: ({ pageParam }) =>
@@ -37,7 +46,8 @@ export function FoodEntryForm({
     enabled: !entry,
   });
   const options = foods.data?.pages.flatMap((p) => p.items) ?? [];
-  if (food && !options.some((f) => f.id === food.id)) options.unshift(food);
+  if (chosen && !options.some((f) => f.id === chosen.id))
+    options.unshift(chosen);
   const schema = z.object({
     ...foodEntryInput.shape,
     foodId: entry ? z.string() : foodEntryInput.shape.foodId,
@@ -46,11 +56,11 @@ export function FoodEntryForm({
   const form = useZodForm(schema, {
     foodId: entry?.foodId ?? food?.id ?? "",
     quantity: entry?.quantity ?? 1,
-    mealType: entry?.mealType ?? "other",
+    mealType: meal ?? entry?.mealType ?? "other",
     consumedAt:
       entry && !repeat
         ? instantToLocalInput(entry.consumedAt, timezone)
-        : date + "T12:00",
+        : timeForLogDate(date, timezone),
   });
   const cache = useQueryClient();
   return (
@@ -62,20 +72,28 @@ export function FoodEntryForm({
           mealType: v.mealType,
           consumedAt: localInputToInstant(v.consumedAt, timezone),
         };
-        if (entry) {
-          if (repeat) await api.repeatFoodEntry(entry.id, input, key);
-          else await api.updateFoodEntry(entry.id, input, entry.version, key);
-        } else await api.logFood({ ...input, foodId: v.foodId }, key);
+        const saved = entry
+          ? repeat
+            ? await api.repeatFoodEntry(entry.id, input, key)
+            : await api.updateFoodEntry(entry.id, input, entry.version, key)
+          : await api.logFood({ ...input, foodId: v.foodId }, key);
         await cache.invalidateQueries({ queryKey: ["nutrition"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
-        onSaved();
+        onSaved(saved);
       }}
     >
       {entry ? (
-        <p>
-          {entry.nameSnapshot} · {entry.servingAmountSnapshot}{" "}
-          {entry.servingUnitSnapshot} per serving
-        </p>
+        <div className="food-serving-note">
+          <p>
+            {entry.nameSnapshot} · {entry.servingAmountSnapshot}{" "}
+            {entry.servingUnitSnapshot} per serving
+          </p>
+          <small>
+            {repeat
+              ? "Uses the nutrition saved with this entry, even if the library food has changed."
+              : "Changing quantity or time keeps the original food and nutrition."}
+          </small>
+        </div>
       ) : (
         <>
           <div className="field">
@@ -83,11 +101,16 @@ export function FoodEntryForm({
             <input
               id="food-search"
               type="search"
+              maxLength={100}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Field name="foodId" label="Saved food">
+          <Field
+            name="foodId"
+            label="Saved food"
+            onChange={(id) => setChosen(options.find((item) => item.id === id))}
+          >
             <option value="">Choose a food</option>
             {options.map((f) => (
               <option key={f.id} value={f.id}>
@@ -95,6 +118,20 @@ export function FoodEntryForm({
               </option>
             ))}
           </Field>
+          {chosen && (
+            <p className="food-serving-note">
+              One serving: {chosen.servingAmount} {chosen.servingUnit} ·{" "}
+              {chosen.calories} kcal
+            </p>
+          )}
+          {foods.isPending && <Loading />}
+          {!foods.isPending && !foods.error && !options.length && (
+            <p className="muted text-small">
+              {search
+                ? "No matching foods. Try another search or add a food."
+                : "Your library is empty. Add your first food using its label."}
+            </p>
+          )}
           {foods.hasNextPage && (
             <button
               className="button"
@@ -106,9 +143,24 @@ export function FoodEntryForm({
             </button>
           )}
           {foods.error && (
-            <p className="error" role="alert">
-              {foods.error.message}
-            </p>
+            <ErrorState
+              error={foods.error}
+              retry={() => void foods.refetch()}
+            />
+          )}
+          {(onCreateFood || onRecent) && (
+            <div className="row">
+              {onCreateFood && (
+                <button className="button" type="button" onClick={onCreateFood}>
+                  Create a food
+                </button>
+              )}
+              {onRecent && (
+                <button className="button" type="button" onClick={onRecent}>
+                  Use a recent entry
+                </button>
+              )}
+            </div>
           )}
         </>
       )}
@@ -119,6 +171,7 @@ export function FoodEntryForm({
           type="number"
           min={0.01}
           step="any"
+          help="For example, 0.5 is half of the serving shown above."
         />
         <Field name="mealType" label="Meal">
           <option value="breakfast">Breakfast</option>

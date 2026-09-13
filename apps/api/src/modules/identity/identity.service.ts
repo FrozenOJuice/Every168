@@ -5,10 +5,10 @@ export function identityService(repo: ReturnType<typeof identityRepository>) {
   return {
     revokeSession: (userId: string, token: string) =>
       repo.revokeSession(userId, token),
-    async getPreferences(userId: string) {
+    async getPreferences(userId: string, context?: TransactionContext) {
       return meSchema.shape.preferences
         .strip()
-        .parse(await repo.getPreferences(userId));
+        .parse(await repo.getPreferences(userId, context));
     },
     async savePreferences(
       userId: string,

@@ -36,6 +36,16 @@ export function exerciseService(
       const exercise = found(await repo.get(u, id));
       return { exercise, ...(await strength.progress(u, id, q)) };
     },
+    async restore(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(
+        await repo.update(u, id, { archivedAt: null }, version, context),
+      );
+    },
   };
 }
 export type ExerciseService = ReturnType<typeof exerciseService>;

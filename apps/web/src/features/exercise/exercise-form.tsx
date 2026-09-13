@@ -8,7 +8,7 @@ export function ExerciseForm({
   onSaved,
 }: {
   exercise?: Exercise;
-  onSaved: () => void;
+  onSaved: (exercise: Exercise) => void;
 }) {
   const form = useZodForm(exerciseInput, exercise ?? { name: "", notes: null });
   const cache = useQueryClient();
@@ -21,7 +21,7 @@ export function ExerciseForm({
           : await api.createExercise(v, key);
         await cache.invalidateQueries({ queryKey: ["exercises"] });
         await cache.invalidateQueries({ queryKey: ["progress", saved.id] });
-        onSaved();
+        onSaved(saved);
       }}
     >
       <Field name="name" label="Exercise name" />

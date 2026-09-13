@@ -80,6 +80,7 @@ export const foodEntries = pgTable(
       sql`char_length(btrim(${t.nameSnapshot})) between 1 and 160 and ${t.servingUnitSnapshot} in ('g','ml','item','serving') and ${t.servingAmountSnapshot}>0 and ${t.servingAmountSnapshot}<=100000 and ${t.caloriesSnapshot} between 0 and 100000 and ${t.proteinGSnapshot} between 0 and 100000 and ${t.carbsGSnapshot} between 0 and 100000 and ${t.fatGSnapshot} between 0 and 100000 and ${t.fiberGSnapshot} between 0 and 100000`,
     ),
     index("food_entry_user_consumed_idx").on(t.userId, t.consumedAt),
+    index("food_entry_user_created_idx").on(t.userId, t.createdAt, t.id),
     foreignKey({
       columns: [t.userId, t.foodId],
       foreignColumns: [foods.userId, foods.id],

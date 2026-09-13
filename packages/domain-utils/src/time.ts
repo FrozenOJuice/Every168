@@ -1,4 +1,36 @@
 import { Temporal } from "@js-temporal/polyfill";
+
+/** Wall-clock plans skip missing times and use the first occurrence of a repeated time. */
+export function plannedInstant(
+  date: string,
+  minute: number,
+  timezone: string,
+): string | null {
+  const local = Temporal.PlainDate.from(date)
+    .toPlainDateTime()
+    .add({ milliseconds: Math.round(minute * 60000) });
+  const zoned = local.toZonedDateTime(timezone, { disambiguation: "earlier" });
+  return zoned.toPlainDateTime().equals(local)
+    ? zoned.toInstant().toString()
+    : null;
+}
+
+export function localMinute(value: string | Date, timezone: string) {
+  const time = Temporal.Instant.from(
+    value instanceof Date ? value.toISOString() : value,
+  ).toZonedDateTimeISO(timezone);
+  return (
+    time.hour * 60 + time.minute + time.second / 60 + time.millisecond / 60000
+  );
+}
+
+export function daysBetween(from: string, to: string) {
+  return Temporal.PlainDate.from(from).until(Temporal.PlainDate.from(to)).days;
+}
+
+export function weekday(date: string) {
+  return Temporal.PlainDate.from(date).dayOfWeek % 7;
+}
 export type Interval = { startsAt: string | Date; endsAt: string | Date };
 export const durationSeconds = (a: string | Date, b: string | Date) =>
   (new Date(b).getTime() - new Date(a).getTime()) / 1000;

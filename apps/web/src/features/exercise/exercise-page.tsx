@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Exercise, Cardio } from "@168hours/contracts";
 import { PageHeading } from "@/components/ui/feedback";
 import { Dialog } from "@/components/ui/dialog";
@@ -15,38 +16,42 @@ type Editor =
   | { kind: "cardio"; activity?: Cardio }
   | { kind: "exercise"; exercise?: Exercise }
   | { kind: "progress"; exercise: Exercise };
-export function ExercisePage() {
-  const [tab, setTab] = useState<"strength" | "cardio" | "library">("strength");
+export function ExercisePage({ section }: { section?: string }) {
+  const router = useRouter();
+  const tab =
+    section === "cardio" || section === "library" ? section : "strength";
+  function setTab(tab: "strength" | "cardio" | "library") {
+    router.push("/exercise?tab=" + tab, { scroll: false });
+  }
   const [editor, setEditor] = useState<Editor | null>(null);
   return (
-    <>
+    <div className="exercise-workspace">
       <PageHeading
-        eyebrow="Move in your own way"
         title="Exercise"
-        description="Record your training, keep the history, and see what changes."
+        description="Strength, cardio, and your training history."
       >
-        <div className="row">
+        <div className="row page-actions">
           <button
-            className="button"
+            className={tab === "library" ? "button primary" : "button"}
             onClick={() => setEditor({ kind: "exercise" })}
           >
             Add exercise
           </button>
           <button
-            className="button"
+            className={tab === "cardio" ? "button primary" : "button"}
             onClick={() => setEditor({ kind: "cardio" })}
           >
             Log cardio
           </button>
           <button
-            className="button primary"
+            className={tab === "strength" ? "button primary" : "button"}
             onClick={() => setEditor({ kind: "start" })}
           >
             Start workout
           </button>
         </div>
       </PageHeading>
-      <div className="tabs">
+      <div className="tabs" role="group" aria-label="Exercise sections">
         <button
           aria-pressed={tab === "strength"}
           onClick={() => setTab("strength")}
@@ -118,6 +123,6 @@ export function ExercisePage() {
           )}
         </Dialog>
       )}
-    </>
+    </div>
   );
 }

@@ -9,6 +9,8 @@ import {
   idSchema,
   pageQuerySchema,
   libraryQuery,
+  workoutHistoryQuery,
+  cardioHistoryQuery,
 } from "@168hours/contracts";
 import { currentUser } from "../../shared/auth/middleware.js";
 import type { ExerciseService } from "./exercise.service.js";
@@ -69,11 +71,21 @@ export function exerciseRoutes(
       ),
     ),
   );
+  r.post(
+    "/exercises/:id/restore",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        exercises.restore(userId, id, version, context),
+      { versioned: true },
+    ),
+  );
   r.get("/strength-workouts", async (req, res) =>
     res.json(
       await strength.list(
         currentUser(res).id,
-        pageQuerySchema.parse(req.query),
+        workoutHistoryQuery.parse(req.query),
       ),
     ),
   );
@@ -113,7 +125,10 @@ export function exerciseRoutes(
   );
   r.get("/cardio-activities", async (req, res) =>
     res.json(
-      await cardio.list(currentUser(res).id, pageQuerySchema.parse(req.query)),
+      await cardio.list(
+        currentUser(res).id,
+        cardioHistoryQuery.parse(req.query),
+      ),
     ),
   );
   r.post(

@@ -6,12 +6,17 @@ import type {
   FoodInput,
   FoodEntryInput,
   FoodEntryUpdate,
+  FoodHistoryQuery,
 } from "@168hours/contracts";
 import { dayRange } from "@168hours/domain-utils";
 import { found, AppError } from "../../shared/errors/app-error.js";
 import type { IdentityService } from "../identity/identity.service.js";
 import type { nutritionRepository } from "./nutrition.repository.js";
-import { nutritionTotals } from "./nutrition.calculations.js";
+import {
+  nutritionTotals,
+  entryDetail,
+  mealSummaries,
+} from "./nutrition.calculations.js";
 export function nutritionService(
   repo: ReturnType<typeof nutritionRepository>,
   identity: IdentityService,
@@ -50,6 +55,23 @@ export function nutritionService(
     },
     async getEntry(u: string, id: string) {
       return found(await repo.getEntry(u, id));
+    },
+    async restoreFood(
+      u: string,
+      id: string,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      return found(
+        await repo.updateFood(u, id, { archivedAt: null }, version, context),
+      );
+    },
+    async history(u: string, q: FoodHistoryQuery) {
+      const range = q.date
+        ? dayRange(q.date, (await identity.getPreferences(u)).timezone)
+        : undefined;
+      const result = await repo.listEntries(u, q, range);
+      return { ...result, items: result.items.map(entryDetail) };
     },
     async logFood(u: string, v: FoodEntryInput, context?: TransactionContext) {
       return runInTransaction(async (scope) => {
@@ -136,7 +158,8 @@ export function nutritionService(
         date,
         count: entries.length,
         totals: nutritionTotals(entries),
-        entries,
+        entries: entries.map(entryDetail),
+        meals: mealSummaries(entries),
       };
     },
   };

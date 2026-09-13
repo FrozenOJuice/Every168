@@ -1,8 +1,8 @@
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, ilike } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import type { CardioInput, PageQuery } from "@168hours/contracts";
+import type { CardioInput, CardioHistoryQuery } from "@168hours/contracts";
 import {
   cursorCondition,
   pageResult,
@@ -54,13 +54,20 @@ export function cardioRepository(db: Database) {
       const tx = databaseFor(db, context);
       return (await tx.delete(table).where(owned(u, id)).returning())[0];
     },
-    async list(u: string, q: PageQuery) {
+    async list(u: string, q: CardioHistoryQuery) {
       const rows = await db
         .select()
         .from(table)
         .where(
           and(
             eq(table.userId, u),
+            q.search
+              ? ilike(
+                  table.title,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
+              : undefined,
+            q.activityType ? eq(table.activityType, q.activityType) : undefined,
             cursorCondition(q, table.createdAt, table.id),
           ),
         )

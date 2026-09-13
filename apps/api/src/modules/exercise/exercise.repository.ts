@@ -23,7 +23,12 @@ export function exerciseRepository(db: Database) {
             q.archived === "true"
               ? isNotNull(exercises.archivedAt)
               : isNull(exercises.archivedAt),
-            q.search ? ilike(exercises.name, "%" + q.search + "%") : undefined,
+            q.search
+              ? ilike(
+                  exercises.name,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
+              : undefined,
             cursorCondition(q, exercises.createdAt, exercises.id),
           ),
         )
@@ -49,7 +54,7 @@ export function exerciseRepository(db: Database) {
     async update(
       u: string,
       id: string,
-      v: Partial<ExerciseInput> & { archivedAt?: Date },
+      v: Partial<ExerciseInput> & { archivedAt?: Date | null },
       version: number,
       context?: TransactionContext,
     ) {

@@ -2,7 +2,7 @@
 
 A personal weekly planner and logbook. Plan the week, record selected actual time, and keep goals, food, exercise, water, and weight in one private account.
 
-Core MVP only. No AI, integrations, native app, social features, or external food services.
+Core MVP with the owner-approved Calendar expansion. No AI, integrations, native app, social features, or external food services.
 
 ## Run locally
 
@@ -17,7 +17,7 @@ pnpm db:provision
 pnpm dev
 ```
 
-Open **http://localhost:3000** and create an account. In Settings, select your timezone and units, then create your categories. Start planning from Week.
+Open **http://localhost:3000** and create an account. Open the account menu → Settings to select your timezone and units and create categories. Calendar is your home: choose Day, Week, or Month in its top toolbar. Week is the default on desktop and phone; the phone grid scrolls within the calendar. Previous/next arrows surround Today. Use Calendar tools (•••) for repeating plans, all-day/unscheduled plans, copying/templates, and selected-date quick actions. The search control filters the visible calendar or searches all dates.
 
 `setup:env` creates `apps/api/.env` with a random authentication secret and `apps/web/.env.local`. It keeps existing files unchanged. Example files document the configuration. Do not commit the generated files. Use the same configured browser origin (`http://localhost:3000` by default) for cookies and write requests.
 
@@ -56,6 +56,8 @@ Sign in as `demo@example.com` with the password you supplied. The seed is limite
 | `pnpm build`                        | Build Express and Next.js for production execution                          |
 | `pnpm verify`                       | Lint, format, types, unit/integration tests, build, and browser tests       |
 
+CI has been removed at the owner’s request. All checks run locally with `pnpm verify`.
+
 Before the first browser verification:
 
 ```bash
@@ -63,7 +65,7 @@ pnpm exec playwright install chromium
 pnpm verify
 ```
 
-On Linux CI, use `pnpm exec playwright install --with-deps chromium`. Browser tests start isolated servers on **3100/3101**, use `.next-e2e`, and require the test PostgreSQL container. They never use the development database. `TEST_DATABASE_URL` may override the test connection; the database name must end in `_test` and the URL must differ from `DATABASE_URL`.
+On Linux, use `pnpm exec playwright install --with-deps chromium`. Browser tests start isolated servers on **3100/3101**, use `.next-e2e`, and require the test PostgreSQL container. They never use the development database. `TEST_DATABASE_URL` may override the test connection; the database name must end in `_test` and the URL must differ from `DATABASE_URL`.
 
 To run built applications locally, use two terminals after `pnpm build`:
 
@@ -74,16 +76,21 @@ pnpm --filter @168hours/web start
 
 ## Capabilities and deliberate limits
 
-- Timezone-aware seven-day planner, overlapping blocks, category allocation, manual actual time, and planned-versus-recorded review. Sunday/Monday week starts. DST weeks show their actual 167/169-hour calendar coverage.
+- Calendar-first home with Day, Week, and Month views and a full-height planning workspace. Four main destinations: Calendar, Food, Exercise, Goals; account controls live in the account menu.
+- Timezone-aware seven-day planner, overlapping blocks, category labels and manual actual time linked to blocks. Canonical allocation and planned-versus-recorded totals remain available through the API. Sunday/Monday week starts. DST weeks show their actual 167/169-hour calendar coverage.
 - Goals with category/date links and active, completed, paused, archived states.
-- Manual food library, immutable log snapshots, daily calories/macros/fibre, missing-nutrient indicators, and repeat logging.
-- Strength exercise library, saved workout sessions, multiple exercises, editable/reorderable sets, completion, and exercise progress. Cardio with optional distance and derived pace.
-- Fast water and weight logs, editable histories, preferred units, and a chart of recorded weight measurements.
+- Manual food library with archive/restore, immutable log snapshots, daily and meal nutrition, unknown-nutrient indicators, and searchable recent entries for repeat logging. Create a missing food without leaving the logging flow.
+- Strength exercise library with archive/restore, saved sessions, multiple exercises, editable/reorderable and repeatable sets, explicit finish times, and exercise progress. Search/filter workout and cardio histories; cardio supports optional distance and derived pace.
+- Food's daily page includes water quick-add buttons, editable water/weight records and histories, and a 30-day weight chart using actual measurements. Select a date to review meals and measurements together. Calendar quick actions reuse these forms alongside Exercise and Goals.
 - Separate user accounts with protected sessions, owner-scoped queries, and reference-ownership checks.
 
 Save a workout before leaving; unsaved navigation warns you. Completing a strength workout or logging cardio records its actual time once, including when no planned block is linked. Linking supplies the block's category. Delete activity records from Exercise to remove their source time entry. Deleting a plan keeps recorded activity.
 
-Histories page through newly recorded rows; displayed event times and weight chart points use measurement/activity dates. Local date/time forms reject nonexistent or ambiguous DST times with a clear error. Advanced recurrence, drag/drop, offline synchronization, account recovery/verification emails, and public deployment are outside this Core.
+Calendar dates and Day/Week/Month views are addressable in the URL. Click the date heading to jump, or Today to return to the current time. Grid taps select 15-minute starts; the editor supports duration shortcuts, rescheduling and reviewable planned-block duplication. Busy weeks keep their grid with extra records in a day list; Month adapts its previews to available space and opens the same list. Overnight continuations and clock-change dates retain explicit local times. Planned blocks and recorded entries appear together; their accounting remains separate, and duplication never copies recorded time. Food and Exercise sections also support direct links. See [UI standards](docs/ui-standards.md).
+
+Drag planned blocks in Day/Week to move them; drag their edges to resize, or drag empty space to open a draft. On touch screens, open a block and choose **Move or resize on calendar**, then select Move, Resize start, or Resize end and drag the selected block. The form remains available for precise and keyboard editing. Month previews can be dragged to another date on desktop. Recorded activity is edited in its source domain. See [Calendar behavior and limits](docs/decisions/004-calendar-expansion.md) for recurrence, copying, templates and daylight saving rules.
+
+Histories page through newly recorded rows; displayed event times and weight chart points use measurement/activity dates. Local date/time forms reject nonexistent or ambiguous DST times with a clear error. Complex recurrence, external synchronization, offline writes, account recovery/verification emails, and public deployment remain outside this scope.
 
 Direct package versions and the lockfile are pinned. ESLint 9.39.5 is retained for compatibility with Next.js's current plugins despite its upstream deprecation. See [architecture](docs/architecture.md), [verification](docs/verification.md), and [implementation status](docs/IMPLEMENTATION.md).
 

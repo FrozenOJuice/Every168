@@ -6,6 +6,14 @@
 **Status:** Authoritative implementation brief  
 **Primary objective:** Build a small, complete, genuinely usable 168Hours core quickly. Stop. Use it. Then expand it without rebuilding the foundation.
 
+**Owner-approved Core UI revision:** Calendar is the central general planner and occupies the main workspace. Its top toolbar uses Day, Week, Month in that order, with Week as the default on every screen. Previous/next arrows sit on either side of Today. Plans and actual entries share the calendar with explicit visual labels. Remove Calendar details and the entire settings/summary/Today section beneath it. Domain-specific reporting, hydration/weight UI, and health/goal context will be redesigned within their domains; selected-date quick actions are authorized by the Calendar expansion below. Keep the existing backend capabilities and exact palette. Main navigation remains Calendar, Food, Exercise, Goals, with Settings and sign out in the account menu. This owner revision supersedes the original dashboard, summary/filter, and health-logging placement requirements below; do not restore them to Calendar to satisfy the earlier completion checklist.
+
+**Owner-approved Calendar follow-up:** Improve busy-day readability and overflow access, responsive Month previews with a day-record list, 15-minute creation and duration choices, duration-preserving rescheduling, reviewable duplication of a single planned block, and date/current-time/scroll navigation. Duplication copies plan details only; it never infers or copies actual activity. The larger Calendar additions are authorized by the expansion below.
+
+**Owner-approved tooling revision:** No CI workflow. Keep all verification commands runnable locally; this supersedes CI scaffolding/hosting requirements below.
+
+**Owner-approved Food slice:** Complete the manual Food experience end to end, including daily meals/nutrition, food library and repeat logging, hydration quick logs and history, and body-weight history/trends. These surfaces belong in Food and reuse the existing public domain services. Review backend ownership, validation, serving calculations, snapshots, date boundaries and safe writes before the responsive UI. Keep the exact palette and existing Calendar shortcuts. No barcode scanning, external food database, recipes/Kitchen, custom nutrition targets, or AI.
+
 > **168Hours is a personal life-planning and tracking platform built around one simple fact: every week contains 168 hours.**
 >
 > The product helps a person decide how those hours should be spent, record selected parts of what actually happened, review the difference, and improve the next week.
@@ -19,6 +27,8 @@ This file may be the only meaningful file in the repository when implementation 
 Your job is to **build the working Core MVP**, not to return another architecture proposal.
 
 Read this file completely before changing the repository. Then inspect the working tree and implement the Core Build in order.
+
+**Owner-approved Calendar expansion:** Implement moving/resizing planned blocks and drag-to-create drafts, finite daily/weekly repeating plans (one occurrence or whole series), copying days/weeks and reusable templates, all-day and unscheduled plans outside allocated hours, title/category/type/date search and filtering, and selected-date domain quick actions. Keep compact top controls, Week as default, shared ownership/revision/idempotency protections, and the exact palette. Copies never include actual activity or repeating rules. Recurrence has an explicit end within 366 dates; copies/templates handle up to 100 plans per action. This authorization supersedes the original exclusions for these six Calendar capabilities only. External calendar sync, reminders/notification delivery, complex recurrence, AI, native apps, social features, Kitchen and other post-Core work remain excluded.
 
 ## 0.1 Core-first rule
 
@@ -191,7 +201,7 @@ It should produce something the owner can start using immediately from a desktop
 - shared API contracts,
 - responsive web application,
 - automated tests,
-- CI-ready commands.
+- locally runnable verification commands.
 
 ### Core product
 
@@ -395,7 +405,6 @@ Use these defaults unless a current compatibility issue is discovered.
 | API integration tests | Vitest + Supertest + real test PostgreSQL |
 | Browser E2E | Playwright |
 | Local services | Docker Compose |
-| CI | GitHub Actions |
 
 Do not pin versions in this document. At scaffold time, verify current stable compatible versions from official documentation and commit the lockfile.
 
@@ -433,10 +442,6 @@ Use a pnpm workspace.
 ├── pnpm-lock.yaml
 ├── .gitignore
 ├── .editorconfig
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
 ├── apps/
 │   ├── api/
 │   │   ├── src/
@@ -1193,7 +1198,7 @@ A feature is not complete because its database table exists.
 
 ## 12.1 Dashboard
 
-The Dashboard is the first page after sign-in.
+Calendar is the first page after sign-in. The owner has removed the Calendar details/Today UI. The capabilities below remain implemented in backend services; their replacement domain surfaces and any future quick actions require a separate requested slice.
 
 It should answer:
 
@@ -1419,15 +1424,13 @@ Do not send raw database errors to clients.
 Use a small navigation structure:
 
 ```text
-Dashboard
-Week
+Calendar
 Food
 Exercise
 Goals
-Settings
 ```
 
-Hydration and weight can initially be quick actions/dashboard panels rather than permanent top-level navigation items.
+Settings and sign out live in the account menu. Calendar has no details or health panel. Food owns hydration/weight surfaces; Calendar offers selected-date quick actions.
 
 Avoid a giant sidebar with every possible future domain.
 
@@ -1692,7 +1695,6 @@ Implement **C0 through C6 continuously**, using each gate to verify quality inte
 - Pino logging,
 - `/api/health`,
 - `/api/ready`,
-- CI skeleton,
 - README commands.
 
 ### Gate
@@ -2354,23 +2356,23 @@ No Redis in Core.
 
 ---
 
-# 29. Development and CI
+# 29. Local development and verification
 
-## 29.1 CI
+## 29.1 Local verification
 
-GitHub Actions should eventually run on pull requests/pushes:
+The owner requested removal of CI. Do not scaffold or configure GitHub Actions. Keep the complete local verification command (`pnpm verify`):
 
 ```text
-install with frozen lockfile
 lint
 format check
 typecheck
 unit tests
 integration tests
 build
+browser tests
 ```
 
-E2E may run in the same workflow if setup time is reasonable or in a dedicated job.
+Install dependencies with the frozen lockfile before running these commands.
 
 ## 29.2 Local seed
 

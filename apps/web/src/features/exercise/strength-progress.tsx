@@ -35,8 +35,8 @@ export function StrengthProgress({ id }: { id: string }) {
         </strong>
       </p>
       <p className="muted text-small">
-        Completed sets from finished workouts. A record of your training,
-        without a score.
+        Completed sets from finished workouts, newest logged first. Missing load
+        stays unknown; timed sets count without a load.
       </p>
       {!sets.length ? (
         <Empty>No completed sets yet.</Empty>
@@ -58,8 +58,12 @@ export function StrengthProgress({ id }: { id: string }) {
                     : ""}
                 </strong>
                 <small>
-                  {formatDate(localDate(s.startedAt, timezone))} ·{" "}
-                  {s.exerciseNameSnapshot}
+                  {formatDate(localDate(s.startedAt, timezone), {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}{" "}
+                  · {s.exerciseNameSnapshot}
                 </small>
               </div>
               <Link

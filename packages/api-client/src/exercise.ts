@@ -11,6 +11,8 @@ import type {
   StrengthProgress,
   PageQuery,
   Page,
+  WorkoutHistoryQuery,
+  CardioHistoryQuery,
 } from "@168hours/contracts";
 import { writeHeaders, body, query, type Http } from "./http";
 export function exerciseClient(http: Http) {
@@ -42,7 +44,13 @@ export function exerciseClient(http: Http) {
       }),
     getStrengthProgress: (id: string, q: Partial<PageQuery> = {}) =>
       http<StrengthProgress>("/api/v1/strength-progress/" + id + query(q)),
-    getWorkouts: (q: Partial<PageQuery> = {}) =>
+    restoreExercise: (id: string, version: number, key?: string) =>
+      http<Exercise>("/api/v1/exercises/" + id + "/restore", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: "{}",
+      }),
+    getWorkouts: (q: Partial<WorkoutHistoryQuery> = {}) =>
       http<Page<WorkoutSummary>>("/api/v1/strength-workouts" + query(q)),
     startWorkout: (v: WorkoutStartInput, key?: string) =>
       http<Workout>("/api/v1/strength-workouts", {
@@ -68,7 +76,7 @@ export function exerciseClient(http: Http) {
         method: "DELETE",
         headers: writeHeaders(key, version),
       }),
-    getCardio: (q: Partial<PageQuery> = {}) =>
+    getCardio: (q: Partial<CardioHistoryQuery> = {}) =>
       http<Page<Cardio>>("/api/v1/cardio-activities" + query(q)),
     logCardio: (v: CardioInput, key?: string) =>
       http<Cardio>("/api/v1/cardio-activities", {

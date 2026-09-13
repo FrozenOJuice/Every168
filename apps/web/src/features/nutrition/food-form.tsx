@@ -8,7 +8,7 @@ export function FoodForm({
   onSaved,
 }: {
   food?: Food;
-  onSaved: () => void;
+  onSaved: (food: Food) => void;
 }) {
   const form = useZodForm(
     foodInput,
@@ -16,7 +16,7 @@ export function FoodForm({
       name: "",
       servingAmount: 100,
       servingUnit: "g",
-      calories: 0,
+      calories: undefined,
       proteinG: null,
       carbsG: null,
       fatG: null,
@@ -28,13 +28,18 @@ export function FoodForm({
     <Form
       form={form}
       onSubmit={async (v, key) => {
-        if (food) await api.updateFood(food.id, v, food.version, key);
-        else await api.createFood(v, key);
+        const saved = food
+          ? await api.updateFood(food.id, v, food.version, key)
+          : await api.createFood(v, key);
         await cache.invalidateQueries({ queryKey: ["foods"] });
-        onSaved();
+        onSaved(saved);
       }}
     >
       <Field name="name" label="Food name" />
+      <p className="muted text-small">
+        Enter the amount and nutrition for one serving from your label. You can
+        log whole or partial servings later.
+      </p>
       <div className="form-grid">
         <Field
           name="servingAmount"

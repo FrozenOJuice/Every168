@@ -1,7 +1,7 @@
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import { and, eq, desc, gte, lt, sql } from "drizzle-orm";
+import { and, eq, desc, gte, lt } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { WaterInput, PageQuery } from "@168hours/contracts";
 import {
@@ -13,13 +13,14 @@ export function hydrationRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
-    async list(u: string, q: PageQuery) {
+    async list(u: string, q: PageQuery, before?: string) {
       const rows = await db
         .select()
         .from(table)
         .where(
           and(
             eq(table.userId, u),
+            before ? lt(table.consumedAt, new Date(before)) : undefined,
             cursorCondition(q, table.createdAt, table.id),
           ),
         )
@@ -87,21 +88,17 @@ export function hydrationRepository(db: Database) {
       );
     },
     async daily(u: string, start: string, end: string) {
-      return (
-        await db
-          .select({
-            total: sql<number | null>`sum(${table.amountMl})`.mapWith(Number),
-            count: sql<number>`count(*)::int`,
-          })
-          .from(table)
-          .where(
-            and(
-              eq(table.userId, u),
-              gte(table.consumedAt, new Date(start)),
-              lt(table.consumedAt, new Date(end)),
-            ),
-          )
-      )[0]!;
+      return db
+        .select()
+        .from(table)
+        .where(
+          and(
+            eq(table.userId, u),
+            gte(table.consumedAt, new Date(start)),
+            lt(table.consumedAt, new Date(end)),
+          ),
+        )
+        .orderBy(desc(table.consumedAt), desc(table.id));
     },
   };
 }

@@ -4,7 +4,7 @@ import { Router } from "express";
 import {
   waterInput,
   idSchema,
-  pageQuerySchema,
+  measurementHistoryQuery,
   dateQuerySchema,
 } from "@168hours/contracts";
 import { currentUser } from "../../shared/auth/middleware.js";
@@ -13,7 +13,10 @@ export function hydrationRoutes(s: HydrationService, writes: WritesService) {
   const r = Router();
   r.get("/water-entries", async (req, res) =>
     res.json(
-      await s.list(currentUser(res).id, pageQuerySchema.parse(req.query)),
+      await s.list(
+        currentUser(res).id,
+        measurementHistoryQuery.parse(req.query),
+      ),
     ),
   );
   r.post(

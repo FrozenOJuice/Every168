@@ -11,7 +11,7 @@ export function WorkoutPage({ id }: { id: string }) {
     refetchOnWindowFocus: false,
   });
   return (
-    <>
+    <div className="workout-workspace">
       <PageHeading
         eyebrow="Strength"
         title={query.data?.title ?? "Your workout"}
@@ -28,6 +28,6 @@ export function WorkoutPage({ id }: { id: string }) {
       ) : (
         <WorkoutEditor key={query.data.id} workout={query.data} />
       )}
-    </>
+    </div>
   );
 }

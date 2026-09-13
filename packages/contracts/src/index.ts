@@ -2,6 +2,7 @@ export * from "./common";
 export * from "./identity";
 export * from "./categories";
 export * from "./planning";
+export * from "./calendar";
 export * from "./goals";
 export * from "./dashboard";
 export * from "./nutrition";

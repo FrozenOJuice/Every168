@@ -1,20 +1,32 @@
 "use client";
 import { useCommand, CommandError } from "@/lib/use-command";
+import { useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { Cardio } from "@168hours/contracts";
 import { localDate, fromMeters, toMeters } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { Empty, Loading, ErrorState } from "@/components/ui/feedback";
-import { formatDate, hours, number } from "@/lib/format";
+import { formatDate, formatTime, number } from "@/lib/format";
+import { exerciseDuration } from "./format";
 import { invalidateExercise } from "./invalidate";
 export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
+  const [search, setSearch] = useState("");
+  const [activityType, setActivityType] = useState<Cardio["activityType"] | "">(
+    "",
+  );
   const {
     preferences: { timezone, distanceUnit },
   } = useMe();
   const query = useInfiniteQuery({
-    queryKey: ["cardio"],
-    queryFn: ({ pageParam }) => api.getCardio({ cursor: pageParam, limit: 30 }),
+    queryKey: ["cardio", search, activityType],
+    queryFn: ({ pageParam }) =>
+      api.getCardio({
+        cursor: pageParam,
+        limit: 30,
+        search,
+        activityType: activityType || undefined,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
@@ -24,19 +36,52 @@ export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
       api.deleteCardio(item.id, item.version, key),
     onSuccess: () => invalidateExercise(cache),
   });
-  if (query.isPending) return <Loading />;
-  if (query.error)
-    return (
-      <ErrorState error={query.error} retry={() => void query.refetch()} />
-    );
-  const items = query.data.pages.flatMap((p) => p.items);
+  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <section className="panel">
       <h2>Cardio history</h2>
-      {!items.length ? (
+      <p className="muted text-small">
+        Saved activities, newest logged first. Each activity records its actual
+        time in Calendar.
+      </p>
+      <div className="exercise-history-filters">
+        <div className="field">
+          <label htmlFor="cardio-history-search">Search activities</label>
+          <input
+            id="cardio-history-search"
+            type="search"
+            maxLength={160}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="cardio-history-type">Filter activity type</label>
+          <select
+            id="cardio-history-type"
+            value={activityType}
+            onChange={(e) =>
+              setActivityType(e.target.value as typeof activityType)
+            }
+          >
+            <option value="">All activities</option>
+            {["run", "walk", "swim", "cycle", "skip", "other"].map((type) => (
+              <option key={type} value={type}>
+                {type[0]!.toUpperCase() + type.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {query.isPending ? (
+        <Loading />
+      ) : query.error ? (
+        <ErrorState error={query.error} retry={() => void query.refetch()} />
+      ) : !items.length ? (
         <Empty>
-          A walk, a run, a swim, or something else. Log the time; distance is
-          optional.
+          {search || activityType
+            ? "No activities match these filters."
+            : "A walk, a run, a swim, or something else. Log the time; distance is optional."}
         </Empty>
       ) : (
         <ul className="record-list">
@@ -53,8 +98,13 @@ export function CardioHistory({ onEdit }: { onEdit: (c: Cardio) => void }) {
                   <span className="badge">{c.activityType}</span>
                   <h3 className="history-title">{c.title}</h3>
                   <small>
-                    {formatDate(localDate(c.startedAt, timezone))} ·{" "}
-                    {hours(c.durationSeconds)}
+                    {formatDate(localDate(c.startedAt, timezone), {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}{" "}
+                    · {formatTime(c.startedAt, timezone)} ·{" "}
+                    {exerciseDuration(c.durationSeconds)}
                     {c.distanceMeters !== null
                       ? " · " +
                         number(fromMeters(c.distanceMeters, distanceUnit), 2) +

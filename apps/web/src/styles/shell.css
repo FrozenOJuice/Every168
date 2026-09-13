@@ -1,0 +1,232 @@
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 184px;
+  padding: 32px 14px 16px;
+  border-right: 1px solid var(--border);
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+.sidebar .brand {
+  margin: 0 10px;
+  font-size: 1.55rem;
+}
+.brand-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--primary);
+  border-radius: 50%;
+  margin-left: 3px;
+}
+.nav-caption {
+  margin: 10px 10px 36px;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 12px;
+  border-radius: var(--radius);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.sidebar nav a:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.sidebar nav a[aria-current="page"] {
+  background: var(--muted);
+  color: var(--primary);
+  font-weight: 650;
+}
+.main-content {
+  margin-left: 184px;
+  padding: 32px clamp(24px, 2.5vw, 40px) 48px;
+  max-width: 1880px;
+  min-width: 0;
+}
+.main-content:focus {
+  outline: none;
+}
+.account-menu {
+  margin-top: auto;
+  position: relative;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.account-trigger {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--foreground);
+}
+.account-trigger:hover,
+.account-trigger[aria-expanded="true"] {
+  background: var(--muted);
+}
+.account-trigger:hover small,
+.account-trigger[aria-expanded="true"] small {
+  color: var(--foreground);
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+}
+.account-name {
+  flex: 1;
+  min-width: 0;
+}
+.account-name strong {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.account-name small {
+  display: block;
+  font-size: 0.65rem;
+}
+.account-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: 260px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 8px;
+  box-shadow: var(--shadow-popover);
+}
+.account-identity {
+  padding: 10px 10px 16px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.account-identity strong,
+.account-identity small {
+  display: block;
+}
+.account-popover a,
+.account-popover > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  text-align: left;
+  color: var(--foreground);
+}
+.account-popover a:hover,
+.account-popover > button:hover {
+  background: var(--muted);
+}
+.account-popover .error {
+  padding: 8px;
+  margin-bottom: 0;
+}
+@media (max-width: 900px) {
+  .sidebar {
+    inset: 0 0 auto;
+    width: 100%;
+    height: 64px;
+    padding: 8px 16px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar .brand {
+    margin: 0;
+  }
+  .nav-caption {
+    display: none;
+  }
+  .sidebar nav {
+    position: fixed;
+    inset: auto 0 0;
+    padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    flex-direction: row;
+    gap: 8px;
+  }
+  .sidebar nav a {
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 4px;
+    min-height: 54px;
+    font-size: 0.7rem;
+  }
+  .account-menu {
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .account-trigger {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+  .account-name,
+  .account-trigger > svg {
+    display: none;
+  }
+  .account-popover {
+    bottom: auto;
+    top: calc(100% + 8px);
+    left: auto;
+    right: 0;
+    width: min(280px, calc(100vw - 32px));
+  }
+  .main-content {
+    margin: 64px 0 0;
+    padding: 24px 20px calc(100px + env(safe-area-inset-bottom));
+  }
+  .save-workout {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 480px) {
+  .main-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

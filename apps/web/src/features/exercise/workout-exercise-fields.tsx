@@ -14,8 +14,13 @@ export function WorkoutExerciseFields({
   onUp?: () => void;
   onDown?: () => void;
 }) {
-  const { control, watch, register } = useFormContext<WorkoutFormValues>();
-  const sets = useFieldArray({ control, name: `exercises.${index}.sets` });
+  const { control, watch, register, getValues } =
+    useFormContext<WorkoutFormValues>();
+  const sets = useFieldArray({
+    control,
+    name: `exercises.${index}.sets`,
+    keyName: "formKey",
+  });
   const {
     preferences: { weightUnit },
   } = useMe();
@@ -58,7 +63,7 @@ export function WorkoutExerciseFields({
         </button>
       </div>
       {sets.fields.map((set, i) => (
-        <div className="set-row" key={set.id}>
+        <div className="set-row" key={set.formKey}>
           <strong className="set-number">Set {i + 1}</strong>
           <Field
             name={`exercises.${index}.sets.${i}.reps`}
@@ -126,6 +131,7 @@ export function WorkoutExerciseFields({
       <button
         className="button"
         type="button"
+        disabled={sets.fields.length >= 100}
         onClick={() =>
           sets.append({
             reps: null,
@@ -137,6 +143,24 @@ export function WorkoutExerciseFields({
       >
         Add set
       </button>
+      {sets.fields.length > 0 && (
+        <button
+          className="button repeat-set"
+          type="button"
+          disabled={sets.fields.length >= 100}
+          onClick={() => {
+            const last = getValues(`exercises.${index}.sets`).at(-1)!;
+            sets.append({
+              reps: last.reps,
+              weight: last.weight,
+              durationSeconds: last.durationSeconds,
+              completed: false,
+            });
+          }}
+        >
+          Repeat last set
+        </button>
+      )}
       <div className="exercise-notes">
         <Field
           name={`exercises.${index}.notes`}

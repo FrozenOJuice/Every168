@@ -58,6 +58,18 @@ export function strengthService(
           const existing = e.id
             ? found(old.exercises.find((x) => x.id === e.id))
             : undefined;
+          const seenSets = new Set<string>();
+          for (const set of e.sets) {
+            if (!set.id) continue;
+            if (seenSets.has(set.id))
+              throw new AppError(
+                422,
+                "VALIDATION_ERROR",
+                "Each set must have a unique identifier.",
+              );
+            seenSets.add(set.id);
+            found(existing?.sets.find((s) => s.id === set.id));
+          }
           const definition = found(await exercises.get(u, e.exerciseId, tx));
           if (definition.archivedAt && existing?.exerciseId !== e.exerciseId)
             throw new AppError(
@@ -71,7 +83,7 @@ export function strengthService(
               : definition.name,
           );
         }
-        const result = found(await repo.replace(tx, u, id, v, names));
+        const result = found(await repo.replace(tx, u, id, v, names, old));
         if (v.endedAt)
           await planning.recordSource(tx, u, {
             title: v.title,

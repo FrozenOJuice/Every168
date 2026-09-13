@@ -16,7 +16,7 @@ export function ErrorState({
   return (
     <div className="empty" role="alert">
       <p>{error.message}</p>
-      <button className="button" onClick={retry}>
+      <button className="button" type="button" onClick={retry}>
         Try again
       </button>
     </div>

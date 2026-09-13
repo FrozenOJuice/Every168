@@ -26,15 +26,14 @@ export function GoalsPage() {
   return (
     <>
       <PageHeading
-        eyebrow="A sense of direction"
         title="Goals"
-        description="Keep what matters in view, one step at a time."
+        description="What you’re working toward, one step at a time."
       >
         <button className="button primary" onClick={() => setEditing("new")}>
           Add goal
         </button>
       </PageHeading>
-      <div className="tabs" aria-label="Goal status">
+      <div className="tabs" role="group" aria-label="Goal status">
         {(["active", "completed", "paused", "archived"] as const).map((s) => (
           <button
             key={s}

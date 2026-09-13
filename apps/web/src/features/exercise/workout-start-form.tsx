@@ -12,7 +12,7 @@ import { useMe } from "@/features/identity/me";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
 import { localTimeField } from "@/lib/format";
 import { BlockPicker } from "./block-picker";
-export function WorkoutStartForm() {
+export function WorkoutStartForm({ date }: { date?: string }) {
   const {
     preferences: { timezone },
   } = useMe();
@@ -22,7 +22,9 @@ export function WorkoutStartForm() {
   });
   const form = useZodForm(schema, {
     title: "Strength workout",
-    startedAt: instantToLocalInput(new Date(), timezone),
+    startedAt: date
+      ? date + "T09:00"
+      : instantToLocalInput(new Date(), timezone),
     notes: null,
     linkedTimeBlockId: null,
   });

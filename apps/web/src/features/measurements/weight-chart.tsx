@@ -37,7 +37,7 @@ export function WeightChart({ entries }: { entries: Weight[] }) {
               tickFormatter={(v) =>
                 formatDate(localDate(new Date(v), timezone))
               }
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             />
             <YAxis
               dataKey="weight"
@@ -45,7 +45,7 @@ export function WeightChart({ entries }: { entries: Weight[] }) {
               domain={["auto", "auto"]}
               name="Weight"
               unit={" " + weightUnit}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
               width={64}
             />
             <Tooltip

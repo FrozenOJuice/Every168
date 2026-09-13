@@ -80,8 +80,9 @@ export function planningService(
       id: string,
       version: number,
       context?: TransactionContext,
+      excludeOccurrence = true,
     ) {
-      found(await repo.deleteBlock(u, id, version, context));
+      found(await repo.deleteBlock(u, id, version, context, excludeOccurrence));
       return { ok: true as const };
     },
     async createEntry(

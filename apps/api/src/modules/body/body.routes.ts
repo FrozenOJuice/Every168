@@ -1,14 +1,30 @@
 import { mutation, emptyInput } from "../../shared/http/mutation.js";
 import type { WritesService } from "../../infrastructure/writes/writes.service.js";
 import { Router } from "express";
-import { weightInput, idSchema, pageQuerySchema } from "@168hours/contracts";
+import {
+  weightInput,
+  idSchema,
+  measurementHistoryQuery,
+  dateQuerySchema,
+} from "@168hours/contracts";
 import { currentUser } from "../../shared/auth/middleware.js";
 import type { BodyService } from "./body.service.js";
 export function bodyRoutes(s: BodyService, writes: WritesService) {
   const r = Router();
   r.get("/weight-entries", async (req, res) =>
     res.json(
-      await s.list(currentUser(res).id, pageQuerySchema.parse(req.query)),
+      await s.list(
+        currentUser(res).id,
+        measurementHistoryQuery.parse(req.query),
+      ),
+    ),
+  );
+  r.get("/body/weight-review", async (req, res) =>
+    res.json(
+      await s.review(
+        currentUser(res).id,
+        dateQuerySchema.parse(req.query).date,
+      ),
     ),
   );
   r.post(

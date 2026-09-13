@@ -6,6 +6,7 @@ import {
   idSchema,
   instantSchema,
   pageSchema,
+  pageQuerySchema,
 } from "./common";
 export const exerciseInput = z
   .object({ name: titleSchema, notes: notesSchema })
@@ -37,7 +38,7 @@ export const workoutExerciseInput = z
     id: idSchema.optional(),
     exerciseId: idSchema,
     notes: notesSchema,
-    sets: z.array(setInput).max(100),
+    sets: z.array(setInput.safeExtend({ id: idSchema.optional() })).max(100),
   })
   .strict();
 export const workoutStartInput = z
@@ -117,6 +118,16 @@ export const cardioSchema = recordSchema.extend({
   ...cardioInput.shape,
   paceSecondsPerKm: z.number().nullable(),
 });
+export const workoutHistoryQuery = pageQuerySchema.extend({
+  search: z.string().trim().max(160).default(""),
+  status: z.enum(["all", "active", "completed"]).default("all"),
+});
+export const cardioHistoryQuery = pageQuerySchema.extend({
+  search: z.string().trim().max(160).default(""),
+  activityType: cardioInput.shape.activityType.optional(),
+});
+export type WorkoutHistoryQuery = z.infer<typeof workoutHistoryQuery>;
+export type CardioHistoryQuery = z.infer<typeof cardioHistoryQuery>;
 export const progressSetSchema = z.object({
   id: idSchema,
   createdAt: instantSchema,

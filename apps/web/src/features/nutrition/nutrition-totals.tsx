@@ -28,7 +28,7 @@ export function NutritionSummary({
   count: number;
 }) {
   return (
-    <section className="panel">
+    <section className="panel" aria-label="Daily nutrition">
       <h2>Daily nutrition</h2>
       {count === 0 ? (
         <p className="muted text-small">No food logged for this day yet.</p>

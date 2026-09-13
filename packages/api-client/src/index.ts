@@ -3,12 +3,14 @@ import { nutritionClient } from "./nutrition";
 import { measurementsClient } from "./measurements";
 import { goalsClient } from "./goals";
 import { planningClient } from "./planning";
+import { calendarClient } from "./calendar";
 import type { Me, Preferences } from "@168hours/contracts";
 import { writeHeaders, createHttp, body, type ClientOptions } from "./http";
 export * from "./http";
 export function createClient(options: ClientOptions = {}) {
   const http = createHttp(options);
   return {
+    ...calendarClient(http),
     ...exerciseClient(http),
     ...nutritionClient(http),
     ...measurementsClient(http),

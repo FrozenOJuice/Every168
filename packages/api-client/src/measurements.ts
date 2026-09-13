@@ -4,13 +4,14 @@ import type {
   WaterDaily,
   Weight,
   WeightInput,
-  PageQuery,
+  MeasurementHistoryQuery,
+  WeightReview,
   Page,
 } from "@168hours/contracts";
 import { writeHeaders, body, query, type Http } from "./http";
 export function measurementsClient(http: Http) {
   return {
-    getWater: (q: Partial<PageQuery> = {}) =>
+    getWater: (q: Partial<MeasurementHistoryQuery> = {}) =>
       http<Page<Water>>("/api/v1/water-entries" + query(q)),
     logWater: (v: WaterInput, key?: string) =>
       http<Water>("/api/v1/water-entries", {
@@ -31,7 +32,9 @@ export function measurementsClient(http: Http) {
       }),
     getWaterDaily: (date: string) =>
       http<WaterDaily>("/api/v1/hydration/daily" + query({ date })),
-    getWeight: (q: Partial<PageQuery> = {}) =>
+    getWeightReview: (date: string) =>
+      http<WeightReview>("/api/v1/body/weight-review" + query({ date })),
+    getWeight: (q: Partial<MeasurementHistoryQuery> = {}) =>
       http<Page<Weight>>("/api/v1/weight-entries" + query(q)),
     logWeight: (v: WeightInput, key?: string) =>
       http<Weight>("/api/v1/weight-entries", {

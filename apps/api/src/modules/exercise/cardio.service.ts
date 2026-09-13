@@ -1,6 +1,6 @@
 import { assertRevision } from "../../shared/errors/revision.js";
 import { paceSecondsPerKm } from "@168hours/domain-utils";
-import type { CardioInput, PageQuery } from "@168hours/contracts";
+import type { CardioInput, CardioHistoryQuery } from "@168hours/contracts";
 import type {
   RunInTransaction,
   TransactionContext,
@@ -41,7 +41,7 @@ export function cardioService(
     });
   }
   return {
-    async list(u: string, q: PageQuery) {
+    async list(u: string, q: CardioHistoryQuery) {
       const result = await repo.list(u, q);
       return { ...result, items: result.items.map(view) };
     },

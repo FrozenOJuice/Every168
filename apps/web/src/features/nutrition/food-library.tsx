@@ -28,8 +28,10 @@ export function FoodLibrary({
   });
   const cache = useQueryClient();
   const archive = useCommand({
-    mutationFn: (item: { id: string; version: number }, key: string) =>
-      api.archiveFood(item.id, item.version, key),
+    mutationFn: (item: Food, key: string) =>
+      item.archivedAt
+        ? api.restoreFood(item.id, item.version, key)
+        : api.archiveFood(item.id, item.version, key),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["foods"] }),
   });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -51,6 +53,7 @@ export function FoodLibrary({
         <input
           id="library-search"
           type="search"
+          maxLength={100}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -61,8 +64,11 @@ export function FoodLibrary({
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       ) : !items.length ? (
         <Empty>
-          No foods here yet. Add foods you eat regularly, using the values from
-          their labels.
+          {search
+            ? "No foods match this search."
+            : archived
+              ? "No archived foods."
+              : "Add foods you eat regularly, using the values from their labels."}
         </Empty>
       ) : (
         <ul className="record-list">
@@ -79,6 +85,15 @@ export function FoodLibrary({
                 {!f.archivedAt && (
                   <button className="button" onClick={() => onLog(f)}>
                     Log
+                  </button>
+                )}
+                {f.archivedAt && (
+                  <button
+                    className="button"
+                    disabled={archive.isPending}
+                    onClick={() => archive.mutate(f)}
+                  >
+                    Restore
                   </button>
                 )}
                 <button className="button" onClick={() => onEdit(f)}>
@@ -115,6 +130,11 @@ export function FoodLibrary({
         </button>
       )}
       <CommandError command={archive} />
+      {archive.isSuccess && (
+        <p className="success" role="status">
+          Food library updated.
+        </p>
+      )}
     </section>
   );
 }

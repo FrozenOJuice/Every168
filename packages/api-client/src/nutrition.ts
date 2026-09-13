@@ -7,10 +7,20 @@ import type {
   NutritionDaily,
   LibraryQuery,
   Page,
+  FoodEntryDetail,
+  FoodHistoryQuery,
 } from "@168hours/contracts";
 import { writeHeaders, body, query, type Http } from "./http";
 export function nutritionClient(http: Http) {
   return {
+    getFoodHistory: (q: Partial<FoodHistoryQuery> = {}) =>
+      http<Page<FoodEntryDetail>>("/api/v1/food-entries" + query(q)),
+    restoreFood: (id: string, version: number, key?: string) =>
+      http<Food>("/api/v1/foods/" + id + "/restore", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: "{}",
+      }),
     getFoods: (q: Partial<LibraryQuery> = {}) =>
       http<Page<Food>>("/api/v1/foods" + query(q)),
     createFood: (v: FoodInput, key?: string) =>

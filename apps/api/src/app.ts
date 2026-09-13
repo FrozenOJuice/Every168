@@ -1,3 +1,4 @@
+import { calendarRoutes } from "./modules/planning/calendar.routes.js";
 import { apiRateLimit } from "./shared/http/rate-limit.js";
 import { exerciseRoutes } from "./modules/exercise/exercise.routes.js";
 import { bodyRoutes } from "./modules/body/body.routes.js";
@@ -18,6 +19,10 @@ import { identityRoutes } from "./modules/identity/identity.routes.js";
 import { AppError } from "./shared/errors/app-error.js";
 export function createApp({
   writes,
+  calendarItems,
+  series,
+  templates,
+  calendarSearch,
   databaseHealth,
   lifecycle,
   logger,
@@ -74,6 +79,7 @@ export function createApp({
     identityRoutes(identity, writes),
     categoriesRoutes(categories, writes),
     planningRoutes(planning, writes),
+    calendarRoutes(calendarItems, series, templates, calendarSearch, writes),
     goalsRoutes(goals, writes),
     dashboardRoutes(dashboard),
     nutritionRoutes(nutrition, writes),

@@ -37,6 +37,9 @@ export const timeEntryInput = z
   });
 export const blockSchema = recordSchema.extend({
   ...timeFields,
+  seriesId: idSchema.nullable(),
+  occurrenceDate: dateSchema.nullable(),
+  isException: z.boolean(),
   goalId: idSchema.nullable(),
   notes: z.string().nullable(),
 });

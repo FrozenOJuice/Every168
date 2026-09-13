@@ -138,6 +138,7 @@ export function Field({
   help,
   autoComplete,
   required = false,
+  onChange,
 }: {
   name: string;
   label: string;
@@ -150,6 +151,7 @@ export function Field({
   help?: string;
   autoComplete?: string;
   required?: boolean;
+  onChange?: (value: string) => void;
 }) {
   const id = useId();
   const { register, getFieldState, formState, control } = useFormContext();
@@ -171,6 +173,14 @@ export function Field({
   const props = {
     id,
     ...registration,
+    onChange: (
+      event: React.ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) => {
+      void registration.onChange(event);
+      onChange?.(event.target.value);
+    },
     "aria-invalid": !!error,
     "aria-describedby": error ? id + "-error" : help ? id + "-help" : undefined,
     required,

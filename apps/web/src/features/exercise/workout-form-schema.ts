@@ -1,22 +1,39 @@
 import { z } from "zod";
-import { workoutStartInput, idSchema, setInput } from "@168hours/contracts";
+import {
+  workoutStartInput,
+  idSchema,
+  setInput,
+  type Workout,
+} from "@168hours/contracts";
+import { fromKilograms } from "@168hours/domain-utils";
 import { localTimeField } from "@/lib/format";
-export const workoutSetForm = z
-  .object({
-    reps: setInput.shape.reps,
-    weight: z.number().finite().min(0).max(4500).nullable(),
-    durationSeconds: setInput.shape.durationSeconds,
-    completed: setInput.shape.completed,
-  })
-  .refine((v) => v.reps !== null || v.durationSeconds !== null, {
-    path: ["reps"],
-    message: "Enter reps or a timed duration.",
-  });
-export function workoutFormSchema(timezone: string) {
+const workoutSetForm = (weightUnit: "kg" | "lb") =>
+  z
+    .object({
+      id: idSchema.optional(),
+      reps: setInput.shape.reps,
+      weight: z
+        .number()
+        .finite()
+        .min(0)
+        .max(fromKilograms(2000, weightUnit))
+        .nullable(),
+      durationSeconds: setInput.shape.durationSeconds,
+      completed: setInput.shape.completed,
+    })
+    .refine((v) => v.reps !== null || v.durationSeconds !== null, {
+      path: ["reps"],
+      message: "Enter reps or a timed duration.",
+    });
+export function workoutFormSchema(
+  timezone: string,
+  weightUnit: "kg" | "lb",
+  recorded?: Pick<Workout, "startedAt" | "endedAt">,
+) {
   return z.object({
     ...workoutStartInput.shape,
-    startedAt: localTimeField(timezone),
-    endedAt: localTimeField(timezone).nullable(),
+    startedAt: localTimeField(timezone, recorded?.startedAt),
+    endedAt: localTimeField(timezone, recorded?.endedAt).nullable(),
     exercises: z
       .array(
         z.object({
@@ -24,7 +41,7 @@ export function workoutFormSchema(timezone: string) {
           exerciseId: idSchema,
           exerciseNameSnapshot: z.string(),
           notes: z.string().max(4000).nullable(),
-          sets: z.array(workoutSetForm).max(100),
+          sets: z.array(workoutSetForm(weightUnit)).max(100),
         }),
       )
       .max(50),

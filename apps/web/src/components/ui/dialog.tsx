@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useId } from "react";
+import { useLayoutEffect, useRef, useId } from "react";
 import { X } from "lucide-react";
 export function Dialog({
   title,
@@ -12,10 +12,15 @@ export function Dialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = ref.current;
+    const opener = document.activeElement;
     dialog?.showModal();
-    return () => dialog?.close();
+    return () => {
+      dialog?.close();
+      if (opener instanceof HTMLElement && opener.isConnected)
+        opener.focus({ preventScroll: true });
+    };
   }, []);
   return (
     <dialog

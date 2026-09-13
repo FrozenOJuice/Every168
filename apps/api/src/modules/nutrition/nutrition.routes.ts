@@ -8,6 +8,7 @@ import {
   idSchema,
   libraryQuery,
   dateQuerySchema,
+  foodHistoryQuery,
 } from "@168hours/contracts";
 import { currentUser } from "../../shared/auth/middleware.js";
 import type { NutritionService } from "./nutrition.service.js";
@@ -59,6 +60,21 @@ export function nutritionRoutes(s: NutritionService, writes: WritesService) {
       foodEntryInput,
       ({ userId, input, context }) => s.logFood(userId, input, context),
       { status: 201 },
+    ),
+  );
+  r.post(
+    "/foods/:id/restore",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        s.restoreFood(userId, id, version, context),
+      { versioned: true },
+    ),
+  );
+  r.get("/food-entries", async (req, res) =>
+    res.json(
+      await s.history(currentUser(res).id, foodHistoryQuery.parse(req.query)),
     ),
   );
   r.get("/food-entries/:id", async (req, res) =>

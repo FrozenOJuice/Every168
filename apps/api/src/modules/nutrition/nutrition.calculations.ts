@@ -1,4 +1,5 @@
 import type { NutritionTotals } from "@168hours/contracts";
+import { mealType } from "@168hours/contracts";
 type Snapshot = {
   quantity: number;
   caloriesSnapshot: number;
@@ -24,4 +25,17 @@ export function nutritionTotals(entries: Snapshot[]): NutritionTotals {
     fatG: total("fatGSnapshot"),
     fiberG: total("fiberGSnapshot"),
   };
+}
+export function entryDetail<T extends Snapshot>(entry: T) {
+  return { ...entry, nutrition: nutritionTotals([entry]) };
+}
+export function mealSummaries(entries: (Snapshot & { mealType: string })[]) {
+  return mealType.options.map((meal) => {
+    const items = entries.filter((entry) => entry.mealType === meal);
+    return {
+      mealType: meal,
+      count: items.length,
+      totals: nutritionTotals(items),
+    };
+  });
 }

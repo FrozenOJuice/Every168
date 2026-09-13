@@ -34,6 +34,12 @@ export const libraryQuery = pageQuerySchema.extend({
   archived: z.enum(["true", "false"]).default("false"),
   search: z.string().trim().max(100).default(""),
 });
+export const foodHistoryQuery = pageQuerySchema
+  .extend({
+    date: dateSchema.optional(),
+    search: z.string().trim().max(100).default(""),
+  })
+  .strict();
 export const mealType = z.enum([
   "breakfast",
   "lunch",
@@ -72,15 +78,26 @@ export const nutritionTotalsSchema = z.object({
   fatG: knownTotal,
   fiberG: knownTotal,
 });
+export const foodEntryDetailSchema = foodEntrySchema.extend({
+  nutrition: nutritionTotalsSchema,
+});
+export const mealSummarySchema = z.object({
+  mealType,
+  count: z.number().int().nonnegative(),
+  totals: nutritionTotalsSchema,
+});
 export const nutritionDailySchema = z.object({
   date: dateSchema,
   count: z.number(),
   totals: nutritionTotalsSchema,
-  entries: z.array(foodEntrySchema),
+  entries: z.array(foodEntryDetailSchema),
+  meals: z.array(mealSummarySchema),
 });
 export type FoodInput = z.infer<typeof foodInput>;
 export type Food = z.infer<typeof foodSchema>;
 export type LibraryQuery = z.infer<typeof libraryQuery>;
+export type FoodHistoryQuery = z.infer<typeof foodHistoryQuery>;
+export type FoodEntryDetail = z.infer<typeof foodEntryDetailSchema>;
 export type FoodEntryInput = z.infer<typeof foodEntryInput>;
 export type FoodEntryUpdate = z.infer<typeof foodEntryUpdate>;
 export type FoodEntry = z.infer<typeof foodEntrySchema>;

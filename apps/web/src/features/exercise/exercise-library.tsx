@@ -28,9 +28,14 @@ export function ExerciseLibrary({
   });
   const cache = useQueryClient();
   const archive = useCommand({
-    mutationFn: (item: { id: string; version: number }, key: string) =>
-      api.archiveExercise(item.id, item.version, key),
-    onSuccess: () => cache.invalidateQueries({ queryKey: ["exercises"] }),
+    mutationFn: (item: Exercise, key: string) =>
+      item.archivedAt
+        ? api.restoreExercise(item.id, item.version, key)
+        : api.archiveExercise(item.id, item.version, key),
+    onSuccess: async () => {
+      await cache.invalidateQueries({ queryKey: ["exercises"] });
+      await cache.invalidateQueries({ queryKey: ["progress"] });
+    },
   });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   return (
@@ -51,6 +56,7 @@ export function ExerciseLibrary({
         <input
           id="exercise-library-search"
           type="search"
+          maxLength={160}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -61,7 +67,11 @@ export function ExerciseLibrary({
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       ) : !items.length ? (
         <Empty>
-          Add exercises you use, such as Squat, Bench Press, or Plank.
+          {search
+            ? "No matching exercises. Try another search."
+            : archived
+              ? "No archived exercises."
+              : "Add exercises you use, such as Squat, Bench Press, or Plank."}
         </Empty>
       ) : (
         <ul className="record-list">
@@ -92,6 +102,15 @@ export function ExerciseLibrary({
                     }}
                   >
                     Archive
+                  </button>
+                )}
+                {e.archivedAt && (
+                  <button
+                    className="button"
+                    disabled={archive.isPending}
+                    onClick={() => archive.mutate(e)}
+                  >
+                    Restore
                   </button>
                 )}
               </div>

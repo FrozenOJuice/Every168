@@ -1,3 +1,4 @@
+import { calendarActivityService } from "./modules/planning/calendar-activity.service.js";
 import apiPackage from "../package.json" with { type: "json" };
 import { AppError } from "./shared/errors/app-error.js";
 import { adminRepository } from "./modules/identity/admin.repository.js";
@@ -100,6 +101,13 @@ export function compose(input: ConfigInput) {
     cardioRepository(db),
     planning,
   );
+  const calendarActivity = calendarActivityService(identity, [
+    nutrition.calendarActivity,
+    hydration.calendarActivity,
+    body.calendarActivity,
+    strength.calendarActivity,
+    cardio.calendarActivity,
+  ]);
   const dashboard = dashboardService(
     identity,
     planning,
@@ -150,6 +158,7 @@ export function compose(input: ConfigInput) {
     series,
     templates,
     calendarSearch,
+    calendarActivity,
     writes: writesService(
       runInTransaction,
       writesRepository(db),

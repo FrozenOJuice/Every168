@@ -36,6 +36,7 @@ export function WaterPanel({
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["water"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
+      await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
     },
   });
   return (

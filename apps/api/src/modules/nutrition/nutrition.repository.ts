@@ -1,3 +1,4 @@
+import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import { count } from "drizzle-orm";
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
@@ -31,6 +32,19 @@ export function nutritionRepository(db: Database) {
   const entryOwner = (u: string, id: string) =>
     and(eq(foodEntries.userId, u), eq(foodEntries.id, id));
   return {
+    activityRange: (u: string, start: string, end: string) =>
+      db
+        .select()
+        .from(foodEntries)
+        .where(
+          and(
+            eq(foodEntries.userId, u),
+            gte(foodEntries.consumedAt, new Date(start)),
+            lt(foodEntries.consumedAt, new Date(end)),
+          ),
+        )
+        .orderBy(asc(foodEntries.consumedAt), asc(foodEntries.id))
+        .limit(CALENDAR_ACTIVITY_LIMIT + 1),
     async platformUsage() {
       const foodEntriesCount = (
         await db.select({ total: count() }).from(foodEntries)

@@ -30,6 +30,7 @@ export function MeasurementList({
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: [kind] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
+      await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
     },
   });
   return (

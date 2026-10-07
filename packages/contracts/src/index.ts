@@ -10,3 +10,5 @@ export * from "./measurements";
 export * from "./exercise";
 
 export * from "./admin";
+
+export * from "./calendar-activity";

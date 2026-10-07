@@ -1,3 +1,8 @@
+import {
+  CALENDAR_ACTIVITY_LIMIT,
+  type CalendarContribution,
+} from "@168hours/contracts";
+import { localDate } from "@168hours/domain-utils";
 import type { TransactionContext } from "../../shared/transactions.js";
 import { dayRange } from "@168hours/domain-utils";
 import type { WaterInput, MeasurementHistoryQuery } from "@168hours/contracts";
@@ -9,6 +14,34 @@ export function hydrationService(
   identity: IdentityService,
 ) {
   return {
+    async calendarActivity(
+      u: string,
+      range: {
+        startsAt: string;
+        endsAt: string;
+        timezone: string;
+        weightUnit: "kg" | "lb";
+      },
+    ): Promise<CalendarContribution> {
+      const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
+      return {
+        label: "Water",
+        href: "/food",
+        truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
+        entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
+          source: { type: "water_entry", id: row.id },
+          domain: "Water",
+          icon: "droplet",
+          kind: "moment",
+          status: "recorded",
+          title: "Water",
+          summary: `${row.amountMl} ml`,
+          occurredAt: row.consumedAt.toISOString(),
+          endsAt: null,
+          href: `/food?date=${localDate(row.consumedAt, range.timezone)}#food-water`,
+        })),
+      };
+    },
     async list(u: string, q: MeasurementHistoryQuery) {
       const before = q.through
         ? dayRange(q.through, (await identity.getPreferences(u)).timezone)

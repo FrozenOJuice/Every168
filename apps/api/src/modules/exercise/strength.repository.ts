@@ -1,5 +1,10 @@
+import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import {
   and,
+  gte,
+  gt,
+  lt,
+  or,
   eq,
   asc,
   desc,
@@ -85,6 +90,22 @@ export function strengthRepository(db: Database) {
     });
   }
   return {
+    activityRange: (u: string, start: string, end: string) =>
+      db
+        .select()
+        .from(workouts)
+        .where(
+          and(
+            eq(workouts.userId, u),
+            or(
+              gte(workouts.startedAt, new Date(start)),
+              gt(workouts.endedAt, new Date(start)),
+            ),
+            lt(workouts.startedAt, new Date(end)),
+          ),
+        )
+        .orderBy(asc(workouts.startedAt), asc(workouts.id))
+        .limit(CALENDAR_ACTIVITY_LIMIT + 1),
     get,
     async start(u: string, v: WorkoutStartInput, context?: TransactionContext) {
       return (

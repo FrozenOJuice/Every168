@@ -178,35 +178,45 @@ export function TimeForm({
         choose a duration to resize.{" "}
         {kind === "entry" ? "Enter the time you actually spent." : ""}
       </small>
-      <Field name="categoryId" label="Category" optional>
-        <option value="">Uncategorized</option>
-        {cats.data
-          ?.filter((c) => !c.archivedAt || c.id === source?.categoryId)
-          .map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-      </Field>
-      {kind === "block" && (
-        <Field name="goalId" label="Goal (optional)" optional>
-          <option value="">No linked goal</option>
-          {source &&
-            "goalId" in source &&
-            source.goalId &&
-            !goals.data?.items.some((g) => g.id === source.goalId) && (
-              <option value={source.goalId}>Previously linked goal</option>
-            )}
-          {goals.data?.items.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.title}
-            </option>
-          ))}
-        </Field>
-      )}
-      {kind === "block" && (
-        <Field name="notes" label="Notes (optional)" type="textarea" optional />
-      )}
+      <details open={!!item || !!duplicateOf || !!scheduledItem}>
+        <summary>More details</summary>
+        <div className="form-stack">
+          <Field name="categoryId" label="Category" optional>
+            <option value="">Uncategorized</option>
+            {cats.data
+              ?.filter((c) => !c.archivedAt || c.id === source?.categoryId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+          </Field>
+          {kind === "block" && (
+            <Field name="goalId" label="Goal (optional)" optional>
+              <option value="">No linked goal</option>
+              {source &&
+                "goalId" in source &&
+                source.goalId &&
+                !goals.data?.items.some((g) => g.id === source.goalId) && (
+                  <option value={source.goalId}>Previously linked goal</option>
+                )}
+              {goals.data?.items.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </Field>
+          )}
+          {kind === "block" && (
+            <Field
+              name="notes"
+              label="Notes (optional)"
+              type="textarea"
+              optional
+            />
+          )}
+        </div>
+      </details>
       {linkedBlock && (
         <p className="muted text-small">
           Linked to planned block: {linkedBlock.title}

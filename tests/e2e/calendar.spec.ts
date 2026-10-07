@@ -260,7 +260,7 @@ test("day, week and month calendars keep planning focused", async ({
   await openMonthDay("2026-09-15");
   await expect(page).toHaveURL(/date=2026-09-15.*view=day/);
   await expect(day).toBeVisible();
-  await page.getByRole("button", { name: "Add block", exact: true }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
     "2026-09-15T09:00",
   );
@@ -308,7 +308,7 @@ test("day, week and month calendars keep planning focused", async ({
     day.getByRole("button", { name: /Clock change reading/ }),
   ).toContainText("1:45 AM MDT – 1:15 AM MST");
   await page.goto("/?date=2026-09-07");
-  await page.getByRole("button", { name: "Add block", exact: true }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
     "2026-09-07T09:00",
   );
@@ -342,6 +342,7 @@ test("day, week and month calendars keep planning focused", async ({
     "2026-09-07T15:00",
   );
   await page.getByLabel("Title", { exact: true }).fill("Quarter-hour plan");
+  await page.getByText("More details", { exact: true }).click();
   await page.getByLabel("Category", { exact: true }).selectOption(category.id);
   await page.getByLabel("Goal (optional)").selectOption(goal.id);
   await page.getByLabel("Notes (optional)").fill("Bring the project draft.");

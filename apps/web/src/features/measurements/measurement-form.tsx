@@ -21,10 +21,12 @@ import { timeForLogDate } from "./log-time";
 export function MeasurementForm({
   kind,
   date,
+  initialTime,
   item,
   onSaved,
 }: {
   date?: string;
+  initialTime?: string;
   kind: "water" | "weight";
   item?: Water | Weight;
   onSaved: (item: Water | Weight) => void;
@@ -69,8 +71,8 @@ export function MeasurementForm({
   const form = useZodForm(schema, {
     amount: value,
     at:
-      !item && date
-        ? timeForLogDate(date, timezone)
+      !item && (date || initialTime)
+        ? (initialTime ?? timeForLogDate(date!, timezone))
         : instantToLocalInput(time, timezone),
   });
   const cache = useQueryClient();
@@ -96,6 +98,7 @@ export function MeasurementForm({
         }
         await cache.invalidateQueries({ queryKey: [kind] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
+        await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
         onSaved(saved);
       }}
     >

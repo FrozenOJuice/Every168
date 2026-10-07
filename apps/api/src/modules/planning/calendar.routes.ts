@@ -1,3 +1,4 @@
+import type { CalendarActivityService } from "./calendar-activity.service.js";
 import { Router } from "express";
 import { z } from "zod";
 import {
@@ -27,8 +28,13 @@ export function calendarRoutes(
   templates: TemplatesService,
   search: CalendarSearchService,
   writes: WritesService,
+  activity: CalendarActivityService,
 ) {
   const r = Router();
+  r.get("/calendar/activity", async (req, res) => {
+    const q = calendarRangeQuery.parse(req.query);
+    res.json(await activity.range(currentUser(res).id, q.from, q.to));
+  });
   r.get("/calendar/search", async (req, res) =>
     res.json(
       await search.search(

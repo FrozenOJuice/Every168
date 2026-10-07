@@ -1,3 +1,8 @@
+import {
+  CALENDAR_ACTIVITY_LIMIT,
+  type CalendarContribution,
+} from "@168hours/contracts";
+import { localDate } from "@168hours/domain-utils";
 import type {
   RunInTransaction,
   TransactionContext,
@@ -23,6 +28,34 @@ export function nutritionService(
   runInTransaction: RunInTransaction,
 ) {
   return {
+    async calendarActivity(
+      u: string,
+      range: {
+        startsAt: string;
+        endsAt: string;
+        timezone: string;
+        weightUnit: "kg" | "lb";
+      },
+    ): Promise<CalendarContribution> {
+      const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
+      return {
+        label: "Food",
+        href: "/food",
+        truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
+        entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
+          source: { type: "food_entry", id: row.id },
+          domain: "Food",
+          icon: "utensils",
+          kind: "moment",
+          status: "recorded",
+          title: row.nameSnapshot,
+          summary: `${row.quantity} × ${row.servingAmountSnapshot} ${row.servingUnitSnapshot} · ${row.mealType}`,
+          occurredAt: row.consumedAt.toISOString(),
+          endsAt: null,
+          href: `/food?date=${localDate(row.consumedAt, range.timezone)}`,
+        })),
+      };
+    },
     platformUsage: repo.platformUsage,
     listFoods: repo.listFoods,
     async getFood(u: string, id: string) {

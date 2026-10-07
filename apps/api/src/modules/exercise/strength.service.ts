@@ -1,3 +1,7 @@
+import {
+  CALENDAR_ACTIVITY_LIMIT,
+  type CalendarContribution,
+} from "@168hours/contracts";
 import { assertRevision } from "../../shared/errors/revision.js";
 import {
   workoutUpdateInput,
@@ -19,6 +23,36 @@ export function strengthService(
   planning: PlanningService,
 ) {
   return {
+    async calendarActivity(
+      u: string,
+      range: {
+        startsAt: string;
+        endsAt: string;
+        timezone: string;
+        weightUnit: "kg" | "lb";
+      },
+    ): Promise<CalendarContribution> {
+      const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
+      return {
+        label: "Exercise",
+        href: "/exercise",
+        truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
+        entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
+          source: { type: "strength_workout", id: row.id },
+          domain: "Exercise",
+          icon: "dumbbell",
+          kind: "session",
+          status: row.endedAt ? "recorded" : "draft",
+          title: row.title,
+          summary: row.endedAt
+            ? "Finished workout"
+            : "Workout draft · not finished",
+          occurredAt: row.startedAt.toISOString(),
+          endsAt: row.endedAt?.toISOString() ?? null,
+          href: `/exercise/workout/${row.id}`,
+        })),
+      };
+    },
     list: repo.list,
     latest: repo.latest,
     async get(u: string, id: string) {

@@ -1,5 +1,12 @@
 "use client";
-import { useId, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { ApiError, uncertainWrite } from "@168hours/api-client";
 import {
@@ -15,6 +22,9 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+export const FormBusyContext = createContext<((busy: boolean) => void) | null>(
+  null,
+);
 export function useZodForm<T extends FieldValues>(
   schema: z.ZodType<T>,
   defaults: NoInfer<DefaultValues<T>>,
@@ -47,6 +57,10 @@ export function Form<T extends FieldValues>({
   const [saving, setSaving] = useState(false);
   const [stale, setStale] = useState(false);
   const running = useRef(false);
+  const reportBusy = useContext(FormBusyContext);
+  useEffect(() => {
+    reportBusy?.(saving || !!pending);
+  }, [saving, pending, reportBusy]);
   async function save(values: T) {
     if (running.current) return;
     running.current = true;

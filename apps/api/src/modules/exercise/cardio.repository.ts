@@ -1,4 +1,5 @@
-import { and, eq, desc, ilike } from "drizzle-orm";
+import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
+import { and, eq, asc, desc, ilike, lt, sql } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
@@ -12,6 +13,19 @@ export function cardioRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
+    activityRange: (u: string, start: string, end: string) =>
+      db
+        .select()
+        .from(table)
+        .where(
+          and(
+            eq(table.userId, u),
+            sql`${table.startedAt} + ${table.durationSeconds} * interval '1 second' > ${new Date(start)}`,
+            lt(table.startedAt, new Date(end)),
+          ),
+        )
+        .orderBy(asc(table.startedAt), asc(table.id))
+        .limit(CALENDAR_ACTIVITY_LIMIT + 1),
     async get(
       u: string,
       id: string,

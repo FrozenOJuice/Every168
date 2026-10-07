@@ -17,6 +17,7 @@ export function FoodEntryForm({
   food,
   entry,
   date,
+  initialTime,
   repeat = false,
   meal,
   onCreateFood,
@@ -26,6 +27,7 @@ export function FoodEntryForm({
   food?: Food;
   entry?: FoodEntry;
   date: string;
+  initialTime?: string;
   repeat?: boolean;
   meal?: FoodEntry["mealType"];
   onCreateFood?: () => void;
@@ -60,7 +62,7 @@ export function FoodEntryForm({
     consumedAt:
       entry && !repeat
         ? instantToLocalInput(entry.consumedAt, timezone)
-        : timeForLogDate(date, timezone),
+        : (initialTime ?? timeForLogDate(date, timezone)),
   });
   const cache = useQueryClient();
   return (
@@ -79,6 +81,7 @@ export function FoodEntryForm({
           : await api.logFood({ ...input, foodId: v.foodId }, key);
         await cache.invalidateQueries({ queryKey: ["nutrition"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
+        await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
         onSaved(saved);
       }}
     >

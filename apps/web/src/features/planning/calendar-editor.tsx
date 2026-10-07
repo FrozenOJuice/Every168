@@ -1,3 +1,5 @@
+import { CalendarComposer } from "./calendar-composer";
+import type { CalendarAction } from "./calendar-actions";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { useRouter } from "next/navigation";
 import { calendarHref } from "./calendar-layout";
@@ -20,8 +22,12 @@ export function CalendarEditor({
   onChange,
   onSaved,
   onSeries,
+  composer = false,
+  onPlanType,
 }: {
   editor: TimeEditor;
+  composer?: boolean;
+  onPlanType?: (mode: CalendarAction) => void;
   week: Week;
   onClose: () => void;
   onChange: (editor: TimeEditor) => void;
@@ -52,6 +58,15 @@ export function CalendarEditor({
       onClose();
     },
   });
+  if (composer && onPlanType)
+    return (
+      <CalendarComposer
+        editor={editor}
+        onClose={onClose}
+        onSaved={onSaved}
+        onPlanType={onPlanType}
+      />
+    );
   return (
     <Dialog
       title={

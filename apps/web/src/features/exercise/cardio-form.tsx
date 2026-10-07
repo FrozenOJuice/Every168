@@ -17,9 +17,11 @@ import { invalidateExercise } from "./invalidate";
 export function CardioForm({
   activity,
   date,
+  initialTime,
   onSaved,
 }: {
   date?: string;
+  initialTime?: string;
   activity?: Cardio;
   onSaved: () => void;
 }) {
@@ -49,9 +51,11 @@ export function CardioForm({
     title: activity?.title ?? "Cardio activity",
     startedAt: activity
       ? instantToLocalInput(activity.startedAt, timezone)
-      : date
-        ? date + "T09:00"
-        : instantToLocalInput(new Date(), timezone),
+      : initialTime
+        ? initialTime
+        : date
+          ? date + "T09:00"
+          : instantToLocalInput(new Date(), timezone),
     minutes: activity ? activity.durationSeconds / 60 : 30,
     distance: activity?.distanceMeters
       ? fromMeters(activity.distanceMeters, distanceUnit)

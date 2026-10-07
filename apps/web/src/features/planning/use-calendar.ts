@@ -26,9 +26,26 @@ export function useCalendar(date: string, view: CalendarView) {
     queryKey: ["calendar-items", from, to],
     queryFn: () => api.getCalendarItems(from, to),
   });
+  const activity = useQuery({
+    queryKey: [
+      "calendar-activity",
+      view === "day" ? date : from,
+      view === "day" ? date : to,
+      preferences,
+    ],
+    queryFn: () =>
+      api.getCalendarActivity(
+        view === "day" ? date : from,
+        view === "day" ? date : to,
+      ),
+  });
   const weeks = queries.flatMap((query) => (query.data ? [query.data] : []));
   return {
     weeks,
+    activity: activity.data,
+    activityError: activity.error,
+    activityPending: activity.isPending,
+    retryActivity: () => void activity.refetch(),
     items: items.data ?? [],
     week: weeks.find((week) => week.weekStart === selectedWeek),
     selectedWeek,

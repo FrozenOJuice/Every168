@@ -1,16 +1,13 @@
-import { CalendarItemButton } from "./calendar-item-button";
-import {
-  itemsOnDate,
-  type CalendarFilter,
-  type CalendarDisplayRecord,
-} from "./calendar-filters";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { Week, CalendarItem } from "@168hours/contracts";
 import { Dialog } from "@/components/ui/dialog";
+import { ErrorState, Loading } from "@/components/ui/feedback";
+import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import { CalendarRecord } from "./calendar-record";
-import { calendarHref, dayRecords } from "./calendar-layout";
-
+import { calendarHref } from "./calendar-layout";
+import { CalendarDayFeed } from "./calendar-day-feed";
+import type { CalendarFilter, CalendarDisplayRecord } from "./calendar-filters";
 export function CalendarDayRecords({
   date,
   week,
@@ -19,22 +16,21 @@ export function CalendarDayRecords({
   onAdd,
   items,
   filter,
+  now,
 }: {
   date: string;
   week: Week;
+  now: string;
   onClose: () => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   items: CalendarItem[];
   filter: CalendarFilter;
   onAdd: (date: string) => void;
 }) {
-  const records: CalendarDisplayRecord[] = [
-    ...itemsOnDate(items, date, filter).map((item) => ({
-      kind: "item" as const,
-      item,
-    })),
-    ...dayRecords(week, date, filter),
-  ];
+  const activity = useQuery({
+    queryKey: ["calendar-activity", date, date, week.timezone],
+    queryFn: () => api.getCalendarActivity(date, date),
+  });
   return (
     <Dialog
       title={formatDate(date, {
@@ -45,45 +41,33 @@ export function CalendarDayRecords({
       })}
       onClose={onClose}
     >
-      <p className="muted text-small">
-        {records.length} record{records.length === 1 ? "" : "s"} ·{" "}
-        {week.timezone}
-      </p>
-      {records.length ? (
-        <ol className="day-records">
-          {records.map((record) => (
-            <li key={record.kind + record.item.id}>
-              {record.kind === "item" ? (
-                <CalendarItemButton
-                  item={record.item}
-                  onOpen={() => onOpen(record, date)}
-                />
-              ) : (
-                <CalendarRecord
-                  record={record}
-                  week={week}
-                  onOpen={() => onOpen(record, date)}
-                />
-              )}
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className="muted">No time planned or recorded for this day.</p>
+      {activity.isPending && <Loading />}
+      {activity.error && (
+        <ErrorState
+          error={activity.error}
+          retry={() => void activity.refetch()}
+        />
       )}
-      <div className="row wrap">
-        <button className="button primary" onClick={() => onAdd(date)}>
-          Add block
-        </button>
-        <Link
-          className="button"
-          href={calendarHref(date, "day")}
-          scroll={false}
-          onClick={onClose}
-        >
-          Open Day view
-        </Link>
-      </div>
+      {activity.data && (
+        <CalendarDayFeed
+          date={date}
+          week={week}
+          items={items}
+          activity={activity.data}
+          filter={filter}
+          now={now}
+          onOpen={onOpen}
+          onAdd={onAdd}
+        />
+      )}
+      <Link
+        className="button"
+        href={calendarHref(date, "day")}
+        scroll={false}
+        onClick={onClose}
+      >
+        Open Day view
+      </Link>
     </Dialog>
   );
 }

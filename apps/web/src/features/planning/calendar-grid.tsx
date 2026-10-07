@@ -1,3 +1,6 @@
+import { activityOnDate } from "./calendar-activity";
+import { ActivityIcon } from "./calendar-day-feed";
+import type { CalendarActivity } from "@168hours/contracts";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { CalendarItemButton } from "./calendar-item-button";
 import { itemsOnDate, type CalendarFilter } from "./calendar-filters";
@@ -25,6 +28,7 @@ export type CalendarScrollPosition = {
 
 export function CalendarGrid({
   week,
+  activity,
   date,
   today,
   view,
@@ -40,6 +44,7 @@ export function CalendarGrid({
   onOpenItem,
 }: {
   week: Week;
+  activity: CalendarActivity[];
   date: string;
   today: string;
   view: "week" | "day";
@@ -169,6 +174,28 @@ export function CalendarGrid({
                     </span>
                     <strong>{formatDate(day.date, { day: "numeric" })}</strong>
                   </Link>
+                  {activityOnDate(
+                    activity,
+                    day.date,
+                    week.timezone,
+                    filter,
+                  ).filter((entry) => entry.kind === "moment").length > 0 && (
+                    <button
+                      className="text-button calendar-moment-count"
+                      onClick={() => onShowDay(day.date)}
+                      aria-label={"Show moments for " + day.date}
+                    >
+                      {
+                        activityOnDate(
+                          activity,
+                          day.date,
+                          week.timezone,
+                          filter,
+                        ).filter((entry) => entry.kind === "moment").length
+                      }{" "}
+                      moments
+                    </button>
+                  )}
                   {hidden > 0 && (
                     <button
                       className="grid-more"
@@ -230,6 +257,24 @@ export function CalendarGrid({
             </div>
             {days.map((day) => {
               const records = dayRecords(week, day.date, filter);
+              const moments = activityOnDate(
+                activity,
+                day.date,
+                week.timezone,
+                filter,
+              ).filter((entry) => entry.kind === "moment");
+              const momentHours = [
+                ...new Set(
+                  moments.map((entry) =>
+                    Number(
+                      instantToLocalInput(
+                        entry.occurredAt,
+                        week.timezone,
+                      ).slice(11, 13),
+                    ),
+                  ),
+                ),
+              ];
               const changed =
                 Date.parse(day.endsAt) - Date.parse(day.startsAt) !== 86400000;
               const segments = changed ? [] : layoutDay(records, day);
@@ -242,6 +287,7 @@ export function CalendarGrid({
                   data-drag-day={changed ? undefined : day.date}
                   className={
                     "grid-day " +
+                    (moments.length ? "has-moments " : "") +
                     (day.date === today ? "is-today" : "") +
                     (interaction?.preview?.point.date === day.date
                       ? " is-drag-target"
@@ -311,6 +357,31 @@ export function CalendarGrid({
                           onAdd={onAdd}
                         />
                       ))}
+                      {momentHours.map((hour) => {
+                        const entries = moments.filter(
+                          (entry) =>
+                            Number(
+                              instantToLocalInput(
+                                entry.occurredAt,
+                                week.timezone,
+                              ).slice(11, 13),
+                            ) === hour,
+                        );
+                        return (
+                          <button
+                            key={hour}
+                            className="calendar-moment-marker"
+                            style={{ top: hour * HOUR_HEIGHT + 14 }}
+                            onClick={() => onShowDay(day.date)}
+                            aria-label={`${entries.length} moment${entries.length === 1 ? "" : "s"} at ${String(hour).padStart(2, "0")}:00 on ${day.date}: ${entries.map((entry) => entry.title + " " + entry.summary).join(", ")}`}
+                          >
+                            <ActivityIcon name={entries[0]!.icon} />
+                            {entries.length > 1 && (
+                              <small>{entries.length}</small>
+                            )}
+                          </button>
+                        );
+                      })}
                       {visible.map(({ record, top, bottom, lane, lanes }) => (
                         <div
                           className="grid-record"
@@ -318,8 +389,12 @@ export function CalendarGrid({
                           style={{
                             top: (top / 60) * HOUR_HEIGHT,
                             height: ((bottom - top) / 60) * HOUR_HEIGHT,
-                            left: (lane / lanes) * 100 + "%",
-                            width: 100 / lanes + "%",
+                            left: moments.length
+                              ? `calc((100% - 44px) * ${lane / lanes})`
+                              : (lane / lanes) * 100 + "%",
+                            width: moments.length
+                              ? `calc((100% - 44px) / ${lanes})`
+                              : 100 / lanes + "%",
                           }}
                         >
                           {record.kind === "block" && (

@@ -1,3 +1,5 @@
+import { activityOnDate } from "./calendar-activity";
+import type { CalendarActivity } from "@168hours/contracts";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { CalendarItemButton } from "./calendar-item-button";
 import {
@@ -14,6 +16,7 @@ import { calendarHref, dayRecords } from "./calendar-layout";
 
 export function CalendarMonth({
   weeks,
+  activity,
   date,
   today,
   onOpen,
@@ -23,6 +26,7 @@ export function CalendarMonth({
   filter,
 }: {
   weeks: Week[];
+  activity: CalendarActivity[];
   date: string;
   today: string;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
@@ -83,7 +87,18 @@ export function CalendarMonth({
               })),
               ...dayRecords(week, day.date, filter),
             ];
-            const previews = records.slice(0, capacity.previews);
+            const moments = activityOnDate(
+              activity,
+              day.date,
+              week.timezone,
+              filter,
+            ).filter((entry) => entry.kind === "moment");
+            const count = records.length + moments.length;
+            const previewCount = Math.max(
+              0,
+              capacity.previews - (moments.length > 0 ? 1 : 0),
+            );
+            const previews = records.slice(0, previewCount);
             const hidden = records.length - previews.length;
             return (
               <div
@@ -104,13 +119,13 @@ export function CalendarMonth({
                 {capacity.compact ? (
                   <button
                     className="month-compact-day"
-                    aria-label={`Show ${records.length} records for ${day.date}`}
+                    aria-label={`Show ${count} records for ${day.date}`}
                     onClick={() => onShowDay(day.date)}
                   >
                     <strong>{formatDate(day.date, { day: "numeric" })}</strong>
-                    {records.length > 0 && (
+                    {count > 0 && (
                       <span>
-                        +{records.length}
+                        +{count}
                         <span className="sr-only"> more</span>
                       </span>
                     )}
@@ -122,7 +137,7 @@ export function CalendarMonth({
                         className="month-date"
                         href={calendarHref(day.date, "day")}
                         scroll={false}
-                        aria-label={`Day view for ${day.date}, ${records.length} records`}
+                        aria-label={`Day view for ${day.date}, ${count} records`}
                       >
                         <strong>
                           {formatDate(day.date, { day: "numeric" })}
@@ -138,6 +153,15 @@ export function CalendarMonth({
                         </button>
                       )}
                     </div>
+                    {moments.length > 0 && (
+                      <button
+                        className="text-button calendar-moment-count"
+                        onClick={() => onShowDay(day.date)}
+                        aria-label={"Show moments for " + day.date}
+                      >
+                        {moments.length} moments
+                      </button>
+                    )}
                     <div className="month-previews">
                       {previews.map((record) => (
                         <div
@@ -162,7 +186,7 @@ export function CalendarMonth({
                           )}
                         </div>
                       ))}
-                      {!records.length && capacity.previews > 0 && (
+                      {!records.length && previewCount > 0 && (
                         <button
                           className="month-add"
                           aria-label={"Add block on " + day.date}

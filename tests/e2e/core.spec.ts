@@ -49,8 +49,9 @@ test("Core planning, goals, nutrition and exercise flow", async ({
     fullPage: true,
   });
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
-  await page.getByRole("button", { name: "Add block", exact: true }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Read a chapter");
+  await page.getByText("More details", { exact: true }).click();
   await page
     .getByRole("dialog")
     .getByLabel("Category", { exact: true })

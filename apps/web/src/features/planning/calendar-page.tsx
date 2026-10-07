@@ -1,4 +1,5 @@
 "use client";
+import { CalendarDayFeed } from "./calendar-day-feed";
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -138,6 +139,10 @@ export function CalendarPage({
               <i className="legend-recorded" aria-hidden="true" />
               Recorded
             </span>
+            <span>
+              <i className="legend-moment" aria-hidden="true" />
+              Moments
+            </span>
           </div>
           <span>{preferences.timezone.replaceAll("_", " ")}</span>
         </div>
@@ -157,10 +162,32 @@ export function CalendarPage({
         )}
         {query.error && <ErrorState error={query.error} retry={query.retry} />}
         {query.isPending && <Loading />}
+        {query.activityPending && (
+          <p className="calendar-status" role="status">
+            Loading activity…
+          </p>
+        )}
+        {query.activityError && (
+          <ErrorState error={query.activityError} retry={query.retryActivity} />
+        )}
+        {view !== "day" && !!query.activity?.truncatedSources.length && (
+          <p className="calendar-status" role="status">
+            Activity previews are limited in this range. Open a day to review a
+            smaller range, or visit{" "}
+            {query.activity.truncatedSources.map((source, index) => (
+              <span key={`${source.label}-${index}`}>
+                {index > 0 && ", "}
+                <a href={source.href}>{source.label} history</a>
+              </span>
+            ))}
+            .
+          </p>
+        )}
         {query.complete &&
           query.week &&
           (view === "month" ? (
             <CalendarMonth
+              activity={query.activity?.entries ?? []}
               weeks={query.weeks}
               items={query.items}
               filter={filter}
@@ -171,27 +198,47 @@ export function CalendarPage({
               onShowDay={setListDate}
             />
           ) : (
-            <CalendarGrid
-              week={query.week}
-              items={query.items}
-              filter={filter}
-              onOpenItem={(item) => setOverlay({ mode: item.kind, item })}
-              date={selected}
-              today={today}
-              view={view}
-              onOpen={openRecord}
-              onAdd={addRecord}
-              onShowDay={setListDate}
-              now={now}
-              getScrollPosition={getScrollPosition}
-              saveScrollPosition={saveScrollPosition}
-              scrollReset={scrollReset}
-            />
+            <div
+              className={
+                view === "day" ? "calendar-day-layout" : "calendar-week-layout"
+              }
+            >
+              <CalendarGrid
+                activity={query.activity?.entries ?? []}
+                week={query.week}
+                items={query.items}
+                filter={filter}
+                onOpenItem={(item) => setOverlay({ mode: item.kind, item })}
+                date={selected}
+                today={today}
+                view={view}
+                onOpen={openRecord}
+                onAdd={addRecord}
+                onShowDay={setListDate}
+                now={now}
+                getScrollPosition={getScrollPosition}
+                saveScrollPosition={saveScrollPosition}
+                scrollReset={scrollReset}
+              />
+              {view === "day" && query.activity && (
+                <CalendarDayFeed
+                  date={selected}
+                  week={query.week}
+                  items={query.items}
+                  activity={query.activity}
+                  filter={filter}
+                  now={now}
+                  onOpen={openRecord}
+                  onAdd={addRecord}
+                />
+              )}
+            </div>
           ))}
       </div>
       {listDate && listWeek && (
         <CalendarDayRecords
           date={listDate}
+          now={now}
           week={listWeek}
           items={query.items}
           filter={filter}
@@ -220,6 +267,16 @@ export function CalendarPage({
       )}
       {editor && editorWeek && (
         <CalendarEditor
+          composer={
+            !editor.item &&
+            !editor.duplicateOf &&
+            !editor.linkedBlock &&
+            !editor.scheduledItem
+          }
+          onPlanType={(mode) => {
+            setEditor(null);
+            setOverlay({ mode });
+          }}
           key={
             editor.kind +
             (editor.item?.id ??

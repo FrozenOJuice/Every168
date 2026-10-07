@@ -12,7 +12,13 @@ import { useMe } from "@/features/identity/me";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
 import { localTimeField } from "@/lib/format";
 import { BlockPicker } from "./block-picker";
-export function WorkoutStartForm({ date }: { date?: string }) {
+export function WorkoutStartForm({
+  date,
+  initialTime,
+}: {
+  date?: string;
+  initialTime?: string;
+}) {
   const {
     preferences: { timezone },
   } = useMe();
@@ -22,9 +28,9 @@ export function WorkoutStartForm({ date }: { date?: string }) {
   });
   const form = useZodForm(schema, {
     title: "Strength workout",
-    startedAt: date
-      ? date + "T09:00"
-      : instantToLocalInput(new Date(), timezone),
+    startedAt:
+      initialTime ??
+      (date ? date + "T09:00" : instantToLocalInput(new Date(), timezone)),
     notes: null,
     linkedTimeBlockId: null,
   });
@@ -42,6 +48,7 @@ export function WorkoutStartForm({ date }: { date?: string }) {
           key,
         );
         await cache.invalidateQueries({ queryKey: ["workouts"] });
+        await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
         router.push("/exercise/workout/" + workout.id);
       }}
     >

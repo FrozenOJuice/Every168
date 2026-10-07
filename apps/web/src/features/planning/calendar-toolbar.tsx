@@ -132,7 +132,7 @@ export function CalendarToolbar({
           </button>
           <button className="button primary calendar-add-block" onClick={onAdd}>
             <Plus size={17} aria-hidden="true" />
-            <span className="calendar-add-label">Add block</span>
+            <span className="calendar-add-label">Add</span>
           </button>
         </div>
       </header>

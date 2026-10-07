@@ -1,3 +1,8 @@
+import {
+  CALENDAR_ACTIVITY_LIMIT,
+  type CalendarContribution,
+} from "@168hours/contracts";
+import { localDate, fromKilograms } from "@168hours/domain-utils";
 import type { TransactionContext } from "../../shared/transactions.js";
 import type { WeightInput, MeasurementHistoryQuery } from "@168hours/contracts";
 import { addDays, dayRange } from "@168hours/domain-utils";
@@ -9,6 +14,34 @@ export function bodyService(
   identity: IdentityService,
 ) {
   return {
+    async calendarActivity(
+      u: string,
+      range: {
+        startsAt: string;
+        endsAt: string;
+        timezone: string;
+        weightUnit: "kg" | "lb";
+      },
+    ): Promise<CalendarContribution> {
+      const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
+      return {
+        label: "Weight",
+        href: "/food",
+        truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
+        entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
+          source: { type: "weight_entry", id: row.id },
+          domain: "Weight",
+          icon: "scale",
+          kind: "moment",
+          status: "recorded",
+          title: "Weight recorded",
+          summary: `${Number(fromKilograms(row.weightKg, range.weightUnit).toFixed(2))} ${range.weightUnit}`,
+          occurredAt: row.measuredAt.toISOString(),
+          endsAt: null,
+          href: `/food?date=${localDate(row.measuredAt, range.timezone)}#food-weight`,
+        })),
+      };
+    },
     async list(u: string, q: MeasurementHistoryQuery) {
       const before = q.through
         ? dayRange(q.through, (await identity.getPreferences(u)).timezone)

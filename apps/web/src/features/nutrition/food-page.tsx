@@ -46,6 +46,7 @@ export function FoodPage({
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: ["nutrition"] });
       await cache.invalidateQueries({ queryKey: ["dashboard"] });
+      await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
       setNotice("Food entry deleted.");
     },
   });

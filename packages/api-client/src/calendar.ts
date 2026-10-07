@@ -1,4 +1,5 @@
 import type {
+  CalendarActivityResult,
   Block,
   BlockInput,
   TimeEntry,
@@ -20,6 +21,8 @@ import { body, query, writeHeaders, type Http } from "./http";
 export function calendarClient(http: Http) {
   const root = "/api/v1/calendar";
   return {
+    getCalendarActivity: (from: string, to: string) =>
+      http<CalendarActivityResult>(root + "/activity" + query({ from, to })),
     getTimeBlock: (id: string) => http<Block>("/api/v1/time-blocks/" + id),
     getTimeEntry: (id: string) => http<TimeEntry>("/api/v1/time-entries/" + id),
     getCalendarItems: (from: string, to: string) =>

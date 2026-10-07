@@ -1,7 +1,8 @@
+import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import { and, eq, desc, gte, lt } from "drizzle-orm";
+import { and, eq, asc, desc, gte, lt } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { WeightInput, PageQuery } from "@168hours/contracts";
 import {
@@ -13,6 +14,19 @@ export function bodyRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
+    activityRange: (u: string, start: string, end: string) =>
+      db
+        .select()
+        .from(table)
+        .where(
+          and(
+            eq(table.userId, u),
+            gte(table.measuredAt, new Date(start)),
+            lt(table.measuredAt, new Date(end)),
+          ),
+        )
+        .orderBy(asc(table.measuredAt), asc(table.id))
+        .limit(CALENDAR_ACTIVITY_LIMIT + 1),
     async list(u: string, q: PageQuery, before?: string) {
       const rows = await db
         .select()

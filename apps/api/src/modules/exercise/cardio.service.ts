@@ -1,3 +1,7 @@
+import {
+  CALENDAR_ACTIVITY_LIMIT,
+  type CalendarContribution,
+} from "@168hours/contracts";
 import { assertRevision } from "../../shared/errors/revision.js";
 import { paceSecondsPerKm } from "@168hours/domain-utils";
 import type { CardioInput, CardioHistoryQuery } from "@168hours/contracts";
@@ -41,6 +45,36 @@ export function cardioService(
     });
   }
   return {
+    async calendarActivity(
+      u: string,
+      range: {
+        startsAt: string;
+        endsAt: string;
+        timezone: string;
+        weightUnit: "kg" | "lb";
+      },
+    ): Promise<CalendarContribution> {
+      const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
+      return {
+        label: "Exercise",
+        href: "/exercise",
+        truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
+        entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
+          source: { type: "cardio_activity", id: row.id },
+          domain: "Exercise",
+          icon: "activity",
+          kind: "session",
+          status: "recorded",
+          title: row.title,
+          summary: row.activityType,
+          occurredAt: row.startedAt.toISOString(),
+          endsAt: new Date(
+            row.startedAt.getTime() + row.durationSeconds * 1000,
+          ).toISOString(),
+          href: "/exercise?tab=cardio",
+        })),
+      };
+    },
     async list(u: string, q: CardioHistoryQuery) {
       const result = await repo.list(u, q);
       return { ...result, items: result.items.map(view) };

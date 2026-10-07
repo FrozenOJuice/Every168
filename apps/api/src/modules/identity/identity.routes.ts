@@ -12,7 +12,12 @@ export function identityRoutes(
   router.get("/me", async (_req, res) => {
     const user = currentUser(res);
     res.json({
-      user: { id: user.id, name: user.name, email: user.email },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        accountType: user.accountType,
+      },
       preferences: await service.getPreferences(user.id),
     });
   });

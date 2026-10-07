@@ -18,7 +18,12 @@ export const preferencesInput = z
   })
   .strict();
 export const meSchema = z.object({
-  user: z.object({ id: z.uuid(), name: z.string(), email: z.email() }),
+  user: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    email: z.email(),
+    accountType: z.enum(["user", "admin"]),
+  }),
   preferences: preferencesInput.extend({
     version: z.number().int().positive(),
   }),
@@ -33,7 +38,7 @@ export const authInput = signInInput.extend({
   name: z.string().trim().min(1).max(100),
   password: z.string().min(12).max(128),
 });
-export const authUserSchema = meSchema.shape.user;
+export const authUserSchema = meSchema.shape.user.omit({ accountType: true });
 export const authSessionSchema = z
   .object({
     user: authUserSchema,

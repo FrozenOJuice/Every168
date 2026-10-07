@@ -18,14 +18,34 @@ const dates = () => ({
     .defaultNow()
     .notNull(),
 });
-export const user = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  ...dates(),
-});
+export const user = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").default(false).notNull(),
+    image: text("image"),
+    accountType: text("account_type", { enum: ["user", "admin"] })
+      .notNull()
+      .default("user"),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
+    version: integer("version").notNull().default(1),
+    ...dates(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    check(
+      "user_access_values",
+      sql`${t.accountType} in ('user','admin') and ${t.version}>0 and (${t.accountType}='user' or ${t.suspendedAt} is null)`,
+    ),
+    index("user_created_idx").on(t.createdAt, t.id),
+    index("user_active_idx").on(t.lastActiveAt),
+  ],
+);
 export const session = pgTable(
   "sessions",
   {
@@ -100,6 +120,35 @@ export const preferences = pgTable(
     check(
       "preferences_values",
       sql`${t.version}>0 and ${t.weekStartsOn} in (0,1) and ${t.weightUnit} in ('kg','lb') and ${t.distanceUnit} in ('km','mi') and char_length(${t.timezone}) between 1 and 100`,
+    ),
+  ],
+);
+
+// Audit identifiers deliberately survive account deletion; no personal payloads.
+export const adminAudit = pgTable(
+  "admin_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actorId: uuid("actor_id"),
+    targetId: uuid("target_id").notNull(),
+    action: text("action", {
+      enum: [
+        "admin_created",
+        "suspended",
+        "reactivated",
+        "sessions_revoked",
+        "account_deleted",
+      ],
+    }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, precision: 3 })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    index("admin_audit_created_idx").on(t.createdAt, t.id),
+    check(
+      "admin_audit_action",
+      sql`${t.action} in ('admin_created','suspended','reactivated','sessions_revoked','account_deleted')`,
     ),
   ],
 );

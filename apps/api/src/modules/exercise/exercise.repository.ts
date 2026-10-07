@@ -1,3 +1,5 @@
+import { strengthWorkouts, cardioActivities } from "./exercise.table.js";
+import { count } from "drizzle-orm";
 import { changed } from "../../shared/errors/revision.js";
 import { and, eq, desc, isNull, isNotNull, ilike } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
@@ -13,6 +15,18 @@ export function exerciseRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(exercises.userId, u), eq(exercises.id, id));
   return {
+    async platformUsage() {
+      const strengthWorkoutsCount = (
+        await db.select({ total: count() }).from(strengthWorkouts)
+      )[0]!.total;
+      const cardioActivitiesCount = (
+        await db.select({ total: count() }).from(cardioActivities)
+      )[0]!.total;
+      return {
+        strengthWorkouts: strengthWorkoutsCount,
+        cardioActivities: cardioActivitiesCount,
+      };
+    },
     async list(u: string, q: LibraryQuery) {
       const rows = await db
         .select()

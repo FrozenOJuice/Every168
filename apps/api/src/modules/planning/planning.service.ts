@@ -27,6 +27,7 @@ export function planningService(
     if (id) await categories.get(u, id, context);
   }
   return {
+    platformUsage: repo.platformUsage,
     async getBlock(u: string, id: string, tx?: TransactionContext) {
       return found(await repo.getBlock(u, id, tx));
     },

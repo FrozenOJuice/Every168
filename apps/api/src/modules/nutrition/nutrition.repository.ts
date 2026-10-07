@@ -1,3 +1,4 @@
+import { count } from "drizzle-orm";
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
@@ -30,6 +31,12 @@ export function nutritionRepository(db: Database) {
   const entryOwner = (u: string, id: string) =>
     and(eq(foodEntries.userId, u), eq(foodEntries.id, id));
   return {
+    async platformUsage() {
+      const foodEntriesCount = (
+        await db.select({ total: count() }).from(foodEntries)
+      )[0]!.total;
+      return { foodEntries: foodEntriesCount };
+    },
     async listFoods(u: string, q: LibraryQuery) {
       const rows = await db
         .select()

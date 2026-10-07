@@ -8,3 +8,5 @@ export * from "./dashboard";
 export * from "./nutrition";
 export * from "./measurements";
 export * from "./exercise";
+
+export * from "./admin";

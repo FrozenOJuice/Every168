@@ -33,6 +33,20 @@ SEED_PASSWORD='local-demo-password-123' pnpm db:seed
 
 Sign in as `demo@example.com` with the password you supplied. The seed is limited to the local `hours_dev` database and leaves an existing demo account unchanged.
 
+## Admin setup
+
+Account types are fixed: public signup creates a User; the local operator command creates a new Admin. Existing accounts cannot be promoted or demoted.
+
+After applying migrations, run:
+
+```bash
+pnpm admin:create
+```
+
+Enter a new name/email and a password when prompted (password input is hidden). Sign in normally, then open **Account menu → Admin**. The command works only against local development/test databases and refuses production. It never converts an existing account.
+
+Admins can search account metadata, suspend/reactivate regular users and revoke their sessions. The Admin area includes aggregate usage statistics, system health and an immutable action history. Admins retain access only to their own personal plans, food, exercise and goals. Suspension keeps records and requires a new login after reactivation. Admin accounts cannot be suspended through the application.
+
 ## Commands
 
 | Command                             | Purpose                                                                     |
@@ -45,6 +59,7 @@ Sign in as `demo@example.com` with the password you supplied. The seed is limite
 | `pnpm db:migrate`                   | Apply tracked migrations to the configured development database             |
 | `pnpm db:provision`                 | Create restricted local runtime role and separate migration credentials     |
 | `pnpm db:seed`                      | Seed synthetic local demo data; requires `SEED_PASSWORD`                    |
+| `pnpm admin:create`                 | Interactively create a new fixed-type Admin in a local database             |
 | `pnpm dev`                          | Run API and web together                                                    |
 | `pnpm dev:api` / `pnpm dev:web`     | Run either app independently                                                |
 | `pnpm lint`                         | ESLint and workspace/domain import-boundary checks                          |
@@ -103,3 +118,5 @@ Forwarded IP headers are ignored by default. Local requests through Next.js shar
 Authentication policy, session renewal/revocation, password storage, supported endpoints and the public-release boundary are documented in [docs/security.md](docs/security.md).
 
 Core writes use required revisions and durable retry receipts. After updating this checkout, run `pnpm db:migrate` and restart the API/web processes. See [write integrity](docs/decisions/003-write-integrity.md) for API headers, concurrency behavior and retry limits.
+
+Admins can permanently delete regular User accounts from **Admin → Users → Delete account**, after typing the account email. This removes its private records and sessions; audit history remains. Admin accounts are protected.

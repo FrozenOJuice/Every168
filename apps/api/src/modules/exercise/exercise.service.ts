@@ -8,6 +8,7 @@ export function exerciseService(
   strength: ReturnType<typeof strengthRepository>,
 ) {
   return {
+    platformUsage: repo.platformUsage,
     list: repo.list,
     create: repo.create,
     async get(u: string, id: string) {

@@ -1,8 +1,12 @@
 import type { Request, RequestHandler, Response } from "express";
 import { fromNodeHeaders } from "better-auth/node";
 import { AppError } from "../errors/app-error.js";
+import type { IdentityService } from "../../modules/identity/identity.service.js";
 import type { Auth } from "./auth.js";
-export function requireSession(auth: Auth): RequestHandler {
+export function requireSession(
+  auth: Auth,
+  identity: IdentityService,
+): RequestHandler {
   return async (req, res, next) => {
     const { response: session, headers } = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
@@ -18,7 +22,11 @@ export function requireSession(auth: Auth): RequestHandler {
       res.append("Set-Cookie", cookie);
     if (!session)
       throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
-    res.locals.user = session.user;
+    const access = await identity.getAccess(session.user.id);
+    if (!access || access.suspendedAt)
+      throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
+    await identity.touchActivity(session.user.id);
+    res.locals.user = { ...session.user, accountType: access.accountType };
     res.setHeader("Cache-Control", "no-store");
     next();
   };
@@ -27,6 +35,7 @@ export function currentUser(res: Response): {
   id: string;
   name: string;
   email: string;
+  accountType: "user" | "admin";
 } {
   return res.locals.user;
 }

@@ -1,3 +1,4 @@
+import { adminClient } from "./admin";
 import { exerciseClient } from "./exercise";
 import { nutritionClient } from "./nutrition";
 import { measurementsClient } from "./measurements";
@@ -10,6 +11,7 @@ export * from "./http";
 export function createClient(options: ClientOptions = {}) {
   const http = createHttp(options);
   return {
+    ...adminClient(http),
     ...calendarClient(http),
     ...exerciseClient(http),
     ...nutritionClient(http),

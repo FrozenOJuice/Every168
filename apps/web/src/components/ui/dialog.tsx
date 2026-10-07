@@ -26,7 +26,10 @@ export function Dialog({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      onCancel={onClose}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       className="dialog"
     >
       <div className="row between dialog-heading">

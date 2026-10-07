@@ -33,6 +33,8 @@ export function databaseHealth(
           to_regclass('public.users') is not null and to_regclass('public.write_receipts') is not null
           and exists (select 1 from information_schema.columns where table_schema='public' and table_name='time_entries' and column_name='version')
           and exists (select 1 from pg_trigger where tgname='time_entries_revision' and not tgisinternal)
+          and to_regclass('public.admin_audit') is not null
+          and exists (select 1 from pg_trigger where tgname='users_access_integrity' and not tgisinternal)
           and to_regclass('public.calendar_template_entries') is not null
           and exists (select 1 from pg_trigger where tgname='block_series_revision' and not tgisinternal) as schema_ready
         from pg_roles where rolname = current_user`);

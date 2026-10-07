@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/admin.css";
 @import "../styles/shell.css";
 @import "../styles/calendar.css";
 @import "../styles/domains.css";
@@ -390,4 +391,18 @@ p a:not(.button),
 .empty a {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.password-field {
+  position: relative;
+}
+.password-field input {
+  width: 100%;
+  padding-right: 52px;
+}
+.password-toggle {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
 }

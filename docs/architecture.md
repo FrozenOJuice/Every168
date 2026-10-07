@@ -69,3 +69,9 @@ Compose separates durable `hours_dev` from ephemeral `hours_test`. Drizzle SQL h
 No services, SDKs, scaffolds or adapters for post-Core functionality are present.
 
 General API rate limiting runs before session/database work; health remains available. Express trusts no forwarded IPs by default. Better Auth receives only the address resolved by the API’s configured proxy policy, overriding any supplied internal address header. See `foundation.md` for operational settings and limitations.
+
+## Admin extension
+
+Identity contains fixed account types and the Admin routes/service/repository. Its account metadata and audit reads are explicitly authorized cross-account operations guarded by fresh admin checks. Aggregate domain counts pass through public services; personal endpoints retain user ownership regardless of account type. Shared Admin contracts and a typed client back the responsive `/admin` page. PostgreSQL reinforces immutable types, suspension/session serialization, management revisions and append-only audit history. A local interactive command creates new Admin accounts atomically. No role mutation endpoint exists. See [Admin decisions](decisions/007-admin.md).
+
+Admin deletion uses the Identity service/repository and existing owner-cascade foreign keys. Shared contracts carry email confirmation and revision/idempotency headers. The acting Admin owns the retry receipt; immutable audit identifiers have no account foreign keys. Account, cascade, audit and receipt changes commit atomically.

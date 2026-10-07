@@ -1,3 +1,4 @@
+import { adminRoutes } from "./modules/identity/admin.routes.js";
 import { calendarRoutes } from "./modules/planning/calendar.routes.js";
 import { apiRateLimit } from "./shared/http/rate-limit.js";
 import { exerciseRoutes } from "./modules/exercise/exercise.routes.js";
@@ -18,6 +19,8 @@ import { requireSession, requireOrigin } from "./shared/auth/middleware.js";
 import { identityRoutes } from "./modules/identity/identity.routes.js";
 import { AppError } from "./shared/errors/app-error.js";
 export function createApp({
+  admin,
+  metrics,
   writes,
   calendarItems,
   series,
@@ -44,7 +47,7 @@ export function createApp({
   app.disable("x-powered-by");
   app.set("trust proxy", config.TRUSTED_PROXY_CIDRS);
   app.use(helmet());
-  app.use(requestLog(logger));
+  app.use(requestLog(logger, metrics));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   app.use("/api", (_req, _res, next) =>
     lifecycle.draining
@@ -75,8 +78,9 @@ export function createApp({
   app.use(
     "/api/v1",
     requireOrigin(config.WEB_ORIGIN),
-    requireSession(auth),
+    requireSession(auth, identity),
     identityRoutes(identity, writes),
+    adminRoutes(admin, writes),
     categoriesRoutes(categories, writes),
     planningRoutes(planning, writes),
     calendarRoutes(calendarItems, series, templates, calendarSearch, writes),

@@ -92,7 +92,28 @@ export function testApp() {
       response,
     };
   }
-  return { app, deps, signUp, serve };
+  async function createAdmin() {
+    const email = "admin-" + randomUUID() + "@example.com";
+    const id = await deps.admin.createAdministrator({
+      name: "Test admin",
+      email,
+      password: "Synthetic-test-password-123",
+    });
+    users.push(id);
+    const response = await request(app)
+      .post("/api/auth/sign-in/email")
+      .set("Origin", origin)
+      .send({ email, password: "Synthetic-test-password-123" })
+      .expect(200);
+    const raw = response.headers["set-cookie"];
+    const cookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return {
+      id,
+      email,
+      cookie: cookies.map((value) => value.split(";")[0]).join("; "),
+    };
+  }
+  return { app, deps, signUp, serve, createAdmin };
 }
 
 /** Ordinary fixtures start at revision 1; tests advancing a record pass its returned revision explicitly. */

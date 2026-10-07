@@ -12,7 +12,8 @@
     "db:migrate": "tsx src/infrastructure/database/migrate.ts",
     "db:seed": "tsx src/infrastructure/database/seed.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "db:provision": "tsx src/infrastructure/database/provision-local.ts"
+    "db:provision": "tsx src/infrastructure/database/provision-local.ts",
+    "admin:create": "tsx src/infrastructure/database/create-admin.ts"
   },
   "dependencies": {
     "@168hours/contracts": "workspace:*",

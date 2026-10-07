@@ -1,7 +1,11 @@
+import type { RequestMetrics } from "../../infrastructure/logging/request-metrics.js";
 import { randomUUID } from "node:crypto";
 import type { RequestHandler } from "express";
 import type { Logger } from "pino";
-export function requestLog(logger: Logger): RequestHandler {
+export function requestLog(
+  logger: Logger,
+  metrics?: RequestMetrics,
+): RequestHandler {
   return (req, res, next) => {
     const requestId = randomUUID();
     res.locals.requestId = requestId;
@@ -12,6 +16,7 @@ export function requestLog(logger: Logger): RequestHandler {
       if (recorded) return;
       recorded = true;
       const aborted = !res.writableFinished;
+      metrics?.record(res.statusCode, aborted);
       const level = aborted || res.statusCode >= 400 ? "warn" : "info";
       logger[level](
         {

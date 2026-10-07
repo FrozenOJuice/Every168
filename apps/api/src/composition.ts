@@ -1,3 +1,8 @@
+import apiPackage from "../package.json" with { type: "json" };
+import { AppError } from "./shared/errors/app-error.js";
+import { adminRepository } from "./modules/identity/admin.repository.js";
+import { adminService } from "./modules/identity/admin.service.js";
+import { requestMetrics } from "./infrastructure/logging/request-metrics.js";
 import { calendarItemsRepository } from "./modules/planning/calendar-items.repository.js";
 import { calendarItemsService } from "./modules/planning/calendar-items.service.js";
 import { seriesRepository } from "./modules/planning/series.repository.js";
@@ -105,12 +110,59 @@ export function compose(input: ConfigInput) {
     strength,
     cardio,
   );
+  const metrics = requestMetrics();
+  const health = databaseHealth(pool, config.NODE_ENV === "production", logger);
+  const admin = adminService(
+    adminRepository(db),
+    runInTransaction,
+    async () => {
+      const [plans, goalCounts, foodCounts, exerciseCounts] = await Promise.all(
+        [
+          planning.platformUsage(),
+          goals.platformUsage(),
+          nutrition.platformUsage(),
+          exercises.platformUsage(),
+        ],
+      );
+      return { ...plans, ...goalCounts, ...foodCounts, ...exerciseCounts };
+    },
+    async () => {
+      let database: "ready" | "unavailable" = "ready";
+      try {
+        await health.ready();
+      } catch {
+        database = "unavailable";
+      }
+      return {
+        checkedAt: new Date().toISOString(),
+        api: "ready",
+        database,
+        version: apiPackage.version,
+        uptimeSeconds: Math.floor(process.uptime()),
+        requests: metrics.snapshot(),
+      };
+    },
+  );
   return {
+    admin,
+    metrics,
     calendarItems,
     series,
     templates,
     calendarSearch,
-    writes: writesService(runInTransaction, writesRepository(db)),
+    writes: writesService(
+      runInTransaction,
+      writesRepository(db),
+      async (userId, context) => {
+        const access = await identity.getAccess(userId, context);
+        if (!access || access.suspendedAt)
+          throw new AppError(
+            401,
+            "UNAUTHORIZED",
+            "Please sign in to continue.",
+          );
+      },
+    ),
     databaseHealth: databaseHealth(
       pool,
       config.NODE_ENV === "production",

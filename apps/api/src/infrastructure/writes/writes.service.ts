@@ -19,6 +19,7 @@ function canonical(value: unknown): string {
 export function writesService(
   run: RunInTransaction,
   repo: ReturnType<typeof writesRepository>,
+  authorize?: (userId: string, context: TransactionContext) => Promise<void>,
 ) {
   return {
     execute(
@@ -31,6 +32,7 @@ export function writesService(
         .update(canonical(request))
         .digest("hex");
       return run(async (context) => {
+        await authorize?.(userId, context);
         await repo.lock(userId, key, context);
         const previous = await repo.get(userId, key, context);
         if (previous) {

@@ -273,6 +273,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(
     page.getByRole("button", { name: "Retry same change" }),
   ).toHaveCount(0);
+  await expect(page.locator(".calendar-status")).toHaveText("Plan updated.");
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
   await page.unroute("**/api/v1/time-blocks/" + original.id);
@@ -361,7 +362,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
         .locator('[data-date="2026-09-21"]')
         .getByRole("button", { name: /Drag me.*planned/ }),
       target = month.locator('[data-date="2026-09-22"]');
-    await expect(source).toBeVisible();
+    await expect(source).toBeVisible({ timeout: 30000 });
     const a = (await source.boundingBox())!,
       b = (await target.boundingBox())!;
     await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);

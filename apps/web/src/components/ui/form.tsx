@@ -1,5 +1,6 @@
 "use client";
 import { useId, useRef, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { ApiError, uncertainWrite } from "@168hours/api-client";
 import {
   FormProvider,
@@ -154,6 +155,7 @@ export function Field({
   onChange?: (value: string) => void;
 }) {
   const id = useId();
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const { register, getFieldState, formState, control } = useFormContext();
   const selected = useWatch({ control, name });
   const error = getFieldState(name, formState).error;
@@ -201,6 +203,27 @@ export function Field({
         </select>
       ) : type === "textarea" ? (
         <textarea {...props} rows={3} />
+      ) : type === "password" ? (
+        <div className="password-field">
+          <input
+            {...props}
+            type={passwordVisible ? "text" : "password"}
+            autoComplete={autoComplete}
+          />
+          <button
+            className="icon-button password-toggle"
+            type="button"
+            aria-label={passwordVisible ? "Hide password" : "Show password"}
+            aria-controls={id}
+            onClick={() => setPasswordVisible((visible) => !visible)}
+          >
+            {passwordVisible ? (
+              <EyeOff size={20} aria-hidden="true" />
+            ) : (
+              <Eye size={20} aria-hidden="true" />
+            )}
+          </button>
+        </div>
       ) : (
         <input
           {...props}

@@ -60,7 +60,11 @@ export function AccountMenu({ user }: { user: Me["user"] }) {
         </span>
         <span className="account-name">
           <strong>{user.name}</strong>
-          <small>Personal account</small>
+          <small>
+            {user.accountType === "admin"
+              ? "Admin account"
+              : "Personal account"}
+          </small>
         </span>
         <ChevronUp size={16} aria-hidden="true" />
       </button>
@@ -69,6 +73,11 @@ export function AccountMenu({ user }: { user: Me["user"] }) {
           <strong>{user.name}</strong>
           <small>{user.email}</small>
         </div>
+        {user.accountType === "admin" && (
+          <Link href="/admin" onClick={() => setOpen(false)}>
+            Admin
+          </Link>
+        )}
         <Link href="/settings" onClick={() => setOpen(false)}>
           <Settings size={18} aria-hidden="true" />
           Settings

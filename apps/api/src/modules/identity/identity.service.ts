@@ -3,6 +3,9 @@ import { meSchema, type Preferences } from "@168hours/contracts";
 import type { identityRepository } from "./identity.repository.js";
 export function identityService(repo: ReturnType<typeof identityRepository>) {
   return {
+    isSuspendedEmail: repo.isSuspendedEmail,
+    getAccess: repo.getAccess,
+    touchActivity: repo.touchActivity,
     revokeSession: (userId: string, token: string) =>
       repo.revokeSession(userId, token),
     async getPreferences(userId: string, context?: TransactionContext) {

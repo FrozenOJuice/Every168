@@ -30,7 +30,8 @@
     "build": "pnpm -r build",
     "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e",
     "setup:env": "node scripts/setup-env.mjs",
-    "db:provision": "pnpm --filter @168hours/api db:provision"
+    "db:provision": "pnpm --filter @168hours/api db:provision",
+    "admin:create": "pnpm --filter @168hours/api admin:create"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

@@ -8,6 +8,7 @@ export function goalsService(
   categories: CategoriesService,
 ) {
   return {
+    platformUsage: repo.platformUsage,
     list: repo.list,
     async get(u: string, id: string, context?: TransactionContext) {
       return found(await repo.get(u, id, context));

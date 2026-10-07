@@ -23,6 +23,7 @@ export function nutritionService(
   runInTransaction: RunInTransaction,
 ) {
   return {
+    platformUsage: repo.platformUsage,
     listFoods: repo.listFoods,
     async getFood(u: string, id: string) {
       return found(await repo.getFood(u, id));

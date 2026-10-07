@@ -1,3 +1,4 @@
+import { hashPassword } from "./password.js";
 import type { RequestHandler } from "express";
 import { setResponse } from "better-call/node";
 import { fromNodeHeaders } from "better-auth/node";
@@ -61,6 +62,18 @@ export function authHandler(
     else if (req.path === "/api/auth/sign-in/email")
       body = signInInput.parse(body);
     else z.object({}).strict().parse(body);
+    if (
+      req.path === "/api/auth/sign-in/email" &&
+      (await identity.isSuspendedEmail(signInInput.parse(body).email))
+    ) {
+      // Match the library's unknown-user work and error without issuing a session.
+      await hashPassword(signInInput.parse(body).password);
+      throw new AppError(
+        401,
+        "INVALID_EMAIL_OR_PASSWORD",
+        "Invalid email or password",
+      );
+    }
     const headers = fromNodeHeaders(req.headers);
     headers.delete("content-length");
     if (req.path === "/api/auth/sign-out") {
@@ -118,6 +131,25 @@ export function authHandler(
     else if (req.path === "/api/auth/sign-out")
       output = z.object({ success: z.literal(true) }).parse(data);
     else output = z.object({ user: authUserSchema }).parse(data);
+    if (req.path !== "/api/auth/sign-out") {
+      const result = z
+        .object({ user: authUserSchema })
+        .nullable()
+        .parse(output);
+      if (result) {
+        const access = await identity.getAccess(result.user.id);
+        if (!access || access.suspendedAt) {
+          if (req.path === "/api/auth/get-session") output = null;
+          else
+            throw new AppError(
+              401,
+              "INVALID_EMAIL_OR_PASSWORD",
+              "Invalid email or password",
+            );
+        } else if (req.path !== "/api/auth/get-session")
+          await identity.touchActivity(result.user.id);
+      }
+    }
     // Keep the signed HttpOnly cookie; never expose raw database session tokens.
     const responseHeaders = new Headers(response.headers);
     responseHeaders.delete("content-length");

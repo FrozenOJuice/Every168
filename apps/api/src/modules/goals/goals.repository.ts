@@ -1,3 +1,4 @@
+import { count } from "drizzle-orm";
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
@@ -13,6 +14,11 @@ export function goalsRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(goals.userId, u), eq(goals.id, id));
   return {
+    async platformUsage() {
+      const goalsCount = (await db.select({ total: count() }).from(goals))[0]!
+        .total;
+      return { goals: goalsCount };
+    },
     async get(u: string, id: string, context?: TransactionContext) {
       return (
         await databaseFor(db, context).select().from(goals).where(owned(u, id))

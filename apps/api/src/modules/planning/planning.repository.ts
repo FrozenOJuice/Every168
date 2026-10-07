@@ -1,3 +1,4 @@
+import { count } from "drizzle-orm";
 import { assertRevision, changed } from "../../shared/errors/revision.js";
 import {
   databaseFor,
@@ -39,6 +40,12 @@ export function planningRepository(db: Database) {
         .for("update");
   }
   return {
+    async platformUsage() {
+      const plannedBlocks = (
+        await db.select({ total: count() }).from(timeBlocks)
+      )[0]!.total;
+      return { plannedBlocks };
+    },
     async getBlock(u: string, id: string, context?: TransactionContext) {
       const tx = databaseFor(db, context);
       const query = tx.select().from(timeBlocks).where(blockOwner(u, id));

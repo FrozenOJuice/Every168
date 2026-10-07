@@ -14,6 +14,8 @@
 
 **Owner-approved Food slice:** Complete the manual Food experience end to end, including daily meals/nutrition, food library and repeat logging, hydration quick logs and history, and body-weight history/trends. These surfaces belong in Food and reuse the existing public domain services. Review backend ownership, validation, serving calculations, snapshots, date boundaries and safe writes before the responsive UI. Keep the exact palette and existing Calendar shortcuts. No barcode scanning, external food database, recipes/Kitchen, custom nutrition targets, or AI.
 
+**Owner-approved Admin slice:** Implement permanent Admin/User account types, with public signup always creating a User and local operator-only creation of new Admin accounts. Add account metadata search, suspension/reactivation and session revocation and confirmed permanent account deletion for regular users, aggregate platform usage statistics, system health and an immutable administrative audit log. No promotion/demotion, impersonation, personal-record access, email delivery or public deployment. Admin metadata/aggregate reads are the explicitly authorized cross-account exceptions; all personal domain endpoints remain owner-scoped.
+
 > **168Hours is a personal life-planning and tracking platform built around one simple fact: every week contains 168 hours.**
 >
 > The product helps a person decide how those hours should be spent, record selected parts of what actually happened, review the difference, and improve the next week.

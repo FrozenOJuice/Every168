@@ -1,5 +1,6 @@
 import { CalendarComposer } from "./calendar-composer";
-import type { CalendarAction } from "./calendar-actions";
+import { CalendarPlanPopover } from "./calendar-plan-popover";
+import type { CalendarDraft, CalendarSaveResult } from "./calendar-layout";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { useRouter } from "next/navigation";
 import { calendarHref } from "./calendar-layout";
@@ -9,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Week } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
-import { Dialog } from "@/components/ui/dialog";
+import { useState } from "react";
 import { formatDate, formatTime } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
 import { TimeForm } from "./time-form";
@@ -22,21 +23,24 @@ export function CalendarEditor({
   onChange,
   onSaved,
   onSeries,
+  onCopy,
   composer = false,
-  onPlanType,
+  onDraftChange,
 }: {
   editor: TimeEditor;
   composer?: boolean;
-  onPlanType?: (mode: CalendarAction) => void;
+  onDraftChange?: (draft: CalendarDraft | null) => void;
   week: Week;
   onClose: () => void;
   onChange: (editor: TimeEditor) => void;
-  onSaved: (startsAt: string) => void;
+  onSaved: (result: CalendarSaveResult) => void;
   onSeries: (id: string) => void;
+  onCopy: (id: string) => void;
 }) {
   const interaction = useCalendarInteractions(),
     router = useRouter();
   const cache = useQueryClient();
+  const [formBusy, setFormBusy] = useState(false);
   const { kind, item } = editor;
   const automatic =
     item && "sourceType" in item && item.sourceType !== "manual";
@@ -58,17 +62,21 @@ export function CalendarEditor({
       onClose();
     },
   });
-  if (composer && onPlanType)
+  if (composer)
     return (
       <CalendarComposer
         editor={editor}
         onClose={onClose}
         onSaved={onSaved}
-        onPlanType={onPlanType}
+        onDraftChange={onDraftChange}
       />
     );
   return (
-    <Dialog
+    <CalendarPlanPopover
+      date={editor.date}
+      recordId={item?.id ?? editor.duplicateOf?.id}
+      busy={remove.isPending}
+      onBusyChange={setFormBusy}
       title={
         automatic
           ? "Recorded activity"
@@ -84,11 +92,12 @@ export function CalendarEditor({
     >
       {item && "seriesId" in item && item.seriesId && (
         <p className="notice">
-          This block repeats
-          {item.isException ? " and has an individual edit" : ""}. Saving here
-          changes this occurrence only.{" "}
+          You are editing only this occurrence
+          {item.isException ? ", which has an individual edit" : ""}. Other
+          occurrences will stay as they are.{" "}
           <button
             className="text-button"
+            disabled={formBusy || remove.isPending || interaction?.busy}
             onClick={() => onSeries(item.seriesId!)}
           >
             Edit entire series
@@ -121,7 +130,12 @@ export function CalendarEditor({
           </Link>
         </div>
       ) : (
-        <TimeForm {...editor} onSaved={onSaved} />
+        <TimeForm
+          {...editor}
+          compact
+          onSaved={onSaved}
+          disabled={remove.isPending}
+        />
       )}
       {linkedPlan && (
         <p className="notice">
@@ -137,6 +151,7 @@ export function CalendarEditor({
               <li key={entry.id}>
                 <button
                   className="text-button"
+                  disabled={formBusy || remove.isPending || interaction?.busy}
                   onClick={() =>
                     onChange({ kind: "entry", item: entry, date: editor.date })
                   }
@@ -150,73 +165,83 @@ export function CalendarEditor({
         </div>
       )}
       {item && !automatic && (
-        <div className="editor-actions">
-          {kind === "block" && "goalId" in item && (
-            <>
-              <button
-                className="button"
-                disabled={interaction?.busy}
-                onClick={() => {
-                  interaction?.adjust(item.id);
-                  onClose();
-                  router.push(
-                    calendarHref(
-                      localDate(item.startsAt, week.timezone),
-                      "day",
-                    ),
-                    { scroll: false },
-                  );
-                }}
-              >
-                Move or resize on calendar
-              </button>
-              <button
-                className="button"
-                disabled={remove.isPending}
-                onClick={() =>
-                  onChange({
-                    kind: "entry",
-                    date: editor.date,
-                    linkedBlock: item,
-                  })
-                }
-              >
-                Log actual
-              </button>
-              <button
-                className="button"
-                disabled={remove.isPending}
-                onClick={() =>
-                  onChange({
-                    kind: "block",
-                    date: editor.date,
-                    duplicateOf: item,
-                  })
-                }
-              >
-                Duplicate
-              </button>
-            </>
-          )}
-          <button
-            className="button danger"
-            disabled={remove.isPending}
-            onClick={() => {
-              if (
-                confirm(
-                  kind === "block"
-                    ? "Delete this planned block? Recorded time will remain."
-                    : "Delete this recorded time entry?",
-                )
-              )
-                remove.mutate();
-            }}
+        <details className="calendar-block-actions">
+          <summary>Actions</summary>
+          <fieldset
+            className="editor-actions"
+            disabled={formBusy || remove.isPending || interaction?.busy}
           >
-            Delete {kind === "block" ? "block" : "recorded time"}
-          </button>
-        </div>
+            {kind === "block" && "goalId" in item && (
+              <>
+                <button
+                  className="button"
+                  disabled={interaction?.busy}
+                  onClick={() => {
+                    interaction?.adjust(item.id);
+                    onClose();
+                    router.push(
+                      calendarHref(
+                        localDate(item.startsAt, week.timezone),
+                        "day",
+                      ),
+                      { scroll: false },
+                    );
+                  }}
+                >
+                  Move or resize on calendar
+                </button>
+                <button
+                  className="button"
+                  disabled={remove.isPending}
+                  onClick={() => onCopy(item.id)}
+                >
+                  Copy…
+                </button>
+                <button
+                  className="button"
+                  disabled={remove.isPending}
+                  onClick={() =>
+                    onChange({
+                      kind: "block",
+                      date: editor.date,
+                      duplicateOf: item,
+                    })
+                  }
+                >
+                  Duplicate
+                </button>
+              </>
+            )}
+            <button
+              className="button danger"
+              disabled={remove.isPending}
+              onClick={() => {
+                if (
+                  kind === "block" &&
+                  item &&
+                  "goalId" in item &&
+                  interaction
+                ) {
+                  interaction.deleteBlock(item);
+                  onClose();
+                  return;
+                }
+                if (
+                  confirm(
+                    kind === "block"
+                      ? "Delete this planned block? Recorded time will remain."
+                      : "Delete this recorded time entry?",
+                  )
+                )
+                  remove.mutate();
+              }}
+            >
+              Delete {kind === "block" ? "block" : "recorded time"}
+            </button>
+          </fieldset>
+        </details>
       )}
       <CommandError command={remove} />
-    </Dialog>
+    </CalendarPlanPopover>
   );
 }

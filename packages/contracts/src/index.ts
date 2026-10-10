@@ -3,6 +3,7 @@ export * from "./identity";
 export * from "./categories";
 export * from "./planning";
 export * from "./calendar";
+export * from "./routines";
 export * from "./goals";
 export * from "./dashboard";
 export * from "./nutrition";

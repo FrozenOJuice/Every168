@@ -13,11 +13,26 @@ import type { CategoriesService } from "../categories/categories.service.js";
 import type { IdentityService } from "../identity/identity.service.js";
 import type { planningRepository } from "./planning.repository.js";
 import { summarizeWeek } from "./planning.summary.js";
+export type { BlockSourceLink } from "./planning.types.js";
+import type { BlockSourceLink } from "./planning.types.js";
 export function planningService(
   repo: ReturnType<typeof planningRepository>,
   categories: CategoriesService,
   identity: IdentityService,
   goals: GoalsService,
+  sourceLinks?: {
+    capture: (
+      u: string,
+      id: string,
+      context: TransactionContext,
+    ) => Promise<BlockSourceLink[]>;
+    restore: (
+      u: string,
+      id: string,
+      links: BlockSourceLink[],
+      context: TransactionContext,
+    ) => Promise<void>;
+  },
 ) {
   async function category(
     u: string,
@@ -85,6 +100,48 @@ export function planningService(
     ) {
       found(await repo.deleteBlock(u, id, version, context, excludeOccurrence));
       return { ok: true as const };
+    },
+    async updateBlockWithUndo(
+      u: string,
+      id: string,
+      input: BlockInput,
+      version: number,
+      context: TransactionContext,
+    ) {
+      const data = blockInput.parse(input);
+      await category(u, data.categoryId, context);
+      if (data.goalId) await goals.get(u, data.goalId, context);
+      return repo.updateBlockWithUndo(u, id, data, version, context);
+    },
+    async undoEdit(
+      u: string,
+      undoId: string,
+      version: number,
+      context: TransactionContext,
+    ) {
+      const receipt = found(await repo.getEdit(u, undoId, context));
+      await category(u, receipt.before.categoryId, context);
+      if (receipt.before.goalId)
+        await goals.get(u, receipt.before.goalId, context);
+      return repo.undoEdit(u, undoId, version, context);
+    },
+    async deleteBlockWithUndo(
+      u: string,
+      id: string,
+      version: number,
+      context: TransactionContext,
+    ) {
+      const links = (await sourceLinks?.capture(u, id, context)) ?? [];
+      return repo.deleteBlockWithUndo(u, id, version, links, context);
+    },
+    async restoreBlock(u: string, undoId: string, context: TransactionContext) {
+      const receipt = found(await repo.getDeletion(u, undoId, context));
+      await category(u, receipt.snapshot.categoryId, context);
+      if (receipt.snapshot.goalId)
+        await goals.get(u, receipt.snapshot.goalId, context);
+      const restored = await repo.restoreBlock(u, undoId, context);
+      await sourceLinks?.restore(u, restored.id, receipt.sourceLinks, context);
+      return restored;
     },
     async createEntry(
       u: string,

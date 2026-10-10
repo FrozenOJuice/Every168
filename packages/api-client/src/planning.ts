@@ -3,6 +3,8 @@ import type {
   CategoryInput,
   Block,
   BlockInput,
+  BlockDeletion,
+  BlockEdit,
   TimeEntry,
   TimeEntryInput,
   Week,
@@ -47,15 +49,27 @@ export function planningClient(http: Http) {
       version: number,
       key?: string,
     ) =>
-      http<Block>("/api/v1/time-blocks/" + id, {
+      http<BlockEdit>("/api/v1/time-blocks/" + id, {
         method: "PUT",
         headers: writeHeaders(key, version),
         body: body(v),
       }),
     deleteTimeBlock: (id: string, version: number, key?: string) =>
-      http<{ ok: true }>("/api/v1/time-blocks/" + id, {
+      http<BlockDeletion>("/api/v1/time-blocks/" + id, {
         method: "DELETE",
         headers: writeHeaders(key, version),
+      }),
+    restoreTimeBlock: (undoId: string, key?: string) =>
+      http<Block>("/api/v1/time-block-deletions/" + undoId + "/undo", {
+        method: "POST",
+        headers: writeHeaders(key),
+        body: "{}",
+      }),
+    undoTimeBlockEdit: (undoId: string, version: number, key?: string) =>
+      http<Block>("/api/v1/time-block-edits/" + undoId + "/undo", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: "{}",
       }),
     createTimeEntry: (v: TimeEntryInput, key?: string) =>
       http<TimeEntry>("/api/v1/time-entries", {

@@ -5,6 +5,7 @@ import { measurementsClient } from "./measurements";
 import { goalsClient } from "./goals";
 import { planningClient } from "./planning";
 import { calendarClient } from "./calendar";
+import { routinesClient } from "./routines";
 import type { Me, Preferences } from "@168hours/contracts";
 import { writeHeaders, createHttp, body, type ClientOptions } from "./http";
 export * from "./http";
@@ -13,6 +14,7 @@ export function createClient(options: ClientOptions = {}) {
   return {
     ...adminClient(http),
     ...calendarClient(http),
+    ...routinesClient(http),
     ...exerciseClient(http),
     ...nutritionClient(http),
     ...measurementsClient(http),

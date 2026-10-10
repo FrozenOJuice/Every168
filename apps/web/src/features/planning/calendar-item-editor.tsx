@@ -1,16 +1,10 @@
-import { useWatch } from "react-hook-form";
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useState } from "react";
+import { CalendarPlanPopover } from "./calendar-plan-popover";
+import { useQueryClient } from "@tanstack/react-query";
 import { calendarItemInput, type CalendarItem } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
-import { Dialog } from "@/components/ui/dialog";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
-import { Loading, ErrorState } from "@/components/ui/feedback";
-import { CalendarItemButton } from "./calendar-item-button";
 import { invalidateCalendar } from "./invalidate-calendar";
 export function CalendarItemEditor({
   item,
@@ -18,6 +12,8 @@ export function CalendarItemEditor({
   kind = "all_day",
   onClose,
   onSchedule,
+  onAddTime,
+  onCopy,
   onSaved,
 }: {
   item?: CalendarItem;
@@ -25,9 +21,15 @@ export function CalendarItemEditor({
   kind?: CalendarItem["kind"];
   onClose: () => void;
   onSchedule: (item: CalendarItem) => void;
+  onAddTime?: (item: CalendarItem) => void;
+  onCopy?: (item: CalendarItem) => void;
   onSaved: (message: string, date?: string) => void;
 }) {
   const cache = useQueryClient();
+  const [formBusy, setFormBusy] = useState(false);
+  const [spansMultipleDays, setSpansMultipleDays] = useState(
+    kind === "all_day" && !!item?.endDate && item.endDate !== item.date,
+  );
   const form = useZodForm(
     calendarItemInput,
     item ?? {
@@ -40,15 +42,6 @@ export function CalendarItemEditor({
       endDate: kind === "all_day" ? date : null,
     },
   );
-  const selectedKind = useWatch({ control: form.control, name: "kind" });
-  const categories = useQuery({
-    queryKey: ["categories"],
-    queryFn: api.getCategories,
-  });
-  const goals = useQuery({
-    queryKey: ["goals", "selector"],
-    queryFn: () => api.getGoals({ limit: 100, status: "active" }),
-  });
   const remove = useCommand({
     mutationFn: (_: void, key: string) =>
       api.deleteCalendarItem(item!.id, item!.version, key),
@@ -58,12 +51,25 @@ export function CalendarItemEditor({
     },
   });
   return (
-    <Dialog
-      title={item ? "Edit date-only plan" : "Add date-only plan"}
+    <CalendarPlanPopover
+      date={date}
+      recordId={item?.id}
+      busy={remove.isPending}
+      onBusyChange={setFormBusy}
+      title={
+        item
+          ? kind === "all_day"
+            ? "Edit all-day plan"
+            : "Edit unscheduled plan"
+          : kind === "all_day"
+            ? "Add all-day plan"
+            : "Add unscheduled plan"
+      }
       onClose={onClose}
     >
       <Form
         form={form}
+        disabled={remove.isPending}
         onSubmit={async (v, key) => {
           if (item) await api.updateCalendarItem(item.id, v, item.version, key);
           else await api.createCalendarItem(v, key);
@@ -75,74 +81,81 @@ export function CalendarItemEditor({
         }}
       >
         <Field name="title" label="Title" />
-        <Field
-          name="kind"
-          label="Plan type"
-          onChange={(value) => {
-            form.setValue(
-              "endDate",
-              value === "all_day" ? (form.getValues("date") ?? date) : null,
-            );
-            if (value === "all_day" && !form.getValues("date"))
-              form.setValue("date", date);
-          }}
-        >
-          <option value="all_day">All day</option>
-          <option value="unscheduled">Unscheduled</option>
-        </Field>
+        {kind === "all_day" && (
+          <p className="muted text-small">All day · No hours allocated</p>
+        )}
         <div className="form-grid">
           <Field
             name="date"
-            label={selectedKind === "all_day" ? "Date" : "Date (optional)"}
+            label={kind === "all_day" ? "Date" : "Date (optional)"}
             type="date"
-            optional
+            optional={kind !== "all_day"}
             onChange={(value) => {
               if (
-                selectedKind === "all_day" &&
+                kind === "all_day" &&
                 value &&
-                (form.getValues("endDate") ?? "") < value
+                (!spansMultipleDays ||
+                  (form.getValues("endDate") ?? "") < value)
               )
                 form.setValue("endDate", value);
             }}
           />
-          {selectedKind === "all_day" && (
-            <Field name="endDate" label="Last day (inclusive)" type="date" />
+          {kind === "all_day" && (
+            <label className="calendar-all-day-toggle">
+              <input
+                type="checkbox"
+                checked={spansMultipleDays}
+                onChange={(event) => {
+                  setSpansMultipleDays(event.target.checked);
+                  if (!event.target.checked)
+                    form.setValue("endDate", form.getValues("date"));
+                }}
+              />
+              Spans multiple days
+            </label>
+          )}
+          {kind === "all_day" && spansMultipleDays && (
+            <Field name="endDate" label="Last day" type="date" required />
           )}
         </div>
-        <small>
-          These plans do not allocate hours. Unscheduled plans without a date
-          stay in your unscheduled list.
-        </small>
-        <Field name="categoryId" label="Category" optional>
-          <option value="">Uncategorized</option>
-          {categories.data
-            ?.filter((c) => !c.archivedAt || c.id === item?.categoryId)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-        </Field>
-        <Field name="goalId" label="Goal (optional)" optional>
-          <option value="">No linked goal</option>
-          {item?.goalId &&
-            !goals.data?.items.some((g) => g.id === item.goalId) && (
-              <option value={item.goalId}>Previously linked goal</option>
-            )}
-          {goals.data?.items.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.title}
-            </option>
-          ))}
-        </Field>
-        <Field name="notes" label="Notes (optional)" type="textarea" optional />
+        {kind === "unscheduled" && (
+          <small>Plans without a date stay in your unscheduled list.</small>
+        )}
+        <details>
+          <summary>More details</summary>
+          <div className="form-stack">
+            <Field
+              name="notes"
+              label="Notes (optional)"
+              type="textarea"
+              optional
+            />
+          </div>
+        </details>
         <Submit>{item ? "Save plan" : "Create plan"}</Submit>
       </Form>
       {item && (
-        <div className="editor-actions">
-          <button className="button" onClick={() => onSchedule(item)}>
-            Schedule as time block
-          </button>
+        <fieldset
+          className="editor-actions"
+          disabled={formBusy || remove.isPending}
+        >
+          {kind === "all_day" && onAddTime ? (
+            <div className="form-stack">
+              <button className="button" onClick={() => onAddTime(item)}>
+                Add a time
+              </button>
+              <small>The all-day plan will stay on the calendar.</small>
+            </div>
+          ) : (
+            <button className="button" onClick={() => onSchedule(item)}>
+              Schedule as time block
+            </button>
+          )}
+          {item.date && onCopy && (
+            <button className="button" onClick={() => onCopy(item)}>
+              Copy…
+            </button>
+          )}
           <button
             className="button danger"
             disabled={remove.isPending}
@@ -152,55 +165,9 @@ export function CalendarItemEditor({
           >
             Delete plan
           </button>
-        </div>
+        </fieldset>
       )}
       <CommandError command={remove} />
-    </Dialog>
-  );
-}
-export function CalendarBacklog({
-  onClose,
-  onOpen,
-  onAdd,
-}: {
-  onClose: () => void;
-  onOpen: (item: CalendarItem) => void;
-  onAdd: () => void;
-}) {
-  const q = useInfiniteQuery({
-    queryKey: ["calendar-items", "backlog"],
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => api.getCalendarBacklog({ cursor: pageParam }),
-    getNextPageParam: (p) => p.nextCursor ?? undefined,
-  });
-  const items = q.data?.pages.flatMap((p) => p.items) ?? [];
-  return (
-    <Dialog title="Unscheduled plans" onClose={onClose}>
-      <p className="muted">
-        Plans without a date. Open one to choose a date or schedule time.
-      </p>
-      <button className="button primary" onClick={onAdd}>
-        Add unscheduled plan
-      </button>
-      {q.isPending && <Loading />}
-      {q.error && <ErrorState error={q.error} retry={() => void q.refetch()} />}
-      <ol className="day-records">
-        {items.map((item) => (
-          <li key={item.id}>
-            <CalendarItemButton item={item} onOpen={() => onOpen(item)} />
-          </li>
-        ))}
-      </ol>
-      {!q.isPending && !q.error && !items.length && <p>No undated plans.</p>}
-      {q.hasNextPage && (
-        <button
-          className="button"
-          disabled={q.isFetchingNextPage}
-          onClick={() => void q.fetchNextPage()}
-        >
-          Load more
-        </button>
-      )}
-    </Dialog>
+    </CalendarPlanPopover>
   );
 }

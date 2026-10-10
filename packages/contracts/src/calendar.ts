@@ -111,27 +111,66 @@ export const copyInput = z
   .object({
     sourceDate: dateSchema,
     targetDate: dateSchema,
-    span: z.enum(["day", "week"]),
+    span: z.enum(["single", "day", "week", "range"]),
+    sourceEndDate: dateSchema.optional(),
+    sourceId: idSchema.optional(),
+    sourceKind: z.enum(["block", "item"]).optional(),
+    selectedDates: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}(,\d{4}-\d{2}-\d{2}){0,30}$/)
+      .optional(),
+    targetMinute: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .lt(1440)
+      .multipleOf(5)
+      .optional(),
   })
   .strict();
+export const copyUndoInput = z
+  .object({
+    blocks: z
+      .array(
+        z
+          .object({ id: idSchema, version: z.number().int().positive() })
+          .strict(),
+      )
+      .max(100),
+    items: z
+      .array(
+        z
+          .object({ id: idSchema, version: z.number().int().positive() })
+          .strict(),
+      )
+      .max(100),
+  })
+  .strict()
+  .refine(
+    (v) =>
+      v.blocks.length + v.items.length > 0 &&
+      v.blocks.length + v.items.length <= 100,
+  );
 export const templateCaptureInput = z
   .object({
     name: titleSchema,
     sourceDate: dateSchema,
-    span: z.enum(["day", "week"]),
+    span: z.enum(["day", "week", "range"]),
+    sourceEndDate: dateSchema.optional(),
   })
   .strict();
 export const templateRenameInput = z.object({ name: titleSchema }).strict();
 export const templateApplyInput = z
   .object({
     targetDate: dateSchema,
+    cycles: z.number().int().min(1).max(52).default(1),
     preferencesVersion: z.number().int().positive(),
   })
   .strict();
 export const templateEntrySchema = z.object({
   ...planDetails,
   kind: z.enum(["block", "all_day", "unscheduled"]),
-  dayOffset: z.number().int().min(0).max(6),
+  dayOffset: z.number().int().min(0).max(30),
   startMinute: z.number().min(0).lt(1440).nullable(),
   durationMinutes: z
     .number()
@@ -142,7 +181,8 @@ export const templateEntrySchema = z.object({
 });
 export const calendarTemplateSchema = recordSchema.extend({
   name: titleSchema,
-  span: z.enum(["day", "week"]),
+  span: z.enum(["day", "week", "range"]),
+  rangeDays: z.number().int().min(1).max(31).nullable(),
   entries: z.array(templateEntrySchema),
 });
 export const copyPreviewSchema = z.object({
@@ -151,6 +191,7 @@ export const copyPreviewSchema = z.object({
   timezone: z.string(),
   blocks: z.array(blockInput),
   items: z.array(calendarItemInput),
+  skipped: z.number().int().nonnegative().default(0),
 });
 export type CalendarItem = z.infer<typeof calendarItemSchema>;
 export type CalendarItemInput = z.infer<typeof calendarItemInput>;
@@ -160,6 +201,7 @@ export type SeriesResult = z.infer<typeof seriesResultSchema>;
 export type CalendarSearchQuery = z.infer<typeof calendarSearchQuery>;
 export type SearchRecord = z.infer<typeof searchRecordSchema>;
 export type CopyInput = z.infer<typeof copyInput>;
+export type CopyUndoInput = z.infer<typeof copyUndoInput>;
 export type TemplateCaptureInput = z.infer<typeof templateCaptureInput>;
 export type TemplateEntry = z.infer<typeof templateEntrySchema>;
 export type CalendarTemplate = z.infer<typeof calendarTemplateSchema>;

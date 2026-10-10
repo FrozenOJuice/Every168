@@ -2,10 +2,13 @@ import type { CopyPreview } from "@168hours/contracts";
 import { formatTime, formatDate } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
 export function CalendarCopyPreview({ preview }: { preview: CopyPreview }) {
+  const count = preview.blocks.length + preview.items.length;
   return (
     <div className="stack">
       <p>
-        <strong>{preview.blocks.length + preview.items.length} plans</strong>{" "}
+        <strong>
+          {count} {count === 1 ? "plan" : "plans"}
+        </strong>{" "}
         will be added starting {formatDate(preview.targetDate)}.
       </p>
       <p className="muted text-small">
@@ -13,6 +16,12 @@ export function CalendarCopyPreview({ preview }: { preview: CopyPreview }) {
         and repeating rules are excluded. Times use {preview.timezone}; repeated
         clock times use the first occurrence.
       </p>
+      {preview.skipped > 0 && (
+        <p className="muted text-small">
+          {preview.skipped} {preview.skipped === 1 ? "plan" : "plans"} skipped
+          because a copy would overlap its own original.
+        </p>
+      )}
       <ol className="copy-preview-list">
         {preview.blocks.map((b, index) => (
           <li key={"b" + index}>

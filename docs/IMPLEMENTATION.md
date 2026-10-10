@@ -14,14 +14,14 @@ The pnpm workspace contains a Next.js web app, an independent Express API, and s
 
 ## Calendar, complete
 
-Day · Week · Month, Week by default, and Previous → Today → Next stay in the top toolbar. Calendar fills the workspace. Dense Week/Month records remain accessible through the day list; Day shows full overlapping records. Quarter-hour selection, duration shortcuts, overnight rescheduling, duplicate drafts, date jumping, current-time positioning and scroll memory remain implemented. The removed lower settings/reporting panel stays removed.
+Day · Week · Month, Week by default, and date navigation stay in the top toolbar. Today and mirrored Add/tools/search actions sit left; Day/Week/Month is centered and previous/date/next sit right. Calendar fills the workspace. Dense Week/Month records remain accessible through the day list; Day shows full overlapping records. Five-minute selection, duration shortcuts, overnight rescheduling, duplicate drafts, date jumping, current-time positioning and scroll memory remain implemented. The removed lower settings/reporting panel stays removed.
 
 The six additions are:
 
 1. Desktop Day/Week drag moves, edge resizing and empty-range draft creation; desktop Month date moves. Touch users enable Move/Resize through the block editor. Snapping, previews, edge scrolling, Escape/blur/pointer cancellation, revision conflicts and retrying an uncertain save are handled. Forms remain available for keyboard and precise editing.
 2. Finite daily/weekly repeating plans, individual exceptions/deletions and whole-series edit/delete. Parent locking and revisions prevent competing series/occurrence writes from silently overwriting each other. Recorded activity remains intact when a plan is removed.
 3. Day/week copying and reusable templates, with full previews before atomic application. Capture, rename, delete and apply are implemented. Source/preference revisions reject stale previews.
-4. All-day and dated/undated unscheduled plans, separate from allocated hours. Scheduling an item creates a block and removes the original item atomically.
+4. All-day and dated/undated unscheduled plans, separate from allocated hours. Scheduling an unscheduled item creates a block and removes the original item atomically; Add a time on an all-day plan creates a separate block and retains the all-day plan.
 5. Visible title/type/category filters and owner-scoped, paginated history search with optional date bounds. Filters retain canonical accounting and source-link metadata.
 6. Selected-date quick actions reuse Food, Cardio, Strength, Goals, water and weight forms. Every action requires explicit submission.
 
@@ -77,11 +77,406 @@ Focused planning services/repositories and four normalized tables extend the exi
 - Final screenshot review caught Month previews extending past a row after adding moment counts. Reserved the corresponding space, reviewed corrected screenshots, and reran all six Calendar/activity browser flows plus lint, typechecks and formatting successfully.
 - Verified: frozen offline dependency install (already up to date), lint/import boundaries, strict workspace typechecks, formatting, **45 unit tests, six architecture tests, all 72 PostgreSQL integration tests and all 24 browser flows passed**. API build and web production build with webpack passed (the documented sandbox-compatible alternative). Browser coverage includes desktop, phone and tablet, accessibility, occurrence-time placement, source links, exercise deduplication, collapsed moments, optional Plan fields and lost-response retries. Day-feed and Month screenshots were reviewed at all three sizes. Initial tests corrected synthetic preference initialization, timestamp representation assertions, a domain SQL projection and browser labels/time formatting; no production behavior was weakened.
 
+## Calendar plan drag creation, complete
+
+- Owner-authorized Day/Week creation now snaps to five-minute intervals and draws the actual selected range on the grid while dragging, with start/end times and duration feedback. Upward and downward selections use the same range; the minimum dragged range is five minutes. Release opens the existing Plan composer with the selected range; only submitting saves it. Escape, blur, pointer cancellation and dropping outside retain cancellation behavior. Clock-change dates retain their exact-time/form fallback.
+- Grid clicks and hover feedback also use five-minute starts. Existing-block move/resize steps remain 15 minutes. Touch scrolling and accessible Add/form editing remain available. No API, database, dependency or accounting changes.
+- Verification: frozen offline install, zero-warning lint/import boundaries, strict workspace typechecks, formatting, 45 unit tests and six architecture tests passed. Web production build passed with webpack. The nine Calendar/activity/expansion browser scenarios passed across the initial run (8/9) and a focused desktop expansion rerun (1/1), including live five-minute draft geometry, upward selections, Escape cancellation, no write during dragging, exact saved times, Week creation, touch adjustment regressions and accessibility. The initial desktop scenario reached Month but its target plan was hidden behind the responsive preview limit; enlarging the test viewport restored the intended Month-drag check. Live-draft screenshot reviewed and its feedback contrast corrected. API/integration checks were not rerun for this frontend-only slice.
+
+## Calendar creation popover, complete
+
+- Grid clicks and drag release now keep a draft block visible and open a compact nonmodal editor beside it. Title receives focus; title/time changes update the draft. Save uses the existing validated form and idempotent write. Category, goal and notes stay under More details. The toolbar composer continues to provide general Plan/Record actions.
+- The editor follows scrolling/resizing, flips to the other side when needed and fits inside narrow/visual viewports. Escape, Close or an outside click cancels an unsaved draft. Pending/uncertain saves prevent dismissal or outside navigation until the same command can be retried. Keyboard focus returns to the opener. Clock-change days retain form fallback; physical-device Safari/keyboard behavior remains unverified.
+- Verified zero-warning lint/import boundaries, workspace typechecks, formatting, 45 unit tests, six architecture tests and webpack web production build. All nine Calendar/activity/expansion browser flows passed across desktop, phone and tablet, including compact editor bounds, live draft persistence, focus, outside dismissal, accessibility, exact saved times and a lost successful save response retried with the same key. Desktop/phone/tablet screenshots reviewed. No backend or schema changes; integration suite was not rerun for this UI slice.
+
+## Compact Calendar tabs for creation and editing, complete
+
+- All time-block creation/editing, duplication, linked time review, toolbar Plan/Record, and date-only/repeating plan editors now use the shared nonmodal tab. Existing records anchor the tab beside their calendar block; toolbar and forms without a visible record use a viewport-clamped fallback. Grid draft previews remain visible during creation.
+- Reduced the tab width to 320px and placed labels beside fields. Shorter desktop controls and tighter spacing keep ordinary creation/editing around 260–290px tall; touch controls retain 44px targets. Optional fields and block actions are collapsed. Save uses the existing validated form; pending/uncertain form saves and delete commands protect dismissal, navigation and competing actions. Native destructive confirmations remain.
+- Verification: zero-warning lint/import boundaries, strict workspace typechecks, formatting, 45 unit tests, six architecture tests and webpack web production build passed. All 12 Calendar/activity/expansion/Core browser flows passed across desktop, phone and tablet, covering creation/editing, compact bounds, linked activity, duplicate/delete, recurrence, stale edits, keyboard focus, accessibility and lost-response retries. Screenshots reviewed; the final placement adjustment prefers the clicked record when the grid and day feed both show it. All three activity/tab browser flows passed again after that adjustment, and the corrected phone placement was reviewed. No backend/schema changes; integration tests were not rerun. Physical-device Safari remains unverified.
+
+## Calendar block selection and moving previews, complete
+
+- Single-clicking a planned block selects it in the semantic primary color without opening the editor. Double-click opens the compact tab; Enter/Space still opens it from the keyboard. Selection is exposed with `aria-pressed`; clicking elsewhere or Escape clears it. On touch screens, tap to select before dragging; explicit Move/Resize controls remain available in the tab.
+- Moving a block renders a pointer-following copy at its original size and grab offset, with a faded dashed ghost at the original location. Release removes the preview and saves through the existing revision/idempotency command. Escape, blur, pointer cancellation and dropping outside cancel the move. Creation keeps five-minute steps; existing adjustments keep 15-minute steps.
+- Verification: 45 unit tests, six architecture tests, zero-warning lint/import boundaries, workspace typechecks, formatting and webpack web production build passed. All 12 relevant Calendar/activity/expansion/Core browser flows passed across desktop, phone and tablet after correcting one moving-preview pixel offset and updating the remaining list editor test to double-click. The six Calendar/expansion flows were rerun after those corrections; they verify selected color, double-click/keyboard editing, stationary ghost and exact pointer offset, cancellation, real tap-to-select and touch move/resize, and safe same-key retries. Desktop moving-preview screenshot reviewed. No API or schema changes; integration tests were not rerun for this UI slice. Physical-device Safari remains unverified.
+
+## Calendar snapped move preview, complete
+
+- Moving previews now align to the destination Day/Week column and the same snapped timestamps used by the drop command. Pointer motion inside a slot does not move the preview; crossing columns changes its day. Visible duration is clipped to the destination day, and moment-marker space remains available. Month previews snap inside the target date cell. Original ghosts and cancellation remain intact; moves retain 15-minute increments.
+- Verified zero-warning lint/import boundaries, workspace typechecks, formatting, 45 unit tests, six architecture tests and all three desktop/phone/tablet Calendar expansion browser flows. Browser assertions cover stable snapped geometry, Week day-column transitions, unchanged original position, touch moves/resizes, cancellation and same-key retries. Snapped preview screenshot reviewed. No backend/schema changes; production build and integration suite were not rerun for this presentation-only adjustment.
+
+## Consistent five-minute Calendar dragging, complete
+
+- Creation, moving and resizing now all use five-minute increments. Updated grid snapping, move grab-offset rounding and drag feedback. Lowered the move/resize activation threshold so a single five-minute (six-pixel) adjustment registers. This supersedes the 15-minute move/resize behavior recorded in earlier sections.
+- Verified 46 unit tests, six architecture tests, lint/import boundaries, workspace typechecks, formatting and all three desktop/phone/tablet Calendar expansion browser flows. Coverage includes a non-quarter-hour grab offset, five-minute move/start/end arithmetic, six-pixel resizing, snapped preview geometry, touch adjustments, cancellation and safe retries. No backend/schema changes; production builds and integration tests were not rerun for this small interaction adjustment.
+
+## Live Calendar resizing, complete
+
+- Resizing either edge now updates the visible block's position, height and displayed time range during the gesture, in five-minute steps. Short previews use their exact duration, and previews are projected into every affected visible day. Move ghosts remain specific to moving. Releasing commits the existing safe command; cancellation restores the saved geometry without a write.
+- Verified 46 unit tests, six architecture tests, zero-warning lint/import boundaries, workspace typechecks, formatting and all three desktop/phone/tablet Calendar expansion flows. Browser coverage asserts changed height before release, five-minute edge changes, start-edge position, unchanged persisted revision during dragging, cancellation restoring size, touch resizing and existing retries. The final desktop rerun passed after correcting the new start-handle test selector; it also includes the final projection of previews across days. No backend/schema changes; production builds and integration tests were not rerun for this rendering adjustment.
+
+## Calendar day highlight removal, complete
+
+- Removed the drag-target outline from Day, Week and Month, including creation, movement and resizing. Removed the unused target-highlight classes and Month interaction subscription. Selected blocks and ordinary calendar grid dividers remain.
+- Verified zero-warning lint/import boundaries, workspace typechecks, formatting of changed UI files and `git diff --check`. Source search confirms no drag-target outline class remains. Browser and integration tests were not rerun for this style removal.
+
+## In-block drag feedback, complete
+
+- Removed the floating drag tab and five-minute-step label. Moving blocks retain their time/date and show a small Escape to cancel hint at the bottom; creation and resize previews use the same hint. Resize feedback now includes its end time and date inside the block. Screen-reader status feedback remains available without a visible floating element.
+- Verified zero-warning lint/import boundaries, workspace typechecks, formatting and all three desktop/phone/tablet Calendar expansion browser flows, including in-block hints, absent floating tab, snapping, live resize, cancellation and safe retries. Desktop drag screenshot reviewed. No backend/schema changes; unit/integration suites and production builds were not rerun for this UI feedback change.
+
+## Drag time/date formatting, complete
+
+- Drag creation, moving and resizing use a normal hyphen between the times and place the date on its own line. Removed dot separators from visible drag time/date feedback.
+- Verified zero-warning lint/import boundaries, workspace typechecks, formatting of changed files and `git diff --check`. Browser tests, production builds and backend checks were not rerun for this text-formatting adjustment.
+
+## Full-width resize edges, complete
+
+- Expanded desktop resize hit areas across the full top and bottom edges, retaining their 12px depth and centered visual grips.
+- Verified lint/import boundaries, formatting, `git diff --check` and the desktop Calendar expansion browser flow. Resize checks now drag near the right end of the bottom edge and near the left end of the top edge, verifying live geometry, saved five-minute changes and cancellation. No API/schema changes; other suites were not rerun for this hit-area adjustment.
+
+## Selected-block keyboard deletion, complete
+
+- Delete and Backspace delete the selected planned block through the existing confirmation, owner-scoped revision-protected endpoint and same-key retry flow. Recorded activity remains. Repeated/modified/composing keys, editable targets, open editors/dialogs, active gestures and pending/uncertain commands cannot trigger deletion. Successful deletion clears selection and refreshes Calendar; failures retain visible error/retry controls.
+- Verified 46 unit tests, six architecture tests, zero-warning lint/import boundaries, workspace typechecks, formatting and all three desktop/phone/tablet Calendar expansion browser flows. Coverage includes Delete and Backspace, cancellation retaining the block, Backspace editing text, dropped successful DELETE responses, identical-key retries and suppression of another delete while uncertain. Initial checks corrected the deletion response type and test's expected HTTP status to match the existing API. No API/schema changes; integration tests and production builds were not rerun for this frontend shortcut.
+
+## Planned-block deletion undo, complete
+
+- Selected-block Delete/Backspace and the block editor delete without a native confirmation alert. A visible Undo action and Cmd+Z/Ctrl+Z restore the most recent deletion during the current Calendar visit. Field editing keeps native undo; active editors/gestures and pending/uncertain commands are protected. This supersedes the preceding confirmation-based block deletion behavior. Undo is a single recent deletion, not a general edit history, and its UI handle does not survive leaving/reloading Calendar.
+- Added an owner-scoped deletion receipt and idempotent undo endpoint. Undo restores the original block ID, details, creation timestamp, advanced revision, repeating occurrence/exclusion and recorded-time links. Exercise captures/restores its own Cardio/Strength links through public service callbacks. Later changes to linked records or the series reject undo atomically instead of overwriting them. Receipts are consumed on restoration and cascade with account deletion; no backfill or compatibility layer was added.
+- Migrations 0012–0013 add `deleted_time_blocks`; development/test migrations applied and schema generation reports no remaining changes. No production data, commit, push or deployment changes.
+- Verified 46 unit tests, six architecture tests, all 74 PostgreSQL integration tests, lint/import boundaries, workspace typechecks, formatting and API/web production builds (web with webpack). All 12 Calendar/activity/expansion/Core browser flows passed across desktop, phone and tablet. Final three expansion flows also passed with the Undo bar visible for accessibility and responsive screenshots; shortcut-hint contrast was corrected using the existing foreground token. Desktop/phone Undo screenshots reviewed. Browser checks include no alert, Cmd/Ctrl+Z with body focus, visible Undo, normal field Backspace, lost successful delete/undo responses and same-key retries. Integration checks cover ownership, identity/details, manual/Cardio/Strength links, recurrence, consumed receipts and stale-link rollback. Physical-device Safari remains unverified.
+
+## Calendar action history, complete
+
+- Replaced the single-deletion handle with a stack of successful timed planned-block actions: create/duplicate, saved title/details/time edits, drag moves, edge resizing and deletion. Repeated Cmd+Z/Ctrl+Z or the visible Undo button reverses actions in order, including create → rename → adjust → delete on the same block. The bar shows the next action and available count. Native text undo stays available; editors, gestures and pending/uncertain commands protect calendar shortcuts and controls.
+- Planning owns server-side before/after edit receipts and idempotent revision-protected edit undo. Undo restores exact prior fields and recurrence exception flags. Deletion still restores identity and manual/Cardio/Strength links atomically. Recurring receipts check the series definition, occurrence exclusion and replacement identity, allowing several independent occurrence undos while rejecting changed rules. The client advances earlier expected revisions only after its own confirmed inverse with a matching predecessor; external edits are not overwritten. Same-key retry records/pops each successful action once.
+- Scope: history lasts while Calendar remains mounted, including date/view changes. Reloading or leaving Calendar clears it. Date-only plans, whole-series operations, bulk copying/templates, scheduling date-only items, manual sessions and domain activity are outside this first action-history slice. No redo or persisted history UI was added. This supersedes the previous single-delete UI limit.
+- Migration 0014 adds `edited_time_blocks` and replaces deletion's parent revision with a series-definition snapshot. Local development/test migrations applied; schema generation reports no remaining changes. Receipts remain owner-scoped and cascade with account deletion. No backfills, production writes, commits, pushes or deployment.
+- Verified 48 unit tests and six architecture tests. The full PostgreSQL integration suite passed 76 tests; after the final recurrence-rule regression and replacement guard, all five dedicated Planning undo integration tests passed. Zero-warning lint/import boundaries, workspace typechecks, formatting, diff checks and API/web production builds passed (web with webpack). The 12 existing Calendar/activity/expansion/Core browser flows passed across desktop, phone and tablet; all three new history flows passed after narrowing a test selector that also matched Next's route announcer. History flows verify four consecutive inverses, lost successful edit-undo responses with matching retry keys, empty history, visible action counts, external-change protection and axe accessibility. Desktop/phone history screenshots reviewed. Physical-device Safari remains unverified.
+
+## Calendar undo bar removal, complete
+
+- Removed the visible undo bar, edit description, Undo button, shortcut hint and action count, plus their unused styling/label helper. Multi-step Cmd+Z/Ctrl+Z history, native field undo, conflict protection and safe retries remain implemented. This owner revision supersedes the visible controls described in the preceding passes.
+- Updated existing Calendar expansion/history browser checks to use keyboard undo and assert that the bar/button are absent. All six flows passed across desktop, phone and tablet, including consecutive inverses, lost successful responses, matching retry keys, external-change protection and axe accessibility. Web typecheck, zero-warning lint/import boundaries, formatting and diff checks passed. No API/schema changes or new tests were needed.
+
+## Toolbar Add draft preview, complete
+
+- Toolbar Add now connects the Plan form to the existing unsaved draft preview. Title/time edits update the block live in Day/Week; Month shows a draft inside its matching date cell. Clock-change days show a draft card with timezone-qualified times. The compact tab anchors to drafts inserted after it mounts and follows their geometry.
+- Draft focus scrolls only Calendar, brings the mobile Day grid back above its activity feed and keeps wide Day layouts aligned. Switching to Record, closing/cancelling, selecting another plan type or saving removes the draft; cancellation does not write a plan. Existing timed-plan creation and undo still use the canonical API services.
+- Verified web typecheck, zero-warning lint/import boundaries, formatting and diff checks. All three activity/preview browser flows passed on desktop, phone and tablet, including live title/time/height, Day/Week visibility, Month containment, Record/cancel removal, no cancellation write, safe retries and axe accessibility. All three planning flows passed with clock-change draft checks; six expansion/history flows also passed. Screenshot review corrected Month overflow; responsive checks corrected nested scrolling. Initial fixture expectations were corrected to match existing time formatting, and an older wide-hour-row click now uses its visible center. One broader run hit API rate limiting on a tablet read; focused reruns passed. Desktop and phone screenshots reviewed. No API/schema changes, new test files, commits or deployment.
+
+## Calendar time selection and current-hour placement, complete
+
+- A single click on empty Day/Week space selects and highlights a five-minute slot without opening an editor or saving. Toolbar Add opens a one-hour draft at that selected date/time, including a different day in Week. Double-click opens the compact draft directly; dragging still creates a live range. Enter opens a draft from a focused time slot; Space selects it.
+- With no time selected, creation uses the current hour in the account timezone on the viewed/requested date. This replaces the fixed 9 AM default in toolbar, Month/date actions, scheduling and clock-change-day creation. No automatic gap search or remembered-time fallback. Overnight drafts retain the next-day end, and invalid/ambiguous clock-change choices remain editable for explicit validation.
+- Escape, date/view navigation and choosing another calendar target clear time selection. Choosing an existing block clears the empty-time selection and retains its existing edit/delete/drag controls. Pending writes keep selection controls protected.
+- Verified 17 focused time/layout/drag unit tests, web typecheck, zero-warning lint/import boundaries, workspace formatting and diff checks. All 12 planning/activity/expansion/history browser flows passed across desktop, phone and tablet. The final three expanded activity flows also passed, checking single-click without creation, Add at the exact selected five-minute time, another selected day in Week, Escape/navigation clearing, double-click creation and current-hour defaults in Day/Month. Existing responsive draft, axe accessibility, drag/resize, undo and retry coverage passed. No API/schema changes, commits or deployment.
+
+## Month day selection and block rows, complete
+
+- Removed per-day creation (+) buttons and date-click navigation. Clicking empty Month day space, including the date, selects/highlights that day without opening an editor. Toolbar Add uses the selected date at the current account-local hour for one hour; double-clicking a day opens the same draft directly. Space selects a focused day and Enter opens its draft. Shared selection clears on Escape, navigation, creation and choosing another calendar target.
+- Existing block selection/editing/date dragging and explicit record-count/overflow lists remain available. Compact Month cells keep separate selection and record-list touch controls, with vertical scrolling when the available height cannot fit all rows.
+- Month planned/recorded rows now put a single-line title on the left and only the start time on the right, including overnight records. Long titles use an ellipsis; full title/time-range accessibility labels remain available. Date-only rows and unsaved Month drafts use the same horizontal layout. Constrained the preview grid's minimum width so long titles cannot expand into neighboring days.
+- Verified web typecheck, zero-warning lint/import boundaries, workspace formatting and diff checks. All nine activity/planning/expansion browser flows passed across desktop, phone and tablet, including day selection without a dialog, selected-date Add, double-click/Space/Enter, draft cancellation, overflow lists, Month date dragging and axe accessibility. The new long-title assertion initially found a real width overflow; the grid constraint fixed it. The compact last-row check now scrolls to retain distinct touch targets. All three full planning flows passed on the final code. Desktop title truncation and phone Month screenshots reviewed. No API/schema changes, commits or deployment.
+
+## Dense Month event rows, complete
+
+- Moved the day number into a 24px header at the top right and reduced Month event rows to 20px for fine pointers and 24px for touch. Days with up to four events show all four; five or more show the first three followed by the exact hidden count, such as +2 more. Overflow opens the existing full day list. Date-only plans, timed plans and recorded sessions share this capacity; point-in-time moments keep their separate header count.
+- Removed height-dependent preview capacity and count-only narrow cells. Month always provides enough row height for the four-event layout. A minimum 700px grid keeps titles and right-aligned start times readable on narrow screens, with scrolling contained inside Calendar. Opening/changing a draft brings its date into view using only the Month scroller. Selection, compact editing and date dragging remain implemented.
+- Verified web typecheck, zero-warning lint/import boundaries, workspace formatting and diff checks. All nine activity/planning/expansion browser flows passed across desktop, phone and tablet; all nine passed again on the final code after narrow-screen screenshot review prompted readable grid widths and draft scrolling. Added four/five-event fixtures verifying four visible rows without overflow, three plus +2 more, access to all five records, top-right date placement and row heights at most 24px. Existing title truncation, selection, creation/cancellation, date dragging, retries and axe accessibility passed. Desktop and final phone screenshots reviewed. No API/schema changes, commits or deployment.
+
+## Month date spacing, complete
+
+- Added 4px above the Month date header, moving the date/today circle and event rows down slightly. Increased the touch cell minimum height by the same amount to retain room for four rows. Updated the existing date-position assertion for the new inset.
+- Verified formatting of changed files and `git diff --check`. Browser suites were not rerun for this spacing-only adjustment.
+
+## Month overflow navigates to Day, complete
+
+- Replaced the Month +N more button with a typed calendar link directly to Day view for that date, preserving the visible hidden count and normal link/keyboard behavior. The separate moment-count control still opens its existing activity list.
+- Updated the planning browser flow to verify +2 more navigates to the correct date with all five events and no dialog, browser Back returns to Month, and another overflow day retains editing access. All three full planning flows passed on desktop, phone and tablet, including responsive layout, date spacing, title truncation and axe accessibility. Web typecheck, zero-warning lint/import boundaries, formatting and diff checks passed. No API/schema changes, commits or deployment.
+
+## Calendar legend and visible action-status removal, complete
+
+- Removed the Planned/Recorded/Moments legend and account-timezone caption beneath the Calendar toolbar, together with their unused styles. Routine interaction confirmations/progress, including Plan deleted, updated, restored and edit undo, now use screen-reader-only status announcements. Actionable errors, uncertain-write messages and retry controls remain visible.
+- Updated existing activity/expansion/history browser checks for the absent caption and screen-reader-only confirmations. All three expansion flows passed; all six activity/history flows passed in the final focused run across desktop, phone and tablet, including creation, deletion, repeated undo, external-change protection, matching-key retries and axe accessibility. Initial fixture failures were corrected by moving a five-minute click off its exact slot boundary and updating an old edit-undo status selector. Web typecheck, zero-warning lint/import boundaries, workspace formatting and diff checks passed. Desktop history screenshot reviewed. No API/schema changes, commits or deployment.
+
+## Month date-to-event gap, complete
+
+- Moved Month date numbers/today circles up 2px within the existing header and left a 2px gap below them. Event rows retain their position and capacity. Updated the existing geometry assertions for the new inset/gap.
+- Verified changed-file formatting and `git diff --check`. Browser suites were not rerun for this spacing-only adjustment.
+
+## Additional Month date inset adjustment, complete
+
+- Moved Month date numbers/today circles up one additional pixel, using 1px above and 3px below the header content. Event rows retain their position and capacity.
+- Verified changed-file formatting and `git diff --check`. Browser suites were not rerun for this one-pixel adjustment.
+
+## Month date half-pixel adjustment, complete
+
+- Moved Month date numbers/today circles down 0.5px, using 1.5px above and 2.5px below the header content. Event rows retain their position and capacity.
+- Verified changed-file formatting and `git diff --check`. Browser suites were not rerun for this half-pixel adjustment.
+
+## Month viewport fit, complete
+
+- Removed fixed Month minimum widths/cell heights and internal scrolling. All seven columns and four to six week rows share the available viewport; Month also overrides the surface minimum height on short screens.
+- Event preview capacity adapts to measured cell dimensions, up to four rows. Overflow reserves a Day-view link, narrow cells show compact counts, and very short rows place the count beside the date. Selection, creation, drafts, editing and existing date dragging remain available.
+- Updated the owner-approved specification, UI standards and verification guidance. Browser checks cover complete viewport containment, adaptive overflow, four-versus-five-event density at tall desktop sizes, and six-week months at 480px height across desktop, phone and tablet. Reviewed desktop and short-phone screenshots.
+- Passed web typecheck, zero-warning workspace lint/boundary checks, changed-file formatting and `git diff --check`. The three planning browser flows passed on desktop, phone and tablet with automated WCAG checks. All six activity/expansion flows also passed. The first combined run caught a stale fixed-four-preview assertion on desktop; coverage now checks adaptive capacity and retains the four-row assertion where space permits.
+
+## Consistent Calendar creation controls, complete
+
+- Grid double-click and drag release now use the same compact plan composer as toolbar and Month creation. Every new plan offers More details, All day and Repeat controls, plus Unscheduled plan under Other plans. Removed the obsolete separate grid-editor flag while retaining live draft ranges, anchoring and safe writes.
+- Switching plan type retains the draft's chosen date, including another day selected in Week, and removes the timed preview. Existing-record editing, duplication and scheduling retain their dedicated compact editors.
+- All nine planning/activity/expansion browser flows passed across desktop, phone and tablet, including consistent optional controls, selected-date plan-type switching, drag-release controls, exact ranges, cancellation, retries and automated accessibility checks. Desktop and phone screenshots reviewed. Web typecheck, zero-warning lint/import boundaries, changed-file formatting and diff checks passed. No API/schema changes, commits or deployment.
+
+## Calendar outside-click cancellation, complete
+
+- The compact tab consumes an outside pointer press and its click before closing, preventing that dismissal from selecting a day/time or starting a calendar drag. A separate subsequent click works normally. Ignore the release click from the gesture that opened the tab so drag-created drafts stay open; pending/uncertain writes remain protected.
+- Extended existing activity browser checks for Day-slot and Month-day cancellation without selection, draft removal and subsequent normal selection. All six activity/expansion flows passed across desktop, phone and tablet, including creation, drag release, retries and automated accessibility checks. The initial run exposed the opening-drag release edge case, now corrected; the phone fixture now clicks an unobscured calendar point without automatic scrolling.
+- Web typecheck, zero-warning lint/import boundaries, changed-file formatting and diff checks passed. No API/schema changes, commits or deployment.
+
+## Calendar category/goal separation, complete
+
+- Removed Category and Goal selectors from timed-plan, manual recorded-time, date-only and repeating-plan editors, and removed their selector queries. More details contains notes for plans and relevant timezone options for repeating plans; manual time records have no empty disclosure.
+- Removed category filtering from Calendar search, category labels/colors from calendar blocks and the create-goal quick action. The separate Goals and Settings category surfaces remain available. Canonical API contracts and ordinary record integrity remain intact; note edits retain existing stored references.
+- Updated browser coverage for absent controls, notes, all plan types and duplication. All nine planning/activity/expansion flows passed across desktop, phone and tablet with automated accessibility checks. All three Core flows passed in the final focused run, covering the separate domains and existing-reference integrity through API fixtures. Initial Core fixture checks needed fresh navigation after API changes; a reload raced client navigation, so the fixture now navigates directly to Calendar. Desktop planning-form screenshot reviewed.
+- Web typecheck, zero-warning workspace lint/import boundaries, changed-file formatting and diff checks passed. Updated the owner-approved specification and current UI/verification guidance. No API/schema changes, commits or deployment.
+
+## Day activity header cleanup, complete
+
+- Removed the dated “Plans stay planned until you record activity” sentence and Add to day button from the shared Day activity feed. Kept Your day and the activity sections; toolbar Add remains the creation control. Removed the unused date formatter and add callbacks.
+- Web typecheck, zero-warning lint/import boundaries, changed-file formatting and diff checks passed. Source search confirms both removed strings are absent. Browser suites were not rerun for this small UI removal.
+
+## Calendar toolbar and Day sidebar alignment, complete
+
+- Swapped toolbar groups: view/actions on the left, date navigation on the right. Previous/next arrows flank the date title, with Today adjacent; date jumping and active-view navigation remain available. Wide Day view uses a 350px date area aligned with the activity sidebar, continuing its divider through the toolbar. Narrow controls fit two rows and long date titles truncate visually with a full accessible label.
+- Removed Your day from the activity feed and the duplicate weekday/date header from the Day time grid. Week headers remain. Day date-only rows and clock-change fallback use zero sticky-header offset, giving the time grid and activity feed more room.
+- All nine planning/activity/expansion browser flows passed across desktop, phone and tablet, including wide sidebar/date alignment, arrow/date order, absent headings, date jumping/navigation, Month viewport fit, creation/drag/resize, retries and automated accessibility checks. Reviewed desktop Day and 320px Week screenshots. Web typecheck, zero-warning lint/import boundaries, changed-file formatting and diff checks passed. Updated the owner-approved specification and current UI/verification guidance. No API/schema changes, commits or deployment.
+
+## Calendar toolbar control placement, complete
+
+- Moved Today to the left and mirrored the action buttons to Add, tools, search. Day/Week/Month now occupies a separate centered toolbar group, with previous/date/next on the right. Preserved wide Day sidebar alignment and compact responsive rows, including 320px screens.
+- Extended the existing desktop browser flow to verify the centered view switcher, left Today control and mirrored action order. Web typecheck, repository lint/boundaries, changed-file formatting and diff whitespace checks passed. Calendar activity, expansion and planning browser flows passed on desktop, phone and tablet (9/9), covering navigation, creation, adjustments, Month fit and accessibility.
+
+## Calendar date dropdown and consistent labels, complete
+
+- Removed the date-title chevron and added hover/focus styling. Replaced the centered Jump to date dialog with a viewport-clamped dropdown beside the date: mini calendar for Day/Week, month list and year navigation for Month. Week highlights the selected account-local week and follows its week-start preference. Escape/outside dismissal and focus return preserve keyboard use.
+- All views show the full month/year in the same date control geometry. Day adds the full weekday/day number below; Week/Month reserve the second line. Removed view-specific toolbar sizing/placement differences while preserving the Day sidebar divider and responsive Month fit.
+- Web typecheck, zero-warning lint/import boundaries, changed-file formatting and diff whitespace checks passed. All nine Calendar planning/activity/expansion browser flows passed on desktop, phone and tablet. New assertions cover identical date geometry across view switches, full labels, no chevron, seven highlighted week days, month list selection, mini-calendar date navigation, nonmodal accessibility and Escape focus return. Existing creation, adjustments, navigation, retries and Month viewport fit still pass.
+
+## Calendar date heading alignment, complete
+
+- Day now shows the full date on the primary line (for example, October 8, 2026), with the full weekday below. Week and Month retain the full month/year on that primary line. The heading reserves the same height in every view, centers the primary line vertically between the arrows, and keeps the smaller weekday out of that alignment.
+- Extended the existing Calendar browser flow to compare the main date line with both arrow centers in Day, Week and Month and to verify the Day text. Desktop, phone and tablet flows passed (3/3). A focused 320px check then caught date truncation; reducing unused space between Today and the left arrow preserved both 44px arrow targets and made the full Day date visible. The focused desktop browser flow passed after that adjustment. Web typecheck and lint/import boundaries passed.
+
+## Day date and weekday placement, complete
+
+- Removed the detached weekday line from the toolbar date control. Day now uses one centered full-date line between the arrows, matching Week/Month height and alignment. The full weekday appears as a small label aligned with the top of the Day activity feed. Kept the 320px spacing that displays the full date beside Today.
+- Updated the existing Calendar browser assertions for the Day date and weekday location. Calendar planning and activity flows passed on desktop, phone and tablet (6/6), including the 320px date fit, date jumping, creation, Day feed and accessibility checks. Web typecheck and lint/import boundaries passed.
+
+## Empty Day feed spacing, complete
+
+- Let the weekday label participate in the Day feed's normal layout so the empty-state message starts beneath it rather than sharing its space. Kept the label compact and aligned with the feed content.
+- Extended the existing Calendar browser flow with an empty-day geometry check and screenshot. Phone and tablet passed in the responsive run; desktop passed after the test waited for its date-selection navigation before switching views. The final desktop screenshot shows clear space between the weekday and empty-state border. Web typecheck and lint/import boundaries passed.
+
+## Compact date control with fixed arrows, complete
+
+- Placed Previous and Next in fixed 44px grid columns inside a narrower centered date group. The date button now sizes to its label, so shorter month names produce a shorter hover target without shifting either arrow. Day labels retain room to display their full date, including at 320px.
+- Extended the existing Calendar browser flow to compare arrow positions across Week, Month, another month, and Day, and to check that the Month button shrinks for a shorter label. Desktop, phone and tablet flows passed (3/3); the final desktop rerun also passed with the new assertions. Web typecheck and lint/import boundaries passed.
+
+## Date control spacing adjustment, complete
+
+- Widened the fixed arrow group from 272px to 296px and increased the date button's horizontal padding from 8px to 14px. Arrow positions still stay fixed as the text changes; the group remains constrained by available width on narrow screens. At 360px and below, the button keeps 8px padding so the full Day date remains visible.
+- Focused desktop browser verification passed, including the 320px full-date check and fixed arrow assertions. The first attempt exposed truncation at 320px; restoring 8px padding at that breakpoint resolved it. Changed-file formatting and diff checks passed.
+
+## Wider date button, complete
+
+- Increased only the date button's horizontal padding from 14px to 22px. The 296px arrow group and both fixed arrow positions stay unchanged; screens at 360px or narrower retain 8px padding for the full Day date.
+- Focused desktop Calendar browser flow passed, including unchanged arrow positions, shorter Month button labels and full Day-date fit at 320px. Changed-file formatting and diff whitespace checks passed.
+
+## Date button and weekday refinement, complete
+
+- Gave the date button a 196px minimum width within the existing 296px fixed-arrow group, leaving only a small gap beside each arrow for short month names while allowing longer Day labels to use the center space. Narrow screens constrain the button to the available track width.
+- Initially enlarged the weekday label at the top of the Day activity feed from 12px to 14px. The owner clarified that the intended target was the full date between the arrows; the weekday was restored to 12px in the following revision. The focused desktop calendar flow passed with the widened button, fixed arrows, 320px full-date fit, and weekday/empty-state spacing. Changed-file formatting and diff whitespace checks passed.
+
+## Larger Day date text, complete
+
+- Enlarged the full Day date between the arrows while keeping its center and arrow positions fixed. The Day title uses tighter horizontal padding to preserve long dates; very narrow screens use a smaller responsive size. Restored the weekday label to its original 12px size.
+- Expanded the browser flow to verify that Day text is larger than Month/Week text and that a long Day date remains fully visible at 320px. The first responsive run passed on phone and tablet but caught a clipped long date at 320px on desktop; removing Day button padding at that width fixed it. The focused desktop rerun passed. Web typecheck and workspace lint passed.
+
+## Larger Day toolbar date, complete
+
+- Increased the full Day date to 20px on wider screens and 18px on typical phones, from 18px and 16px respectively. Kept the 13px fit size at 360px and narrower, and tightened the Day button's horizontal padding so long dates remain visible between the fixed arrows.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), including the 320px long-date check and date/arrow alignment. Web typecheck and zero-warning workspace lint passed.
+
+## Whole-week date picker selection, complete
+
+- Week view's date dropdown now renders one button per week. The selected week has one continuous fill, while hover and keyboard focus outline another whole week; today's date retains its small marker. Choosing a row navigates to that week's start in the account's preferred week-start order. Day and Month picker behavior remains the same.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), including selected/hovered row checks, week navigation, Escape focus return and an accessibility scan. Web typecheck and zero-warning workspace lint passed.
+
+## Date dropdown close control removal, complete
+
+- Removed the close X from Day, Week and Month date dropdowns. Date selection, outside click and Escape still dismiss the dropdown; the header now contains only its period arrows and title.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), checking X absence in all views plus outside-click and Escape dismissal. Web typecheck and zero-warning workspace lint passed.
+
+## Month picker grid, complete
+
+- Changed the Month date dropdown from a scrolling list to a three-column, four-row grid of all twelve months. Kept the year controls and selected-month styling; each month remains a button.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), including grid geometry, visible December at 320px, and month navigation. Reviewed the 320px screenshot. Web typecheck and zero-warning workspace lint passed.
+
+## Centered date dropdowns, complete
+
+- Centered the Day, Week and Month date dropdowns beneath their date-title buttons. The popup narrows when needed to stay centered and fully within a narrow viewport.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), including center alignment in every view, 320px containment and complete month labels. Reviewed the 320px Month screenshot. Web typecheck and zero-warning workspace lint passed.
+
+## Taller Month picker buttons, complete
+
+- Increased Month dropdown buttons and rows to 48px tall. The three-column, four-row grid remains centered and fully visible at 320px.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), including button height, last-row visibility, date selection and 320px containment. Reviewed the 320px screenshot. Web typecheck and zero-warning workspace lint passed.
+
+## Uniform Calendar date-title size, complete
+
+- Day, Week and Month now use the same date-title font size at each viewport width: 20px on wider screens, 18px on typical phones and 13px at 360px or narrower. Shared button padding keeps Month/Week and full Day labels within the fixed arrow group. This supersedes the earlier Day-only enlargement.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), checking identical font sizes across view switches, fixed alignment and full labels at 320px. Web typecheck and zero-warning workspace lint passed.
+
+## Selected-date view switching, complete
+
+- View tabs now target the selected Month day or five-minute Week slot's date, falling back to the viewed date when nothing is selected. The pointer handler keeps the selection through the tab click; the usual view/date scope change clears it after navigation.
+- Focused browser coverage passed for Month-to-Week, Month-to-Day and Week-to-Day on desktop, phone and tablet, including the no-selection fallback. The broader Calendar run initially found an activity-flow assertion expecting the old date; after updating it, the final focused navigation/activity run passed (6/6). Planning and expansion flows passed in the broader run. Web typecheck and zero-warning workspace lint passed.
+
+## Consistent date picker hover, complete
+
+- Day, Week and Month dropdowns now outline unselected options on hover. The selected day, week or month keeps its primary fill; keyboard focus retains a visible outline.
+- The Calendar browser flow passed on desktop, phone and tablet (3/3), checking outlined hover without gray fill in all three views. Web typecheck and zero-warning workspace lint passed.
+
+## Denser Day and Week grids, complete
+
+- Reduced the shared Day/Week hour height from 72px to 60px, displaying more hours at once. Five-minute intervals remain exact, now occupying 5px. Grid placement, live drag/resize previews, current-time position and scroll calculations use the shared hour-height constant.
+- Updated browser geometry assertions and gesture coordinates to preserve their intended five-minute times. Focused layout/drag unit tests passed (11/11); the broad Calendar browser run passed activity, expansion and view-switch flows on desktop, phone and tablet (10/12). Its two planning failures were old 850px scroll targets beyond the denser grid's scroll range; after moving that check to 600px, the planning flow passed on all three viewports (3/3). Reviewed desktop Day/Week screenshots. Web typecheck and zero-warning workspace lint passed.
+
+## Edge-to-edge Calendar workspace, complete
+
+- Removed Calendar-only shell padding, the outer surface border and rounded corners. Desktop Calendar now fills from the left sidebar to the browser's right edge and the full viewport height; narrow layouts fill between the fixed top and bottom navigation. The toolbar keeps its internal spacing, and the grid and Day activity pane retain their dividers.
+- The focused Calendar browser flow passed on desktop, phone and tablet (3/3), including new edge and border geometry assertions, Month fit, interaction checks and accessibility scans. Reviewed desktop Month/Day and phone Month screenshots. Web typecheck, changed-test ESLint, changed-file Prettier and diff whitespace checks passed.
+
+## Adjustable Day and Week hour spacing, complete
+
+- Dragging the time column down spreads hours apart; dragging up compresses them. The scale ranges from 44 to 120px per hour, starts at 60px and is remembered per account in browser storage. Double-click or press R on the focused time column to reset; arrow and Page keys provide keyboard adjustment. Month has no scale control.
+- All Day/Week hour labels, hit areas, blocks, draft previews, moment/current-time markers, move/resize snapping and scroll calculations use the selected scale. Drag scaling preserves the time under the starting pointer position. Clock-change days retain their list fallback.
+- Focused layout/drag unit tests passed (12/12). The broad Calendar/expansion browser suite passed across desktop, phone and tablet (12/12), including existing drag/resize, accessibility and Month behavior. After refining the scale's scroll anchor, the focused zoom flow passed again on all three viewports (3/3), covering live scaling, a five-minute draft, view switch, reload, keyboard controls and reset. Desktop/phone zoom screenshots reviewed. Web typecheck, changed-file ESLint, Prettier and diff whitespace checks passed. Backend/integration tests and production build were not rerun for this frontend-only change.
+
+## Adaptive Day and Week time marks, complete
+
+- Extended the compact end of the time scale to 32px per hour. Day and Week show two-hour labels and grid lines at 36px/hour or less, hourly marks in the middle, and half-hour marks at 90px/hour or more. Return thresholds of 42px and 84px provide hysteresis during dragging. The chosen mark interval persists with the hour scale for the account in this browser; Month remains unaffected. Five-minute input and block geometry remain independent of the visible guide interval.
+- Focused layout/drag unit tests passed (13/13), including threshold transitions, compact-scale snapping and short-record accessibility. The adaptive-scale browser flow passed on desktop, phone and tablet (3/3), checking guide counts, line styles, view switching, reload, five-minute draft geometry and reset. Reviewed expanded Day and compressed Week screenshots. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Full-day Calendar zoom, complete
+
+- Extended Day/Week zoom to 12px per hour so the full 24-hour grid fits in the viewport on the verified desktop, phone and tablet layouts. At 20px/hour or less, labels and grid lines use four-hour gaps; they return to two-hour gaps at 26px/hour. The chosen interval persists across reloads, while the default/reset remains 60px per hour. Adjusted the pointer activation distance so a five-minute step remains draggable at compact scales.
+- Focused layout/drag unit tests passed (13/13), including four-hour thresholds and one-pixel five-minute snapping. The scale browser flow passed on desktop, phone and tablet (3/3), asserting that the full Day and Week grid fits without vertical scrolling and reviewing full-day screenshots. The existing Calendar expansion browser flow passed on all three viewports (3/3), covering plan movement, resizing and creation after the pointer-threshold change. Web typecheck and changed-file ESLint passed; changed-file formatting and diff whitespace checks followed. Backend/integration suites and production builds were not rerun for this frontend-only slice.
+
+## Fitted full-day zoom limit, complete
+
+- Day and Week now measure the space available below any Week heading or date-only row. The lowest visible zoom fits exactly 24 hours in that space, and a closing grid line marks the end of the day. Selecting the minimum remains fitted across view changes, reloads and viewport changes; the usual 60px/hour reset stays intact.
+- The focused scale browser flow passed on desktop, phone and tablet (3/3), including attempts to zoom beyond the limit, exact grid edge and closing-line geometry, reload and viewport resize. Reviewed desktop and phone full-day screenshots. Focused layout/drag unit tests passed (13/13). Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed. Backend/integration suites and production builds were not rerun for this frontend-only slice.
+
+## Smooth zoom-out pivot, complete
+
+- Time-axis compression now preserves the scroll position as a fraction of the available scroll range, so a drag started low in the viewport approaches the full-day fit continuously instead of abruptly pivoting when 00:00 reaches the top. Expansion still holds the time under the pointer steady.
+- Focused layout/drag unit tests passed (14/14), including scroll-fraction invariants and pointer-anchored expansion. The Calendar scale browser flow passed on desktop, phone and tablet (3/3), with a drag from the lower time column across the previous pivot boundary. Web typecheck passed; changed-file lint, formatting and diff whitespace checks followed. Backend/integration suites and production builds were not rerun for this frontend-only slice.
+
+## End-of-day time label, complete
+
+- Day and Week time axes now show 24:00 just above the closing gridline at every scale. The label stays inside the axis so it remains visible when the full day exactly fills the viewport.
+- The focused Calendar scale browser flow passed on desktop, phone and tablet (3/3), including the 24:00 label's bottom-edge geometry in both views. Reviewed desktop and phone full-day screenshots. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Time-label alignment, complete
+
+- Interior Day/Week time labels are now centered vertically on their corresponding gridlines at every zoom level. 00:00 and 24:00 retain inward offsets to stay visible at the grid boundaries.
+- The focused Calendar scale browser flow passed on desktop, phone and tablet (3/3), including geometry assertions for every interior tick at full-day fit in both views. Reviewed the desktop full-day screenshot. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Calendar zoom reset shortcut, complete
+
+- R now resets Day/Week hour spacing from anywhere in the Calendar workspace without first focusing the time column. Typing in form fields or using an open editor/dialog does not trigger the shortcut; Month remains unaffected. Double-clicking the time column still resets it.
+- The focused Calendar scale browser flow passed on desktop, phone and tablet (3/3), including R from the toolbar and typing `r` in search. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Today beside date navigation, complete
+
+- Moved Today from the left action group to immediately before the previous-date arrow. Left actions now read Add, Search, More. The date control keeps its fixed arrow positions and wide Day sidebar alignment; tablet widths give date navigation its own row, and the 320px layout keeps room for the full month picker.
+- The Calendar view-switch browser flow passed on desktop, phone and tablet (3/3), asserting Today sits left of the previous arrow in Month, Week and Day. The broader Calendar planning flow passed on phone and tablet (2/2); after correcting the 320px Today spacing it passed on desktop (1/1), including date-title fit, month-picker text fit and accessibility checks. Reviewed desktop Week and 320px Month picker screenshots. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Quarter-hour Calendar zoom, complete
+
+- Day/Week zoom now expands to 240px per hour. At 150px/hour, the axis switches to 15-minute labels and the grid gains quarter-hour guides; it returns to half-hour guides at 140px/hour. Five-minute creation and movement snapping, the 60px reset, the fitted full-day minimum and account-scoped zoom persistence remain intact.
+- Focused layout/drag unit tests passed (14/14), including the new guide thresholds and five-minute snapping at maximum zoom. The new quarter-hour browser flow passed on desktop, phone and tablet (3/3), covering drag zoom, guide count, maximum scale, five-minute selection, view switching and reload; the existing zoom flow passed on all three viewports (3/3). Reviewed the desktop quarter-hour screenshot. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Calendar search panel, complete
+
+- Replaced the large Search modal with a compact panel anchored below Search, fitted to the viewport and scrollable when needed. Title/type controls appear first, date bounds expand on demand, and result rows remain below the actions. Removed the close X; outside click, a second Search click and Escape dismiss the panel, with Escape returning focus to Search.
+- The Calendar expansion flow passed on desktop, phone and tablet (3/3), covering outside dismissal, result opening, date-bounded search, visible-calendar filtering and accessibility checks. The focused desktop time-axis flow passed, including typing in Search and Escape focus return. Web typecheck, changed-file ESLint and formatting passed.
+
+## Plan-only calendar blocks, complete
+
+- New calendar blocks now open directly in the plan form. Removed its Plan/Record switch and the planned-block editor's Log actual action. Existing recorded time and activity still appear and can be opened; Food, Exercise, water and weight logging remain available through Quick actions and their domain pages.
+- Updated the Calendar activity browser flow to assert plan-only creation and exercise the existing Quick actions water retry path. Calendar activity and Core flows passed on desktop, phone and tablet (6/6); the first desktop activity run exposed older toolbar-order assertions, which were corrected and rerun successfully. Web typecheck and changed-file ESLint passed; formatting and diff whitespace checks followed.
+
+## Repeating plans in the plan editor, complete
+
+- New plans now offer Never, Daily, Weekly and Custom repetition in the ordinary compact editor. Weekly offers weekday selection; Custom exposes day/week intervals. Repeat through is required and bounded to one year. The editor shows a plain-language schedule, occurrence count, first dates and skipped clock-change dates before Save. Its unsaved calendar draft follows the first matching occurrence when that differs from the starting day.
+- Calendar tools → Add repeating plan opens that same editor with Weekly selected at the chosen calendar date/time. Creation keeps the occurrence-count confirmation. Editing a block now states that it changes one occurrence; the whole-series editor warns that its Save replaces individual edits and previews the resulting dates.
+- Moved recurrence expansion into shared domain utilities so the browser preview and API materialization use identical date, interval and daylight-saving rules. The focused series unit suite passed (3/3), web and API typechecks passed, and changed-file ESLint passed. Calendar activity and expansion browser flows passed on desktop, phone and tablet (6/6), including accessibility checks, creation, series editing, preview and ordinary-plan creation. Initial browser runs found a preview contrast issue, a missing count confirmation and an outdated Other plans assertion; all were corrected and the flows rerun successfully. Formatting and diff whitespace checks followed.
+
+## All-day plans in the ordinary plan editor, complete
+
+- New plans offer All day in the compact editor. It shows one Date by default, with Spans multiple days revealing Last day; timed and repeat controls return when All day is switched off. Calendar tools → Add all-day plan opens this editor with All day selected. Switching a timed draft preserves its title, notes and starting date. The existing 31-day limit and no-hours accounting remain.
+- Saved all-day plans have the same date controls. Add a time opens a separate timed draft with the plan's title and notes, leaving the all-day plan in place, including multi-day plans. Unscheduled plans retain their atomic Schedule as time block conversion.
+- Web typecheck and changed-file ESLint passed. Calendar activity and expansion browser flows passed on desktop, phone and tablet (6/6), including accessibility checks and all-day/timed coexistence. An initial desktop run exposed an outdated compact-height assertion; a later desktop expansion run intermittently missed an existing block editor after a Month drag, and passed on rerun. Formatting and diff whitespace checks followed.
+
+## Copy, Templates and Routines split, complete
+
+- Calendar tools now separate Copy plans and Templates. Copy reviews and duplicates one selected timed or dated all-day plan, a day, an account-local week or an inclusive range of up to 31 days. The block/item editor offers Copy; relative local dates, clock times, notes and overnight durations carry forward. Recorded activity and recurrence rules do not. Copies remain independent, preserve existing plans and retain source-revision/idempotency checks.
+- Templates capture a named day, week or up to 31-day range, including its empty days. Application accepts 1–52 cycles and previews every resulting independent plan. The operation is limited to 100 plans across at most 366 dates; template and preference revisions are checked again on apply. The former “Daily/Weekly routine” labels now say template.
+- Routines has its own sidebar page and user-owned API/table. A routine stores 1–50 ordered checklist steps, current checked steps, a completed-run count and last completion time. Create, edit, reorder, check/uncheck, finish and delete are supported. Editing steps clears in-progress checks; finishing requires all steps, increments the count and resets the checklist. All writes use revision/idempotency protections, and private reads and writes are scoped to the signed-in user. Routine steps do not create calendar blocks.
+- Migration 0015 adds the Routines table and expands template range storage and day offsets. Local development migration succeeded; test migrations and focused ownership/revision checks passed. A final `pnpm db:generate` reported no schema changes. `pnpm verify` passed: zero-warning lint and architecture boundaries, formatting, workspace typechecks, 53 unit tests, six architecture tests, 79 PostgreSQL integration tests, both production builds, and 42 browser flows across desktop, phone and tablet. Browser coverage includes selected-plan and range copying, multi-cycle templates, routine progress across reload, step reordering and accessibility. A first broad run identified outdated sidebar assertions, a routine completion revision race, a September Exercise fixture that relied on today's date, and the test signup limiter; all were corrected and the full run passed.
+
+## Calendar hover preview, complete
+
+- The five-minute hover label sits above its grey slice. Pointer entry now updates the slice immediately, including when the pointer jumps between hours or revisits a previously hovered hour. Direct preview updates avoid a React render on every pointer move.
+- Web typecheck, changed-file ESLint, Prettier check and `git diff --check` passed. A focused desktop browser test passed (1/1), checking fast hour jumps and label position. The first browser attempt could not start its local API socket inside the sandbox (`EPERM`); the same test passed with the required local server permission.
+
+## Quick actions from a calendar time slice, complete
+
+- A + button appears at the right edge of the hovered five-minute slice in Day and Week; the time label sits above its left edge. It opens the existing Quick actions picker with that slice's date and local time, which prefill food, cardio, workout, water and weight forms. The + is a separate button from the time slot so it does not select a time or start plan creation.
+- Web typecheck, changed-file ESLint, Prettier and diff whitespace checks passed. The desktop calendar browser suite passed (5/5), covering the new control in Day and Week and saving a water moment at the hovered time. The phone calendar expansion flow passed (1/1), including existing touch interactions. An initial focused browser run exposed a test locator that kept the picker title after it changed to “Log water”; correcting the locator made the run pass.
+- The hover + button now uses a compact rounded-square shape matching the calendar controls. CSS and implementation-log formatting and diff whitespace checks passed.
+- The hover + is hidden for an active calendar gesture and while a plan editor or overlay is open, preventing it from sitting in front of a newly dragged block. The focused desktop browser flow passed (1/1), checking visibility before, during and after drag/edit cancellation; web typecheck, changed-file ESLint, formatting and diff whitespace checks also passed.
+- Drag-and-save follow-up: saved blocks now stack above the hover +, pointer focus alone no longer keeps the preview visible, and saving a plan clears any selected five-minute slice. The browser regression covers dragging, saving, hovering the saved block, and selection clearing. The full desktop calendar suite passed (5/5), along with web typecheck, changed-file ESLint and diff whitespace checks; CSS formatting was applied and checked.
+- The position swap was reverted at the owner's request: the time label is back above the left edge and + is back at the right. The click-versus-drag handling remains: moving more than 5px while holding + cancels Quick actions without creating a plan. The focused desktop Day/Week browser flow passed (1/1), covering positions, clicking +, dragging +, dragging the slice and saving a block.
+- The + now sits flush against the right day boundary instead of leaving a 4px inset. The focused desktop Day/Week browser flow passed (1/1), including an edge-position assertion and Quick actions click.
+
+## Day sidebar upcoming summary, complete
+
+- The first upcoming entry appears once in the actionable “Next” summary; “Coming up” lists later entries only and disappears when there are none. The summary opens planned/recorded time in the calendar editor or navigates to its domain activity. Existing “Now” and “Earlier” lists remain intact.
+- Web typecheck and changed-file ESLint passed. The calendar activity browser flow passed on desktop and phone (2/2), including an accessibility check and assertions that the next plan is absent from “Coming up” while a later plan remains there. The first desktop run exposed an outdated fixture block count after adding a second future plan; the assertion was updated and both final runs passed.
+
+## Unscheduled plans sidebar, complete
+
+- Added Unscheduled to the app sidebar. Its own page lists unscheduled plans with pagination and lets people add, edit, delete, or schedule one as a time block. Scheduling opens the calendar on that block's day. Calendar tools no longer offers the unscheduled-plan actions; the calendar editor's Other plans link opens the new page.
+- Web typecheck, changed-file ESLint, Prettier and diff whitespace checks passed. The Calendar expansion browser flow passed on desktop and phone (2/2), including create/list/schedule, accessibility and layout checks. The desktop Calendar activity and Calendar suites passed (6/6). The initial expansion run exposed an outdated Save-button locator; the corrected flow passed.
+- The production web build passed with Next's webpack mode, including TypeScript and page generation. The default Turbopack build could not start its CSS worker in this sandbox because local port binding returned `EPERM`, including when retried with escalated execution.
+
+## Calendar keyboard copy and date selection, complete
+
+- Timed blocks can be copied with Command-C/Control-C and pasted at a selected five-minute slice with Command-V/Control-V; Month pastes keep the original clock time. Day view copies its displayed day when no block is selected. Month supports drag range selection, Command/Control-click toggling and Shift-click ranges; the earliest selected date anchors sparse copies, so gaps shift with the selection. Week day headings now select on one click and open Day on double-click. Clipboard state survives calendar navigation in the current browser tab and leaves text-field shortcuts alone.
+- Pasting selected days opens the existing plan preview and preserves unrelated destination plans. Server-side copy checks each result against its own source interval/date, omits self-overlaps and reports the skipped count. The sparse-day and target-minute inputs are owner-scoped, validated and bound to the preview token. A single timed-block paste is immediately undoable; a multi-plan paste, including all-day plans, undoes atomically as one Calendar action with ownership and revision checks. Right-click menus remain future work.
+- Web/API typechecks, changed-file ESLint, Prettier and diff whitespace checks passed. The calendar PostgreSQL integration suite passed (5/5), covering sparse offsets, partial self-overlap, copy-undo ownership, rollback on a stale revision and all-day undo. The new clipboard browser flow passed on desktop and phone (2/2); Calendar copy/template flows passed on both (2/2), Calendar expansion passed on both after a feedback-role fix (4/4), and the existing desktop Calendar/Activity suites passed (6/6). API and webpack web production builds passed. An initial phone clipboard test clicked a compact Month cell's existing “+ more” link; using the visible date-number area resolved the locator conflict.
+
 ## Database status
 
-Admin adds one table and migrations 0010–0011. The tracked schema now has 24 application tables and twelve migrations; local migration and test migration application succeeded. Final `pnpm db:generate` reported no changes. Earlier Exercise inspection found 23 tables and ten migrations with zero invalid constraints/indexes and the expected restricted runtime CRUD permissions.
+The tracked schema now has 27 application tables and sixteen migrations. Migration 0015 adds Routines and extended template ranges; Calendar undo added `deleted_time_blocks` through migrations 0012–0013 and `edited_time_blocks` with series-definition guards in migration 0014. Local development and test migration application succeeded. Admin previously added one table and migrations 0010–0011. Earlier Exercise inspection found 23 tables and ten migrations with zero invalid constraints/indexes and the expected restricted runtime CRUD permissions.
 
-- Development and test now have migrations 0000–0011 applied. Food adds `0009_exotic_the_hunter.sql`, an index on food-entry history's `(user_id, created_at, id)` columns.
+- Development and test now have migrations 0000–0015 applied. Food adds `0009_exotic_the_hunter.sql`, an index on food-entry history's `(user_id, created_at, id)` columns.
 - Development inspection: 23 application tables, ten migrations, zero invalid constraints and zero invalid indexes. The Food history index is present; runtime `hours_app` has required CRUD permissions and cannot create schema objects. Calendar's prior inspection verified its 23 integrity triggers and runtime grants.
 - `pnpm db:migrate` succeeded. Final `pnpm db:generate` reported **no schema changes**. Test migrations from an empty schema were also verified during the preceding Calendar pass.
 - Verification found an account-deletion cascade conflict in new parent-revision triggers. Migration 0008 fixes it; a PostgreSQL regression now deletes an account containing series/templates and checks that all owned rows disappear.

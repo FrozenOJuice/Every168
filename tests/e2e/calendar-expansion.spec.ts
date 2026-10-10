@@ -86,38 +86,67 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     });
   }
   await tool("Add all-day plan");
+  await expect(dialog.getByLabel("Category", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByLabel("Goal (optional)")).toHaveCount(0);
+  await expect(dialog.getByLabel("All day", { exact: true })).toBeChecked();
   await page.getByLabel("Title", { exact: true }).fill("Conference");
-  await page.getByLabel("Last day (inclusive)").fill("2026-09-08");
-  await dialog
-    .getByRole("button", { name: "Create plan", exact: true })
-    .click();
+  await expect(dialog.getByLabel("Date", { exact: true })).toHaveValue(
+    "2026-09-07",
+  );
+  await dialog.getByLabel("Spans multiple days").check();
+  await page.getByLabel("Last day", { exact: true }).fill("2026-09-08");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
   await expect(
     day.getByRole("button", { name: /Conference, all day/ }),
   ).toBeVisible();
-  await tool("Add unscheduled plan");
-  await page.getByLabel("Title", { exact: true }).fill("Read paper");
-  await dialog
+  await page.getByRole("button", { name: "Calendar tools" }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Add unscheduled plan" }),
+  ).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "Unscheduled plans" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.getByRole("link", { name: "Unscheduled", exact: true }).click();
+  await expect(page).toHaveURL(/\/unscheduled$/);
+  await page.getByRole("button", { name: "Add plan" }).click();
+  const itemEditor = page.getByRole("dialog", {
+    name: "Add unscheduled plan",
+  });
+  await itemEditor.getByLabel("Title", { exact: true }).fill("Read paper");
+  await itemEditor
     .getByRole("button", { name: "Create plan", exact: true })
     .click();
-  await expect(dialog).toHaveCount(0);
-  await tool("Unscheduled plans");
-  await dialog.getByRole("button", { name: /Read paper, unscheduled/ }).click();
-  await dialog.getByRole("button", { name: "Schedule as time block" }).click();
-  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
+  await expect(itemEditor).toHaveCount(0);
+  await audit("unscheduled-plans");
+  await page.getByRole("button", { name: /Read paper, unscheduled/ }).click();
+  await page
+    .getByRole("dialog", { name: "Edit unscheduled plan" })
+    .getByRole("button", { name: "Schedule as time block" })
+    .click();
+  const schedule = page.getByRole("dialog", { name: "Schedule plan" });
+  await expect(schedule.getByLabel("Title", { exact: true })).toHaveValue(
     "Read paper",
   );
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T14:00");
-  await dialog
-    .getByRole("button", { name: "Create block", exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
+  await schedule.getByLabel("Start", { exact: true }).fill("2026-09-07T14:00");
+  await schedule.getByLabel("End", { exact: true }).fill("2026-09-07T15:00");
+  await schedule.getByRole("button", { name: "Create block" }).click();
+  await expect(schedule).toHaveCount(0);
+  await expect(page).toHaveURL(/date=2026-09-07&view=day/);
   expect(
     (await (await page.request.get("/api/v1/calendar/backlog")).json()).items,
   ).toHaveLength(0);
   await tool("Add repeating plan");
+  await expect(dialog.getByLabel("Category", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByLabel("Goal (optional)")).toHaveCount(0);
   await page.getByLabel("Title", { exact: true }).fill("Training routine");
+  await expect(page.getByLabel("Repeat", { exact: true })).toHaveValue(
+    "weekly",
+  );
+  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T13:00");
+  await page.getByLabel("End", { exact: true }).fill("2026-09-07T14:00");
   await page.getByLabel("Repeat through").fill("2026-09-11");
-  await page.getByLabel("Start time", { exact: true }).fill("13:00");
   await dialog
     .getByRole("group", { name: "Repeat on" })
     .getByRole("button", { name: "Wed" })
@@ -126,18 +155,23 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     .getByRole("group", { name: "Repeat on" })
     .getByRole("button", { name: "Fri" })
     .click();
+  await expect(dialog.locator(".calendar-repeat-preview")).toContainText(
+    "3 plans will be added",
+  );
   await audit("recurring-form");
   await dialog
     .getByRole("button", { name: "Create repeating plan", exact: true })
     .click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText("3 occurrences saved");
-  await day.getByRole("button", { name: /Training routine.*planned/ }).click();
+  await day
+    .getByRole("button", { name: /Training routine.*planned/ })
+    .dblclick();
   await dialog.getByRole("button", { name: "Edit entire series" }).click();
   await page.getByLabel("Duration (minutes)").fill("30");
   await dialog.getByRole("button", { name: "Save entire series" }).click();
   await expect(dialog).toHaveCount(0);
-  await tool("Copy and templates");
+  await tool("Copy plans");
   await page.getByLabel("Copy", { exact: true }).selectOption("day");
   await page.getByLabel("Copy to").fill("2026-09-14");
   await dialog.getByRole("button", { name: "Preview copy" }).click();
@@ -145,8 +179,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await audit("copy-preview");
   await dialog.getByRole("button", { name: "Add these plans" }).click();
   await expect(page).toHaveURL(/date=2026-09-14/);
-  await tool("Copy and templates");
-  await dialog.getByRole("button", { name: "Templates", exact: true }).click();
+  await tool("Templates");
   await dialog
     .getByRole("button", { name: "Save calendar as template" })
     .click();
@@ -165,10 +198,33 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   ).json();
   expect(week.blocks).toHaveLength(3);
   expect(week.entries).toHaveLength(0);
-  await page
-    .getByRole("button", { name: "Search and filter calendar" })
-    .click();
+  const searchButton = page.getByRole("button", {
+    name: "Search and filter calendar",
+  });
+  await searchButton.click();
+  await expect(dialog).toHaveAttribute("aria-modal", "false");
+  await expect(searchButton).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    dialog.getByRole("button", { name: "Close dialog" }),
+  ).toHaveCount(0);
+  await searchButton.click();
+  await expect(dialog).toHaveCount(0);
+  await searchButton.click();
+  const searchPanel = await dialog.boundingBox();
+  expect(searchPanel).not.toBeNull();
+  expect(searchPanel!.x).toBeGreaterThanOrEqual(0);
+  expect(searchPanel!.x + searchPanel!.width).toBeLessThanOrEqual(
+    page.viewportSize()!.width,
+  );
+  await page.mouse.click(
+    searchPanel!.x + searchPanel!.width / 2,
+    searchPanel!.y + searchPanel!.height + 12,
+  );
+  await expect(dialog).toHaveCount(0);
+  await expect(searchButton).toHaveAttribute("aria-expanded", "false");
+  await searchButton.click();
   await page.getByLabel("Title contains").fill("Drag me");
+  await dialog.getByText("Date range", { exact: true }).click();
   await page.getByLabel("Starts on or after (optional)").fill("2026-09-21");
   await dialog.getByRole("button", { name: "Search all dates" }).click();
   await expect(dialog.locator(".search-results li")).toHaveCount(1);
@@ -206,12 +262,9 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(page.getByLabel("Started at")).toHaveValue("2026-09-21T09:00");
   await close();
   await tool("Quick actions");
-  await dialog
-    .getByRole("button", { name: "Create goal", exact: true })
-    .click();
-  await expect(page.getByLabel("Target date (optional)")).toHaveValue(
-    "2026-09-21",
-  );
+  await expect(
+    dialog.getByRole("button", { name: "Create goal", exact: true }),
+  ).toHaveCount(0);
   await close();
 
   const original = week.blocks.find((b) => b.title === "Drag me")!;
@@ -223,7 +276,18 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     await expect(element).toBeVisible();
     await element.scrollIntoViewIfNeeded();
     const box = (await element.boundingBox())!;
-    const x = box.x + box.width / 2,
+    const beforeResize = (await record().boundingBox())!;
+    async function checkResize() {
+      if (Math.abs(dy) !== 5) return;
+      await expect
+        .poll(async () => (await record().boundingBox())!.height)
+        .toBeCloseTo(beforeResize.height + dy, 0);
+      await expect(record()).not.toHaveClass(/drag-source/);
+      await expect(page.locator(".calendar-moving-block")).toHaveCount(0);
+    }
+    const x = (await element.getAttribute("class"))?.includes("resize-end")
+        ? box.x + box.width - 4
+        : box.x + box.width / 2,
       y = box.y + box.height / 2;
     if (touch) {
       const session = await page.context().newCDPSession(page);
@@ -235,6 +299,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
         type: "touchMove",
         touchPoints: [{ x, y: y + dy }],
       });
+      await checkResize();
       await session.send("Input.dispatchTouchEvent", {
         type: "touchEnd",
         touchPoints: [],
@@ -244,15 +309,52 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       await page.mouse.move(x, y);
       await page.mouse.down();
       await page.mouse.move(x, y + dy, { steps: 4 });
+      if (dy === 60) {
+        const moving = page.locator(".calendar-moving-block");
+        await expect(moving).toBeVisible();
+        await expect(moving.locator(".calendar-drag-hint")).toHaveText(
+          "Escape to cancel",
+        );
+        await expect(page.locator(".calendar-drag-label")).toHaveCount(0);
+        await expect(element).toHaveClass(/drag-source/);
+        const originalBox = (await element.boundingBox())!;
+        const movingBox = (await moving.boundingBox())!;
+        expect(originalBox.y).toBeCloseTo(box.y, 0);
+        const column = (await day
+          .locator('[data-drag-day="2026-09-21"]')
+          .boundingBox())!;
+        expect(movingBox.y - column.y).toBeCloseTo(10 * 60, 0);
+        expect(movingBox.x).toBeCloseTo(column.x + 2, 0);
+        await page.mouse.move(x + 15, y + dy + 1);
+        const withinSlot = (await moving.boundingBox())!;
+        expect(withinSlot.x).toBeCloseTo(movingBox.x, 0);
+        expect(withinSlot.y).toBeCloseTo(movingBox.y, 0);
+        expect((await getBlock()).version).toBe(original.version);
+        await page.screenshot({
+          path: testInfo.outputPath("moving-block.png"),
+        });
+      }
+      await checkResize();
       await page.mouse.up();
+      await expect(page.locator(".calendar-moving-block")).toHaveCount(0);
     }
   }
+  await record().click();
+  await expect(record()).toHaveAttribute("aria-pressed", "true");
+  await expect(record()).toHaveCSS("background-color", "rgb(25, 107, 87)");
+  await expect(dialog).toHaveCount(0);
+  await record().dblclick();
+  await expect(dialog).toHaveAttribute("aria-modal", "false");
+  await close();
+  await record().focus();
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeVisible();
+  await close();
   if (touch) {
-    await record().click();
-    await dialog
-      .getByRole("button", { name: "Move or resize on calendar" })
-      .click();
+    await page.keyboard.press("Escape");
+    await record().tap();
     await expect(record()).toHaveClass(/drag-selected/);
+    await expect(dialog).toHaveCount(0);
   }
   let lost = false;
   const keys: string[] = [];
@@ -268,12 +370,14 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     }
     await route.continue();
   });
-  await drag(record(), touch ? 36 : 72);
+  await drag(record(), touch ? 30 : 60);
   await page.getByRole("button", { name: "Retry same change" }).click();
   await expect(
     page.getByRole("button", { name: "Retry same change" }),
   ).toHaveCount(0);
-  await expect(page.locator(".calendar-status")).toHaveText("Plan updated.");
+  await expect(page.getByText("Plan updated.", { exact: true })).toHaveClass(
+    "sr-only",
+  );
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
   await page.unroute("**/api/v1/time-blocks/" + original.id);
@@ -284,18 +388,23 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   );
   if (!touch) expect(moved.startsAt).toBe("2026-09-21T16:00:00.000Z");
   if (touch) {
+    await record().dblclick();
+    await dialog.getByText("Actions", { exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Move or resize on calendar" })
+      .click();
     await page
       .getByRole("group", { name: "Adjust block" })
       .getByRole("button", { name: "Resize end", exact: true })
       .click();
-    await drag(record(), 18);
+    await drag(record(), 5);
   } else
     await drag(
       day
         .locator(".grid-record")
         .filter({ has: page.getByRole("button", { name: /Drag me.*planned/ }) })
         .locator(".resize-end"),
-      18,
+      5,
     );
   await expect
     .poll(async () => Date.parse((await getBlock()).endsAt))
@@ -303,13 +412,34 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   if (!touch)
     expect(
       Date.parse((await getBlock()).endsAt) - Date.parse(moved.endsAt),
-    ).toBe(900000);
+    ).toBe(300000);
   if (touch)
     await page
       .getByRole("group", { name: "Adjust block" })
       .getByRole("button", { name: "Done", exact: true })
       .click();
   if (!touch) {
+    const resizeStart = day
+      .locator(".grid-record")
+      .filter({ has: page.getByRole("button", { name: /Drag me.*planned/ }) })
+      .locator(".resize-start");
+    await resizeStart.scrollIntoViewIfNeeded();
+    const before = (await record().boundingBox())!;
+    const handle = (await resizeStart.boundingBox())!;
+    const beforeVersion = (await getBlock()).version;
+    await page.mouse.move(handle.x + 4, handle.y + handle.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + 4, handle.y + handle.height / 2 + 5);
+    await expect
+      .poll(async () => (await record().boundingBox())!.height)
+      .toBeCloseTo(before.height - 5, 0);
+    expect((await record().boundingBox())!.y).toBeCloseTo(before.y + 5, 0);
+    expect((await getBlock()).version).toBe(beforeVersion);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await expect
+      .poll(async () => (await record().boundingBox())!.height)
+      .toBeCloseTo(before.height, 0);
     for (const cancellation of ["escape", "blur"]) {
       const beforeCancel = await getBlock();
       await record().evaluate((element) =>
@@ -323,36 +453,166 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       await page.mouse.down();
       await page.mouse.move(
         cancelled.x + cancelled.width / 2,
-        cancelled.y + cancelled.height / 2 + 36,
+        cancelled.y + cancelled.height / 2 + 30,
         { steps: 3 },
       );
-      await expect(page.locator(".calendar-drag-label")).toBeVisible();
+      await expect(
+        page.locator(".calendar-moving-block .calendar-drag-hint"),
+      ).toHaveText("Escape to cancel");
       if (cancellation === "escape") await page.keyboard.press("Escape");
       else await page.evaluate(() => window.dispatchEvent(new Event("blur")));
       await page.mouse.up();
-      await expect(page.locator(".calendar-drag-label")).toHaveCount(0);
+      await expect(page.locator(".calendar-moving-block")).toHaveCount(0);
+      await expect(page.locator(".calendar-moving-block")).toHaveCount(0);
+      await expect(record()).not.toHaveClass(/drag-source/);
       expect((await getBlock()).version).toBe(beforeCancel.version);
     }
     const slot = day.getByRole("button", {
-      name: "Add block on 2026-09-21 at 16:00",
+      name: "Select time on 2026-09-21 at 16:00",
       exact: true,
     });
     await slot.evaluate((element) =>
       element.scrollIntoView({ block: "center", inline: "nearest" }),
     );
     const box = (await slot.boundingBox())!;
-    await page.mouse.move(box.x + 20, box.y + 2);
+    const draft = day.getByRole("img", { name: /^Draft plan:/ });
+    const beforeDraft: Week = await (
+      await page.request.get("/api/v1/weeks/2026-09-21")
+    ).json();
+    await page.mouse.move(box.x + 20, box.y + 6); // 16:05
     await page.mouse.down();
-    await page.mouse.move(box.x + 20, box.y + 72, { steps: 4 });
+    await page.mouse.move(box.x + 20, box.y + 11); // 16:10
+    await expect(draft).toHaveCSS("height", "5px");
+    await page.mouse.move(box.x + 20, box.y + 16, { steps: 3 }); // 16:15
+    await expect(draft).toBeVisible();
+    await expect(draft).toHaveCSS("height", "10px");
+    await expect(dialog).toHaveCount(0);
+    await page.mouse.move(box.x + 20, box.y + 36, { steps: 3 }); // 16:35
+    await expect(draft).toHaveCSS("height", "30px");
+    await expect(draft.locator(".calendar-drag-hint")).toHaveText(
+      "Escape to cancel",
+    );
+    await expect(page.locator(".calendar-drag-label")).toHaveCount(0);
+    expect(
+      (await (await page.request.get("/api/v1/weeks/2026-09-21")).json())
+        .blocks,
+    ).toHaveLength(beforeDraft.blocks.length);
+    await audit("calendar-draft");
+    await page.keyboard.press("Escape");
     await page.mouse.up();
+    await expect(draft).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
+    // Drag upward; the draft follows the selected interval in either direction.
+    await page.mouse.move(box.x + 20, box.y + 36);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 20, box.y + 11, { steps: 4 });
+    await expect(draft).toHaveCSS("height", "25px");
+    await page.mouse.up();
+    await expect(draft).toBeVisible();
+    await expect(dialog).toHaveAttribute("aria-modal", "false");
+    await dialog.getByText("Other plans", { exact: true }).click();
+    await expect(
+      dialog.getByRole("button", { name: "Repeating plan", exact: true }),
+    ).toHaveCount(0);
+    await dialog.getByText("Other plans", { exact: true }).click();
+    await expect(dialog.getByLabel("Repeat", { exact: true })).toHaveValue(
+      "never",
+    );
+    await expect(page.locator("dialog[open]")).toHaveCount(0);
     await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-      "2026-09-21T16:00",
+      "2026-09-21T16:10",
     );
     await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-      "2026-09-21T17:00",
+      "2026-09-21T16:35",
+    );
+    await page.getByLabel("Title", { exact: true }).fill("Dragged plan");
+    await expect(draft).toContainText("Dragged plan");
+    const popoverBox = (await dialog.boundingBox())!;
+    const draftBox = (await draft.boundingBox())!;
+    expect(popoverBox.x).toBeGreaterThanOrEqual(draftBox.x + draftBox.width);
+    await audit("plan-popover");
+    const createKeys: string[] = [];
+    await page.route("**/api/v1/time-blocks", async (route) => {
+      if (route.request().method() !== "POST") return route.continue();
+      createKeys.push(route.request().headers()["idempotency-key"]!);
+      if (createKeys.length === 1) {
+        expect((await route.fetch()).status()).toBe(201);
+        return route.abort("failed");
+      }
+      await route.continue();
+    });
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(
+      dialog.getByRole("button", { name: "Retry save" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("link", { name: "Week", exact: true }).click();
+    await expect(dialog).toBeVisible();
+    await expect(page).toHaveURL(/view=day/);
+    await expect(draft).toBeVisible();
+    await dialog.getByRole("button", { name: "Retry save" }).click();
+    expect(createKeys).toHaveLength(2);
+    expect(createKeys[0]).toBe(createKeys[1]);
+    await page.unroute("**/api/v1/time-blocks");
+    await expect(dialog).toHaveCount(0);
+    const saved: Week = await (
+      await page.request.get("/api/v1/weeks/2026-09-21")
+    ).json();
+    expect(saved.blocks).toHaveLength(beforeDraft.blocks.length + 1);
+    expect(
+      saved.blocks.find((block) => block.title === "Dragged plan"),
+    ).toMatchObject({
+      startsAt: "2026-09-21T22:10:00.000Z",
+      endsAt: "2026-09-21T22:35:00.000Z",
+    });
+    await page.getByRole("link", { name: "Week", exact: true }).click();
+    const weekGrid = page.getByRole("region", { name: "Weekly time grid" });
+    const weekSlot = weekGrid.getByRole("button", {
+      name: "Select time on 2026-09-21 at 17:00",
+      exact: true,
+    });
+    await weekSlot.scrollIntoViewIfNeeded();
+    const weekBox = (await weekSlot.boundingBox())!;
+    await page.mouse.move(weekBox.x + 20, weekBox.y + 6);
+    await page.mouse.down();
+    await page.mouse.move(weekBox.x + 20, weekBox.y + 26, { steps: 3 });
+    await expect(weekGrid.getByRole("img", { name: /^Draft plan:/ })).toHaveCSS(
+      "height",
+      "20px",
+    );
+    await page.mouse.up();
+    await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
+      "2026-09-21T17:05",
+    );
+    await expect(page.getByLabel("End", { exact: true })).toHaveValue(
+      "2026-09-21T17:25",
     );
     await close();
-    await page.setViewportSize({ width: 1440, height: 1100 });
+    const weekRecord = weekGrid.getByRole("button", {
+      name: /Drag me.*planned/,
+    });
+    await weekRecord.scrollIntoViewIfNeeded();
+    const weekSource = (await weekRecord.boundingBox())!;
+    const nextColumn = (await weekGrid
+      .locator('[data-drag-day="2026-09-22"]')
+      .boundingBox())!;
+    await page.mouse.move(
+      weekSource.x + weekSource.width / 2,
+      weekSource.y + 20,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      nextColumn.x + nextColumn.width / 2,
+      weekSource.y + 20,
+      { steps: 4 },
+    );
+    const snapped = page.locator(".calendar-moving-block");
+    await expect(snapped).toBeVisible();
+    expect((await snapped.boundingBox())!.x).toBeCloseTo(nextColumn.x + 2, 0);
+    await expect(snapped).toContainText("2026-09-22");
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await page.setViewportSize({ width: 1440, height: 1500 });
     await page
       .getByRole("navigation", { name: "Calendar view" })
       .getByRole("link", { name: "Month", exact: true })
@@ -373,6 +633,77 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       .poll(async () => (await getBlock()).startsAt.slice(0, 10))
       .toBe("2026-09-22");
   }
+  page.on("dialog", async (confirmation) => {
+    await confirmation.dismiss();
+    throw new Error("Calendar deletion must not show a confirmation alert");
+  });
+  const selectedBlock = page
+    .locator(`button[data-calendar-record="${original.id}"]`)
+    .first();
+  await selectedBlock.dblclick();
+  await page.getByLabel("Title", { exact: true }).fill("Drag meX");
+  await page.getByLabel("Title", { exact: true }).press("Backspace");
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
+    "Drag me",
+  );
+  await close();
+  await selectedBlock.click();
+  const deleteKeys: string[] = [];
+  await page.route("**/api/v1/time-blocks/" + original.id, async (route) => {
+    if (route.request().method() !== "DELETE") return route.continue();
+    deleteKeys.push(route.request().headers()["idempotency-key"]!);
+    if (deleteKeys.length === 1) {
+      expect((await route.fetch()).status()).toBe(200);
+      return route.abort("failed");
+    }
+    await route.continue();
+  });
+  await page.keyboard.press(touch ? "Delete" : "Backspace");
+  await expect(
+    page.getByRole("button", { name: "Retry same change" }),
+  ).toBeVisible();
+  await page.keyboard.press("Delete");
+  expect(deleteKeys).toHaveLength(1);
+  await page.getByRole("button", { name: "Retry same change" }).click();
+  await expect(page.getByText("Plan deleted.", { exact: true })).toHaveClass(
+    "sr-only",
+  );
+  expect(deleteKeys).toHaveLength(2);
+  expect(deleteKeys[0]).toBe(deleteKeys[1]);
+  await expect(selectedBlock).toHaveCount(0);
+  await page.unroute("**/api/v1/time-blocks/" + original.id);
+  await expect(
+    page.getByRole("button", { name: "Undo", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".calendar-undo")).toHaveCount(0);
+  await audit("calendar-delete-undo");
+  // The selected button disappeared: the shortcut must also work with body focus.
+  await page.keyboard.press(touch ? "Control+z" : "Meta+z");
+  await expect(page.getByText("Plan restored.", { exact: true })).toHaveClass(
+    "sr-only",
+  );
+  await expect(selectedBlock).toBeVisible();
+  await expect(selectedBlock).toHaveAttribute("aria-pressed", "true");
+  await selectedBlock.click();
+  await page.keyboard.press("Delete");
+  await expect(selectedBlock).toHaveCount(0);
+  const restoreKeys: string[] = [];
+  await page.route("**/api/v1/time-block-deletions/*/undo", async (route) => {
+    restoreKeys.push(route.request().headers()["idempotency-key"]!);
+    if (restoreKeys.length === 1) {
+      expect((await route.fetch()).status()).toBe(200);
+      return route.abort("failed");
+    }
+    await route.continue();
+  });
+  await page.keyboard.press(touch ? "Control+z" : "Meta+z");
+  await page.getByRole("button", { name: "Retry same change" }).click();
+  await expect(page.getByText("Plan restored.", { exact: true })).toHaveClass(
+    "sr-only",
+  );
+  expect(restoreKeys).toHaveLength(2);
+  expect(restoreKeys[0]).toBe(restoreKeys[1]);
+  await page.unroute("**/api/v1/time-block-deletions/*/undo");
   await audit("calendar-expanded");
   if (!touch) {
     await page.setViewportSize({ width: 320, height: 740 });
@@ -393,4 +724,21 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     }
     await audit("calendar-small-phone");
   }
+  await page.goto("/?date=2026-09-07&view=day");
+  await day.getByRole("button", { name: /Conference, all day/ }).click();
+  await dialog.getByRole("button", { name: "Add a time" }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
+    "Conference",
+  );
+  await expect(
+    dialog.getByText("The all-day plan stays on the calendar."),
+  ).toBeVisible();
+  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T15:00");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    day.getByRole("button", { name: /Conference, all day/ }),
+  ).toBeVisible();
+  await expect(
+    day.getByRole("button", { name: /Conference, .*planned/ }),
+  ).toBeVisible();
 });

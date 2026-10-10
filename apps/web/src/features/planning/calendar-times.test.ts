@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { blockSchema } from "@168hours/contracts";
 import {
+  currentHourMinute,
   editorTimes,
   elapsedMilliseconds,
   endAfter,
@@ -9,6 +10,28 @@ import {
 
 const timezone = "America/Edmonton";
 describe("calendar time drafts", () => {
+  it("uses the current account-local hour rather than the system timezone or a fixed morning default", () => {
+    expect(currentHourMinute("2026-10-08T02:37:00Z", timezone)).toBe(20 * 60);
+    expect(currentHourMinute("2026-10-08T02:37:00Z", "Asia/Kolkata")).toBe(
+      8 * 60,
+    );
+    expect(currentHourMinute("2026-11-01T08:37:00Z", timezone)).toBe(60);
+  });
+  it("defaults to the current hour on the requested date and carries the end into tomorrow", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T05:37:00Z"));
+      expect(
+        editorTimes({ kind: "block", date: "2026-09-07" }, timezone),
+      ).toEqual({
+        startsAt: "2026-09-07T23:00",
+        endsAt: "2026-09-08T00:00",
+        duration: 3600000,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("prefills quarter-hour creation across midnight", () => {
     expect(inputAtMinute("2026-09-07", 1440)).toBe("2026-09-08T00:00");
     expect(

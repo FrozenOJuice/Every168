@@ -13,7 +13,6 @@ export function CalendarDayRecords({
   week,
   onClose,
   onOpen,
-  onAdd,
   items,
   filter,
   now,
@@ -25,7 +24,6 @@ export function CalendarDayRecords({
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   items: CalendarItem[];
   filter: CalendarFilter;
-  onAdd: (date: string) => void;
 }) {
   const activity = useQuery({
     queryKey: ["calendar-activity", date, date, week.timezone],
@@ -57,7 +55,6 @@ export function CalendarDayRecords({
           filter={filter}
           now={now}
           onOpen={onOpen}
-          onAdd={onAdd}
         />
       )}
       <Link

@@ -36,7 +36,7 @@ export function planningRoutes(s: PlanningService, writes: WritesService) {
       writes,
       blockInput,
       ({ userId, id, input, version, context }) =>
-        s.updateBlock(userId, id, input, version, context),
+        s.updateBlockWithUndo(userId, id, input, version, context),
       { versioned: true },
     ),
   );
@@ -46,8 +46,24 @@ export function planningRoutes(s: PlanningService, writes: WritesService) {
       writes,
       emptyInput,
       ({ userId, id, version, context }) =>
-        s.deleteBlock(userId, id, version, context),
+        s.deleteBlockWithUndo(userId, id, version, context),
       { versioned: true },
+    ),
+  );
+  r.post(
+    "/time-block-edits/:id/undo",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        s.undoEdit(userId, id, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/time-block-deletions/:id/undo",
+    mutation(writes, emptyInput, ({ userId, id, context }) =>
+      s.restoreBlock(userId, id, context),
     ),
   );
   r.post(

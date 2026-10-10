@@ -1,0 +1,74 @@
+.routine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+}
+.routine-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+.routine-card h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+.routine-card > p {
+  margin: 8px 0 14px;
+}
+.routine-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+}
+.routine-steps li + li {
+  border-top: 1px solid var(--border);
+}
+.routine-steps label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.routine-steps input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+.routine-steps input:checked + span {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+.routine-editor fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.routine-editor legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.routine-editor > label,
+.routine-step-edit > label {
+  display: grid;
+  gap: 5px;
+}
+.routine-step-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  gap: 6px;
+  align-items: end;
+}
+.routine-step-edit .button {
+  min-height: 44px;
+}
+@media (max-width: 480px) {
+  .routine-step-edit {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .routine-step-edit > label {
+    grid-column: 1 / -1;
+  }
+}

@@ -71,7 +71,6 @@ export function CalendarDayFeed({
   filter,
   now,
   onOpen,
-  onAdd,
 }: {
   date: string;
   week: Week;
@@ -80,7 +79,6 @@ export function CalendarDayFeed({
   filter: CalendarFilter;
   now: string;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
-  onAdd: (date: string) => void;
 }) {
   const domain = activityOnDate(activity.entries, date, week.timezone, filter);
   // A domain session and its accounting ledger are one activity, even when linked to a plan.
@@ -112,6 +110,10 @@ export function CalendarDayFeed({
     (a, b) => Date.parse(a.at) - Date.parse(b.at) || a.key.localeCompare(b.key),
   );
   const anytime = itemsOnDate(items, date, filter);
+  const upcoming = feed.filter(
+    (entry) => Date.parse(entry.at) > Date.parse(now),
+  );
+  const next = upcoming[0];
   const groups = [
     {
       title: "Earlier",
@@ -130,22 +132,15 @@ export function CalendarDayFeed({
     },
     {
       title: "Coming up",
-      entries: feed.filter((entry) => Date.parse(entry.at) > Date.parse(now)),
+      entries: upcoming.slice(1),
     },
   ];
   return (
     <section className="calendar-day-feed" aria-label="Day activity">
-      <div className="row between">
-        <h2>Your day</h2>
-        <button className="text-button" onClick={() => onAdd(date)}>
-          Add to day
-        </button>
-      </div>
-      <p className="muted text-small">
-        {formatDate(date, { weekday: "long", month: "short", day: "numeric" })}{" "}
-        · Plans stay planned until you record activity.
-      </p>
-      {(groups[1]!.entries.length > 0 || groups[2]!.entries.length > 0) && (
+      <span className="calendar-feed-weekday">
+        {formatDate(date, { weekday: "long" })}
+      </span>
+      {(groups[1]!.entries.length > 0 || next) && (
         <div className="day-at-a-glance">
           {groups[1]!.entries.map((entry) => (
             <p key={entry.key}>
@@ -154,19 +149,30 @@ export function CalendarDayFeed({
               {entry.record?.item.title ?? entry.activity?.title}
             </p>
           ))}
-          {groups[2]!.entries[0] && (
-            <p>
-              <strong>
-                Next · {formatTime(groups[2]!.entries[0].at, week.timezone)}
-              </strong>
-              <br />
-              {groups[2]!.entries[0].record?.kind === "block"
-                ? "Planned: "
-                : "Recorded: "}
-              {groups[2]!.entries[0].record?.item.title ??
-                groups[2]!.entries[0].activity?.title}
-            </p>
-          )}
+          {next &&
+            (next.activity ? (
+              <Link
+                className="day-at-a-glance-next"
+                href={next.activity.href}
+                key={next.key}
+              >
+                <strong>Next · {formatTime(next.at, week.timezone)}</strong>
+                <span>Recorded: {next.activity.title}</span>
+              </Link>
+            ) : (
+              <button
+                className="day-at-a-glance-next"
+                type="button"
+                key={next.key}
+                onClick={() => next.record && onOpen(next.record, date)}
+              >
+                <strong>Next · {formatTime(next.at, week.timezone)}</strong>
+                <span>
+                  {next.record?.kind === "block" ? "Planned: " : "Recorded: "}
+                  {next.record?.item.title}
+                </span>
+              </button>
+            ))}
         </div>
       )}
       {anytime.length > 0 && (

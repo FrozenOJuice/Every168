@@ -1,7 +1,10 @@
+import type { BlockSourceLink, SeriesUndoState } from "./planning.types.js";
+import type { Block } from "@168hours/contracts";
 import { goals } from "../goals/goals.table.js";
 import { calendarSeries } from "./calendar.table.js";
 import {
   pgTable,
+  jsonb,
   uuid,
   text,
   index,
@@ -107,3 +110,21 @@ export const timeEntries = pgTable(
       .where(sql`${t.sourceId} is not null`),
   ],
 );
+
+// A deletion receipt preserves identity and links until its undo is consumed.
+export const deletedTimeBlocks = pgTable("deleted_time_blocks", {
+  ...ownedColumns(),
+  snapshot: jsonb("snapshot").$type<Block>().notNull(),
+  linkedEntries: jsonb("linked_entries")
+    .$type<Array<{ id: string; version: number }>>()
+    .notNull(),
+  seriesState: jsonb("series_state").$type<SeriesUndoState>(),
+  sourceLinks: jsonb("source_links").$type<BlockSourceLink[]>().notNull(),
+});
+
+export const editedTimeBlocks = pgTable("edited_time_blocks", {
+  ...ownedColumns(),
+  before: jsonb("before").$type<Block>().notNull(),
+  after: jsonb("after").$type<Block>().notNull(),
+  seriesState: jsonb("series_state").$type<SeriesUndoState>(),
+});

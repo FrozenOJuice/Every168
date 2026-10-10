@@ -192,6 +192,7 @@ test("workouts and cardio can be recorded, safely retried, corrected and reviewe
       await route.fulfill({ response });
     },
   );
+  await page.getByLabel("Finished at").fill("2026-09-07T09:30");
   await page
     .getByRole("button", { name: "Finish workout", exact: true })
     .click();
@@ -214,7 +215,7 @@ test("workouts and cardio can be recorded, safely retried, corrected and reviewe
   expect(Date.parse(finished.endedAt!)).toBeGreaterThan(
     Date.parse(finished.startedAt),
   );
-  // A generated finish instant must be identical on retry, then a past session can be corrected explicitly.
+  // The finish instant must be identical on retry, then a past session can be corrected explicitly.
   await page.getByLabel("Finished at").fill("2026-09-07T10:00");
   await page.getByRole("button", { name: "Save workout", exact: true }).click();
   await expect(page.getByText("Changes saved.", { exact: true })).toBeVisible();

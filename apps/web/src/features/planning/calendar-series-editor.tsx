@@ -2,14 +2,21 @@ import { z } from "zod";
 import { useWatch } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { seriesInput, type CalendarSeries } from "@168hours/contracts";
-import { addDays, weekday, localDate } from "@168hours/domain-utils";
+import {
+  addDays,
+  expandPlannedSeries,
+  weekday,
+  localDate,
+} from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
-import { Dialog } from "@/components/ui/dialog";
+import { CalendarPlanPopover } from "./calendar-plan-popover";
+import { useEffect, useState } from "react";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { invalidateCalendar } from "./invalidate-calendar";
+import { formatDate } from "@/lib/format";
 export function CalendarSeriesEditor({
   id,
   date,
@@ -21,13 +28,18 @@ export function CalendarSeriesEditor({
   onClose: () => void;
   onSaved: (message: string, date?: string) => void;
 }) {
+  const [formBusy, setFormBusy] = useState(false);
+  const [removeBusy, setRemoveBusy] = useState(false);
   const q = useQuery({
     queryKey: ["calendar-series", id],
     queryFn: () => api.getCalendarSeries(id!),
     enabled: !!id,
   });
   return (
-    <Dialog
+    <CalendarPlanPopover
+      date={date}
+      busy={removeBusy}
+      onBusyChange={setFormBusy}
       title={id ? "Edit repeating plan" : "Add repeating plan"}
       onClose={onClose}
     >
@@ -39,19 +51,25 @@ export function CalendarSeriesEditor({
         <SeriesForm
           key={id ?? "new"}
           series={q.data}
+          formBusy={formBusy}
+          onRemoveBusy={setRemoveBusy}
           date={date}
           onSaved={onSaved}
         />
       )}
-    </Dialog>
+    </CalendarPlanPopover>
   );
 }
 function SeriesForm({
   series,
+  formBusy,
+  onRemoveBusy,
   date,
   onSaved,
 }: {
   series?: CalendarSeries;
+  formBusy: boolean;
+  onRemoveBusy: (busy: boolean) => void;
   date: string;
   onSaved: (message: string, date?: string) => void;
 }) {
@@ -78,18 +96,20 @@ function SeriesForm({
     interval: series?.interval ?? 1,
     weekdays: series?.weekdays ?? [weekday(date)],
   });
-  const [frequency, days] = useWatch({
-    control: form.control,
-    name: ["frequency", "weekdays"],
+  const values = useWatch({ control: form.control });
+  const frequency = values.frequency ?? "weekly";
+  const days = values.weekdays ?? [];
+  const { startTime: previewTime, ...previewValues } = values;
+  const [previewHour, previewMinute] = (previewTime ?? "")
+    .split(":")
+    .map(Number);
+  const previewInput = seriesInput.safeParse({
+    ...previewValues,
+    startMinute: (previewHour ?? NaN) * 60 + (previewMinute ?? NaN),
   });
-  const cats = useQuery({
-    queryKey: ["categories"],
-    queryFn: api.getCategories,
-  });
-  const goals = useQuery({
-    queryKey: ["goals", "selector"],
-    queryFn: () => api.getGoals({ limit: 100, status: "active" }),
-  });
+  const preview = previewInput.success
+    ? expandPlannedSeries(previewInput.data, series?.excludedDates)
+    : null;
   const remove = useCommand({
     mutationFn: (_: void, key: string) =>
       api.deleteCalendarSeries(series!.id, series!.version, key),
@@ -98,16 +118,22 @@ function SeriesForm({
       onSaved("Repeating plan deleted. Recorded activity remains.");
     },
   });
+  useEffect(() => {
+    onRemoveBusy(remove.isPending);
+  }, [remove.isPending, onRemoveBusy]);
   return (
     <>
       {series && (
         <p className="notice">
-          Saving updates every occurrence and replaces individual edits. Deleted
-          occurrences stay excluded. Recorded activity keeps its original times.
+          You are editing the entire series. Saving replaces individual edits;
+          deleted occurrences stay excluded. To change one occurrence, close
+          this editor and edit that block. Recorded activity keeps its original
+          times.
         </p>
       )}
       <Form
         form={form}
+        disabled={remove.isPending}
         onSubmit={async (value, key) => {
           const { startTime, ...v } = value;
           const [hour, minute] = startTime.split(":").map(Number);
@@ -188,39 +214,47 @@ function SeriesForm({
             )}
           </div>
         )}
-        <Field
-          name="timezone"
-          label="Timezone"
-          help="The series keeps this timezone even if your account timezone changes."
-        />
-        <small>
-          Repeat through a date within one year. Missing clock times are
-          skipped; repeated times use the first occurrence. Duration is elapsed
-          time.
-        </small>
-        <Field name="categoryId" label="Category" optional>
-          <option value="">Uncategorized</option>
-          {cats.data
-            ?.filter((c) => !c.archivedAt || c.id === series?.categoryId)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-        </Field>
-        <Field name="goalId" label="Goal (optional)" optional>
-          <option value="">No linked goal</option>
-          {series?.goalId &&
-            !goals.data?.items.some((g) => g.id === series.goalId) && (
-              <option value={series.goalId}>Previously linked goal</option>
+        <details>
+          <summary>More details</summary>
+          <div className="form-stack">
+            <Field
+              name="timezone"
+              label="Timezone"
+              help="The series keeps this timezone even if your account timezone changes."
+            />
+            <small>
+              Repeat through a date within one year. Missing clock times are
+              skipped; repeated times use the first occurrence. Duration is
+              elapsed time.
+            </small>
+            <Field
+              name="notes"
+              label="Notes (optional)"
+              type="textarea"
+              optional
+            />
+          </div>
+        </details>
+        {preview && (
+          <div className="calendar-repeat-preview">
+            <strong>{preview.occurrences.length} plans in this series</strong>
+            {preview.occurrences.length > 0 && (
+              <p>
+                First dates:{" "}
+                {preview.occurrences
+                  .slice(0, 3)
+                  .map((occurrence) => formatDate(occurrence.date))
+                  .join(", ")}
+                {preview.occurrences.length > 3 ? "…" : ""}
+              </p>
             )}
-          {goals.data?.items.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.title}
-            </option>
-          ))}
-        </Field>
-        <Field name="notes" label="Notes (optional)" type="textarea" optional />
+            {preview.skippedDates.length > 0 && (
+              <p>
+                Missing clock times skipped: {preview.skippedDates.join(", ")}.
+              </p>
+            )}
+          </div>
+        )}
         <Submit>
           {series ? "Save entire series" : "Create repeating plan"}
         </Submit>
@@ -229,7 +263,7 @@ function SeriesForm({
         <div className="editor-actions">
           <button
             className="button danger"
-            disabled={remove.isPending}
+            disabled={formBusy || remove.isPending}
             onClick={() => {
               if (
                 confirm(

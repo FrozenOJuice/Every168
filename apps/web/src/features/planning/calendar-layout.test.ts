@@ -5,6 +5,8 @@ import {
   layoutDay,
   HOUR_HEIGHT,
   slotMinute,
+  timeScaleScrollTop,
+  timeTickMinutes,
   visibleWeekSegments,
   type CalendarRecord,
 } from "./calendar-layout";
@@ -36,12 +38,58 @@ function record(id: number, start: string, end: string): CalendarRecord {
   };
 }
 describe("calendar presentation", () => {
-  it("snaps clicks to quarter hours and clamps the last minute of an hour", () => {
+  it("snaps clicks to five minutes and clamps the last interval of an hour", () => {
     expect(
-      [0, 17, 18, 35, 36, 53, 54, 72].map((offset) =>
-        slotMinute(23, offset, 72),
+      [0, 4, 5, 9, 10, 14, 15, 55, 60].map((offset) =>
+        slotMinute(23, offset, HOUR_HEIGHT),
       ),
-    ).toEqual([1380, 1380, 1395, 1395, 1410, 1410, 1425, 1425]);
+    ).toEqual([1380, 1380, 1385, 1385, 1390, 1390, 1395, 1435, 1435]);
+    expect(slotMinute(14, 3, 44)).toBe(840);
+    expect(slotMinute(14, 4, 44)).toBe(845);
+    expect(slotMinute(14, 10, 120)).toBe(845);
+    expect(slotMinute(14, 20, 240)).toBe(845);
+    expect(slotMinute(14, 3, 32)).toBe(845);
+    expect(slotMinute(14, 1, 12)).toBe(845);
+  });
+  it("changes label intervals with a buffer around each zoom threshold", () => {
+    expect(timeTickMinutes(60, 20)).toBe(240);
+    expect(timeTickMinutes(240, 25)).toBe(240);
+    expect(timeTickMinutes(240, 26)).toBe(120);
+    expect(timeTickMinutes(120, 20)).toBe(240);
+    expect(timeTickMinutes(60, 36)).toBe(120);
+    expect(timeTickMinutes(120, 41)).toBe(120);
+    expect(timeTickMinutes(120, 42)).toBe(60);
+    expect(timeTickMinutes(60, 89)).toBe(60);
+    expect(timeTickMinutes(60, 90)).toBe(30);
+    expect(timeTickMinutes(30, 85)).toBe(30);
+    expect(timeTickMinutes(30, 84)).toBe(60);
+    expect(timeTickMinutes(30, 32)).toBe(120);
+    expect(timeTickMinutes(30, 149)).toBe(30);
+    expect(timeTickMinutes(30, 150)).toBe(15);
+    expect(timeTickMinutes(15, 141)).toBe(15);
+    expect(timeTickMinutes(15, 140)).toBe(30);
+  });
+  it("keeps a steady scroll position through the full-day zoom boundary", () => {
+    const anchor = { top: 216, y: 500, height: 60 };
+    const minimum = 24;
+    for (const height of [50, 40, 30]) {
+      const remainingScroll = 24 * (height - minimum);
+      expect(
+        timeScaleScrollTop(anchor, height, minimum) / remainingScroll,
+      ).toBeCloseTo(0.25);
+    }
+    expect(timeScaleScrollTop(anchor, minimum, minimum)).toBe(0);
+    expect(timeScaleScrollTop(anchor, 100, minimum)).toBeCloseTo(
+      ((anchor.top + anchor.y) * 100) / anchor.height - anchor.y,
+    );
+  });
+  it("keeps short records reachable at every hour scale", () => {
+    const short = record(1, "2026-09-07T18:00:00Z", "2026-09-07T18:05:00Z");
+    for (const height of [12, 32, 44, 60, 120, 240]) {
+      const [segment] = layoutDay([short], day, height);
+      expect(segment).toBeDefined();
+      expect(((segment!.bottom - segment!.top) / 60) * height).toBeCloseTo(46);
+    }
   });
   it("keeps the rest of a busy day visible and exposes only excess lanes as overflow", () => {
     const records = Array.from({ length: 5 }, (_, i) =>

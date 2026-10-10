@@ -1,3 +1,5 @@
+import type { BlockSourceLink } from "../planning/planning.service.js";
+import type { cardioRepository } from "./cardio.repository.js";
 import type { TransactionContext } from "../../shared/transactions.js";
 import type { ExerciseInput, PageQuery } from "@168hours/contracts";
 import { found } from "../../shared/errors/app-error.js";
@@ -6,8 +8,29 @@ import type { strengthRepository } from "./strength.repository.js";
 export function exerciseService(
   repo: ReturnType<typeof exerciseRepository>,
   strength: ReturnType<typeof strengthRepository>,
+  cardio: ReturnType<typeof cardioRepository>,
 ) {
   return {
+    async capturePlanLinks(u: string, id: string, context: TransactionContext) {
+      return [
+        ...(await strength.capturePlanLinks(u, id, context)),
+        ...(await cardio.capturePlanLinks(u, id, context)),
+      ];
+    },
+    async restorePlanLinks(
+      u: string,
+      id: string,
+      links: BlockSourceLink[],
+      context: TransactionContext,
+    ) {
+      for (const link of links)
+        await (link.kind === "strength" ? strength : cardio).restorePlanLink(
+          u,
+          id,
+          link,
+          context,
+        );
+    },
     platformUsage: repo.platformUsage,
     list: repo.list,
     create: repo.create,

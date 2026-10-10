@@ -87,3 +87,12 @@ export type Block = z.infer<typeof blockSchema>;
 export type TimeEntryInput = z.infer<typeof timeEntryInput>;
 export type TimeEntry = z.infer<typeof timeEntrySchema>;
 export type Week = z.infer<typeof weekSchema>;
+
+export const blockDeletionSchema = z.object({
+  ok: z.literal(true),
+  undoId: idSchema,
+});
+export type BlockDeletion = z.infer<typeof blockDeletionSchema>;
+
+export const blockEditSchema = blockSchema.extend({ undoId: idSchema });
+export type BlockEdit = z.infer<typeof blockEditSchema>;

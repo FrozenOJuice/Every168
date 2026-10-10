@@ -5,6 +5,7 @@
 @import "../styles/domains.css";
 @import "../styles/food.css";
 @import "../styles/exercise.css";
+@import "../styles/routines.css";
 
 :root {
   --background: #f8f8f5;

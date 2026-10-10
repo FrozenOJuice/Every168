@@ -1,4 +1,6 @@
 import { calendarActivityService } from "./modules/planning/calendar-activity.service.js";
+import { routinesRepository } from "./modules/routines/routines.repository.js";
+import { routinesService } from "./modules/routines/routines.service.js";
 import apiPackage from "../package.json" with { type: "json" };
 import { AppError } from "./shared/errors/app-error.js";
 import { adminRepository } from "./modules/identity/admin.repository.js";
@@ -54,6 +56,11 @@ export function compose(input: ConfigInput) {
     categories,
     identity,
     goals,
+    {
+      capture: (u, id, context) => exercises.capturePlanLinks(u, id, context),
+      restore: (u, id, links, context) =>
+        exercises.restorePlanLinks(u, id, links, context),
+    },
   );
   const calendarItems = calendarItemsService(
     calendarItemsRepository(db),
@@ -76,6 +83,7 @@ export function compose(input: ConfigInput) {
     calendarItems,
     runInTransaction,
   );
+  const routines = routinesService(routinesRepository(db));
   const calendarSearch = calendarSearchService(
     calendarSearchRepository(db),
     identity,
@@ -89,18 +97,15 @@ export function compose(input: ConfigInput) {
   const body = bodyService(bodyRepository(db), identity);
   const exerciseRepo = exerciseRepository(db);
   const strengthRepo = strengthRepository(db);
-  const exercises = exerciseService(exerciseRepo, strengthRepo);
+  const cardioRepo = cardioRepository(db);
+  const exercises = exerciseService(exerciseRepo, strengthRepo, cardioRepo);
   const strength = strengthService(
     runInTransaction,
     strengthRepo,
     exerciseRepo,
     planning,
   );
-  const cardio = cardioService(
-    runInTransaction,
-    cardioRepository(db),
-    planning,
-  );
+  const cardio = cardioService(runInTransaction, cardioRepo, planning);
   const calendarActivity = calendarActivityService(identity, [
     nutrition.calendarActivity,
     hydration.calendarActivity,
@@ -157,6 +162,7 @@ export function compose(input: ConfigInput) {
     calendarItems,
     series,
     templates,
+    routines,
     calendarSearch,
     calendarActivity,
     writes: writesService(

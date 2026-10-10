@@ -1,23 +1,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Plus,
   Search,
   Ellipsis,
 } from "lucide-react";
-import { addDays } from "@168hours/domain-utils";
-import { dateSchema } from "@168hours/contracts";
-import { Dialog } from "@/components/ui/dialog";
+import { CalendarDatePicker } from "./calendar-date-picker";
 import { formatDate } from "@/lib/format";
 import { calendarHref, type CalendarView } from "./calendar-layout";
 import { shiftPeriod } from "./calendar-dates";
 
 export function CalendarToolbar({
   date,
+  viewTargetDate,
   weekStart,
   today,
   view,
@@ -26,9 +24,12 @@ export function CalendarToolbar({
   onJump,
   onTools,
   onSearch,
+  searchAnchor,
+  searchOpen,
   filtered,
 }: {
   date: string;
+  viewTargetDate: string;
   weekStart: string;
   today: string;
   view: CalendarView;
@@ -37,44 +38,80 @@ export function CalendarToolbar({
   onJump: (date: string) => void;
   onTools: () => void;
   onSearch: () => void;
+  searchAnchor: RefObject<HTMLButtonElement | null>;
+  searchOpen: boolean;
   filtered: boolean;
 }) {
   const [jump, setJump] = useState(false);
-  const dateId = useId();
+  const dateButton = useRef<HTMLButtonElement>(null);
+  const closeJump = useCallback(() => setJump(false), []);
   const router = useRouter();
-  const title =
-    view === "month"
-      ? formatDate(date, { month: "long", year: "numeric" })
-      : view === "day"
-        ? formatDate(date, {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : formatDate(weekStart, { month: "short", day: "numeric" }) +
-          " – " +
-          formatDate(addDays(weekStart, 6), {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          });
+  const title = formatDate(date, {
+    month: "long",
+    ...(view === "day" ? { day: "numeric" as const } : {}),
+    year: "numeric",
+  });
   return (
     <>
-      <header className="calendar-toolbar">
-        <div className="calendar-period">
-          <h1 className="sr-only">Calendar</h1>
-          <h2>
+      <header
+        className={
+          "calendar-toolbar" + (view === "day" ? " is-day-toolbar" : "")
+        }
+      >
+        <h1 className="sr-only">Calendar</h1>
+        <div className="calendar-view-tools">
+          <div className="calendar-toolbar-actions">
             <button
-              className="calendar-date-title"
-              aria-label={"Jump to date, " + title}
-              aria-haspopup="dialog"
-              onClick={() => setJump(true)}
+              className="button primary calendar-add-block"
+              onClick={onAdd}
             >
-              {title}
-              <ChevronDown size={15} aria-hidden="true" />
+              <Plus size={17} aria-hidden="true" />
+              <span className="calendar-add-label">Add</span>
             </button>
-          </h2>
+            <button
+              ref={searchAnchor}
+              className="icon-button"
+              aria-label="Search and filter calendar"
+              aria-pressed={filtered}
+              aria-haspopup="dialog"
+              aria-expanded={searchOpen}
+              onClick={onSearch}
+            >
+              <Search size={18} />
+            </button>
+            <button
+              className="icon-button"
+              aria-label="Calendar tools"
+              onClick={onTools}
+            >
+              <Ellipsis size={20} />
+            </button>
+          </div>
+        </div>
+        <nav
+          className="segmented calendar-view-switcher"
+          aria-label="Calendar view"
+        >
+          {(["day", "week", "month"] as const).map((item) => (
+            <Link
+              key={item}
+              href={calendarHref(viewTargetDate, item)}
+              scroll={false}
+              aria-current={view === item ? "true" : undefined}
+            >
+              {item[0]!.toUpperCase() + item.slice(1)}
+            </Link>
+          ))}
+        </nav>
+        <div className="calendar-period">
+          <Link
+            className="button calendar-today"
+            href={calendarHref(today, view)}
+            scroll={false}
+            onClick={onToday}
+          >
+            Today
+          </Link>
           <div className="calendar-date-controls">
             <Link
               className="icon-button"
@@ -84,14 +121,18 @@ export function CalendarToolbar({
             >
               <ChevronLeft size={19} />
             </Link>
-            <Link
-              className="button"
-              href={calendarHref(today, view)}
-              scroll={false}
-              onClick={onToday}
-            >
-              Today
-            </Link>
+            <h2>
+              <button
+                ref={dateButton}
+                className="calendar-date-title"
+                aria-label={"Jump to date, " + title}
+                aria-haspopup="dialog"
+                aria-expanded={jump}
+                onClick={() => setJump(!jump)}
+              >
+                <span className="calendar-date-month">{title}</span>
+              </button>
+            </h2>
             <Link
               className="icon-button"
               aria-label={"Next " + view}
@@ -102,71 +143,21 @@ export function CalendarToolbar({
             </Link>
           </div>
         </div>
-        <div className="calendar-view-tools">
-          <nav className="segmented" aria-label="Calendar view">
-            {(["day", "week", "month"] as const).map((item) => (
-              <Link
-                key={item}
-                href={calendarHref(date, item)}
-                scroll={false}
-                aria-current={view === item ? "true" : undefined}
-              >
-                {item[0]!.toUpperCase() + item.slice(1)}
-              </Link>
-            ))}
-          </nav>
-          <button
-            className="icon-button"
-            aria-label="Search and filter calendar"
-            aria-pressed={filtered}
-            onClick={onSearch}
-          >
-            <Search size={18} />
-          </button>
-          <button
-            className="icon-button"
-            aria-label="Calendar tools"
-            onClick={onTools}
-          >
-            <Ellipsis size={20} />
-          </button>
-          <button className="button primary calendar-add-block" onClick={onAdd}>
-            <Plus size={17} aria-hidden="true" />
-            <span className="calendar-add-label">Add</span>
-          </button>
-        </div>
       </header>
       {jump && (
-        <Dialog title="Jump to date" onClose={() => setJump(false)}>
-          <form
-            className="form-stack"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const value = new FormData(event.currentTarget).get("date");
-              const parsed = dateSchema.safeParse(value);
-              if (!parsed.success) return;
-              onJump(parsed.data);
-              router.push(calendarHref(parsed.data, view), { scroll: false });
-              setJump(false);
-            }}
-          >
-            <div className="field">
-              <label htmlFor={dateId}>Date</label>
-              <input
-                id={dateId}
-                type="date"
-                name="date"
-                defaultValue={date}
-                min="0001-01-01"
-                max="9999-12-31"
-                required
-              />
-            </div>
-            <button className="button primary" type="submit">
-              Go to date
-            </button>
-          </form>
-        </Dialog>
+        <CalendarDatePicker
+          date={date}
+          weekStart={weekStart}
+          today={today}
+          view={view}
+          anchor={dateButton}
+          onClose={closeJump}
+          onSelect={(value) => {
+            onJump(value);
+            router.push(calendarHref(value, view), { scroll: false });
+            setJump(false);
+          }}
+        />
       )}
     </>
   );

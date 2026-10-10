@@ -1,3 +1,4 @@
+import { AppError } from "../../shared/errors/app-error.js";
 import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import { and, eq, asc, desc, ilike, lt, sql } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
@@ -13,6 +14,47 @@ export function cardioRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(table.userId, u), eq(table.id, id));
   return {
+    async capturePlanLinks(u: string, id: string, context: TransactionContext) {
+      const rows = await databaseFor(db, context)
+        .select({ id: table.id, version: table.version })
+        .from(table)
+        .where(and(eq(table.userId, u), eq(table.linkedTimeBlockId, id)))
+        .for("update");
+      return rows.map((row) => ({
+        kind: "cardio" as const,
+        id: row.id,
+        version: row.version + 1,
+      }));
+    },
+    async restorePlanLink(
+      u: string,
+      blockId: string,
+      link: { id: string; version: number },
+      context: TransactionContext,
+    ) {
+      const tx = databaseFor(db, context);
+      const row = (
+        await tx
+          .select()
+          .from(table)
+          .where(and(eq(table.userId, u), eq(table.id, link.id)))
+          .for("update")
+      )[0];
+      if (
+        !row ||
+        row.version !== link.version ||
+        row.linkedTimeBlockId !== null
+      )
+        throw new AppError(
+          409,
+          "UNDO_CONFLICT",
+          "Linked activity changed since deletion. This block cannot be restored safely.",
+        );
+      await tx
+        .update(table)
+        .set({ linkedTimeBlockId: blockId })
+        .where(and(eq(table.userId, u), eq(table.id, link.id)));
+    },
     activityRange: (u: string, start: string, end: string) =>
       db
         .select()

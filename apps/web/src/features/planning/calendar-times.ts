@@ -5,6 +5,10 @@ import {
 } from "@168hours/domain-utils";
 import type { TimeEditor } from "./calendar-layout";
 
+export function currentHourMinute(now: string, timezone: string) {
+  return Number(instantToLocalInput(now, timezone).slice(11, 13)) * 60;
+}
+
 export function inputAtMinute(date: string, minute: number) {
   const day = addDays(date, Math.floor(minute / 1440));
   const time = ((minute % 1440) + 1440) % 1440;
@@ -46,7 +50,10 @@ export function editorTimes(editor: TimeEditor, timezone: string) {
     source && instantToLocalInput(source.startsAt, timezone);
   const startsAt = originalStart
     ? addDays(originalStart.slice(0, 10), 1) + originalStart.slice(10)
-    : inputAtMinute(editor.date, editor.minute ?? 540);
+    : inputAtMinute(
+        editor.date,
+        editor.minute ?? currentHourMinute(new Date().toISOString(), timezone),
+      );
   let endsAt: string;
   try {
     endsAt = endAfter(startsAt, duration, timezone);

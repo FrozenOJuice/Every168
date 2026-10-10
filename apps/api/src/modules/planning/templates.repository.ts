@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, desc } from "drizzle-orm";
+import { and, eq, gte, lt, desc, inArray, sql } from "drizzle-orm";
 import type {
   PageQuery,
   TemplateCaptureInput,
@@ -56,6 +56,8 @@ export function templatesRepository(db: Database) {
       end: string,
       from: string,
       to: string,
+      selectedDates?: string[],
+      timezone?: string,
       ctx?: TransactionContext,
     ) {
       return transactionRunner(db)(async (scope) => {
@@ -68,6 +70,12 @@ export function templatesRepository(db: Database) {
               eq(timeBlocks.userId, u),
               gte(timeBlocks.startsAt, new Date(start)),
               lt(timeBlocks.startsAt, new Date(end)),
+              selectedDates && timezone
+                ? inArray(
+                    sql<string>`(${timeBlocks.startsAt} AT TIME ZONE ${timezone})::date`,
+                    selectedDates,
+                  )
+                : undefined,
             ),
           )
           .orderBy(timeBlocks.startsAt, timeBlocks.id)
@@ -81,6 +89,9 @@ export function templatesRepository(db: Database) {
               eq(calendarItems.userId, u),
               gte(calendarItems.date, from),
               lt(calendarItems.date, to),
+              selectedDates
+                ? inArray(calendarItems.date, selectedDates)
+                : undefined,
             ),
           )
           .orderBy(calendarItems.date, calendarItems.id)
@@ -91,14 +102,19 @@ export function templatesRepository(db: Database) {
     },
     async create(
       u: string,
-      v: TemplateCaptureInput,
+      v: TemplateCaptureInput & { rangeDays: number | null },
       entries: TemplateEntry[],
       ctx: TransactionContext,
     ) {
       const parent = (
         await databaseFor(db, ctx)
           .insert(t)
-          .values({ userId: u, name: v.name, span: v.span })
+          .values({
+            userId: u,
+            name: v.name,
+            span: v.span,
+            rangeDays: v.rangeDays,
+          })
           .returning()
       )[0]!;
       if (entries.length)

@@ -95,14 +95,15 @@ export const calendarTemplates = pgTable(
   {
     ...ownedColumns(),
     name: text("name").notNull(),
-    span: text("span", { enum: ["day", "week"] }).notNull(),
+    span: text("span", { enum: ["day", "week", "range"] }).notNull(),
+    rangeDays: integer("range_days"),
   },
   (t) => [
     unique("calendar_template_owner").on(t.userId, t.id),
     index("calendar_template_created_idx").on(t.userId, t.createdAt, t.id),
     check(
       "calendar_template_fields",
-      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and char_length(btrim(${t.name})) between 1 and 160 and ${t.span} in ('day','week')`,
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and char_length(btrim(${t.name})) between 1 and 160 and ((${t.span} in ('day','week') and ${t.rangeDays} is null) or (${t.span}='range' and ${t.rangeDays} between 1 and 31))`,
     ),
   ],
 );
@@ -134,7 +135,7 @@ export const calendarTemplateEntries = pgTable(
     }),
     check(
       "calendar_template_entry_fields",
-      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.dayOffset} between 0 and 6`,
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt}) and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.dayOffset} between 0 and 30`,
     ),
     check(
       "calendar_template_entry_shape",

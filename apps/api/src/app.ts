@@ -1,5 +1,6 @@
 import { adminRoutes } from "./modules/identity/admin.routes.js";
 import { calendarRoutes } from "./modules/planning/calendar.routes.js";
+import { routinesRoutes } from "./modules/routines/routines.routes.js";
 import { apiRateLimit } from "./shared/http/rate-limit.js";
 import { exerciseRoutes } from "./modules/exercise/exercise.routes.js";
 import { bodyRoutes } from "./modules/body/body.routes.js";
@@ -25,6 +26,7 @@ export function createApp({
   calendarItems,
   series,
   templates,
+  routines,
   calendarSearch,
   calendarActivity,
   databaseHealth,
@@ -69,7 +71,10 @@ export function createApp({
   });
   app.use("/api/auth", apiRateLimit(100));
   app.post("/api/auth/sign-in/email", apiRateLimit(10));
-  app.post("/api/auth/sign-up/email", apiRateLimit(10));
+  app.post(
+    "/api/auth/sign-up/email",
+    apiRateLimit(config.NODE_ENV === "test" ? 100 : 10),
+  );
   app.all(
     "/api/auth/*splat",
     express.raw({ type: () => true, limit: "256kb", inflate: false }),
@@ -92,6 +97,7 @@ export function createApp({
       writes,
       calendarActivity,
     ),
+    routinesRoutes(routines, writes),
     goalsRoutes(goals, writes),
     dashboardRoutes(dashboard),
     nutritionRoutes(nutrition, writes),

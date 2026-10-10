@@ -57,7 +57,7 @@ export function dragTimes(
           endsAt: new Date(end + delta).toISOString(),
         }
       : null;
-  const offset = Math.round((grabbed - start) / 900000) * 900000;
+  const offset = Math.round((grabbed - start) / 300000) * 300000;
   return {
     startsAt: new Date(at - offset).toISOString(),
     endsAt: new Date(at - offset + end - start).toISOString(),
@@ -75,8 +75,8 @@ export function dragSelection(
   let start = Math.min(Date.parse(a), Date.parse(b)),
     end = Math.max(Date.parse(a), Date.parse(b));
   if (start === end) {
-    if (origin.minute === 1440) start -= 900000;
-    else end += 900000;
+    if (origin.minute === 1440) start -= 300000;
+    else end += 300000;
   }
   if (end - start > 31 * 86400000) return null;
   return {

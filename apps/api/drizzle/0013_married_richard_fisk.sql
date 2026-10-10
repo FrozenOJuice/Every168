@@ -1,0 +1,1 @@
+ALTER TABLE "deleted_time_blocks" ADD COLUMN "source_links" jsonb NOT NULL;

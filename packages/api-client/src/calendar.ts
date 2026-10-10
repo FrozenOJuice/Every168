@@ -13,6 +13,7 @@ import type {
   Page,
   PageQuery,
   CopyInput,
+  CopyUndoInput,
   CopyPreview,
   TemplateCaptureInput,
   CalendarTemplate,
@@ -92,7 +93,18 @@ export function calendarClient(http: Http) {
     previewCalendarCopy: (v: CopyInput) =>
       http<CopyPreview & { token: string }>(root + "/copy-preview" + query(v)),
     copyCalendar: (v: CopyInput & { token: string }, key?: string) =>
-      http<{ count: number; targetDate: string }>(root + "/copy", {
+      http<{
+        count: number;
+        targetDate: string;
+        createdBlocks: { id: string; version: number; title: string }[];
+        createdItems: { id: string; version: number }[];
+      }>(root + "/copy", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
+    undoCalendarCopy: (v: CopyUndoInput, key?: string) =>
+      http<{ ok: true }>(root + "/copy/undo", {
         method: "POST",
         body: body(v),
         headers: writeHeaders(key),
@@ -125,13 +137,14 @@ export function calendarClient(http: Http) {
         method: "DELETE",
         headers: writeHeaders(key, version),
       }),
-    previewCalendarTemplate: (id: string, targetDate: string) =>
+    previewCalendarTemplate: (id: string, targetDate: string, cycles = 1) =>
       http<CopyPreview & { version: number; preferencesVersion: number }>(
-        root + "/templates/" + id + "/preview" + query({ targetDate }),
+        root + "/templates/" + id + "/preview" + query({ targetDate, cycles }),
       ),
     applyCalendarTemplate: (
       id: string,
       targetDate: string,
+      cycles: number,
       version: number,
       preferencesVersion: number,
       key?: string,
@@ -140,7 +153,7 @@ export function calendarClient(http: Http) {
         root + "/templates/" + id + "/apply",
         {
           method: "POST",
-          body: body({ targetDate, preferencesVersion }),
+          body: body({ targetDate, cycles, preferencesVersion }),
           headers: writeHeaders(key, version),
         },
       ),

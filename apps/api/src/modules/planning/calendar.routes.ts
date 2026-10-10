@@ -7,6 +7,7 @@ import {
   calendarRangeQuery,
   calendarSearchQuery,
   copyInput,
+  copyUndoInput,
   dateSchema,
   idSchema,
   pageQuerySchema,
@@ -153,6 +154,12 @@ export function calendarRoutes(
       { status: 201 },
     ),
   );
+  r.post(
+    "/calendar/copy/undo",
+    mutation(writes, copyUndoInput, ({ userId, input, context }) =>
+      templates.undoCopy(userId, input, context),
+    ),
+  );
   r.get("/calendar/templates", async (req, res) =>
     res.json(
       await templates.list(
@@ -172,6 +179,12 @@ export function calendarRoutes(
         currentUser(res).id,
         idSchema.parse(req.params.id),
         dateSchema.parse(req.query.targetDate),
+        z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(52)
+          .parse(req.query.cycles ?? 1),
       ),
     ),
   );
@@ -214,6 +227,7 @@ export function calendarRoutes(
           userId,
           id,
           input.targetDate,
+          input.cycles,
           version,
           input.preferencesVersion,
           context,

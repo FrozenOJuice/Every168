@@ -45,9 +45,11 @@ export function Form<T extends FieldValues>({
   onSubmit,
   children,
   retrySafe = true,
+  disabled = false,
 }: {
   form: UseFormReturn<T>;
   retrySafe?: boolean;
+  disabled?: boolean;
   onSubmit: (values: T, requestKey: string) => Promise<void>;
   children: React.ReactNode;
 }) {
@@ -104,7 +106,10 @@ export function Form<T extends FieldValues>({
         onSubmit={(event) => void form.handleSubmit(save)(event)}
         className="form-stack"
       >
-        <fieldset className="form-stack" disabled={!!pending || saving}>
+        <fieldset
+          className="form-stack"
+          disabled={disabled || !!pending || saving}
+        >
           {children}
         </fieldset>
         {form.formState.errors.root && (

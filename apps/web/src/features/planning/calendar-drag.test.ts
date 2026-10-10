@@ -30,6 +30,24 @@ it("snaps grid moves while keeping the grab offset and elapsed duration", () => 
     endsAt: "2026-09-08T17:30:00.000Z",
   });
 });
+it("moves and resizes by five minutes without rounding a five-minute grab offset to quarters", () => {
+  const origin = { date: "2026-09-07", minute: 560 };
+  const target = { date: origin.date, minute: 565 };
+  expect(dragTimes(block, "move", origin, target, "America/Edmonton")).toEqual({
+    startsAt: "2026-09-07T15:05:00.000Z",
+    endsAt: "2026-09-07T16:05:00.000Z",
+  });
+  expect(dragTimes(block, "start", origin, target, "America/Edmonton")).toEqual(
+    {
+      startsAt: "2026-09-07T15:05:00.000Z",
+      endsAt: block.endsAt,
+    },
+  );
+  expect(dragTimes(block, "end", origin, target, "America/Edmonton")).toEqual({
+    startsAt: block.startsAt,
+    endsAt: "2026-09-07T16:05:00.000Z",
+  });
+});
 it("moves a continuation relative to the original start date, including across DST", () => {
   const overnight = {
     ...block,
@@ -78,13 +96,13 @@ it("rejects invalid resize bounds and missing local clock times", () => {
     ),
   ).toBeNull();
 });
-it("creates a reversible, quarter-hour selection in either direction without writing anything", () => {
+it("creates a reversible five-minute selection and keeps midnight within the day", () => {
   const a = { date: "2026-09-07", minute: 540 },
-    b = { date: "2026-09-07", minute: 585 };
+    b = { date: "2026-09-07", minute: 565 };
   expect(dragSelection(a, b, "America/Edmonton")).toEqual({
     date: a.date,
     minute: 540,
-    durationMinutes: 45,
+    durationMinutes: 25,
   });
   expect(dragSelection(b, a, "America/Edmonton")).toEqual(
     dragSelection(a, b, "America/Edmonton"),
@@ -96,5 +114,10 @@ it("creates a reversible, quarter-hour selection in either direction without wri
       { date: a.date, minute: 1440 },
       "America/Edmonton",
     ),
-  ).toEqual({ date: a.date, minute: 1425, durationMinutes: 15 });
+  ).toEqual({ date: a.date, minute: 1435, durationMinutes: 5 });
+  expect(dragSelection(a, a, "America/Edmonton")).toEqual({
+    date: a.date,
+    minute: 540,
+    durationMinutes: 5,
+  });
 });

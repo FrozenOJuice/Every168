@@ -4,10 +4,9 @@ import { FoodEntryForm } from "@/features/nutrition/food-entry-form";
 import { CardioForm } from "@/features/exercise/cardio-form";
 import { WorkoutStartForm } from "@/features/exercise/workout-start-form";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
-import { GoalForm } from "@/features/goals/goal-form";
 import { formatDate } from "@/lib/format";
 export type CalendarAction =
-  "series" | "all_day" | "unscheduled" | "backlog" | "templates" | "quick";
+  "series" | "all_day" | "unscheduled" | "copy" | "templates" | "quick";
 export function CalendarActions({
   onClose,
   onAction,
@@ -26,22 +25,13 @@ export function CalendarActions({
               "Add all-day plan",
               "A date or several days without allocated hours.",
             ],
-            ["unscheduled", "Add unscheduled plan", "Keep a plan for later."],
             [
-              "backlog",
-              "Unscheduled plans",
-              "Choose when to make time for undated plans.",
+              "copy",
+              "Copy plans",
+              "Copy one plan, a day, a week, or a date range.",
             ],
-            [
-              "templates",
-              "Copy and templates",
-              "Reuse a day, week, or saved routine.",
-            ],
-            [
-              "quick",
-              "Quick actions",
-              "Log food, exercise, water, weight, or create a goal.",
-            ],
+            ["templates", "Templates", "Save and apply calendar patterns."],
+            ["quick", "Quick actions", "Log food, exercise, water or weight."],
           ] as const
         ).map(([id, title, description]) => (
           <button
@@ -63,19 +53,24 @@ const quickTitles = {
   strength: "Start workout",
   water: "Log water",
   weight: "Log weight",
-  goal: "Create goal",
 };
 export function CalendarQuickActions({
   date,
+  minute,
   onClose,
   onSaved,
 }: {
   date: string;
+  minute?: number;
   onClose: () => void;
   onSaved: (message: string) => void;
 }) {
   const [action, setAction] = useState<keyof typeof quickTitles | null>(null);
   const saved = () => onSaved("Saved.");
+  const initialTime =
+    minute === undefined
+      ? undefined
+      : `${date}T${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
   return (
     <Dialog
       title={action ? quickTitles[action] : "Quick actions"}
@@ -88,7 +83,9 @@ export function CalendarQuickActions({
           day: "numeric",
           year: "numeric",
         })}{" "}
-        · Review the date and time before saving.
+        {initialTime
+          ? ` · ${initialTime.slice(11)}`
+          : " · Review the date and time before saving."}
       </p>
       {!action ? (
         <div className="calendar-action-list">
@@ -105,15 +102,18 @@ export function CalendarQuickActions({
           )}
         </div>
       ) : action === "food" ? (
-        <FoodEntryForm date={date} onSaved={saved} />
+        <FoodEntryForm date={date} initialTime={initialTime} onSaved={saved} />
       ) : action === "cardio" ? (
-        <CardioForm date={date} onSaved={saved} />
+        <CardioForm date={date} initialTime={initialTime} onSaved={saved} />
       ) : action === "strength" ? (
-        <WorkoutStartForm date={date} />
-      ) : action === "goal" ? (
-        <GoalForm date={date} onSaved={saved} />
+        <WorkoutStartForm date={date} initialTime={initialTime} />
       ) : (
-        <MeasurementForm kind={action} date={date} onSaved={saved} />
+        <MeasurementForm
+          kind={action}
+          date={date}
+          initialTime={initialTime}
+          onSaved={saved}
+        />
       )}
     </Dialog>
   );

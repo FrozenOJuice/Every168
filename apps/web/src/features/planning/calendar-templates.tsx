@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { useState } from "react";
+import { useWatch } from "react-hook-form";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   copyInput,
@@ -25,18 +26,24 @@ type Review =
       template: Template;
       version: number;
       preferencesVersion: number;
+      cycles: number;
     };
 export function CalendarTemplates({
+  mode,
+  sourceId,
+  sourceKind = "block",
   date,
   onClose,
   onSaved,
 }: {
+  mode: "copy" | "templates";
+  sourceId?: string;
+  sourceKind?: "block" | "item";
   date: string;
   onClose: () => void;
   onSaved: (message: string, date?: string) => void;
 }) {
-  const [tab, setTab] = useState<"copy" | "templates">("copy"),
-    [review, setReview] = useState<Review | null>(null);
+  const [review, setReview] = useState<Review | null>(null);
   const cache = useQueryClient();
   const apply = useCommand({
     mutationFn: (v: Review, key: string) =>
@@ -44,6 +51,7 @@ export function CalendarTemplates({
         ? api.applyCalendarTemplate(
             v.template.id,
             v.preview.targetDate,
+            v.cycles,
             v.version,
             v.preferencesVersion,
             key,
@@ -55,7 +63,10 @@ export function CalendarTemplates({
     },
   });
   return (
-    <Dialog title="Copy and templates" onClose={onClose}>
+    <Dialog
+      title={mode === "copy" ? "Copy plans" : "Templates"}
+      onClose={onClose}
+    >
       {review ? (
         <>
           <CalendarCopyPreview preview={review.preview} />
@@ -82,27 +93,18 @@ export function CalendarTemplates({
         </>
       ) : (
         <>
-          <div className="tabs" role="group" aria-label="Copy options">
-            <button
-              aria-pressed={tab === "copy"}
-              onClick={() => setTab("copy")}
-            >
-              Copy a day or week
-            </button>
-            <button
-              aria-pressed={tab === "templates"}
-              onClick={() => setTab("templates")}
-            >
-              Templates
-            </button>
-          </div>
           <p className="muted text-small">
-            Use up to 100 plans whose start date falls in the selected period.
-            Weeks follow your account’s first day. Overnight plans are copied in
-            full.
+            {mode === "copy"
+              ? "Copy up to 100 plans once. Weeks follow your account’s first day; overnight plans stay whole."
+              : "Save a pattern of up to 31 days, then place it once or in cycles."}
           </p>
-          {tab === "copy" ? (
-            <CopyForm date={date} onReview={setReview} />
+          {mode === "copy" ? (
+            <CopyForm
+              date={date}
+              sourceId={sourceId}
+              sourceKind={sourceKind}
+              onReview={setReview}
+            />
           ) : (
             <TemplateLibrary date={date} onReview={setReview} />
           )}
@@ -113,16 +115,24 @@ export function CalendarTemplates({
 }
 function CopyForm({
   date,
+  sourceId,
+  sourceKind,
   onReview,
 }: {
   date: string;
+  sourceId?: string;
+  sourceKind: "block" | "item";
   onReview: (review: Review) => void;
 }) {
   const form = useZodForm(copyInput, {
     sourceDate: date,
     targetDate: addDays(date, 7),
-    span: "week",
+    span: sourceId ? "single" : "week",
+    sourceId,
+    sourceKind: sourceId ? sourceKind : undefined,
+    sourceEndDate: undefined,
   });
+  const span = useWatch({ control: form.control, name: "span" });
   return (
     <Form
       form={form}
@@ -133,10 +143,19 @@ function CopyForm({
       }}
     >
       <Field name="span" label="Copy">
+        <option value="single" disabled={!sourceId}>
+          Selected plan
+        </option>
         <option value="day">Day</option>
         <option value="week">Week</option>
+        <option value="range">Date range</option>
       </Field>
-      <Field name="sourceDate" label="Copy from" type="date" />
+      {span !== "single" && (
+        <Field name="sourceDate" label="Copy from" type="date" />
+      )}
+      {span === "range" && (
+        <Field name="sourceEndDate" label="Through" type="date" required />
+      )}
       <Field name="targetDate" label="Copy to" type="date" />
       <Submit>Preview copy</Submit>
     </Form>
@@ -208,7 +227,14 @@ function TemplateLibrary({
             <li key={t.id}>
               <div>
                 <strong>{t.name}</strong>
-                <small>{t.span === "week" ? "Weekly" : "Daily"} routine</small>
+                <small>
+                  {t.span === "range"
+                    ? `${t.rangeDays}-day`
+                    : t.span === "week"
+                      ? "7-day"
+                      : "1-day"}{" "}
+                  template
+                </small>
               </div>
               <div className="row wrap">
                 <button className="button" onClick={() => setSelected(t)}>
@@ -268,9 +294,16 @@ function ApplyForm({
   date: string;
   onReview: (review: Review) => void;
 }) {
-  const form = useZodForm(z.object({ targetDate: dateSchema }), {
-    targetDate: date,
-  });
+  const form = useZodForm(
+    z.object({
+      targetDate: dateSchema,
+      cycles: z.coerce.number().int().min(1).max(52),
+    }),
+    {
+      targetDate: date,
+      cycles: 1,
+    },
+  );
   return (
     <Form
       form={form}
@@ -279,16 +312,19 @@ function ApplyForm({
         const preview = await api.previewCalendarTemplate(
           template.id,
           v.targetDate,
+          v.cycles,
         );
         onReview({
           preview,
           template,
           version: preview.version,
           preferencesVersion: preview.preferencesVersion,
+          cycles: v.cycles,
         });
       }}
     >
       <Field name="targetDate" label="Apply to date" type="date" />
+      <Field name="cycles" label="Cycles" type="number" min={1} max={52} />
       <Submit>Preview template</Submit>
     </Form>
   );
@@ -299,7 +335,9 @@ function CaptureForm({ date, onSaved }: { date: string; onSaved: () => void }) {
       name: "",
       sourceDate: date,
       span: "week",
+      sourceEndDate: undefined,
     });
+  const span = useWatch({ control: form.control, name: "span" });
   return (
     <Form
       form={form}
@@ -313,8 +351,12 @@ function CaptureForm({ date, onSaved }: { date: string; onSaved: () => void }) {
       <Field name="span" label="Save">
         <option value="day">Day</option>
         <option value="week">Week</option>
+        <option value="range">Date range</option>
       </Field>
       <Field name="sourceDate" label="Source date" type="date" />
+      {span === "range" && (
+        <Field name="sourceEndDate" label="Through" type="date" required />
+      )}
       <Submit>Save template</Submit>
     </Form>
   );

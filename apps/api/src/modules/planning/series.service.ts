@@ -1,10 +1,5 @@
 import { seriesInput, type SeriesInput } from "@168hours/contracts";
-import {
-  addDays,
-  daysBetween,
-  weekday,
-  plannedInstant,
-} from "@168hours/domain-utils";
+import { expandPlannedSeries } from "@168hours/domain-utils";
 import type { CategoriesService } from "../categories/categories.service.js";
 import type { GoalsService } from "../goals/goals.service.js";
 import type { PlanningService } from "./planning.service.js";
@@ -17,33 +12,7 @@ import { AppError, found } from "../../shared/errors/app-error.js";
 import { assertRevision } from "../../shared/errors/revision.js";
 
 export function expandSeries(input: SeriesInput, excluded: string[] = []) {
-  const v = seriesInput.parse(input);
-  const occurrences: { date: string; startsAt: string; endsAt: string }[] = [],
-    skippedDates: string[] = [];
-  // Weekly intervals are anchored to the ISO week containing startDate.
-  const mondayOffset = (weekday(v.startDate) + 6) % 7;
-  for (let date = v.startDate; date <= v.untilDate; date = addDays(date, 1)) {
-    const days = daysBetween(v.startDate, date);
-    const matches =
-      v.frequency === "daily"
-        ? days % v.interval === 0
-        : Math.floor((days + mondayOffset) / 7) % v.interval === 0 &&
-          v.weekdays.includes(weekday(date));
-    if (!matches || excluded.includes(date)) continue;
-    const startsAt = plannedInstant(date, v.startMinute, v.timezone);
-    if (!startsAt) {
-      skippedDates.push(date);
-      continue;
-    }
-    occurrences.push({
-      date,
-      startsAt,
-      endsAt: new Date(
-        Date.parse(startsAt) + v.durationMinutes * 60000,
-      ).toISOString(),
-    });
-  }
-  return { occurrences, skippedDates };
+  return expandPlannedSeries(seriesInput.parse(input), excluded);
 }
 export function seriesService(
   repo: ReturnType<typeof seriesRepository>,

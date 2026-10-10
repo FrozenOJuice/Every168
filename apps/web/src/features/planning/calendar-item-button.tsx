@@ -10,10 +10,14 @@ export function CalendarItemButton({
 }) {
   return (
     <button
+      data-calendar-record={item.id}
       className={
         "calendar-record date-record" + (compact ? " compact short" : "")
       }
-      onClick={onOpen}
+      onClick={(event) => {
+        event.currentTarget.focus({ preventScroll: true });
+        onOpen();
+      }}
       aria-label={`${item.title}, ${item.kind === "all_day" ? "all day" : "unscheduled"}${item.date ? ", " + item.date : ""}`}
     >
       <span className="record-time">

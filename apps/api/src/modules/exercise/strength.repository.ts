@@ -1,3 +1,4 @@
+import { AppError } from "../../shared/errors/app-error.js";
 import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import {
   and,
@@ -90,6 +91,48 @@ export function strengthRepository(db: Database) {
     });
   }
   return {
+    async capturePlanLinks(u: string, id: string, context: TransactionContext) {
+      const rows = await databaseFor(db, context)
+        .select({ id: workouts.id, version: workouts.version })
+        .from(workouts)
+        .where(and(eq(workouts.userId, u), eq(workouts.linkedTimeBlockId, id)))
+        .for("update");
+      return rows.map((row) => ({
+        kind: "strength" as const,
+        id: row.id,
+        version: row.version + 1,
+      }));
+    },
+    async restorePlanLink(
+      u: string,
+      blockId: string,
+      link: { id: string; version: number },
+      context: TransactionContext,
+    ) {
+      const tx = databaseFor(db, context);
+      const row = (
+        await tx
+          .select()
+          .from(workouts)
+          .where(and(eq(workouts.userId, u), eq(workouts.id, link.id)))
+          .for("update")
+      )[0];
+      if (
+        !row ||
+        row.version !== link.version ||
+        row.linkedTimeBlockId !== null
+      )
+        throw new AppError(
+          409,
+          "UNDO_CONFLICT",
+          "Linked activity changed since deletion. This block cannot be restored safely.",
+        );
+      await tx
+        .update(workouts)
+        .set({ linkedTimeBlockId: blockId })
+        .where(and(eq(workouts.userId, u), eq(workouts.id, link.id)));
+    },
+
     activityRange: (u: string, start: string, end: string) =>
       db
         .select()

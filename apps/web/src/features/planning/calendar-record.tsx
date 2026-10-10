@@ -11,6 +11,7 @@ export function CalendarRecord({
   onOpen,
   compact = false,
   short = false,
+  month = false,
   date,
 }: {
   record: Record;
@@ -18,17 +19,17 @@ export function CalendarRecord({
   onOpen: () => void;
   compact?: boolean;
   short?: boolean;
+  month?: boolean;
   date?: string;
 }) {
   const interaction = useCalendarInteractions();
   const { item, kind } = record;
+  const resizing =
+    kind === "block" && interaction?.preview?.resize?.id === item.id;
   const selected = kind === "block" && interaction?.selectedId === item.id;
   const startDate = localDate(item.startsAt, week.timezone);
   const endDate = localDate(item.endsAt, week.timezone);
-  const continuing = compact && date && startDate < date;
-  const category = week.categories.find(
-    (c) => c.categoryId === item.categoryId,
-  );
+  const continuing = compact && !month && date && startDate < date;
   const overlap =
     kind === "block" &&
     week.overlapPairs.some((pair) => pair.includes(item.id));
@@ -38,6 +39,7 @@ export function CalendarRecord({
       : record.item.timeBlockId !== null;
   return (
     <button
+      data-calendar-record={item.id}
       className={
         "calendar-record " +
         (compact ? "compact " : "") +
@@ -46,14 +48,23 @@ export function CalendarRecord({
         (selected ? " drag-selected" : "") +
         (interaction?.draggingId === item.id ? " drag-source" : "")
       }
-      style={{ borderLeftColor: category?.color ?? "var(--primary)" }}
-      onClick={onOpen}
+      onClick={(event) => {
+        if (interaction?.busy) return;
+        event.currentTarget.focus({ preventScroll: true });
+        if (kind === "block" && interaction && event.detail > 0)
+          interaction.select(item.id);
+        else onOpen();
+      }}
+      onDoubleClick={() => {
+        if (kind === "block" && !interaction?.busy) onOpen();
+      }}
+      aria-pressed={kind === "block" ? !!selected : undefined}
       onPointerDown={(event) => {
         if (compact && date && record.kind === "block")
           interaction?.start(event, "move", record.item, date);
       }}
-      title={`${item.title} · ${category?.name ?? "Uncategorized"} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`}
-      aria-label={`${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}, ${category?.name ?? "Uncategorized"}`}
+      title={`${item.title} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`}
+      aria-label={`${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}`}
     >
       <span className="record-time">
         {!compact && startDate !== endDate && formatDate(startDate) + ", "}
@@ -62,16 +73,19 @@ export function CalendarRecord({
             ? "Continues"
             : "Until " + formatTime(item.endsAt, week.timezone)
           : formatTime(item.startsAt, week.timezone, !compact)}
-        {!compact && (
+        {(!compact || resizing) && (
           <>
             {" "}
-            – {startDate !== endDate && formatDate(endDate) + ", "}
+            {resizing ? "-" : "–"}{" "}
+            {!resizing && startDate !== endDate && formatDate(endDate) + ", "}
             {formatTime(item.endsAt, week.timezone, true)}
           </>
         )}
       </span>
       <strong>{item.title}</strong>
-      <span className="record-meta">{category?.name ?? "Uncategorized"}</span>
+      {resizing && (
+        <span className="record-meta">{formatDate(date ?? startDate)}</span>
+      )}
       <span className="record-indicators">
         {kind === "block" && record.item.seriesId && (
           <span>
@@ -98,6 +112,9 @@ export function CalendarRecord({
           </span>
         )}
       </span>
+      {resizing && (
+        <small className="calendar-drag-hint">Escape to cancel</small>
+      )}
     </button>
   );
 }

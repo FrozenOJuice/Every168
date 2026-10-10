@@ -1,17 +1,33 @@
 "use client";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { z } from "zod";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useWatch } from "react-hook-form";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { blockInput, timeEntryInput } from "@168hours/contracts";
-import { localInputToInstant } from "@168hours/domain-utils";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  blockInput,
+  calendarItemInput,
+  dateSchema,
+  seriesInput,
+  timeEntryInput,
+} from "@168hours/contracts";
+import {
+  daysBetween,
+  expandPlannedSeries,
+  localInputToInstant,
+  weekday,
+} from "@168hours/domain-utils";
 import { useMe } from "@/features/identity/me";
 import { api } from "@/lib/api";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
-import { localTimeField } from "@/lib/format";
+import { formatDate, localTimeField } from "@/lib/format";
 import { editorTimes, elapsedMilliseconds, endAfter } from "./calendar-times";
-import type { TimeEditor } from "./calendar-layout";
+import type {
+  TimeEditor,
+  CalendarDraft,
+  CalendarSaveResult,
+} from "./calendar-layout";
+import { useCalendarInteractions } from "./calendar-interactions";
 export function TimeForm({
   kind,
   item,
@@ -19,35 +35,102 @@ export function TimeForm({
   minute,
   durationMinutes,
   scheduledItem,
+  fromItem,
   linkedBlock,
   duplicateOf,
   onSaved,
+  compact = false,
+  disabled = false,
+  onDraftChange,
+  allowRepeat = false,
+  initialRepeat = "never",
+  allowAllDay = false,
+  initialAllDay = false,
 }: TimeEditor & {
-  onSaved: (startsAt: string) => void;
+  onSaved: (result: CalendarSaveResult) => void;
+  compact?: boolean;
+  disabled?: boolean;
+  onDraftChange?: (draft: CalendarDraft | null) => void;
+  allowRepeat?: boolean;
+  initialRepeat?: "never" | "weekly";
+  allowAllDay?: boolean;
+  initialAllDay?: boolean;
 }) {
-  const {
-    preferences: { timezone },
-  } = useMe();
-  const cats = useQuery({
-    queryKey: ["categories"],
-    queryFn: api.getCategories,
-  });
+  const { preferences } = useMe();
+  const { timezone, weekStartsOn } = preferences;
   const cache = useQueryClient();
-  const goals = useQuery({
-    queryKey: ["goals", "selector"],
-    queryFn: () => api.getGoals({ limit: 100, status: "active" }),
-  });
-  const schema = z.object({
-    ...blockInput.shape,
-    timeBlockId: timeEntryInput.shape.timeBlockId,
-    startsAt: localTimeField(timezone),
-    endsAt: localTimeField(timezone),
-  });
+  const interaction = useCalendarInteractions();
+  const schema = z
+    .object({
+      ...blockInput.shape,
+      timeBlockId: timeEntryInput.shape.timeBlockId,
+      startsAt: z.string(),
+      endsAt: z.string(),
+      repeat: z.enum(["never", "daily", "weekly", "custom"]),
+      repeatUntil: z.string(),
+      repeatFrequency: z.enum(["daily", "weekly"]),
+      repeatInterval: z.number().int().min(1).max(52),
+      repeatWeekdays: z.array(z.number().int().min(0).max(6)),
+      allDay: z.boolean(),
+      allDayDate: z.string(),
+      allDayEndDate: z.string(),
+      spansMultipleDays: z.boolean(),
+    })
+    .superRefine((value, context) => {
+      if (value.allDay) {
+        const startDate = value.allDayDate;
+        const endDate = value.spansMultipleDays
+          ? value.allDayEndDate
+          : startDate;
+        if (
+          !dateSchema.safeParse(startDate).success ||
+          !dateSchema.safeParse(endDate).success ||
+          endDate < startDate ||
+          daysBetween(startDate, endDate) >= 31
+        )
+          context.addIssue({
+            code: "custom",
+            path: [value.spansMultipleDays ? "allDayEndDate" : "allDayDate"],
+            message: "Choose dates spanning no more than 31 days.",
+          });
+        return;
+      }
+      for (const field of ["startsAt", "endsAt"] as const) {
+        const result = localTimeField(timezone).safeParse(value[field]);
+        if (!result.success)
+          context.addIssue({
+            code: "custom",
+            path: [field],
+            message: result.error.issues[0]?.message ?? "Choose a valid time.",
+          });
+      }
+      if (value.repeat === "never") return;
+      if (
+        !dateSchema.safeParse(value.repeatUntil).success ||
+        !dateSchema.safeParse(value.startsAt.slice(0, 10)).success ||
+        value.repeatUntil < value.startsAt.slice(0, 10) ||
+        daysBetween(value.startsAt.slice(0, 10), value.repeatUntil) >= 366
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["repeatUntil"],
+          message: "Choose an end date within one year of the start.",
+        });
+      const weekly =
+        value.repeat === "weekly" ||
+        (value.repeat === "custom" && value.repeatFrequency === "weekly");
+      if (weekly && value.repeatWeekdays.length === 0)
+        context.addIssue({
+          code: "custom",
+          path: ["repeatWeekdays"],
+          message: "Choose at least one weekday.",
+        });
+    });
   const initial = editorTimes(
     { kind, item, date, minute, linkedBlock, duplicateOf, durationMinutes },
     timezone,
   );
-  const source = item ?? duplicateOf ?? scheduledItem;
+  const source = item ?? duplicateOf ?? scheduledItem ?? fromItem;
   const duration = useRef(initial.duration);
   const form = useZodForm(schema, {
     title: source?.title ?? linkedBlock?.title ?? "",
@@ -60,10 +143,43 @@ export function TimeForm({
         : (linkedBlock?.id ?? null),
     startsAt: initial.startsAt,
     endsAt: initial.endsAt,
+    repeat: initialRepeat,
+    repeatUntil: "",
+    repeatFrequency: "weekly",
+    repeatInterval: 1,
+    repeatWeekdays: [weekday(initial.startsAt.slice(0, 10))],
+    allDay: initialAllDay,
+    allDayDate: initial.startsAt.slice(0, 10),
+    allDayEndDate: initial.startsAt.slice(0, 10),
+    spansMultipleDays: false,
   });
-  const [start, end] = useWatch({
+  const [
+    start,
+    end,
+    title,
+    repeat,
+    repeatUntil,
+    repeatFrequency,
+    repeatInterval,
+    repeatWeekdays,
+    allDay,
+    allDayEndDate,
+    spansMultipleDays,
+  ] = useWatch({
     control: form.control,
-    name: ["startsAt", "endsAt"],
+    name: [
+      "startsAt",
+      "endsAt",
+      "title",
+      "repeat",
+      "repeatUntil",
+      "repeatFrequency",
+      "repeatInterval",
+      "repeatWeekdays",
+      "allDay",
+      "allDayEndDate",
+      "spansMultipleDays",
+    ],
   });
   let selectedDuration: number | null = null;
   try {
@@ -71,6 +187,94 @@ export function TimeForm({
   } catch {
     /* Incomplete or invalid local input remains editable. */
   }
+  const weekly =
+    repeat === "weekly" ||
+    (repeat === "custom" && repeatFrequency === "weekly");
+  const frequency = repeat === "custom" ? repeatFrequency : repeat;
+  const interval = repeat === "custom" ? repeatInterval : 1;
+  const seriesPreview =
+    !allDay &&
+    repeat !== "never" &&
+    selectedDuration !== null &&
+    Number.isInteger(selectedDuration) &&
+    repeatUntil &&
+    dateSchema.safeParse(repeatUntil).success &&
+    repeatUntil >= start.slice(0, 10) &&
+    dateSchema.safeParse(start.slice(0, 10)).success &&
+    daysBetween(start.slice(0, 10), repeatUntil) < 366 &&
+    (!weekly || repeatWeekdays.length)
+      ? expandPlannedSeries({
+          startDate: start.slice(0, 10),
+          untilDate: repeatUntil,
+          startMinute:
+            Number(start.slice(11, 13)) * 60 + Number(start.slice(14, 16)),
+          durationMinutes: selectedDuration,
+          frequency: frequency as "daily" | "weekly",
+          interval,
+          weekdays: repeatWeekdays,
+          timezone,
+        })
+      : null;
+  const previewStart = seriesPreview?.occurrences[0]?.startsAt;
+  const previewEnd = seriesPreview?.occurrences[0]?.endsAt;
+  const hasPreview = seriesPreview !== null;
+  useEffect(() => {
+    if (!onDraftChange) return;
+    if (allDay) {
+      onDraftChange(null);
+      return;
+    }
+    if (repeat !== "never" && hasPreview && !previewStart) {
+      onDraftChange(null);
+      return;
+    }
+    if (previewStart && previewEnd) {
+      onDraftChange({ title, startsAt: previewStart, endsAt: previewEnd });
+      return;
+    }
+    try {
+      const startsAt = localInputToInstant(start, timezone);
+      const endsAt = localInputToInstant(end, timezone);
+      if (Date.parse(endsAt) > Date.parse(startsAt))
+        onDraftChange({ title, startsAt, endsAt });
+    } catch {
+      /* Keep the last valid range visible while a time is incomplete. */
+    }
+  }, [
+    start,
+    end,
+    title,
+    timezone,
+    repeat,
+    allDay,
+    hasPreview,
+    previewStart,
+    previewEnd,
+    onDraftChange,
+  ]);
+  const repeatDays = Array.from(
+    { length: 7 },
+    (_, index) => (weekStartsOn + index) % 7,
+  )
+    .filter((day) => repeatWeekdays.includes(day))
+    .map(
+      (day) =>
+        [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ][day],
+    );
+  const repeatSummary =
+    frequency === "daily"
+      ? interval === 1
+        ? "Every day"
+        : `Every ${interval} days`
+      : `${interval === 1 ? "Every week" : `Every ${interval} weeks`} on ${repeatDays.join(", ")}`;
   function setEnd(start: string, milliseconds: number) {
     try {
       form.setValue("endsAt", endAfter(start, milliseconds, timezone), {
@@ -81,10 +285,28 @@ export function TimeForm({
       /* The field validator explains missing/repeated clock times on submit. */
     }
   }
+  const allDayRegistration = form.register("allDay");
+  const spanRegistration = form.register("spansMultipleDays");
   return (
     <Form
       form={form}
+      disabled={disabled || interaction?.busy}
       onSubmit={async (v, key) => {
+        if (kind === "block" && allowAllDay && v.allDay) {
+          const input = calendarItemInput.parse({
+            title: v.title,
+            categoryId: v.categoryId,
+            goalId: v.goalId,
+            notes: v.notes,
+            kind: "all_day",
+            date: v.allDayDate,
+            endDate: v.spansMultipleDays ? v.allDayEndDate : v.allDayDate,
+          });
+          await api.createCalendarItem(input, key);
+          await invalidateCalendar(cache);
+          onSaved({ kind: "all_day", date: v.allDayDate });
+          return;
+        }
         const times = {
           title: v.title,
           categoryId: v.categoryId,
@@ -95,22 +317,72 @@ export function TimeForm({
           form.setError("endsAt", { message: "End must be after start." });
           return;
         }
+        if (kind === "block" && allowRepeat && v.repeat !== "never") {
+          const input = seriesInput.parse({
+            title: v.title,
+            categoryId: v.categoryId,
+            goalId: v.goalId,
+            notes: v.notes,
+            timezone,
+            startDate: v.startsAt.slice(0, 10),
+            untilDate: v.repeatUntil,
+            startMinute:
+              Number(v.startsAt.slice(11, 13)) * 60 +
+              Number(v.startsAt.slice(14, 16)),
+            durationMinutes:
+              elapsedMilliseconds(v.startsAt, v.endsAt, timezone) / 60000,
+            frequency: v.repeat === "custom" ? v.repeatFrequency : v.repeat,
+            interval: v.repeat === "custom" ? v.repeatInterval : 1,
+            weekdays: v.repeatWeekdays,
+          });
+          const result = await api.createCalendarSeries(input, key);
+          await invalidateCalendar(cache);
+          onSaved({
+            kind: "timed",
+            startsAt: result.firstStartsAt,
+            count: result.count,
+          });
+          return;
+        }
         if (kind === "block") {
           const input = blockInput.parse({
             ...times,
             goalId: v.goalId,
             notes: v.notes,
           });
-          if (item)
-            await api.updateTimeBlock(item.id, input, item.version, key);
-          else if (scheduledItem)
+          if (item) {
+            const result = await api.updateTimeBlock(
+              item.id,
+              input,
+              item.version,
+              key,
+            );
+            interaction?.history.record({
+              key,
+              kind: "edit",
+              blockId: result.id,
+              title: result.title,
+              version: result.version,
+              previousVersion: item.version,
+              undoId: result.undoId,
+            });
+          } else if (scheduledItem)
             await api.scheduleCalendarItem(
               scheduledItem.id,
               input,
               scheduledItem.version,
               key,
             );
-          else await api.createTimeBlock(input, key);
+          else {
+            const result = await api.createTimeBlock(input, key);
+            interaction?.history.record({
+              key,
+              kind: "create",
+              blockId: result.id,
+              title: result.title,
+              version: result.version,
+            });
+          }
         } else {
           const input = timeEntryInput.parse({
             ...times,
@@ -121,7 +393,7 @@ export function TimeForm({
           else await api.createTimeEntry(input, key);
         }
         await invalidateCalendar(cache);
-        onSaved(times.startsAt);
+        onSaved({ kind: "timed", startsAt: times.startsAt });
       }}
     >
       {duplicateOf && (
@@ -130,104 +402,271 @@ export function TimeForm({
           before creating it. Recorded time stays with the original.
         </p>
       )}
+      {fromItem && (
+        <p className="notice">
+          This adds a separate timed plan. The all-day plan stays on the
+          calendar.
+        </p>
+      )}
       <Field name="title" label="Title" />
-      <div className="form-grid">
-        <Field
-          name="startsAt"
-          label="Start"
-          type="datetime-local"
-          onChange={(value) => setEnd(value, duration.current)}
-        />
-        <Field
-          name="endsAt"
-          label="End"
-          type="datetime-local"
-          onChange={(value) => {
-            try {
-              const next = elapsedMilliseconds(
-                form.getValues("startsAt"),
-                value,
-                timezone,
-              );
-              if (next > 0) duration.current = next;
-            } catch {
-              /* Preserve the last valid duration until both inputs are valid. */
-            }
-          }}
-        />
-      </div>
-      <div className="duration-choices" role="group" aria-label="Duration">
-        <span>Duration</span>
-        {[15, 30, 60, 120].map((minutes) => (
-          <button
-            key={minutes}
-            type="button"
-            className="button"
-            aria-pressed={selectedDuration === minutes}
-            onClick={() => {
-              duration.current = minutes * 60000;
-              setEnd(form.getValues("startsAt"), duration.current);
+      {kind === "block" && allowAllDay && (
+        <label className="calendar-all-day-toggle">
+          <input
+            type="checkbox"
+            {...allDayRegistration}
+            onChange={(event) => {
+              void allDayRegistration.onChange(event);
+              if (event.target.checked) {
+                const startDate = form.getValues("startsAt").slice(0, 10);
+                if (dateSchema.safeParse(startDate).success) {
+                  form.setValue("allDayDate", startDate);
+                  form.setValue("allDayEndDate", startDate);
+                }
+              } else {
+                const selectedDate = form.getValues("allDayDate");
+                const previous = form.getValues("startsAt");
+                if (dateSchema.safeParse(selectedDate).success) {
+                  const next = selectedDate + previous.slice(10);
+                  form.setValue("startsAt", next);
+                  setEnd(next, duration.current);
+                }
+              }
+            }}
+          />
+          All day
+        </label>
+      )}
+      {allDay ? (
+        <div className="calendar-all-day-fields">
+          <Field
+            name="allDayDate"
+            label="Date"
+            type="date"
+            required
+            onChange={(value) => {
+              if (!spansMultipleDays || allDayEndDate < value)
+                form.setValue("allDayEndDate", value);
+            }}
+          />
+          <label className="calendar-all-day-toggle">
+            <input
+              type="checkbox"
+              {...spanRegistration}
+              onChange={(event) => {
+                void spanRegistration.onChange(event);
+                if (!event.target.checked)
+                  form.setValue("allDayEndDate", form.getValues("allDayDate"));
+              }}
+            />
+            Spans multiple days
+          </label>
+          {spansMultipleDays && (
+            <Field name="allDayEndDate" label="Last day" type="date" required />
+          )}
+          <small>All-day plans do not allocate hours.</small>
+        </div>
+      ) : (
+        <div className="form-grid">
+          <Field
+            name="startsAt"
+            label="Start"
+            type="datetime-local"
+            onChange={(value) => setEnd(value, duration.current)}
+          />
+          <Field
+            name="endsAt"
+            label="End"
+            type="datetime-local"
+            onChange={(value) => {
+              try {
+                const next = elapsedMilliseconds(
+                  form.getValues("startsAt"),
+                  value,
+                  timezone,
+                );
+                if (next > 0) duration.current = next;
+              } catch {
+                /* Preserve the last valid duration until both inputs are valid. */
+              }
+            }}
+          />
+        </div>
+      )}
+      {!allDay && !compact && (
+        <div className="duration-choices" role="group" aria-label="Duration">
+          <span>Duration</span>
+          {[15, 30, 60, 120].map((minutes) => (
+            <button
+              key={minutes}
+              type="button"
+              className="button"
+              aria-pressed={selectedDuration === minutes}
+              onClick={() => {
+                duration.current = minutes * 60000;
+                setEnd(form.getValues("startsAt"), duration.current);
+              }}
+            >
+              {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}
+            </button>
+          ))}
+        </div>
+      )}
+      {!allDay && !compact && (
+        <small>
+          Times are in {timezone}. Moving Start keeps the duration; change End
+          or choose a duration to resize.{" "}
+          {kind === "entry" ? "Enter the time you actually spent." : ""}
+        </small>
+      )}
+      {kind === "block" && allowRepeat && !allDay && (
+        <div className="calendar-repeat-fields">
+          <Field
+            name="repeat"
+            label="Repeat"
+            onChange={(value) => {
+              const startDate = form.getValues("startsAt").slice(0, 10);
+              if (
+                (value === "weekly" || value === "custom") &&
+                dateSchema.safeParse(startDate).success
+              )
+                form.setValue("repeatWeekdays", [weekday(startDate)]);
             }}
           >
-            {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`}
-          </button>
-        ))}
-      </div>
-      <small>
-        Times are in {timezone}. Moving Start keeps the duration; change End or
-        choose a duration to resize.{" "}
-        {kind === "entry" ? "Enter the time you actually spent." : ""}
-      </small>
-      <details open={!!item || !!duplicateOf || !!scheduledItem}>
-        <summary>More details</summary>
-        <div className="form-stack">
-          <Field name="categoryId" label="Category" optional>
-            <option value="">Uncategorized</option>
-            {cats.data
-              ?.filter((c) => !c.archivedAt || c.id === source?.categoryId)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
+            <option value="never">Never</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="custom">Custom</option>
           </Field>
-          {kind === "block" && (
-            <Field name="goalId" label="Goal (optional)" optional>
-              <option value="">No linked goal</option>
-              {source &&
-                "goalId" in source &&
-                source.goalId &&
-                !goals.data?.items.some((g) => g.id === source.goalId) && (
-                  <option value={source.goalId}>Previously linked goal</option>
-                )}
-              {goals.data?.items.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.title}
-                </option>
-              ))}
-            </Field>
-          )}
-          {kind === "block" && (
-            <Field
-              name="notes"
-              label="Notes (optional)"
-              type="textarea"
-              optional
-            />
+          {repeat !== "never" && (
+            <>
+              {repeat === "custom" && (
+                <div className="form-grid">
+                  <Field name="repeatFrequency" label="Repeat by">
+                    <option value="daily">Days</option>
+                    <option value="weekly">Weeks</option>
+                  </Field>
+                  <Field
+                    name="repeatInterval"
+                    label="Every"
+                    type="number"
+                    min={1}
+                    max={52}
+                  />
+                </div>
+              )}
+              {weekly && (
+                <div className="calendar-repeat-weekdays">
+                  <span>Repeat on</span>
+                  <div
+                    className="weekday-choices"
+                    role="group"
+                    aria-label="Repeat on"
+                  >
+                    {Array.from(
+                      { length: 7 },
+                      (_, index) => (weekStartsOn + index) % 7,
+                    ).map((day) => (
+                      <button
+                        type="button"
+                        className="button"
+                        key={day}
+                        aria-pressed={repeatWeekdays.includes(day)}
+                        onClick={() =>
+                          form.setValue(
+                            "repeatWeekdays",
+                            repeatWeekdays.includes(day)
+                              ? repeatWeekdays.filter(
+                                  (selected) => selected !== day,
+                                )
+                              : [...repeatWeekdays, day],
+                            { shouldDirty: true, shouldValidate: true },
+                          )
+                        }
+                      >
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day]}
+                      </button>
+                    ))}
+                  </div>
+                  {form.formState.errors.repeatWeekdays && (
+                    <small className="error" role="alert">
+                      {form.formState.errors.repeatWeekdays.message}
+                    </small>
+                  )}
+                </div>
+              )}
+              <Field
+                name="repeatUntil"
+                label="Repeat through"
+                type="date"
+                required
+              />
+              {seriesPreview && (
+                <div className="calendar-repeat-preview">
+                  <strong>
+                    {seriesPreview.occurrences.length} plans will be added
+                  </strong>
+                  <p>
+                    {repeatSummary}, {start.slice(11, 16)}–{end.slice(11, 16)},
+                    through{" "}
+                    {formatDate(repeatUntil, {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                    .
+                  </p>
+                  {seriesPreview.occurrences.length > 0 && (
+                    <p>
+                      First dates:{" "}
+                      {seriesPreview.occurrences
+                        .slice(0, 3)
+                        .map((occurrence) => formatDate(occurrence.date))
+                        .join(", ")}
+                      {seriesPreview.occurrences.length > 3 ? "…" : ""}
+                    </p>
+                  )}
+                  {seriesPreview.skippedDates.length > 0 && (
+                    <p>
+                      Missing clock times skipped:{" "}
+                      {seriesPreview.skippedDates.join(", ")}.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
-      </details>
+      )}
+      {kind === "block" && (
+        <details
+          open={!compact && (!!item || !!duplicateOf || !!scheduledItem)}
+        >
+          <summary>More details</summary>
+          <Field
+            name="notes"
+            label="Notes (optional)"
+            type="textarea"
+            optional
+          />
+        </details>
+      )}
       {linkedBlock && (
         <p className="muted text-small">
           Linked to planned block: {linkedBlock.title}
         </p>
       )}
       <Submit>
-        {item
-          ? "Save changes"
-          : kind === "block"
-            ? "Create block"
-            : "Record time"}
+        {allDay && !compact
+          ? "Create all-day plan"
+          : !allDay && allowRepeat && repeat !== "never"
+            ? "Create repeating plan"
+            : compact
+              ? "Save"
+              : item
+                ? "Save changes"
+                : kind === "block"
+                  ? "Create block"
+                  : "Record time"}
       </Submit>
     </Form>
   );

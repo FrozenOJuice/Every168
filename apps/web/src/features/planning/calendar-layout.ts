@@ -94,23 +94,18 @@ export function dayRecords(
 export function layoutDay(
   records: CalendarRecord[],
   day: Week["days"][number],
-  hourHeight = HOUR_HEIGHT,
 ) {
-  const minMinutes = (46 / hourHeight) * 60;
   const start = Date.parse(day.startsAt);
   const end = Date.parse(day.endsAt);
   const segments = records
     .map((record) => {
       const from = Math.max(start, Date.parse(record.item.startsAt));
       const to = Math.min(end, Date.parse(record.item.endsAt));
-      const top = Math.min((from - start) / 60000, 1440 - minMinutes);
+      const top = Math.min((from - start) / 60000, 1440);
       return {
         record,
         top,
-        bottom: Math.min(
-          1440,
-          Math.max((to - start) / 60000, top + minMinutes),
-        ),
+        bottom: Math.min(1440, (to - start) / 60000),
         lane: 0,
         lanes: 1,
         valid: to > from,

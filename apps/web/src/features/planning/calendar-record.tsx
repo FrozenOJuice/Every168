@@ -11,6 +11,7 @@ export function CalendarRecord({
   onOpen,
   compact = false,
   short = false,
+  detailsOnInteraction = false,
   month = false,
   date,
 }: {
@@ -19,6 +20,7 @@ export function CalendarRecord({
   onOpen: () => void;
   compact?: boolean;
   short?: boolean;
+  detailsOnInteraction?: boolean;
   month?: boolean;
   date?: string;
 }) {
@@ -26,7 +28,8 @@ export function CalendarRecord({
   const { item, kind } = record;
   const resizing =
     kind === "block" && interaction?.preview?.resize?.id === item.id;
-  const selected = kind === "block" && interaction?.selectedId === item.id;
+  const selected =
+    kind === "block" && interaction?.isSelected("block", item.id);
   const startDate = localDate(item.startsAt, week.timezone);
   const endDate = localDate(item.endsAt, week.timezone);
   const continuing = compact && !month && date && startDate < date;
@@ -45,14 +48,18 @@ export function CalendarRecord({
         (compact ? "compact " : "") +
         (short ? "short " : "") +
         (kind === "entry" ? "recorded" : "planned") +
-        (selected ? " drag-selected" : "") +
+        (selected
+          ? interaction?.selectedPlanCount === 1
+            ? " drag-selected"
+            : " plan-selected"
+          : "") +
         (interaction?.draggingId === item.id ? " drag-source" : "")
       }
       onClick={(event) => {
         if (interaction?.busy) return;
         event.currentTarget.focus({ preventScroll: true });
         if (kind === "block" && interaction && event.detail > 0)
-          interaction.select(item.id);
+          interaction.select(item.id, event);
         else onOpen();
       }}
       onDoubleClick={() => {
@@ -63,7 +70,11 @@ export function CalendarRecord({
         if (compact && date && record.kind === "block")
           interaction?.start(event, "move", record.item, date);
       }}
-      title={`${item.title} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`}
+      title={
+        detailsOnInteraction
+          ? undefined
+          : `${item.title} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`
+      }
       aria-label={`${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}`}
     >
       <span className="record-time">

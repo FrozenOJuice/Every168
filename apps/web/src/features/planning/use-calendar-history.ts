@@ -19,6 +19,15 @@ export function useCalendarHistory(
   const cache = useQueryClient();
   const command = useCommand({
     mutationFn: async (action: CalendarAction, key: string) => {
+      if (action.kind === "group-delete")
+        return {
+          action,
+          block: null,
+          selection: await api.undoCalendarSelectionDelete(
+            { undoId: action.undoId },
+            key,
+          ),
+        };
       const block =
         action.kind === "copy"
           ? (await api.undoCalendarCopy(
@@ -32,10 +41,10 @@ export function useCalendarHistory(
               ? await api.undoTimeBlockEdit(action.undoId, action.version, key)
               : (await api.deleteTimeBlock(action.blockId, action.version, key),
                 null);
-      return { action, block };
+      return { action, block, selection: null };
     },
-    onSuccess: async ({ action, block }) => {
-      setActions((history) => undoAction(history, action, block));
+    onSuccess: async ({ action, block, selection }) => {
+      setActions((history) => undoAction(history, action, block, selection));
       await invalidateCalendar(cache);
       onUndone(block, action);
     },

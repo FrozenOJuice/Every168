@@ -83,12 +83,15 @@ describe("calendar presentation", () => {
       ((anchor.top + anchor.y) * 100) / anchor.height - anchor.y,
     );
   });
-  it("keeps short records reachable at every hour scale", () => {
+  it("keeps short records proportional at every hour scale", () => {
     const short = record(1, "2026-09-07T18:00:00Z", "2026-09-07T18:05:00Z");
     for (const height of [12, 32, 44, 60, 120, 240]) {
-      const [segment] = layoutDay([short], day, height);
+      const [segment] = layoutDay([short], day);
       expect(segment).toBeDefined();
-      expect(((segment!.bottom - segment!.top) / 60) * height).toBeCloseTo(46);
+      expect(segment!.bottom - segment!.top).toBe(5);
+      expect(((segment!.bottom - segment!.top) / 60) * height).toBeCloseTo(
+        height / 12,
+      );
     }
   });
   it("keeps the rest of a busy day visible and exposes only excess lanes as overflow", () => {
@@ -134,7 +137,7 @@ describe("calendar presentation", () => {
       [0, 1],
     ]);
   });
-  it("keeps very short records reachable, including near midnight, without overlaying their touch targets", () => {
+  it("keeps short records at their real times without inventing overlap near midnight", () => {
     const positions = layoutDay(
       [
         record(1, "2026-09-08T05:50:00Z", "2026-09-08T05:51:00Z"),
@@ -143,13 +146,12 @@ describe("calendar presentation", () => {
       day,
     );
     expect(positions).toHaveLength(2);
-    for (const p of positions) {
-      expect(((p.bottom - p.top) / 60) * HOUR_HEIGHT).toBeGreaterThanOrEqual(
-        45.99,
-      );
-      expect(p.bottom).toBeLessThanOrEqual(1440);
-      expect(p.lanes).toBe(2);
-    }
+    expect(
+      positions.map(({ top, bottom, lanes }) => [top, bottom, lanes]),
+    ).toEqual([
+      [1430, 1431, 1],
+      [1435, 1440, 1],
+    ]);
   });
   it("does not render an interval touching only the boundary of the day", () => {
     expect(

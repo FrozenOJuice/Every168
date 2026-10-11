@@ -10,8 +10,14 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { uncertainWrite } from "@168hours/api-client";
-import type { Block, BlockInput, BlockDeletion } from "@168hours/contracts";
-import { plannedInstant } from "@168hours/domain-utils";
+import type {
+  Block,
+  BlockInput,
+  BlockDeletion,
+  CalendarItem,
+  GroupDeleteInput,
+} from "@168hours/contracts";
+import { instantToLocalInput, plannedInstant } from "@168hours/domain-utils";
 import { createPortal } from "react-dom";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
@@ -42,6 +48,20 @@ type Preview = {
   bounds: Gesture["bounds"] | null;
   resize: { id: string; startsAt: string; endsAt: string } | null;
 };
+export type PlanSelection = { kind: "block" | "item"; id: string };
+type SelectionModifiers = {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+};
+type CalendarNotice = {
+  id: number;
+  message: string;
+  undoKey?: string;
+  action?: { label: string; onClick: () => void };
+  kind: "copy" | "change" | "hint" | "error";
+};
+const selectionKey = ({ kind, id }: PlanSelection) => `${kind}:${id}`;
 export type CalendarTimeSelection = { date: string; minute?: number };
 type Interactions = {
   timeSelection: CalendarTimeSelection | null;
@@ -53,9 +73,14 @@ type Interactions = {
     date?: string,
   ) => void;
   adjust: (id: string) => void;
-  select: (id: string) => void;
+  select: (id: string, modifiers?: SelectionModifiers) => void;
+  selectItem: (id: string, modifiers?: SelectionModifiers) => void;
+  isSelected: (kind: PlanSelection["kind"], id: string) => boolean;
+  selectedPlans: PlanSelection[];
+  selectedPlanCount: number;
   adjusting: boolean;
   selectedId: string | null;
+  selectedItemId: string | null;
   selectedMode: Exclude<DragMode, "create">;
   setMode: (mode: Exclude<DragMode, "create">) => void;
   finish: () => void;
@@ -64,8 +89,24 @@ type Interactions = {
   busy: boolean;
   quickActionsAvailable: boolean;
   status: string;
+  notice: CalendarNotice | null;
+  showNotice: (
+    message: string,
+    options?: {
+      undoKey?: string;
+      action?: CalendarNotice["action"];
+      kind?: CalendarNotice["kind"];
+    },
+  ) => void;
+  dismissNotice: () => void;
   remove: ReturnType<
-    typeof useCommand<BlockDeletion & { title: string }, Block>
+    typeof useCommand<BlockDeletion & { title: string; key: string }, Block>
+  >;
+  groupDelete: ReturnType<
+    typeof useCommand<
+      { ok: true; undoId: string; key: string },
+      GroupDeleteInput
+    >
   >;
   history: ReturnType<typeof useCalendarHistory>;
   deleteBlock: (block: Block) => void;
@@ -108,37 +149,155 @@ export function CalendarInteractions({
   timezone,
   hourHeight,
   blocks,
+  items,
   editorOpen,
   onCreate,
   timeSelection,
   onSelectTime,
   onClearTimeSelection,
+  onSelectPlan,
   children,
 }: {
   timeSelection: CalendarTimeSelection | null;
   onSelectTime: (point: CalendarTimeSelection) => void;
   onClearTimeSelection: () => void;
+  onSelectPlan: () => void;
   timezone: string;
   hourHeight: number;
   blocks: Block[];
+  items: CalendarItem[];
   editorOpen: boolean;
   onCreate: (date: string, minute: number, duration: number) => void;
   children: ReactNode;
 }) {
   const [gesture, setGesture] = useState<Gesture | null>(null),
     [preview, setPreview] = useState<Preview | null>(null),
-    [selectedId, setSelectedId] = useState<string | null>(null),
+    [selectedPlans, setSelectedPlans] = useState<PlanSelection[]>([]),
     [adjusting, setAdjusting] = useState(false),
     [mode, setMode] = useState<Exclude<DragMode, "create">>("move"),
-    [status, setStatus] = useState("");
+    [status, setStatus] = useState(""),
+    [notice, setNotice] = useState<CalendarNotice | null>(null);
+  const noticeId = useRef(0);
+  function showNotice(
+    message: string,
+    options?: {
+      undoKey?: string;
+      action?: CalendarNotice["action"];
+      kind?: CalendarNotice["kind"];
+    },
+  ) {
+    setNotice({
+      id: ++noticeId.current,
+      message,
+      undoKey: options?.undoKey,
+      action: options?.action,
+      kind: options?.kind ?? "hint",
+    });
+  }
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(
+      () =>
+        setNotice((current) => (current?.id === notice.id ? null : current)),
+      notice.undoKey || notice.action
+        ? 5000
+        : notice.kind === "hint" || notice.kind === "error"
+          ? 4000
+          : 2400,
+    );
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  const selectionAnchor = useRef<string | null>(null);
+  const selectedId =
+    selectedPlans.length === 1 && selectedPlans[0]?.kind === "block"
+      ? selectedPlans[0].id
+      : null;
+  const selectedItemId =
+    selectedPlans.length === 1 && selectedPlans[0]?.kind === "item"
+      ? selectedPlans[0].id
+      : null;
+  function clearSelectedPlans() {
+    setSelectedPlans((current) => (current.length ? [] : current));
+    selectionAnchor.current = null;
+  }
+  function selectPlan(plan: PlanSelection, modifiers?: SelectionModifiers) {
+    if (busy) return;
+    onClearTimeSelection();
+    onSelectPlan();
+    const key = selectionKey(plan);
+    const additive = modifiers?.metaKey || modifiers?.ctrlKey;
+    if (modifiers?.shiftKey && selectionAnchor.current) {
+      const ordered = [
+        ...blocks.map((block) => ({
+          kind: "block" as const,
+          id: block.id,
+          order: instantToLocalInput(block.startsAt, timezone),
+        })),
+        ...items
+          .filter((item) => item.kind === "all_day" && item.date)
+          .map((item) => ({
+            kind: "item" as const,
+            id: item.id,
+            order: `${item.date}T00:00`,
+          })),
+      ].sort(
+        (a, b) =>
+          a.order.localeCompare(b.order) ||
+          selectionKey(a).localeCompare(selectionKey(b)),
+      );
+      const start = ordered.findIndex(
+        (candidate) => selectionKey(candidate) === selectionAnchor.current,
+      );
+      const end = ordered.findIndex(
+        (candidate) => selectionKey(candidate) === key,
+      );
+      if (start >= 0 && end >= 0) {
+        const range = ordered.slice(
+          Math.min(start, end),
+          Math.max(start, end) + 1,
+        );
+        setSelectedPlans((current) => {
+          const existing = additive ? current : [];
+          const keys = new Set(existing.map(selectionKey));
+          return [
+            ...existing,
+            ...range
+              .filter((candidate) => !keys.has(selectionKey(candidate)))
+              .map(({ kind, id }) => ({ kind, id })),
+          ];
+        });
+      } else {
+        setSelectedPlans([plan]);
+        selectionAnchor.current = key;
+      }
+    } else if (additive) {
+      setSelectedPlans((current) =>
+        current.some((candidate) => selectionKey(candidate) === key)
+          ? current.filter((candidate) => selectionKey(candidate) !== key)
+          : [...current, plan],
+      );
+      selectionAnchor.current =
+        selectedPlans.length === 1 && selectionKey(selectedPlans[0]!) === key
+          ? null
+          : key;
+    } else {
+      setSelectedPlans([plan]);
+      selectionAnchor.current = key;
+    }
+    setMode("move");
+    setAdjusting(false);
+  }
   const history = useCalendarHistory((block, action) => {
-    setSelectedId(block?.id ?? null);
+    setSelectedPlans(block ? [{ kind: "block", id: block.id }] : []);
+    selectionAnchor.current = block ? `block:${block.id}` : null;
     setStatus(
-      action.kind === "delete"
-        ? "Plan restored."
-        : action.kind === "edit"
-          ? "Plan edit undone."
-          : "Plan creation undone.",
+      action.kind === "group-delete"
+        ? "Plans restored."
+        : action.kind === "delete"
+          ? "Plan restored."
+          : action.kind === "edit"
+            ? "Plan edit undone."
+            : "Plan creation undone.",
     );
     if (block)
       requestAnimationFrame(() =>
@@ -183,7 +342,10 @@ export function CalendarInteractions({
       }
     },
   });
-  const remove = useCommand<BlockDeletion & { title: string }, Block>({
+  const remove = useCommand<
+    BlockDeletion & { title: string; key: string },
+    Block
+  >({
     mutationFn: async (block, key) => {
       const result = await api.deleteTimeBlock(block.id, block.version, key);
       history.record({
@@ -194,20 +356,40 @@ export function CalendarInteractions({
         previousVersion: block.version,
         undoId: result.undoId,
       });
-      return { ...result, title: block.title };
+      return { ...result, title: block.title, key };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ key }) => {
       await invalidateCalendar(cache);
-      setSelectedId(null);
+      clearSelectedPlans();
       setAdjusting(false);
       setStatus("Plan deleted.");
+      showNotice("Plan deleted", { undoKey: key, kind: "change" });
     },
     onError: (error) => {
       if (!uncertainWrite(error)) setStatus("");
     },
   });
+  const groupDelete = useCommand<
+    { ok: true; undoId: string; key: string },
+    GroupDeleteInput
+  >({
+    mutationFn: async (input, key) => {
+      const result = await api.deleteCalendarSelection(input, key);
+      history.record({ kind: "group-delete", key, undoId: result.undoId });
+      return { ...result, key };
+    },
+    onSuccess: async ({ key }) => {
+      await invalidateCalendar(cache);
+      clearSelectedPlans();
+      setStatus("Plans deleted.");
+      showNotice("Plans deleted", { undoKey: key, kind: "change" });
+    },
+  });
   const busy =
-    command.isPending || remove.isPending || history.command.isPending;
+    command.isPending ||
+    remove.isPending ||
+    groupDelete.isPending ||
+    history.command.isPending;
   function deleteBlock(block: Block) {
     if (busy) return;
     setStatus("Deleting plan…");
@@ -350,7 +532,17 @@ export function CalendarInteractions({
         Math.hypot(x - gesture!.x, y - gesture!.y) >
         Math.min(3, (hourHeight / 12) * 0.75);
       if (moved) {
-        if (gesture!.block) setSelectedId(gesture!.block.id);
+        if (gesture!.block) {
+          const id = gesture!.block.id;
+          setSelectedPlans((current) =>
+            current.length === 1 &&
+            current[0]?.kind === "block" &&
+            current[0].id === id
+              ? current
+              : [{ kind: "block", id }],
+          );
+          selectionAnchor.current = `block:${gesture!.block.id}`;
+        }
         suppress.current = true;
         event.preventDefault();
         evaluate();
@@ -459,13 +651,14 @@ export function CalendarInteractions({
     selectTime(point) {
       if (busy || editorOpen) return;
       onSelectTime(point);
-      setSelectedId(null);
+      clearSelectedPlans();
       setAdjusting(false);
     },
     start(event, requested, block, date) {
       if (busy || event.button !== 0 || event.isPrimary === false) return;
       const touch = event.pointerType !== "mouse";
       if (touch && (!block || block.id !== selectedId)) return;
+      if (block && (event.metaKey || event.ctrlKey || event.shiftKey)) return;
       const origin =
         pointAt(event.clientX, event.clientY, requested, hourHeight) ??
         (date ? { date } : null);
@@ -492,27 +685,33 @@ export function CalendarInteractions({
         },
       });
     },
-    select(id) {
-      if (busy) return;
-      onClearTimeSelection();
-      setSelectedId(id);
-      setMode("move");
-      setAdjusting(false);
+    select(id, modifiers) {
+      selectPlan({ kind: "block", id }, modifiers);
     },
+    selectItem(id, modifiers) {
+      selectPlan({ kind: "item", id }, modifiers);
+    },
+    isSelected: (kind, id) =>
+      selectedPlans.some((plan) => plan.kind === kind && plan.id === id),
+    selectedPlans,
+    selectedPlanCount: selectedPlans.length,
     adjust(id) {
       onClearTimeSelection();
-      setSelectedId(id);
+      onSelectPlan();
+      setSelectedPlans([{ kind: "block", id }]);
+      selectionAnchor.current = `block:${id}`;
       setAdjusting(true);
       setMode("move");
       setStatus("");
     },
     selectedId,
+    selectedItemId,
     adjusting,
     selectedMode: mode,
     setMode,
     finish() {
       onClearTimeSelection();
-      setSelectedId(null);
+      clearSelectedPlans();
       setAdjusting(false);
       setStatus("");
     },
@@ -522,9 +721,13 @@ export function CalendarInteractions({
     busy,
     quickActionsAvailable: !gesture && !editorOpen && !busy,
     remove,
+    groupDelete,
     history,
     deleteBlock,
     status,
+    notice,
+    showNotice,
+    dismissNotice: () => setNotice(null),
     command,
   };
   return (
@@ -547,14 +750,14 @@ export function CalendarInteractions({
               ".calendar-record, .calendar-resize-handle, .calendar-adjust-controls, .calendar-plan-popover",
             )
           ) {
-            setSelectedId(null);
+            clearSelectedPlans();
             setAdjusting(false);
           }
         }}
         onKeyDown={(event) => {
           if (
             (event.key === "Delete" || event.key === "Backspace") &&
-            selectedId &&
+            selectedPlans.length > 0 &&
             !gesture &&
             !busy &&
             !editorOpen &&
@@ -569,6 +772,27 @@ export function CalendarInteractions({
               'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]',
             )
           ) {
+            if (selectedPlans.length > 1) {
+              const plans = selectedPlans.map((plan) => {
+                const record =
+                  plan.kind === "block"
+                    ? blocks.find((block) => block.id === plan.id)
+                    : items.find((item) => item.id === plan.id);
+                return record
+                  ? { kind: plan.kind, id: plan.id, version: record.version }
+                  : null;
+              });
+              event.preventDefault();
+              event.stopPropagation();
+              if (plans.some((plan) => plan === null)) {
+                clearSelectedPlans();
+                setStatus("Selection changed. Select the plans again.");
+              } else
+                groupDelete.mutate({
+                  plans: plans as GroupDeleteInput["plans"],
+                });
+              return;
+            }
             const block = blocks.find((block) => block.id === selectedId);
             if (block) {
               event.preventDefault();
@@ -579,7 +803,7 @@ export function CalendarInteractions({
           }
           if (event.key === "Escape" && !gesture && !busy) {
             onClearTimeSelection();
-            setSelectedId(null);
+            clearSelectedPlans();
             setAdjusting(false);
           }
         }}
@@ -626,8 +850,34 @@ export function CalendarInteractions({
 export function CalendarInteractionStatus() {
   const interaction = useCalendarInteractions();
   if (!interaction) return null;
+  const notice = interaction.notice;
+  const canUndoNotice =
+    !!notice?.undoKey &&
+    interaction.history.actions.at(-1)?.key === notice.undoKey;
   return (
     <>
+      {notice && (
+        <div className="calendar-notice" data-kind={notice.kind}>
+          <span className="calendar-notice-mark" aria-hidden="true">
+            {notice.kind === "hint" ? "i" : notice.kind === "error" ? "!" : "✓"}
+          </span>
+          <span className="calendar-notice-message">{notice.message}</span>
+          {(canUndoNotice || notice.action) && (
+            <button
+              type="button"
+              className="calendar-notice-action"
+              disabled={canUndoNotice && interaction.busy}
+              onClick={() => {
+                if (canUndoNotice) interaction.history.undo();
+                else notice.action?.onClick();
+                interaction.dismissNotice();
+              }}
+            >
+              {canUndoNotice ? "Undo" : notice.action?.label}
+            </button>
+          )}
+        </div>
+      )}
       {interaction.selectedId && interaction.adjusting && (
         <div className="calendar-adjust-controls">
           <span>Drag the selected block</span>
@@ -676,6 +926,7 @@ export function CalendarInteractionStatus() {
       <CommandError command={interaction.history.command} />
       <CommandError command={interaction.command} />
       <CommandError command={interaction.remove} />
+      <CommandError command={interaction.groupDelete} />
     </>
   );
 }

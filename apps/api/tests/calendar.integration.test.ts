@@ -442,8 +442,26 @@ it("copies a selected plan or date range and repeats a multi-day template withou
       )
       .expect(200)
   ).body;
-  expect(duplicatePreview.blocks).toHaveLength(0);
-  expect(duplicatePreview.skipped).toBe(2);
+  expect(duplicatePreview.blocks).toHaveLength(2);
+  const duplicate = (
+    await a
+      .post("calendar/copy", {
+        ...range,
+        targetDate: range.sourceDate,
+        token: duplicatePreview.token,
+      })
+      .expect(201)
+  ).body;
+  expect(duplicate.createdBlocks).toHaveLength(2);
+  expect(duplicate.createdBlocks[0].id).not.toBe(first.id);
+  await a
+    .post("calendar/copy/undo", {
+      blocks: duplicate.createdBlocks.map(
+        ({ id, version }: { id: string; version: number }) => ({ id, version }),
+      ),
+      items: [],
+    })
+    .expect(200);
   const selfPreview = (
     await a
       .get(
@@ -458,8 +476,8 @@ it("copies a selected plan or date range and repeats a multi-day template withou
       )
       .expect(200)
   ).body;
-  expect(selfPreview.blocks).toHaveLength(0);
-  expect(selfPreview.skipped).toBe(1);
+  expect(selfPreview.blocks).toHaveLength(1);
+  expect(selfPreview.blocks[0].startsAt).not.toBe(block.startsAt);
   const copiedRange = (
     await a
       .post("calendar/copy", { ...range, token: rangePreview.token })
@@ -509,6 +527,19 @@ it("copies a selected plan or date range and repeats a multi-day template withou
       .get("calendar/copy-preview?" + new URLSearchParams(allDayCopy))
       .expect(200)
   ).body;
+  const sameDayPreview = (
+    await a
+      .get(
+        "calendar/copy-preview?" +
+          new URLSearchParams({
+            ...allDayCopy,
+            targetDate: allDayCopy.sourceDate,
+          }),
+      )
+      .expect(200)
+  ).body;
+  expect(sameDayPreview.items).toHaveLength(1);
+  expect(sameDayPreview.items[0].date).toBe(allDay.date);
   const copiedAllDay = (
     await a
       .post("calendar/copy", { ...allDayCopy, token: allDayPreview.token })
@@ -558,6 +589,274 @@ it("copies a selected plan or date range and repeats a multi-day template withou
     )
     .expect(201);
   expect((await a.get("weeks/2026-10-05")).body.entries).toHaveLength(0);
+});
+
+it("pastes captured plans after their sources change or disappear", async () => {
+  const a = api((await signUp()).cookie);
+  const b = api((await signUp()).cookie);
+  const original = { ...block, title: "Before edit", notes: "Original notes" };
+  const first = (await a.post("time-blocks", original).expect(201)).body;
+  const later = {
+    ...block,
+    title: "Second block",
+    startsAt: "2026-09-09T13:00:00Z",
+    endsAt: "2026-09-09T14:00:00Z",
+  };
+  const second = (await a.post("time-blocks", later).expect(201)).body;
+  const day = {
+    title: "Day marker",
+    kind: "all_day",
+    date: "2026-09-08",
+    endDate: "2026-09-08",
+    categoryId: null,
+    goalId: null,
+    notes: null,
+  };
+  const item = (await a.post("calendar/items", day).expect(201)).body;
+  const snapshot = {
+    sourceDate: "2026-09-07",
+    timezone: "UTC",
+    blocks: [original, later],
+    items: [day],
+  };
+  const changed = (
+    await a
+      .put(
+        "time-blocks/" + first.id,
+        {
+          ...original,
+          title: "After edit",
+          startsAt: "2026-09-11T12:00:00Z",
+          endsAt: "2026-09-11T13:00:00Z",
+        },
+        first.version,
+      )
+      .expect(200)
+  ).body;
+  await a.del("time-blocks/" + first.id, changed.version).expect(200);
+  await a.del("time-blocks/" + second.id, second.version).expect(200);
+  await a.del("calendar/items/" + item.id, item.version).expect(200);
+
+  const single = {
+    snapshot: { ...snapshot, blocks: [original], items: [] },
+    targetDate: "2026-09-14",
+  };
+  const singlePreview = (
+    await a.post("calendar/snapshot-preview", single).expect(200)
+  ).body;
+  expect(singlePreview.blocks[0].title).toBe("Before edit");
+  expect(singlePreview.blocks[0].startsAt).toBe("2026-09-14T09:00:00Z");
+  await b
+    .post("calendar/snapshot-copy", { ...single, token: singlePreview.token })
+    .expect(409);
+  const singleCopy = (
+    await a
+      .post("calendar/snapshot-copy", { ...single, token: singlePreview.token })
+      .expect(201)
+  ).body;
+  expect(singleCopy.createdBlocks).toHaveLength(1);
+  expect(singleCopy.createdBlocks[0].id).not.toBe(first.id);
+  expect(
+    (await a.get("time-blocks/" + singleCopy.createdBlocks[0].id)).body.notes,
+  ).toBe("Original notes");
+  await a
+    .post("calendar/copy/undo", {
+      blocks: singleCopy.createdBlocks.map(
+        ({ id, version }: { id: string; version: number }) => ({ id, version }),
+      ),
+      items: [],
+    })
+    .expect(200);
+
+  const group = { snapshot, targetDate: "2026-09-21", targetMinute: 600 };
+  const groupPreview = (
+    await a.post("calendar/snapshot-preview", group).expect(200)
+  ).body;
+  expect(
+    groupPreview.blocks.map((entry: { startsAt: string }) => entry.startsAt),
+  ).toEqual(["2026-09-21T10:00:00Z", "2026-09-23T14:00:00Z"]);
+  expect(groupPreview.items[0].date).toBe("2026-09-22");
+  const groupCopy = (
+    await a
+      .post("calendar/snapshot-copy", { ...group, token: groupPreview.token })
+      .expect(201)
+  ).body;
+  expect(groupCopy.count).toBe(3);
+  await a
+    .post("calendar/copy/undo", {
+      blocks: groupCopy.createdBlocks.map(
+        ({ id, version }: { id: string; version: number }) => ({ id, version }),
+      ),
+      items: groupCopy.createdItems,
+    })
+    .expect(200);
+});
+it("copies an arbitrary plan selection and deletes/restores a mixed group atomically", async () => {
+  const a = api((await signUp()).cookie);
+  const b = api((await signUp()).cookie);
+  const first = (
+    await a
+      .post("time-blocks", {
+        ...block,
+        title: "First shift",
+        startsAt: "2026-09-07T15:00:00Z",
+        endsAt: "2026-09-07T16:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  const linked = (
+    await a
+      .post("time-entries", {
+        title: "Recorded first shift",
+        categoryId: null,
+        timeBlockId: first.id,
+        startsAt: first.startsAt,
+        endsAt: first.endsAt,
+      })
+      .expect(201)
+  ).body;
+  const second = (
+    await a
+      .post("time-blocks", {
+        ...block,
+        title: "Later shift",
+        startsAt: "2026-09-09T19:00:00Z",
+        endsAt: "2026-09-09T20:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  const allDay = (
+    await a
+      .post("calendar/items", {
+        title: "Conference",
+        kind: "all_day",
+        date: "2026-09-08",
+        endDate: "2026-09-08",
+      })
+      .expect(201)
+  ).body;
+  const selection = {
+    span: "selection",
+    sourceDate: "2026-09-07",
+    selectedPlans: `block:${first.id},item:${allDay.id},block:${second.id}`,
+    targetDate: "2026-09-14",
+    targetMinute: "600",
+  };
+  await b
+    .get("calendar/copy-preview?" + new URLSearchParams(selection))
+    .expect(404);
+  const preview = (
+    await a
+      .get("calendar/copy-preview?" + new URLSearchParams(selection))
+      .expect(200)
+  ).body;
+  expect(
+    preview.blocks.map((plan: { startsAt: string }) => plan.startsAt),
+  ).toEqual(["2026-09-14T10:00:00Z", "2026-09-16T14:00:00Z"]);
+  expect(preview.items.map((plan: { date: string }) => plan.date)).toEqual([
+    "2026-09-15",
+  ]);
+  const changed = (
+    await a
+      .put(
+        "time-blocks/" + second.id,
+        {
+          title: second.title,
+          categoryId: second.categoryId,
+          goalId: second.goalId,
+          notes: "Updated before paste",
+          startsAt: second.startsAt,
+          endsAt: second.endsAt,
+        },
+        second.version,
+      )
+      .expect(200)
+  ).body;
+  await a
+    .post("calendar/copy", {
+      ...selection,
+      targetMinute: 600,
+      token: preview.token,
+    })
+    .expect(409);
+  const latest = (
+    await a
+      .get("calendar/copy-preview?" + new URLSearchParams(selection))
+      .expect(200)
+  ).body;
+  const copied = (
+    await a
+      .post("calendar/copy", {
+        ...selection,
+        targetMinute: 600,
+        token: latest.token,
+      })
+      .expect(201)
+  ).body;
+  expect(copied.count).toBe(3);
+  await a
+    .post("calendar/copy/undo", {
+      blocks: copied.createdBlocks.map(
+        ({ id, version }: { id: string; version: number }) => ({ id, version }),
+      ),
+      items: copied.createdItems,
+    })
+    .expect(200);
+  const overlapping = (
+    await a
+      .get(
+        "calendar/copy-preview?" +
+          new URLSearchParams({
+            ...selection,
+            targetDate: "2026-09-07",
+            targetMinute: "905",
+          }),
+      )
+      .expect(200)
+  ).body;
+  expect(overlapping.blocks).toHaveLength(2);
+  expect(overlapping.items).toHaveLength(1);
+  const plans = [
+    { kind: "block", id: first.id, version: first.version },
+    { kind: "block", id: second.id, version: changed.version },
+    { kind: "item", id: allDay.id, version: allDay.version },
+  ];
+  await b.post("calendar/selection/delete", { plans }).expect(404);
+  await a
+    .post("calendar/selection/delete", {
+      plans: [plans[0], { ...plans[1], version: second.version }, plans[2]],
+    })
+    .expect(409);
+  await a.get("time-blocks/" + first.id).expect(200);
+  expect(
+    (await a.get("time-entries/" + linked.id).expect(200)).body.timeBlockId,
+  ).toBe(first.id);
+  const deleted = (
+    await a.post("calendar/selection/delete", { plans }).expect(200)
+  ).body;
+  await a.get("time-blocks/" + first.id).expect(404);
+  expect(
+    (await a.get("time-entries/" + linked.id).expect(200)).body.timeBlockId,
+  ).toBe(null);
+  await a.get("calendar/items/" + allDay.id).expect(404);
+  await b
+    .post("calendar/selection/delete/undo", { undoId: deleted.undoId })
+    .expect(404);
+  await a
+    .post("calendar/selection/delete/undo", { undoId: deleted.undoId })
+    .expect(200);
+  expect(
+    (await a.get("time-blocks/" + first.id).expect(200)).body.version,
+  ).toBe(first.version + 1);
+  expect(
+    (await a.get("time-entries/" + linked.id).expect(200)).body.timeBlockId,
+  ).toBe(first.id);
+  expect(
+    (await a.get("calendar/items/" + allDay.id).expect(200)).body.version,
+  ).toBe(allDay.version + 1);
+  await a
+    .post("calendar/selection/delete/undo", { undoId: deleted.undoId })
+    .expect(404);
 });
 
 it("serializes occurrence versus series edits and rejects a changed timezone after template preview", async () => {

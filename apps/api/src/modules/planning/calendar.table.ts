@@ -10,7 +10,9 @@ import {
   unique,
   index,
   foreignKey,
+  jsonb,
 } from "drizzle-orm/pg-core";
+import type { CalendarItem } from "@168hours/contracts";
 import { ownedColumns } from "../../infrastructure/database/columns.js";
 import { categories } from "../categories/categories.table.js";
 import { goals } from "../goals/goals.table.js";
@@ -52,6 +54,11 @@ export const calendarItems = pgTable(
     ),
   ],
 );
+export const deletedCalendarGroups = pgTable("deleted_calendar_groups", {
+  ...ownedColumns(),
+  blockUndoIds: jsonb("block_undo_ids").$type<string[]>().notNull(),
+  items: jsonb("items").$type<CalendarItem[]>().notNull(),
+});
 export const calendarSeries = pgTable(
   "calendar_series",
   {

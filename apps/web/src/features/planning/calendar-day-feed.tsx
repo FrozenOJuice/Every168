@@ -13,7 +13,7 @@ import type {
   CalendarItem,
   Week,
 } from "@168hours/contracts";
-import { formatDate, formatTime } from "@/lib/format";
+import { formatTime } from "@/lib/format";
 import { CalendarRecord } from "./calendar-record";
 import { CalendarItemButton } from "./calendar-item-button";
 import { dayRecords } from "./calendar-layout";
@@ -137,9 +137,6 @@ export function CalendarDayFeed({
   ];
   return (
     <section className="calendar-day-feed" aria-label="Day activity">
-      <span className="calendar-feed-weekday">
-        {formatDate(date, { weekday: "long" })}
-      </span>
       {(groups[1]!.entries.length > 0 || next) && (
         <div className="day-at-a-glance">
           {groups[1]!.entries.map((entry) => (

@@ -50,7 +50,7 @@ export function CalendarOverlays({
   onCopyItem: (item: CalendarItem) => void;
 }) {
   const close = () => setOverlay(null);
-  const selectedBlockId = useCalendarInteractions()?.selectedId;
+  const interaction = useCalendarInteractions();
   if (overlay.mode === "tools")
     return (
       <CalendarActions
@@ -89,8 +89,16 @@ export function CalendarOverlays({
     return (
       <CalendarTemplates
         mode={overlay.mode}
-        sourceId={overlay.sourceId ?? selectedBlockId ?? undefined}
-        sourceKind={overlay.sourceKind ?? "block"}
+        sourceId={
+          overlay.sourceId ??
+          interaction?.selectedId ??
+          interaction?.selectedItemId ??
+          undefined
+        }
+        sourceKind={
+          overlay.sourceKind ??
+          (!overlay.sourceId && interaction?.selectedItemId ? "item" : "block")
+        }
         date={date}
         onClose={close}
         onSaved={onSaved}

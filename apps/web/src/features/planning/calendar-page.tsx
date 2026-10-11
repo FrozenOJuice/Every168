@@ -96,10 +96,24 @@ export function CalendarPage({
   if (daySelection.scope !== scope)
     setDaySelection({ scope, dates: [], anchor: null });
   const selectedDays = daySelection.scope === scope ? daySelection.dates : [];
+  function clearDaySelection() {
+    setDaySelection((current) =>
+      current.scope === scope && current.dates.length
+        ? { scope, dates: [], anchor: null }
+        : current,
+    );
+  }
   function selectDay(
     date: string,
     mode: "replace" | "toggle" | "extend" = "replace",
   ) {
+    if (mode === "toggle" && selectedDays.includes(date)) {
+      const remaining = selectedDays.filter((value) => value !== date);
+      const target = remaining.includes(daySelection.anchor ?? "")
+        ? daySelection.anchor
+        : remaining[0];
+      setTimeSelection({ scope, point: target ? { date: target } : null });
+    }
     setDaySelection((current) => {
       const active =
         current.scope === scope ? current : { scope, dates: [], anchor: null };
@@ -107,7 +121,11 @@ export function CalendarPage({
         const dates = active.dates.includes(date)
           ? active.dates.filter((value) => value !== date)
           : [...active.dates, date].sort();
-        return { scope, dates, anchor: active.anchor ?? date };
+        return {
+          scope,
+          dates,
+          anchor: dates.length ? (active.anchor ?? date) : null,
+        };
       }
       if (mode === "extend" && active.anchor) {
         const first = active.anchor < date ? active.anchor : date;
@@ -359,9 +377,14 @@ export function CalendarPage({
       timezone={preferences.timezone}
       hourHeight={hourHeight}
       blocks={query.weeks.flatMap((week) => week.blocks)}
+      items={query.items}
       timeSelection={selectedTime}
-      onSelectTime={(point) => setTimeSelection({ scope, point })}
+      onSelectTime={(point) => {
+        setTimeSelection({ scope, point });
+        if (point.minute !== undefined) clearDaySelection();
+      }}
       onClearTimeSelection={clearTimeSelection}
+      onSelectPlan={clearDaySelection}
       editorOpen={!!editor || !!overlay || !!listDate}
       onCreate={addGridRecord}
     >
@@ -372,6 +395,7 @@ export function CalendarPage({
         selectedTime={selectedTime}
         selectedDays={selectedDays}
         weeks={query.weeks}
+        items={query.items}
         unavailable={!!editor || !!overlay || !!listDate}
       />
       <div className="calendar-surface" ref={calendarSurface}>
@@ -459,7 +483,6 @@ export function CalendarPage({
               date={selected}
               today={today}
               onOpen={openRecord}
-              onAdd={addRecord}
               onShowDay={setListDate}
               selectedDays={selectedDays}
               onSelectDay={selectDay}
@@ -489,6 +512,7 @@ export function CalendarPage({
                 onShowDay={setListDate}
                 selectedDays={selectedDays}
                 onSelectDay={selectDay}
+                onSelectRange={selectDayRange}
                 now={now}
                 hourHeight={hourHeight}
                 minimumHourHeight={minimumHourHeight}

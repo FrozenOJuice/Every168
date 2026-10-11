@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { activityOnDate } from "./calendar-activity";
 import type { CalendarActivity } from "@168hours/contracts";
 import { CalendarItemButton } from "./calendar-item-button";
@@ -31,7 +32,6 @@ export function CalendarMonth({
   date,
   today,
   onOpen,
-  onAdd,
   onShowDay,
   selectedDays,
   onSelectDay,
@@ -47,12 +47,12 @@ export function CalendarMonth({
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   items: CalendarItem[];
   filter: CalendarFilter;
-  onAdd: (date: string) => void;
   onShowDay: (date: string) => void;
   selectedDays: string[];
   onSelectDay: (date: string, mode?: "replace" | "toggle" | "extend") => void;
   onSelectRange: (first: string, last: string) => void;
 }) {
+  const router = useRouter();
   const interaction = useCalendarInteractions();
   const cells = useRef<HTMLDivElement>(null);
   const suppressClick = useRef(false);
@@ -66,6 +66,16 @@ export function CalendarMonth({
       interaction?.busy
     )
       return;
+    suppressClick.current = true;
+    interaction?.selectTime({ date: first });
+    onSelectDay(
+      first,
+      event.shiftKey
+        ? "extend"
+        : event.metaKey || event.ctrlKey
+          ? "toggle"
+          : "replace",
+    );
     const pointer = event.pointerId;
     const x = event.clientX;
     const y = event.clientY;
@@ -85,19 +95,25 @@ export function CalendarMonth({
         onSelectRange(first, last);
       }
     };
-    const finish = (next: PointerEvent) => {
-      if (next.pointerId !== pointer) return;
+    const cleanup = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
-      window.removeEventListener("pointercancel", finish);
-      if (moved) {
-        suppressClick.current = true;
-        onSelectRange(first, last);
-      }
+      window.removeEventListener("pointercancel", cancel);
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 0);
+    };
+    const finish = (next: PointerEvent) => {
+      if (next.pointerId !== pointer) return;
+      cleanup();
+      if (moved) onSelectRange(first, last);
+    };
+    const cancel = (next: PointerEvent) => {
+      if (next.pointerId === pointer) cleanup();
     };
     window.addEventListener("pointermove", move, { passive: false });
     window.addEventListener("pointerup", finish);
-    window.addEventListener("pointercancel", finish);
+    window.addEventListener("pointercancel", cancel);
   }
   const [capacity, setCapacity] = useState({
     slots: 0,
@@ -199,10 +215,7 @@ export function CalendarMonth({
                 data-drop-date={day.date}
                 className={
                   "month-day" +
-                  (selectedDays.includes(day.date) ||
-                  interaction?.timeSelection?.date === day.date
-                    ? " is-selected"
-                    : "") +
+                  (selectedDays.includes(day.date) ? " is-selected" : "") +
                   (day.date.slice(0, 7) !== date.slice(0, 7)
                     ? " outside-month"
                     : "") +
@@ -212,10 +225,7 @@ export function CalendarMonth({
                 <button
                   className="month-select-day"
                   aria-label={`Select ${day.date}, ${count} records`}
-                  aria-pressed={
-                    selectedDays.includes(day.date) ||
-                    interaction?.timeSelection?.date === day.date
-                  }
+                  aria-pressed={selectedDays.includes(day.date)}
                   onPointerDown={(event) => startRange(event, day.date)}
                   onClick={(event) => {
                     if (suppressClick.current) {
@@ -233,12 +243,17 @@ export function CalendarMonth({
                     );
                   }}
                   onDoubleClick={() => {
-                    if (!interaction?.busy) onAdd(day.date);
+                    if (!interaction?.busy)
+                      router.push(calendarHref(day.date, "day"), {
+                        scroll: false,
+                      });
                   }}
                   onKeyDown={(event) => {
                     if (event.key !== "Enter" || interaction?.busy) return;
                     event.preventDefault();
-                    onAdd(day.date);
+                    router.push(calendarHref(day.date, "day"), {
+                      scroll: false,
+                    });
                   }}
                 />
                 <div className="month-day-heading">

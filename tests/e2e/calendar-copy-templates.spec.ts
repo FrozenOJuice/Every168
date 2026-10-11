@@ -53,6 +53,19 @@ test("copy ranges and apply multi-day templates from separate Calendar tools", a
   await expect(dialog).toContainText("2 plans will be added");
   await dialog.getByRole("button", { name: "Add these plans" }).click();
   await expect(page).toHaveURL(/date=2026-09-14/);
+  const dayGrid = page.getByRole("region", { name: "Daily time grid" });
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
+  ).toBeVisible();
+  await page.keyboard.press("Meta+z");
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
+  ).toHaveCount(0);
+  await page.goto("/?date=2026-09-16&view=day");
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day three.*planned/ }),
+  ).toHaveCount(0);
+  await page.goto("/?date=2026-09-14&view=day");
   await tool("Templates");
   await dialog
     .getByRole("button", { name: "Save calendar as template" })
@@ -85,4 +98,92 @@ test("copy ranges and apply multi-day templates from separate Calendar tools", a
   await expect(dialog).toContainText("1 plan will be added");
   await dialog.getByRole("button", { name: "Add these plans" }).click();
   await expect(page).toHaveURL(/date=2026-10-12/);
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
+  ).toBeVisible();
+  await page.keyboard.press("Meta+z");
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
+  ).toHaveCount(0);
+
+  expect(
+    (
+      await page.request.post("/api/v1/calendar/items", {
+        headers: headers(),
+        data: {
+          title: "Conference",
+          kind: "all_day",
+          date: "2026-09-07",
+          endDate: "2026-09-07",
+        },
+      })
+    ).status(),
+  ).toBe(201);
+  await page.goto("/?date=2026-09-07&view=day");
+  await dayGrid
+    .getByRole("button", { name: "Conference, all day, 2026-09-07" })
+    .dblclick();
+  await dialog.getByRole("button", { name: "Copy…" }).click();
+  await dialog.getByLabel("Copy to").fill("2026-10-13");
+  await dialog.getByRole("button", { name: "Preview copy" }).click();
+  await expect(dialog).toContainText("1 plan will be added");
+  await dialog.getByRole("button", { name: "Add these plans" }).click();
+  await expect(page).toHaveURL(/date=2026-10-13/);
+  await expect(
+    dayGrid.getByRole("button", { name: "Conference, all day, 2026-10-13" }),
+  ).toBeVisible();
+  await page.keyboard.press("Meta+z");
+  await expect(
+    dayGrid.getByRole("button", { name: "Conference, all day, 2026-10-13" }),
+  ).toHaveCount(0);
+
+  await page.goto("/?date=2026-09-07&view=day");
+  const conference = dayGrid.getByRole("button", {
+    name: "Conference, all day, 2026-09-07",
+  });
+  await conference.click();
+  await expect(conference).toHaveAttribute("aria-pressed", "true");
+  await expect(conference).toHaveClass(/date-selected/);
+  await page.keyboard.press("Meta+c");
+  await page.goto("/?date=2026-10-01&view=month");
+  const monthDay = page
+    .getByRole("region", { name: "Monthly calendar" })
+    .locator('[data-date="2026-10-14"] .month-select-day');
+  const monthDayBounds = await monthDay.boundingBox();
+  expect(monthDayBounds).toBeTruthy();
+  await monthDay.click({
+    position: { x: monthDayBounds!.width - 7, y: 7 },
+  });
+  await page.keyboard.press("Meta+v");
+  const pasteDialog = page.getByRole("dialog", { name: "Paste plans" });
+  await expect(pasteDialog).toHaveCount(0);
+  await expect(monthDay).toHaveAttribute(
+    "aria-label",
+    "Select 2026-10-14, 1 records",
+  );
+  await page.keyboard.press("Meta+z");
+  await page.goto("/?date=2026-10-14&view=day");
+  await expect(
+    dayGrid.getByRole("button", { name: "Conference, all day, 2026-10-14" }),
+  ).toHaveCount(0);
+
+  await page.goto("/?date=2026-10-15&view=day");
+  const destinationHeading = dayGrid.getByRole("button", {
+    name: "Select 2026-10-15",
+  });
+  await expect(destinationHeading).toBeVisible();
+  await page.keyboard.press("Meta+v");
+  await expect(page.locator("[data-calendar-clipboard-status]")).toHaveText(
+    "Select the day heading before pasting.",
+  );
+  await destinationHeading.click();
+  await page.keyboard.press("Meta+v");
+  await expect(pasteDialog).toHaveCount(0);
+  await expect(
+    dayGrid.getByRole("button", { name: "Conference, all day, 2026-10-15" }),
+  ).toBeVisible();
+  await page.keyboard.press("Meta+z");
+  await expect(
+    dayGrid.getByRole("button", { name: "Conference, all day, 2026-10-15" }),
+  ).toHaveCount(0);
 });

@@ -12,6 +12,8 @@ import { seriesRepository } from "./modules/planning/series.repository.js";
 import { seriesService } from "./modules/planning/series.service.js";
 import { templatesRepository } from "./modules/planning/templates.repository.js";
 import { templatesService } from "./modules/planning/templates.service.js";
+import { calendarSelectionRepository } from "./modules/planning/calendar-selection.repository.js";
+import { calendarSelectionService } from "./modules/planning/calendar-selection.service.js";
 import { calendarSearchRepository } from "./modules/planning/calendar-search.repository.js";
 import { calendarSearchService } from "./modules/planning/calendar-search.service.js";
 import { transactionRunner } from "./infrastructure/database/transactions.js";
@@ -79,6 +81,12 @@ export function compose(input: ConfigInput) {
   const templates = templatesService(
     templatesRepository(db),
     identity,
+    planning,
+    calendarItems,
+    runInTransaction,
+  );
+  const calendarSelection = calendarSelectionService(
+    calendarSelectionRepository(db),
     planning,
     calendarItems,
     runInTransaction,
@@ -162,6 +170,7 @@ export function compose(input: ConfigInput) {
     calendarItems,
     series,
     templates,
+    calendarSelection,
     routines,
     calendarSearch,
     calendarActivity,

@@ -1,28 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Block, CopyInput, Week } from "@168hours/contracts";
-import { daysBetween } from "@168hours/domain-utils";
-import { Dialog } from "@/components/ui/dialog";
-import { ErrorState, Loading } from "@/components/ui/feedback";
+import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  clipboardSnapshotSchema,
+  type Block,
+  type CalendarItem,
+  type ClipboardSnapshot,
+  type SnapshotPasteInput,
+  type Week,
+} from "@168hours/contracts";
+import { daysBetween, localDate } from "@168hours/domain-utils";
+import { ApiError, uncertainWrite } from "@168hours/api-client";
 import { api } from "@/lib/api";
 import { CommandError, useCommand } from "@/lib/use-command";
-import { CalendarCopyPreview } from "./calendar-copy-preview";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { invalidateCalendar } from "./invalidate-calendar";
 import type { CalendarView } from "./calendar-layout";
 
-type Clip =
-  | { kind: "block"; id: string; date: string }
-  | { kind: "days"; dates: string[] };
+type Clip = {
+  kind: "block" | "item" | "selection" | "days";
+  snapshot: ClipboardSnapshot;
+};
+const clipboardKey = (userId: string) => `calendar-clip:v2:${userId}`;
 function saveClip(userId: string, clip: Clip) {
-  sessionStorage.setItem(`calendar-clip:${userId}`, JSON.stringify(clip));
+  sessionStorage.setItem(clipboardKey(userId), JSON.stringify(clip));
 }
 function readClip(userId: string): Clip | null {
   try {
-    const value = sessionStorage.getItem(`calendar-clip:${userId}`);
-    return value ? (JSON.parse(value) as Clip) : null;
+    const value = sessionStorage.getItem(clipboardKey(userId));
+    if (!value) return null;
+    const clip = JSON.parse(value) as Partial<Clip>;
+    if (
+      !clip.kind ||
+      !["block", "item", "selection", "days"].includes(clip.kind)
+    )
+      return null;
+    const snapshot = clipboardSnapshotSchema.safeParse(clip.snapshot);
+    return snapshot.success
+      ? { kind: clip.kind, snapshot: snapshot.data }
+      : null;
   } catch {
     return null;
   }
@@ -35,6 +52,7 @@ export function CalendarClipboard({
   selectedTime,
   selectedDays,
   weeks,
+  items,
   unavailable,
 }: {
   userId: string;
@@ -43,65 +61,40 @@ export function CalendarClipboard({
   selectedTime: { date: string; minute?: number } | null;
   selectedDays: string[];
   weeks: Week[];
+  items: CalendarItem[];
   unavailable: boolean;
 }) {
   const interaction = useCalendarInteractions();
   const cache = useQueryClient();
-  const [paste, setPaste] = useState<CopyInput | null>(null);
   const [message, setMessage] = useState("");
+  const notify = useCallback(
+    (
+      text: string,
+      options?: {
+        undoKey?: string;
+        action?: { label: string; onClick: () => void };
+        kind?: "copy" | "change" | "hint" | "error";
+      },
+    ) => {
+      setMessage(text);
+      interaction?.showNotice(text, options);
+    },
+    [interaction],
+  );
   useEffect(() => {
     if (!message) return;
     const timer = window.setTimeout(() => setMessage(""), 4000);
     return () => window.clearTimeout(timer);
   }, [message]);
-  const preview = useQuery({
-    queryKey: ["calendar-paste-preview", paste],
-    enabled: !!paste,
-    queryFn: () => api.previewCalendarCopy(paste!),
-  });
-  const single = useCommand({
-    mutationFn: async (input: CopyInput, key: string) => {
-      const prepared = await api.previewCalendarCopy(input);
-      if (!prepared.blocks.length && !prepared.items.length)
-        return { result: null, key, skipped: prepared.skipped };
-      const result = await api.copyCalendar(
+  const paste = useCommand({
+    mutationFn: async (input: SnapshotPasteInput, key: string) => {
+      const prepared = await api.previewCalendarSnapshotPaste(input);
+      const result = await api.pasteCalendarSnapshot(
         { ...input, token: prepared.token },
         key,
       );
-      return { result, key, skipped: prepared.skipped };
+      return { result, key };
     },
-    onSuccess: async ({ result, key, skipped }) => {
-      if (!result) {
-        setMessage("Nothing pasted: the copy would overlap its original plan.");
-        return;
-      }
-      await invalidateCalendar(cache);
-      for (const block of result.createdBlocks)
-        interaction?.history.record({
-          kind: "create",
-          key,
-          blockId: block.id,
-          title: block.title,
-          version: block.version,
-        });
-      setMessage(
-        skipped
-          ? `${result.count} plan pasted; ${skipped} skipped because it overlaps its original.`
-          : "Plan pasted.",
-      );
-    },
-  });
-  const multiple = useCommand({
-    mutationFn: async (
-      value: { input: CopyInput; token: string },
-      key: string,
-    ) => ({
-      result: await api.copyCalendar(
-        { ...value.input, token: value.token },
-        key,
-      ),
-      key,
-    }),
     onSuccess: async ({ result, key }) => {
       interaction?.history.record({
         key,
@@ -113,18 +106,25 @@ export function CalendarClipboard({
         items: result.createdItems,
       });
       await invalidateCalendar(cache);
-      setPaste(null);
-      setMessage(`${result.count} plans pasted.`);
+      notify("Plans pasted", { undoKey: key, kind: "change" });
+    },
+    onError: (error) => {
+      if (uncertainWrite(error)) {
+        notify("Could not confirm paste. Retry the same change.", {
+          kind: "error",
+          action: { label: "Retry", onClick: () => paste.retry() },
+        });
+      } else {
+        notify(`Could not paste plans. ${error.message}`, { kind: "error" });
+      }
     },
   });
   useEffect(() => {
     function keydown(event: KeyboardEvent) {
       if (
         unavailable ||
-        paste ||
         interaction?.busy ||
-        single.isPending ||
-        multiple.isPending ||
+        paste.isPending ||
         event.defaultPrevented ||
         event.repeat ||
         event.isComposing ||
@@ -138,25 +138,163 @@ export function CalendarClipboard({
       )
         return;
       const key = event.key.toLowerCase();
+      const timezone = weeks[0]?.timezone;
+      const allBlocks = weeks.flatMap((week) => week.blocks);
+      if (key === "c" && !timezone) {
+        notify("Calendar is still loading. Try copying again.");
+        event.preventDefault();
+        return;
+      }
+      function capture(
+        kind: Clip["kind"],
+        sourceDate: string,
+        blocks: Block[],
+        selectedItems: CalendarItem[],
+        label: string,
+      ) {
+        if (!timezone || (!blocks.length && !selectedItems.length)) {
+          notify("No plans to copy.");
+          return;
+        }
+        const snapshot = clipboardSnapshotSchema.safeParse({
+          sourceDate,
+          timezone,
+          blocks: blocks.map((block) => ({
+            title: block.title,
+            categoryId: block.categoryId,
+            goalId: block.goalId,
+            notes: block.notes,
+            startsAt: block.startsAt,
+            endsAt: block.endsAt,
+          })),
+          items: selectedItems.map((item) => ({
+            title: item.title,
+            categoryId: item.categoryId,
+            goalId: item.goalId,
+            notes: item.notes,
+            kind: item.kind,
+            date: item.date,
+            endDate: item.endDate,
+          })),
+        });
+        if (!snapshot.success) {
+          notify("Select up to 100 dated plans to copy.");
+          return;
+        }
+        try {
+          saveClip(userId, { kind, snapshot: snapshot.data });
+          notify(label, { kind: "copy" });
+        } catch {
+          notify("Could not copy plans in this tab.", { kind: "error" });
+        }
+      }
       if (key === "c") {
-        const selectedBlock: Block | undefined = weeks
-          .flatMap((week) => week.blocks)
-          .find((block) => block.id === interaction?.selectedId);
+        if (interaction && interaction.selectedPlanCount > 1) {
+          const records = interaction.selectedPlans.map((plan) => {
+            const source =
+              plan.kind === "block"
+                ? allBlocks.find((block) => block.id === plan.id)
+                : items.find((item) => item.id === plan.id);
+            const sourceDate =
+              source && plan.kind === "block" && "startsAt" in source
+                ? localDate(source.startsAt, timezone!)
+                : source && "date" in source
+                  ? source.date
+                  : null;
+            return sourceDate ? { plan, sourceDate } : null;
+          });
+          if (records.some((record) => !record)) {
+            notify("Selection changed. Select the plans again.");
+            event.preventDefault();
+            return;
+          }
+          const selected = records.filter((record) => record !== null);
+          const sourceDate = selected
+            .map((record) => record.sourceDate)
+            .sort()[0]!;
+          if (
+            daysBetween(
+              sourceDate,
+              selected
+                .map((record) => record.sourceDate)
+                .sort()
+                .at(-1)!,
+            ) >= 31
+          ) {
+            notify("Select plans within a 31-day range to copy.");
+            event.preventDefault();
+            return;
+          }
+          capture(
+            "selection",
+            sourceDate,
+            allBlocks.filter((block) =>
+              interaction.selectedPlans.some(
+                (plan) => plan.kind === "block" && plan.id === block.id,
+              ),
+            ),
+            items.filter((item) =>
+              interaction.selectedPlans.some(
+                (plan) => plan.kind === "item" && plan.id === item.id,
+              ),
+            ),
+            `${selected.length} plans copied.`,
+          );
+          event.preventDefault();
+          return;
+        }
+        const selectedBlock = allBlocks.find(
+          (block) => block.id === interaction?.selectedId,
+        );
         if (selectedBlock) {
-          saveClip(userId, { kind: "block", id: selectedBlock.id, date });
-          setMessage("Plan copied.");
+          capture(
+            "block",
+            localDate(selectedBlock.startsAt, timezone!),
+            [selectedBlock],
+            [],
+            "Plan copied.",
+          );
+        } else if (interaction?.selectedItemId) {
+          const selectedItem = items.find(
+            (item) =>
+              item.id === interaction.selectedItemId &&
+              item.kind === "all_day" &&
+              item.date !== null,
+          );
+          if (!selectedItem?.date) {
+            notify("Selection changed. Select the plan again.");
+            event.preventDefault();
+            return;
+          }
+          capture(
+            "item",
+            selectedItem.date,
+            [],
+            [selectedItem],
+            "Plan copied.",
+          );
         } else {
-          const dates = selectedDays.length
-            ? [...selectedDays].sort()
-            : view === "day"
-              ? [date]
-              : [];
-          if (!dates.length) return;
+          const dates = [...selectedDays].sort();
+          if (!dates.length) {
+            notify("Select a plan or day to copy.");
+            event.preventDefault();
+            return;
+          }
           if (daysBetween(dates[0]!, dates.at(-1)!) >= 31) {
-            setMessage("Select dates within a 31-day range to copy.");
+            notify("Select dates within a 31-day range to copy.");
           } else {
-            saveClip(userId, { kind: "days", dates });
-            setMessage(
+            capture(
+              "days",
+              dates[0]!,
+              allBlocks.filter((block) =>
+                dates.includes(localDate(block.startsAt, timezone!)),
+              ),
+              items.filter(
+                (item) =>
+                  item.kind === "all_day" &&
+                  !!item.date &&
+                  dates.includes(item.date),
+              ),
               `${dates.length} ${dates.length === 1 ? "day" : "days"} copied.`,
             );
           }
@@ -164,36 +302,49 @@ export function CalendarClipboard({
         event.preventDefault();
       } else if (key === "v") {
         const clip = readClip(userId);
-        if (!clip) return;
-        const targetDate = selectedTime?.date ?? (view === "day" ? date : null);
-        if (!targetDate) {
-          setMessage("Select a destination day first.");
+        if (!clip) {
+          notify("Copy a plan or day before pasting.");
           event.preventDefault();
           return;
         }
-        if (clip.kind === "block") {
-          if (view !== "month" && selectedTime?.minute === undefined) {
-            setMessage("Select a five-minute time slice first.");
-            event.preventDefault();
-            return;
-          }
-          single.mutate({
-            span: "single",
-            sourceDate: clip.date,
-            sourceId: clip.id,
-            sourceKind: "block",
-            targetDate,
-            targetMinute: selectedTime?.minute,
-          });
-        } else {
-          setPaste({
-            span: "range",
-            sourceDate: clip.dates[0]!,
-            sourceEndDate: clip.dates.at(-1)!,
-            selectedDates: clip.dates.join(","),
-            targetDate,
-          });
+        if (
+          (clip.kind === "days" ||
+            clip.kind === "item" ||
+            (clip.kind === "selection" && !clip.snapshot.blocks.length)) &&
+          view === "day" &&
+          !selectedDays.includes(date)
+        ) {
+          notify("Select the day heading before pasting.");
+          event.preventDefault();
+          return;
         }
+        if (
+          view === "day" &&
+          (clip.kind === "block" ||
+            (clip.kind === "selection" && !!clip.snapshot.blocks.length)) &&
+          selectedTime?.minute === undefined &&
+          !selectedDays.includes(date)
+        ) {
+          notify("Select the day heading or a five-minute time slice first.");
+          event.preventDefault();
+          return;
+        }
+        const targetDate = selectedTime?.date ?? (view === "day" ? date : null);
+        if (!targetDate) {
+          notify("Select a destination day first.");
+          event.preventDefault();
+          return;
+        }
+        paste.mutate({
+          snapshot: clip.snapshot,
+          targetDate,
+          targetMinute:
+            clip.kind === "block" || clip.kind === "selection"
+              ? view === "month"
+                ? undefined
+                : selectedTime?.minute
+              : undefined,
+        });
         event.preventDefault();
       }
     }
@@ -206,11 +357,11 @@ export function CalendarClipboard({
     selectedTime,
     selectedDays,
     weeks,
+    items,
     interaction,
     unavailable,
     paste,
-    single,
-    multiple,
+    notify,
   ]);
   return (
     <>
@@ -221,46 +372,12 @@ export function CalendarClipboard({
       >
         {message}
       </span>
-      {message && (
-        <div className="calendar-copy-feedback" aria-hidden="true">
-          {message}
-        </div>
-      )}
-      <CommandError command={single} />
-      {paste && (
-        <Dialog title="Paste plans" onClose={() => setPaste(null)}>
-          {preview.isPending ? (
-            <Loading />
-          ) : preview.error ? (
-            <ErrorState
-              error={preview.error}
-              retry={() => void preview.refetch()}
-            />
-          ) : preview.data ? (
-            <>
-              <CalendarCopyPreview preview={preview.data} />
-              <div className="editor-actions">
-                <button className="button" onClick={() => setPaste(null)}>
-                  Cancel
-                </button>
-                <button
-                  className="button primary"
-                  disabled={
-                    multiple.isPending ||
-                    preview.data.blocks.length + preview.data.items.length === 0
-                  }
-                  onClick={() =>
-                    multiple.mutate({ input: paste, token: preview.data.token })
-                  }
-                >
-                  Paste plans
-                </button>
-              </div>
-            </>
-          ) : null}
-          <CommandError command={multiple} />
-        </Dialog>
-      )}
+      {(paste.needsRetry ||
+        (paste.error instanceof ApiError &&
+          paste.error.code === "STALE_REVISION")) &&
+        interaction?.notice?.kind !== "error" && (
+          <CommandError command={paste} />
+        )}
     </>
   );
 }

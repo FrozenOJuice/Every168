@@ -3,10 +3,14 @@ import {
   copyInput,
   copyUndoInput,
   dateSchema,
+  idSchema,
+  snapshotPasteInput,
+  templateEntrySchema,
   templateCaptureInput,
   type CopyInput,
   type CopyUndoInput,
   type CopyPreview,
+  type SnapshotPasteInput,
   type TemplateCaptureInput,
   type TemplateEntry,
   type PageQuery,
@@ -127,15 +131,13 @@ export function templatesService(
     sourceDate: string,
     targetDate: string,
     timezone: string,
-    skipSourceOverlap = false,
     targetMinute?: number,
+    shiftFromMinute?: number,
   ): CopyPreview {
     const blocks: CopyPreview["blocks"] = [],
       resultItems: CopyPreview["items"] = [];
-    let skipped = 0;
     for (const e of entries) {
       const date = addDays(targetDate, e.dayOffset);
-      const originalDate = addDays(sourceDate, e.dayOffset);
       const details = {
         title: e.title,
         categoryId: e.categoryId,
@@ -143,35 +145,25 @@ export function templatesService(
         notes: e.notes,
       };
       if (e.kind === "block") {
+        const shiftedMinute =
+          shiftFromMinute === undefined || targetMinute === undefined
+            ? (targetMinute ?? e.startMinute!)
+            : e.startMinute! + targetMinute - shiftFromMinute;
+        const shiftedDate = addDays(date, Math.floor(shiftedMinute / 1440));
         const startsAt = plannedInstant(
-          date,
-          targetMinute ?? e.startMinute!,
+          shiftedDate,
+          ((shiftedMinute % 1440) + 1440) % 1440,
           timezone,
         );
         if (!startsAt)
           throw new AppError(
             422,
             "MISSING_CLOCK_TIME",
-            `A planned time does not exist on ${date} in ${timezone}. Choose another date or edit the source plan.`,
+            `A planned time does not exist on ${shiftedDate} in ${timezone}. Choose another date or edit the source plan.`,
           );
         const endsAt = new Date(
           Date.parse(startsAt) + e.durationMinutes! * 60000,
         ).toISOString();
-        const originalStart = plannedInstant(
-          originalDate,
-          e.startMinute!,
-          timezone,
-        );
-        if (
-          skipSourceOverlap &&
-          originalStart &&
-          Date.parse(startsAt) <
-            Date.parse(originalStart) + e.durationMinutes! * 60000 &&
-          Date.parse(endsAt) > Date.parse(originalStart)
-        ) {
-          skipped++;
-          continue;
-        }
         blocks.push({
           ...details,
           startsAt,
@@ -180,18 +172,6 @@ export function templatesService(
       } else {
         const lastDate =
           e.kind === "all_day" ? addDays(date, e.dateSpan! - 1) : date;
-        const originalLast =
-          e.kind === "all_day"
-            ? addDays(originalDate, e.dateSpan! - 1)
-            : originalDate;
-        if (
-          skipSourceOverlap &&
-          date <= originalLast &&
-          originalDate <= lastDate
-        ) {
-          skipped++;
-          continue;
-        }
         resultItems.push({
           ...details,
           kind: e.kind,
@@ -206,7 +186,6 @@ export function templatesService(
       timezone,
       blocks,
       items: resultItems,
-      skipped,
     };
   }
   async function apply(u: string, v: CopyPreview, ctx: TransactionContext) {
@@ -262,13 +241,131 @@ export function templatesService(
       );
     if (
       v.targetMinute !== undefined &&
-      (v.span !== "single" || v.sourceKind !== "block")
+      !(
+        (v.span === "single" && v.sourceKind === "block") ||
+        v.span === "selection"
+      )
     )
       throw new AppError(
         422,
         "COPY_TIME",
-        "A paste time needs one timed plan.",
+        "A paste time needs selected timed plans.",
       );
+    if (v.span === "selection") {
+      const selected = v.selectedPlans?.split(",") ?? [];
+      if (
+        selected.length < 2 ||
+        selected.length > 100 ||
+        new Set(selected).size !== selected.length ||
+        v.selectedDates ||
+        v.sourceId ||
+        v.sourceKind ||
+        v.sourceEndDate
+      )
+        throw new AppError(
+          422,
+          "COPY_SOURCE",
+          "Choose distinct plans to copy.",
+        );
+      const prefs = await identity.getPreferences(u, ctx);
+      const sources: Array<{
+        date: string;
+        entry: Omit<TemplateEntry, "dayOffset">;
+        id: string;
+        version: number;
+      }> = [];
+      for (const key of selected) {
+        const [kind, rawId, extra] = key.split(":");
+        if (
+          extra !== undefined ||
+          (kind !== "block" && kind !== "item") ||
+          !idSchema.safeParse(rawId).success
+        )
+          throw new AppError(422, "COPY_SOURCE", "Choose valid plans to copy.");
+        const id = rawId!;
+        if (kind === "block") {
+          const block = await planning.getBlock(u, id, ctx);
+          sources.push({
+            id,
+            version: block.version,
+            date: localDate(block.startsAt, prefs.timezone),
+            entry: {
+              title: block.title,
+              categoryId: block.categoryId,
+              goalId: block.goalId,
+              notes: block.notes,
+              kind: "block",
+              startMinute: localMinute(block.startsAt, prefs.timezone),
+              durationMinutes:
+                (block.endsAt.getTime() - block.startsAt.getTime()) / 60000,
+              dateSpan: null,
+            },
+          });
+        } else {
+          const item = await items.get(u, id, ctx);
+          if (item.kind !== "all_day" || !item.date || !item.endDate)
+            throw new AppError(
+              422,
+              "COPY_SOURCE",
+              "Choose dated all-day plans.",
+            );
+          sources.push({
+            id,
+            version: item.version,
+            date: item.date,
+            entry: {
+              title: item.title,
+              categoryId: item.categoryId,
+              goalId: item.goalId,
+              notes: item.notes,
+              kind: "all_day",
+              startMinute: null,
+              durationMinutes: null,
+              dateSpan: daysBetween(item.date, item.endDate) + 1,
+            },
+          });
+        }
+      }
+      const from = sources.map((source) => source.date).sort()[0]!;
+      const last = sources
+        .map((source) => source.date)
+        .sort()
+        .at(-1)!;
+      if (from !== v.sourceDate || daysBetween(from, last) >= 31)
+        throw new AppError(422, "COPY_RANGE", "Choose plans within 31 days.");
+      const entries = sources.map((source) => ({
+        ...source.entry,
+        dayOffset: daysBetween(from, source.date),
+      }));
+      const firstTimedMinute = sources
+        .filter((source) => source.entry.kind === "block")
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) ||
+            a.entry.startMinute! - b.entry.startMinute!,
+        )[0]?.entry.startMinute;
+      if (v.targetMinute !== undefined && firstTimedMinute == null)
+        throw new AppError(422, "COPY_TIME", "Choose a day for all-day plans.");
+      const token = createHash("sha256")
+        .update(
+          JSON.stringify({
+            prefs,
+            sources: sources.map(({ id, version }) => [id, version]),
+          }),
+        )
+        .digest("hex");
+      return {
+        ...preview(
+          entries,
+          from,
+          v.targetDate,
+          prefs.timezone,
+          v.targetMinute,
+          firstTimedMinute ?? undefined,
+        ),
+        token: copyToken(token, v),
+      };
+    }
     if (v.span === "single") {
       if (!v.sourceId || !v.sourceKind)
         throw new AppError(422, "COPY_SOURCE", "Choose a plan to copy.");
@@ -322,14 +419,7 @@ export function templatesService(
         .update(JSON.stringify({ prefs, id: v.sourceId, version: revision }))
         .digest("hex");
       return {
-        ...preview(
-          entries,
-          from,
-          v.targetDate,
-          prefs.timezone,
-          true,
-          v.targetMinute,
-        ),
+        ...preview(entries, from, v.targetDate, prefs.timezone, v.targetMinute),
         token: copyToken(token, v),
       };
     }
@@ -347,8 +437,70 @@ export function templatesService(
             .weekStart
         : v.targetDate;
     return {
-      ...preview(s.entries, s.from, target, s.prefs.timezone, true),
+      ...preview(s.entries, s.from, target, s.prefs.timezone),
       token: copyToken(s.token, v),
+    };
+  }
+  async function snapshotPreview(
+    u: string,
+    input: SnapshotPasteInput,
+    ctx?: TransactionContext,
+  ) {
+    const v = snapshotPasteInput.parse(input);
+    const prefs = await identity.getPreferences(u, ctx);
+    const entries: TemplateEntry[] = [
+      ...v.snapshot.blocks.map((block) =>
+        templateEntrySchema.parse({
+          title: block.title,
+          categoryId: block.categoryId,
+          goalId: block.goalId,
+          notes: block.notes,
+          kind: "block",
+          dayOffset: daysBetween(
+            v.snapshot.sourceDate,
+            localDate(block.startsAt, v.snapshot.timezone),
+          ),
+          startMinute: localMinute(block.startsAt, v.snapshot.timezone),
+          durationMinutes:
+            (Date.parse(block.endsAt) - Date.parse(block.startsAt)) / 60000,
+          dateSpan: null,
+        }),
+      ),
+      ...v.snapshot.items.map((item) => {
+        if (item.kind !== "all_day" || !item.date || !item.endDate)
+          throw new AppError(422, "COPY_SOURCE", "Choose dated all-day plans.");
+        return templateEntrySchema.parse({
+          title: item.title,
+          categoryId: item.categoryId,
+          goalId: item.goalId,
+          notes: item.notes,
+          kind: "all_day",
+          dayOffset: daysBetween(v.snapshot.sourceDate, item.date),
+          startMinute: null,
+          durationMinutes: null,
+          dateSpan: daysBetween(item.date, item.endDate) + 1,
+        });
+      }),
+    ];
+    const firstTimedMinute = entries
+      .filter((entry) => entry.kind === "block")
+      .sort(
+        (a, b) => a.dayOffset - b.dayOffset || a.startMinute! - b.startMinute!,
+      )[0]?.startMinute;
+    if (v.targetMinute !== undefined && firstTimedMinute == null)
+      throw new AppError(422, "COPY_TIME", "Choose a day for all-day plans.");
+    return {
+      ...preview(
+        entries,
+        v.snapshot.sourceDate,
+        v.targetDate,
+        prefs.timezone,
+        v.targetMinute,
+        firstTimedMinute ?? undefined,
+      ),
+      token: createHash("sha256")
+        .update(JSON.stringify({ userId: u, prefs, input: v }))
+        .digest("hex"),
     };
   }
   return {
@@ -359,6 +511,19 @@ export function templatesService(
       return found(await repo.get(u, id));
     },
     copyPreview,
+    snapshotPreview,
+    pasteSnapshot(
+      u: string,
+      input: SnapshotPasteInput,
+      token: string,
+      ctx?: TransactionContext,
+    ) {
+      return transaction(async (tx) => {
+        const p = await snapshotPreview(u, input, tx);
+        if (p.token !== token) throw staleRevision();
+        return apply(u, p, tx);
+      }, ctx);
+    },
     copy(u: string, input: CopyInput, token: string, ctx?: TransactionContext) {
       return transaction(async (tx) => {
         const p = await copyPreview(u, input, tx);

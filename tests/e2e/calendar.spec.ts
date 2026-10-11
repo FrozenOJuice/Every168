@@ -940,11 +940,7 @@ test("day, week and month calendars keep planning focused", async ({
   );
   expect(dayFontSize).toBe(titleFontSize);
   await expect(dateTitle.locator(".calendar-date-day")).toHaveCount(0);
-  await expect(
-    page
-      .getByRole("region", { name: "Day activity" })
-      .locator(".calendar-feed-weekday"),
-  ).toHaveText("Tuesday");
+  await expect(day.locator(".grid-day-label")).toHaveText("Tuesday1");
   expect(await dateStyle()).toEqual(initialDateStyle);
   await expectFixedArrows();
   await expectCenteredDate();
@@ -1534,17 +1530,13 @@ test("day, week and month calendars keep planning focused", async ({
     .toBe(scrollTarget);
   await page.goto("/?date=2032-01-04&view=day");
   const emptyFeed = page.getByRole("region", { name: "Day activity" });
-  const weekday = emptyFeed.locator(".calendar-feed-weekday");
+  const weekday = day.locator(".grid-day-label");
   const emptyMessage = emptyFeed.getByText(
     "No plans or activity for this day yet.",
   );
-  await expect(weekday).toHaveText("Sunday");
+  await expect(weekday).toHaveText("Sunday4");
   await expect(emptyMessage).toBeVisible();
-  const weekdayBounds = (await weekday.boundingBox())!;
-  const emptyBounds = (await emptyMessage.boundingBox())!;
-  expect(
-    emptyBounds.y - (weekdayBounds.y + weekdayBounds.height),
-  ).toBeGreaterThanOrEqual(8);
+  await expect(emptyFeed.locator(".calendar-feed-weekday")).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath("calendar-empty-day.png"),
   });

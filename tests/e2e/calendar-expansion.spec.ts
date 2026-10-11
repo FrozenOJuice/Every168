@@ -725,7 +725,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     await audit("calendar-small-phone");
   }
   await page.goto("/?date=2026-09-07&view=day");
-  await day.getByRole("button", { name: /Conference, all day/ }).click();
+  await day.getByRole("button", { name: /Conference, all day/ }).dblclick();
   await dialog.getByRole("button", { name: "Add a time" }).click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
     "Conference",

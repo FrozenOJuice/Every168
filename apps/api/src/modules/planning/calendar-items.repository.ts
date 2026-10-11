@@ -1,9 +1,14 @@
 import { and, eq, isNull, lte, gte, or, desc } from "drizzle-orm";
-import type { CalendarItemInput, PageQuery } from "@168hours/contracts";
+import type {
+  CalendarItem,
+  CalendarItemInput,
+  PageQuery,
+} from "@168hours/contracts";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
 import { changed } from "../../shared/errors/revision.js";
+import { AppError } from "../../shared/errors/app-error.js";
 import {
   cursorCondition,
   pageResult,
@@ -85,6 +90,26 @@ export function calendarItemsRepository(db: Database) {
           .returning()
       )[0];
       return changed(row, () => this.get(u, id, context));
+    },
+    async restore(
+      u: string,
+      snapshot: CalendarItem,
+      context: TransactionContext,
+    ) {
+      if (await this.get(u, snapshot.id, context))
+        throw new AppError(409, "UNDO_CONFLICT", "This plan already exists.");
+      return (
+        await databaseFor(db, context)
+          .insert(t)
+          .values({
+            ...snapshot,
+            userId: u,
+            version: snapshot.version + 1,
+            createdAt: new Date(snapshot.createdAt),
+            updatedAt: new Date(),
+          })
+          .returning()
+      )[0]!;
     },
   };
 }

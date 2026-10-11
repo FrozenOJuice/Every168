@@ -1,6 +1,8 @@
 import {
   calendarItemInput,
+  calendarItemSchema,
   type BlockInput,
+  type CalendarItem,
   type CalendarItemInput,
   type PageQuery,
 } from "@168hours/contracts";
@@ -59,6 +61,23 @@ export function calendarItemsService(
     ) {
       await repo.remove(u, id, version, ctx);
       return { ok: true as const };
+    },
+    async restore(u: string, snapshot: CalendarItem, ctx: TransactionContext) {
+      const item = calendarItemSchema.parse(snapshot);
+      await validate(
+        u,
+        {
+          title: item.title,
+          categoryId: item.categoryId,
+          goalId: item.goalId,
+          notes: item.notes,
+          kind: item.kind,
+          date: item.date,
+          endDate: item.endDate,
+        },
+        ctx,
+      );
+      return repo.restore(u, item, ctx);
     },
     schedule(
       u: string,

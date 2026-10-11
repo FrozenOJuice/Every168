@@ -15,6 +15,9 @@ import type {
   CopyInput,
   CopyUndoInput,
   CopyPreview,
+  SnapshotPasteInput,
+  GroupDeleteInput,
+  GroupDeleteUndoInput,
   TemplateCaptureInput,
   CalendarTemplate,
 } from "@168hours/contracts";
@@ -103,8 +106,43 @@ export function calendarClient(http: Http) {
         body: body(v),
         headers: writeHeaders(key),
       }),
+    previewCalendarSnapshotPaste: (v: SnapshotPasteInput) =>
+      http<CopyPreview & { token: string }>(root + "/snapshot-preview", {
+        method: "POST",
+        body: body(v),
+      }),
+    pasteCalendarSnapshot: (
+      v: SnapshotPasteInput & { token: string },
+      key?: string,
+    ) =>
+      http<{
+        count: number;
+        targetDate: string;
+        createdBlocks: { id: string; version: number; title: string }[];
+        createdItems: { id: string; version: number }[];
+      }>(root + "/snapshot-copy", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
     undoCalendarCopy: (v: CopyUndoInput, key?: string) =>
       http<{ ok: true }>(root + "/copy/undo", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
+    deleteCalendarSelection: (v: GroupDeleteInput, key?: string) =>
+      http<{ ok: true; undoId: string }>(root + "/selection/delete", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
+    undoCalendarSelectionDelete: (v: GroupDeleteUndoInput, key?: string) =>
+      http<{
+        ok: true;
+        blocks: { id: string; version: number }[];
+        items: { id: string; version: number }[];
+      }>(root + "/selection/delete/undo", {
         method: "POST",
         body: body(v),
         headers: writeHeaders(key),

@@ -5,7 +5,12 @@ import type { CalendarActivity } from "@168hours/contracts";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { CalendarItemButton } from "./calendar-item-button";
 import { itemsOnDate, type CalendarFilter } from "./calendar-filters";
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Week, CalendarItem } from "@168hours/contracts";
@@ -45,6 +50,7 @@ export function CalendarGrid({
   onShowDay,
   selectedDays,
   onSelectDay,
+  onSelectRange,
   now,
   hourHeight,
   minimumHourHeight,
@@ -70,6 +76,7 @@ export function CalendarGrid({
   onShowDay: (date: string) => void;
   selectedDays: string[];
   onSelectDay: (date: string, mode?: "replace" | "toggle" | "extend") => void;
+  onSelectRange: (first: string, last: string) => void;
   now: string;
   hourHeight: number;
   minimumHourHeight: number;
@@ -87,6 +94,114 @@ export function CalendarGrid({
   const router = useRouter();
   const scroll = useRef<HTMLDivElement>(null);
   const scaleAnchor = useRef<TimeScaleAnchor | null>(null);
+  const suppressHeaderClick = useRef(false);
+  const stopHeaderDrag = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => () => stopHeaderDrag.current?.(), []);
+  function startHeaderRange(
+    event: ReactPointerEvent<HTMLButtonElement>,
+    first: string,
+  ) {
+    if (
+      event.button !== 0 ||
+      event.pointerType !== "mouse" ||
+      interaction?.busy
+    )
+      return;
+    stopHeaderDrag.current?.();
+    suppressHeaderClick.current = true;
+    interaction?.selectTime({ date: first });
+    onSelectDay(
+      first,
+      event.shiftKey
+        ? "extend"
+        : event.metaKey || event.ctrlKey
+          ? "toggle"
+          : "replace",
+    );
+    const pointer = event.pointerId;
+    const x = event.clientX;
+    const y = event.clientY;
+    let pointerX = x;
+    let pointerY = y;
+    let last = first;
+    let selected = "";
+    let moved = false;
+    let frame = 0;
+    const cleanup = () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancel);
+      stopHeaderDrag.current = null;
+    };
+    const updateTarget = (targetX: number, targetY: number) => {
+      const heading = document
+        .elementFromPoint(targetX, targetY)
+        ?.closest<HTMLElement>(".grid-day-heading[data-date]");
+      if (!heading?.dataset.date) return;
+      last = heading.dataset.date;
+      if (moved && selected !== last) {
+        selected = last;
+        onSelectRange(first, last);
+      }
+    };
+    const move = (next: PointerEvent) => {
+      if (next.pointerId !== pointer) return;
+      pointerX = next.clientX;
+      pointerY = next.clientY;
+      if (!moved && Math.hypot(pointerX - x, pointerY - y) > 5) moved = true;
+      if (moved) next.preventDefault();
+      updateTarget(pointerX, pointerY);
+    };
+    const tick = () => {
+      const viewport = scroll.current;
+      const header = viewport?.querySelector<HTMLElement>(
+        ".calendar-grid-head",
+      );
+      if (moved && viewport && header) {
+        const bounds = viewport.getBoundingClientRect();
+        const headerBounds = header.getBoundingClientRect();
+        if (
+          pointerY >= headerBounds.top &&
+          pointerY <= headerBounds.bottom &&
+          pointerX >= bounds.left &&
+          pointerX <= bounds.right
+        ) {
+          const delta =
+            pointerX > bounds.right - 35
+              ? 14
+              : pointerX < bounds.left + 85
+                ? -14
+                : 0;
+          if (delta) {
+            viewport.scrollLeft += delta;
+            updateTarget(pointerX, pointerY);
+          }
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const finish = (next: PointerEvent) => {
+      if (next.pointerId !== pointer) return;
+      cleanup();
+      if (moved) onSelectRange(first, last);
+      window.setTimeout(() => {
+        suppressHeaderClick.current = false;
+      }, 0);
+    };
+    const cancel = (next: PointerEvent) => {
+      if (next.pointerId !== pointer) return;
+      cleanup();
+      window.setTimeout(() => {
+        suppressHeaderClick.current = false;
+      }, 0);
+    };
+    stopHeaderDrag.current = cleanup;
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancel);
+    frame = requestAnimationFrame(tick);
+  }
   const days = week.days.filter((day) => view === "week" || day.date === date);
   const single = view === "day";
   const clockChange =
@@ -94,9 +209,17 @@ export function CalendarGrid({
     days.some(
       (day) => Date.parse(day.endsAt) - Date.parse(day.startsAt) !== 86400000,
     );
-  const hasAnytime = days.some(
-    (day) => itemsOnDate(items, day.date, filter).length > 0,
+  const allDayPlansOnDate = (date: string) =>
+    itemsOnDate(items, date, filter).filter((item) => item.kind === "all_day");
+  const hasAllDay = days.some((day) => allDayPlansOnDate(day.date).length > 0);
+  const unscheduledPlansOnDate = (date: string) =>
+    itemsOnDate(items, date, filter).filter(
+      (item) => item.kind === "unscheduled",
+    );
+  const hasUnscheduled = days.some(
+    (day) => unscheduledPlansOnDate(day.date).length > 0,
   );
+  const hasAnytime = hasAllDay || hasUnscheduled;
   useLayoutEffect(() => {
     const element = scroll.current;
     if (!element || clockChange) return;
@@ -123,7 +246,7 @@ export function CalendarGrid({
     ? Math.max(
         1,
         ...days.flatMap((day) =>
-          layoutDay(dayRecords(week, day.date, filter), day, hourHeight).map(
+          layoutDay(dayRecords(week, day.date, filter), day).map(
             (segment) => segment.lanes,
           ),
         ),
@@ -241,6 +364,45 @@ export function CalendarGrid({
             } as CSSProperties
           }
         >
+          {single && (
+            <div className="calendar-grid-head">
+              <span className="grid-zone">Time</span>
+              <div
+                data-date={date}
+                className={
+                  "grid-day-heading" +
+                  (date === today ? " is-today" : "") +
+                  (selectedDays.includes(date) ? " is-selected" : "")
+                }
+              >
+                <button
+                  className="grid-day-label"
+                  type="button"
+                  aria-label={"Select " + date}
+                  aria-pressed={selectedDays.includes(date)}
+                  onPointerDown={(event) => startHeaderRange(event, date)}
+                  onClick={(event) => {
+                    if (suppressHeaderClick.current) {
+                      suppressHeaderClick.current = false;
+                      return;
+                    }
+                    interaction?.selectTime({ date });
+                    onSelectDay(
+                      date,
+                      event.shiftKey
+                        ? "extend"
+                        : event.metaKey || event.ctrlKey
+                          ? "toggle"
+                          : "replace",
+                    );
+                  }}
+                >
+                  <span>{formatDate(date, { weekday: "long" })}</span>
+                  <strong>{formatDate(date, { day: "numeric" })}</strong>
+                </button>
+              </div>
+            </div>
+          )}
           {!single && (
             <div className="calendar-grid-head">
               <span className="grid-zone">Time</span>
@@ -250,11 +412,7 @@ export function CalendarGrid({
                   Date.parse(day.endsAt) - Date.parse(day.startsAt) !== 86400000
                     ? 0
                     : visibleWeekSegments(
-                        layoutDay(
-                          dayRecords(week, day.date, filter),
-                          day,
-                          hourHeight,
-                        ),
+                        layoutDay(dayRecords(week, day.date, filter), day),
                       ).hidden;
                 return (
                   <div
@@ -270,7 +428,14 @@ export function CalendarGrid({
                       type="button"
                       aria-label={"Select " + day.date}
                       aria-pressed={selectedDays.includes(day.date)}
+                      onPointerDown={(event) =>
+                        startHeaderRange(event, day.date)
+                      }
                       onClick={(event) => {
+                        if (suppressHeaderClick.current) {
+                          suppressHeaderClick.current = false;
+                          return;
+                        }
                         interaction?.selectTime({ date: day.date });
                         onSelectDay(
                           day.date,
@@ -281,11 +446,19 @@ export function CalendarGrid({
                               : "replace",
                         );
                       }}
-                      onDoubleClick={() =>
+                      onDoubleClick={() => {
+                        if (!suppressHeaderClick.current)
+                          router.push(calendarHref(day.date, "day"), {
+                            scroll: false,
+                          });
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" || interaction?.busy) return;
+                        event.preventDefault();
                         router.push(calendarHref(day.date, "day"), {
                           scroll: false,
-                        })
-                      }
+                        });
+                      }}
                     >
                       <span>
                         {formatDate(day.date, {
@@ -335,31 +508,65 @@ export function CalendarGrid({
           )}
           {hasAnytime && (
             <div className="calendar-anytime-row">
-              <span className="grid-zone">Any time</span>
-              {days.map((day) => {
-                const plans = itemsOnDate(items, day.date, filter);
-                return (
-                  <div key={day.date} className="calendar-anytime-cell">
-                    {plans.slice(0, 1).map((item) => (
-                      <CalendarItemButton
-                        key={item.id}
-                        item={item}
-                        compact
-                        onOpen={() => onOpenItem(item)}
-                      />
-                    ))}
-                    {plans.length > 1 && (
-                      <button
-                        className="text-button"
-                        onClick={() => onShowDay(day.date)}
-                        aria-label={`Show all records for ${day.date}, ${plans.length - 1} more date-only plans`}
-                      >
-                        +{plans.length - 1} more
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {hasAllDay && (
+                <div className="calendar-date-row calendar-all-day-row">
+                  <span className="grid-zone">All day</span>
+                  {days.map((day) => {
+                    const plans = allDayPlansOnDate(day.date);
+                    return (
+                      <div key={day.date} className="calendar-anytime-cell">
+                        {plans.slice(0, 1).map((item) => (
+                          <CalendarItemButton
+                            key={item.id}
+                            item={item}
+                            compact
+                            titleOnly
+                            onOpen={() => onOpenItem(item)}
+                          />
+                        ))}
+                        {plans.length > 1 && (
+                          <button
+                            className="text-button"
+                            onClick={() => onShowDay(day.date)}
+                            aria-label={`Show all records for ${day.date}, ${plans.length - 1} more all-day plans`}
+                          >
+                            +{plans.length - 1} more
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {hasUnscheduled && (
+                <div className="calendar-date-row calendar-unscheduled-row">
+                  <span className="grid-zone">Any time</span>
+                  {days.map((day) => {
+                    const plans = unscheduledPlansOnDate(day.date);
+                    return (
+                      <div key={day.date} className="calendar-anytime-cell">
+                        {plans.slice(0, 1).map((item) => (
+                          <CalendarItemButton
+                            key={item.id}
+                            item={item}
+                            compact
+                            onOpen={() => onOpenItem(item)}
+                          />
+                        ))}
+                        {plans.length > 1 && (
+                          <button
+                            className="text-button"
+                            onClick={() => onShowDay(day.date)}
+                            aria-label={`Show all records for ${day.date}, ${plans.length - 1} more date-only plans`}
+                          >
+                            +{plans.length - 1} more
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
           <div
@@ -442,7 +649,7 @@ export function CalendarGrid({
                 : records;
               const segments = changed
                 ? []
-                : layoutDay(previewRecords, day, hourHeight).map((segment) => {
+                : layoutDay(previewRecords, day).map((segment) => {
                     if (segment.record.item.id !== resize?.id) return segment;
                     return {
                       ...segment,
@@ -586,81 +793,121 @@ export function CalendarGrid({
                           </button>
                         );
                       })}
-                      {visible.map(({ record, top, bottom, lane, lanes }) => (
-                        <div
-                          className="grid-record"
-                          key={record.kind + record.item.id}
-                          style={{
-                            top: (top / 60) * hourHeight,
-                            height: ((bottom - top) / 60) * hourHeight,
-                            left: moments.length
-                              ? `calc((100% - 44px) * ${lane / lanes})`
-                              : (lane / lanes) * 100 + "%",
-                            width: moments.length
-                              ? `calc((100% - 44px) / ${lanes})`
-                              : 100 / lanes + "%",
-                          }}
-                        >
-                          {record.kind === "block" && (
-                            <>
-                              {Date.parse(record.item.startsAt) >=
-                                Date.parse(day.startsAt) && (
-                                <button
-                                  tabIndex={-1}
-                                  aria-hidden="true"
-                                  className="calendar-resize-handle resize-start"
-                                  aria-label={
-                                    "Resize start of " + record.item.title
-                                  }
-                                  onPointerDown={(event) =>
-                                    interaction?.start(
-                                      event,
-                                      "start",
-                                      record.item,
-                                      day.date,
-                                    )
-                                  }
-                                  onClick={() =>
-                                    interaction?.select(record.item.id)
-                                  }
-                                  onDoubleClick={() => onOpen(record, day.date)}
-                                />
-                              )}
-                              {Date.parse(record.item.endsAt) <=
-                                Date.parse(day.endsAt) && (
-                                <button
-                                  tabIndex={-1}
-                                  aria-hidden="true"
-                                  className="calendar-resize-handle resize-end"
-                                  aria-label={
-                                    "Resize end of " + record.item.title
-                                  }
-                                  onPointerDown={(event) =>
-                                    interaction?.start(
-                                      event,
-                                      "end",
-                                      record.item,
-                                      day.date,
-                                    )
-                                  }
-                                  onClick={() =>
-                                    interaction?.select(record.item.id)
-                                  }
-                                  onDoubleClick={() => onOpen(record, day.date)}
-                                />
-                              )}
-                            </>
-                          )}
-                          <CalendarRecord
-                            record={record}
-                            week={week}
-                            compact
-                            date={day.date}
-                            short={((bottom - top) / 60) * hourHeight < 66}
-                            onOpen={() => onOpen(record, day.date)}
-                          />
-                        </div>
-                      ))}
+                      {visible.map(({ record, top, bottom, lane, lanes }) => {
+                        const blockHeight = ((bottom - top) / 60) * hourHeight;
+                        const bare = blockHeight < 15;
+                        const tightTitle =
+                          blockHeight >= 15 && blockHeight < 20;
+                        const condensed = blockHeight < 42;
+                        const canResize = blockHeight >= 28;
+                        return (
+                          <div
+                            className={
+                              "grid-record" +
+                              (bare ? " is-bare" : "") +
+                              (tightTitle ? " is-tight-title" : "") +
+                              (condensed ? " is-condensed" : "") +
+                              (blockHeight < 14 ? " is-tiny" : "")
+                            }
+                            key={record.kind + record.item.id}
+                            style={{
+                              top: (top / 60) * hourHeight,
+                              height: blockHeight,
+                              left: moments.length
+                                ? `calc((100% - 44px) * ${lane / lanes})`
+                                : (lane / lanes) * 100 + "%",
+                              width: moments.length
+                                ? `calc((100% - 44px) / ${lanes})`
+                                : 100 / lanes + "%",
+                            }}
+                          >
+                            {record.kind === "block" && canResize && (
+                              <>
+                                {Date.parse(record.item.startsAt) >=
+                                  Date.parse(day.startsAt) && (
+                                  <button
+                                    tabIndex={-1}
+                                    aria-hidden="true"
+                                    className="calendar-resize-handle resize-start"
+                                    aria-label={
+                                      "Resize start of " + record.item.title
+                                    }
+                                    onPointerDown={(event) =>
+                                      interaction?.start(
+                                        event,
+                                        "start",
+                                        record.item,
+                                        day.date,
+                                      )
+                                    }
+                                    onClick={() =>
+                                      interaction?.select(record.item.id)
+                                    }
+                                    onDoubleClick={() =>
+                                      onOpen(record, day.date)
+                                    }
+                                  />
+                                )}
+                                {Date.parse(record.item.endsAt) <=
+                                  Date.parse(day.endsAt) && (
+                                  <button
+                                    tabIndex={-1}
+                                    aria-hidden="true"
+                                    className="calendar-resize-handle resize-end"
+                                    aria-label={
+                                      "Resize end of " + record.item.title
+                                    }
+                                    onPointerDown={(event) =>
+                                      interaction?.start(
+                                        event,
+                                        "end",
+                                        record.item,
+                                        day.date,
+                                      )
+                                    }
+                                    onClick={() =>
+                                      interaction?.select(record.item.id)
+                                    }
+                                    onDoubleClick={() =>
+                                      onOpen(record, day.date)
+                                    }
+                                  />
+                                )}
+                              </>
+                            )}
+                            <CalendarRecord
+                              record={record}
+                              week={week}
+                              compact
+                              date={day.date}
+                              short={blockHeight < 66}
+                              detailsOnInteraction={condensed}
+                              onOpen={() => onOpen(record, day.date)}
+                            />
+                            {condensed && (
+                              <div
+                                className="grid-record-details"
+                                aria-hidden="true"
+                              >
+                                <strong>{record.item.title}</strong>
+                                <span>
+                                  {formatTime(
+                                    record.item.startsAt,
+                                    week.timezone,
+                                    true,
+                                  )}{" "}
+                                  -{" "}
+                                  {formatTime(
+                                    record.item.endsAt,
+                                    week.timezone,
+                                    true,
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       {selection && selectionBottom > selectionTop && (
                         <div
                           className="calendar-draft-block"

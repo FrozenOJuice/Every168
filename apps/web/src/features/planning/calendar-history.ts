@@ -1,4 +1,8 @@
 import type { Block } from "@168hours/contracts";
+type RestoredSelection = {
+  blocks: { id: string; version: number }[];
+  items: { id: string; version: number }[];
+};
 
 export type CalendarAction =
   | ({ key: string; blockId: string; title: string } & (
@@ -16,6 +20,11 @@ export type CalendarAction =
       kind: "copy";
       blocks: { id: string; version: number }[];
       items: { id: string; version: number }[];
+    }
+  | {
+      key: string;
+      kind: "group-delete";
+      undoId: string;
     };
 
 export function recordAction(
@@ -32,10 +41,47 @@ export function undoAction(
   history: CalendarAction[],
   action: CalendarAction,
   restored: Block | null,
+  selection?: RestoredSelection | null,
 ) {
   if (history.at(-1)?.key !== action.key) return history;
   const remaining = history.slice(0, -1);
   if (action.kind === "copy") return remaining;
+  if (action.kind === "group-delete") {
+    if (!selection) return remaining;
+    for (const block of selection.blocks) {
+      const index = remaining.findLastIndex((entry) =>
+        entry.kind === "copy"
+          ? entry.blocks.some((record) => record.id === block.id)
+          : "blockId" in entry && entry.blockId === block.id,
+      );
+      const previous = remaining[index];
+      if (previous?.kind === "copy")
+        remaining[index] = {
+          ...previous,
+          blocks: previous.blocks.map((record) =>
+            record.id === block.id ? block : record,
+          ),
+        };
+      else if (previous && "version" in previous)
+        remaining[index] = { ...previous, version: block.version };
+    }
+    for (const item of selection.items) {
+      const index = remaining.findLastIndex(
+        (entry) =>
+          entry.kind === "copy" &&
+          entry.items.some((record) => record.id === item.id),
+      );
+      const previous = remaining[index];
+      if (previous?.kind === "copy")
+        remaining[index] = {
+          ...previous,
+          items: previous.items.map((record) =>
+            record.id === item.id ? item : record,
+          ),
+        };
+    }
+    return remaining;
+  }
   if (!restored || action.kind === "create") return remaining;
   const index = remaining.findLastIndex(
     (entry) => "blockId" in entry && entry.blockId === action.blockId,

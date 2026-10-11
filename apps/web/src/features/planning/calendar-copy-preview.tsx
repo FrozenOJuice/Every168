@@ -16,12 +16,6 @@ export function CalendarCopyPreview({ preview }: { preview: CopyPreview }) {
         and repeating rules are excluded. Times use {preview.timezone}; repeated
         clock times use the first occurrence.
       </p>
-      {preview.skipped > 0 && (
-        <p className="muted text-small">
-          {preview.skipped} {preview.skipped === 1 ? "plan" : "plans"} skipped
-          because a copy would overlap its own original.
-        </p>
-      )}
       <ol className="copy-preview-list">
         {preview.blocks.map((b, index) => (
           <li key={"b" + index}>

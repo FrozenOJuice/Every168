@@ -17,6 +17,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { CalendarCopyPreview } from "./calendar-copy-preview";
+import { useCalendarInteractions } from "./calendar-interactions";
 import { invalidateCalendar } from "./invalidate-calendar";
 type Template = Omit<CalendarTemplate, "entries">;
 type Review =
@@ -45,21 +46,43 @@ export function CalendarTemplates({
 }) {
   const [review, setReview] = useState<Review | null>(null);
   const cache = useQueryClient();
+  const interaction = useCalendarInteractions();
   const apply = useCommand({
-    mutationFn: (v: Review, key: string) =>
-      "template" in v
-        ? api.applyCalendarTemplate(
+    mutationFn: async (v: Review, key: string) => {
+      if ("template" in v)
+        return {
+          kind: "template" as const,
+          result: await api.applyCalendarTemplate(
             v.template.id,
             v.preview.targetDate,
             v.cycles,
             v.version,
             v.preferencesVersion,
             key,
-          )
-        : api.copyCalendar({ ...v.input, token: v.token }, key),
-    onSuccess: async (result) => {
+          ),
+        };
+      return {
+        kind: "copy" as const,
+        key,
+        result: await api.copyCalendar({ ...v.input, token: v.token }, key),
+      };
+    },
+    onSuccess: async (outcome) => {
+      if (outcome.kind === "copy")
+        interaction?.history.record({
+          kind: "copy",
+          key: outcome.key,
+          blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
+            id,
+            version,
+          })),
+          items: outcome.result.createdItems,
+        });
       await invalidateCalendar(cache);
-      onSaved(`${result.count} plans added.`, result.targetDate);
+      onSaved(
+        `${outcome.result.count} plans added.`,
+        outcome.result.targetDate,
+      );
     },
   });
   return (

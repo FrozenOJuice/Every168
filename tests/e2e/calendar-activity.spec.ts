@@ -89,7 +89,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(
     feed.getByRole("heading", { name: "Your day", exact: true }),
   ).toHaveCount(0);
-  await expect(page.locator(".daily-grid .calendar-grid-head")).toHaveCount(0);
+  await expect(page.locator(".daily-grid .calendar-grid-head")).toHaveCount(1);
   if (testInfo.project.name === "desktop") {
     const period = (await page.locator(".calendar-period").boundingBox())!;
     const sidebar = (await feed.boundingBox())!;
@@ -445,18 +445,16 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     exact: true,
   });
   await doubleDay.dblclick();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-10T16:00",
-  );
-  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/date=2026-10-10&view=day/);
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("link", { name: "Month", exact: true }).click();
   await selectedDay.focus();
   await page.keyboard.press("Space");
   await expect(selectedDay).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Enter");
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-09T16:00",
-  );
-  await page.keyboard.press("Escape");
+  await expect(page).toHaveURL(/date=2026-10-09&view=day/);
+  await expect(dialog).toHaveCount(0);
+  await page.goto("/?date=2026-10-08&view=month");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
     "2026-10-08T16:00",

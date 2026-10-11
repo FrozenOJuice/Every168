@@ -60,3 +60,28 @@ it("keeps unrelated actions in order and leaves external revision gaps guarded",
   expect(undoAction(history, moved, restored(5))).toBe(history);
   expect(recordAction(history, created)).toBe(history);
 });
+
+it("restores a deleted group as one action and advances earlier copy revisions", () => {
+  const copied: CalendarAction = {
+    key: "copy",
+    kind: "copy",
+    blocks: [{ id: "a", version: 1 }],
+    items: [{ id: "item", version: 1 }],
+  };
+  const group: CalendarAction = {
+    key: "group",
+    kind: "group-delete",
+    undoId: "receipt",
+  };
+  const history = undoAction([copied, group], group, null, {
+    blocks: [{ id: "a", version: 2 }],
+    items: [{ id: "item", version: 2 }],
+  });
+  expect(history).toEqual([
+    {
+      ...copied,
+      blocks: [{ id: "a", version: 2 }],
+      items: [{ id: "item", version: 2 }],
+    },
+  ]);
+});

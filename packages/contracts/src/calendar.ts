@@ -111,7 +111,7 @@ export const copyInput = z
   .object({
     sourceDate: dateSchema,
     targetDate: dateSchema,
-    span: z.enum(["single", "day", "week", "range"]),
+    span: z.enum(["single", "day", "week", "range", "selection"]),
     sourceEndDate: dateSchema.optional(),
     sourceId: idSchema.optional(),
     sourceKind: z.enum(["block", "item"]).optional(),
@@ -119,6 +119,7 @@ export const copyInput = z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}(,\d{4}-\d{2}-\d{2}){0,30}$/)
       .optional(),
+    selectedPlans: z.string().max(4400).optional(),
     targetMinute: z.coerce
       .number()
       .int()
@@ -128,6 +129,23 @@ export const copyInput = z
       .optional(),
   })
   .strict();
+export const calendarPlanSelection = z
+  .object({
+    kind: z.enum(["block", "item"]),
+    id: idSchema,
+    version: z.number().int().positive(),
+  })
+  .strict();
+export const groupDeleteInput = z
+  .object({ plans: z.array(calendarPlanSelection).min(2).max(100) })
+  .strict()
+  .refine(
+    (value) =>
+      new Set(value.plans.map((plan) => `${plan.kind}:${plan.id}`)).size ===
+      value.plans.length,
+    "Select distinct plans.",
+  );
+export const groupDeleteUndoInput = z.object({ undoId: idSchema }).strict();
 export const copyUndoInput = z
   .object({
     blocks: z
@@ -191,8 +209,29 @@ export const copyPreviewSchema = z.object({
   timezone: z.string(),
   blocks: z.array(blockInput),
   items: z.array(calendarItemInput),
-  skipped: z.number().int().nonnegative().default(0),
 });
+export const clipboardSnapshotSchema = copyPreviewSchema
+  .pick({ sourceDate: true, timezone: true, blocks: true, items: true })
+  .extend({
+    timezone: preferencesInput.shape.timezone,
+    blocks: z.array(blockInput).max(100),
+    items: z.array(calendarItemInput).max(100),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.blocks.length + value.items.length > 0 &&
+      value.blocks.length + value.items.length <= 100 &&
+      value.items.every((item) => item.kind === "all_day"),
+    "Copy between 1 and 100 dated plans.",
+  );
+export const snapshotPasteInput = z
+  .object({
+    snapshot: clipboardSnapshotSchema,
+    targetDate: dateSchema,
+    targetMinute: z.number().int().min(0).lt(1440).multipleOf(5).optional(),
+  })
+  .strict();
 export type CalendarItem = z.infer<typeof calendarItemSchema>;
 export type CalendarItemInput = z.infer<typeof calendarItemInput>;
 export type SeriesInput = z.infer<typeof seriesInput>;
@@ -201,6 +240,10 @@ export type SeriesResult = z.infer<typeof seriesResultSchema>;
 export type CalendarSearchQuery = z.infer<typeof calendarSearchQuery>;
 export type SearchRecord = z.infer<typeof searchRecordSchema>;
 export type CopyInput = z.infer<typeof copyInput>;
+export type ClipboardSnapshot = z.infer<typeof clipboardSnapshotSchema>;
+export type SnapshotPasteInput = z.infer<typeof snapshotPasteInput>;
+export type GroupDeleteInput = z.infer<typeof groupDeleteInput>;
+export type GroupDeleteUndoInput = z.infer<typeof groupDeleteUndoInput>;
 export type CopyUndoInput = z.infer<typeof copyUndoInput>;
 export type TemplateCaptureInput = z.infer<typeof templateCaptureInput>;
 export type TemplateEntry = z.infer<typeof templateEntrySchema>;

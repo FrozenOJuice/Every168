@@ -8,10 +8,13 @@ import {
   calendarSearchQuery,
   copyInput,
   copyUndoInput,
+  groupDeleteInput,
+  groupDeleteUndoInput,
   dateSchema,
   idSchema,
   pageQuerySchema,
   seriesInput,
+  snapshotPasteInput,
   templateApplyInput,
   templateCaptureInput,
   templateRenameInput,
@@ -22,11 +25,13 @@ import type { WritesService } from "../../infrastructure/writes/writes.service.j
 import type { CalendarItemsService } from "./calendar-items.service.js";
 import type { SeriesService } from "./series.service.js";
 import type { TemplatesService } from "./templates.service.js";
+import type { CalendarSelectionService } from "./calendar-selection.service.js";
 import type { CalendarSearchService } from "./calendar-search.service.js";
 export function calendarRoutes(
   items: CalendarItemsService,
   series: SeriesService,
   templates: TemplatesService,
+  selection: CalendarSelectionService,
   search: CalendarSearchService,
   writes: WritesService,
   activity: CalendarActivityService,
@@ -142,6 +147,26 @@ export function calendarRoutes(
       ),
     ),
   );
+  r.post("/calendar/snapshot-preview", async (req, res) =>
+    res.json(
+      await templates.snapshotPreview(
+        currentUser(res).id,
+        snapshotPasteInput.parse(req.body),
+      ),
+    ),
+  );
+  r.post(
+    "/calendar/snapshot-copy",
+    mutation(
+      writes,
+      snapshotPasteInput.extend({ token: z.string().regex(/^[a-f0-9]{64}$/) }),
+      ({ userId, input, context }) => {
+        const { token, ...v } = input;
+        return templates.pasteSnapshot(userId, v, token, context);
+      },
+      { status: 201 },
+    ),
+  );
   r.post(
     "/calendar/copy",
     mutation(
@@ -158,6 +183,18 @@ export function calendarRoutes(
     "/calendar/copy/undo",
     mutation(writes, copyUndoInput, ({ userId, input, context }) =>
       templates.undoCopy(userId, input, context),
+    ),
+  );
+  r.post(
+    "/calendar/selection/delete",
+    mutation(writes, groupDeleteInput, ({ userId, input, context }) =>
+      selection.deleteGroup(userId, input, context),
+    ),
+  );
+  r.post(
+    "/calendar/selection/delete/undo",
+    mutation(writes, groupDeleteUndoInput, ({ userId, input, context }) =>
+      selection.undoGroup(userId, input, context),
     ),
   );
   r.get("/calendar/templates", async (req, res) =>

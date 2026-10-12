@@ -104,12 +104,13 @@ type Interactions = {
   >;
   groupDelete: ReturnType<
     typeof useCommand<
-      { ok: true; undoId: string; key: string },
+      { ok: true; undoId: string; key: string; count: number },
       GroupDeleteInput
     >
   >;
   history: ReturnType<typeof useCalendarHistory>;
   deleteBlock: (block: Block) => void;
+  deleteItem: (item: CalendarItem) => void;
   command: ReturnType<
     typeof useCommand<Block, { block: Block; input: BlockInput }>
   >;
@@ -293,11 +294,17 @@ export function CalendarInteractions({
     setStatus(
       action.kind === "group-delete"
         ? "Plans restored."
-        : action.kind === "delete"
-          ? "Plan restored."
-          : action.kind === "edit"
+        : action.kind === "series"
+          ? "Repeating plan change undone."
+          : action.kind === "item-edit"
             ? "Plan edit undone."
-            : "Plan creation undone.",
+            : action.kind === "activity-create"
+              ? "Activity logging undone."
+              : action.kind === "delete"
+                ? "Plan restored."
+                : action.kind === "edit"
+                  ? "Plan edit undone."
+                  : "Plan creation undone.",
     );
     if (block)
       requestAnimationFrame(() =>
@@ -370,19 +377,20 @@ export function CalendarInteractions({
     },
   });
   const groupDelete = useCommand<
-    { ok: true; undoId: string; key: string },
+    { ok: true; undoId: string; key: string; count: number },
     GroupDeleteInput
   >({
     mutationFn: async (input, key) => {
       const result = await api.deleteCalendarSelection(input, key);
       history.record({ kind: "group-delete", key, undoId: result.undoId });
-      return { ...result, key };
+      return { ...result, key, count: input.plans.length };
     },
-    onSuccess: async ({ key }) => {
+    onSuccess: async ({ key, count }) => {
       await invalidateCalendar(cache);
       clearSelectedPlans();
-      setStatus("Plans deleted.");
-      showNotice("Plans deleted", { undoKey: key, kind: "change" });
+      const message = count === 1 ? "Plan deleted" : "Plans deleted";
+      setStatus(`${message}.`);
+      showNotice(message, { undoKey: key, kind: "change" });
     },
   });
   const busy =
@@ -394,6 +402,13 @@ export function CalendarInteractions({
     if (busy) return;
     setStatus("Deleting plan…");
     remove.mutate(block);
+  }
+  function deleteItem(item: CalendarItem) {
+    if (busy || item.kind !== "all_day") return;
+    setStatus("Deleting plan…");
+    groupDelete.mutate({
+      plans: [{ kind: "item", id: item.id, version: item.version }],
+    });
   }
   useEffect(() => {
     function undo(event: KeyboardEvent) {
@@ -724,6 +739,7 @@ export function CalendarInteractions({
     groupDelete,
     history,
     deleteBlock,
+    deleteItem,
     status,
     notice,
     showNotice,
@@ -734,6 +750,7 @@ export function CalendarInteractions({
     <Context.Provider value={value}>
       <div
         className="calendar-interactions"
+        aria-busy={busy}
         onPointerDownCapture={(event) => {
           if (
             !busy &&
@@ -798,6 +815,13 @@ export function CalendarInteractions({
               event.preventDefault();
               event.stopPropagation();
               deleteBlock(block);
+            } else {
+              const item = items.find((item) => item.id === selectedItemId);
+              if (item) {
+                event.preventDefault();
+                event.stopPropagation();
+                deleteItem(item);
+              }
             }
             return;
           }

@@ -79,7 +79,28 @@ export const seriesResultSchema = z.object({
   firstStartsAt: instantSchema,
   count: z.number(),
   skippedDates: z.array(dateSchema),
+  undoId: idSchema,
+  blocks: z.array(
+    z.object({ id: idSchema, version: z.number().int().positive() }),
+  ),
 });
+export const seriesUndoInput = z
+  .object({
+    undoId: idSchema,
+    blocks: z
+      .array(
+        z
+          .object({ id: idSchema, version: z.number().int().positive() })
+          .strict(),
+      )
+      .max(366),
+  })
+  .strict()
+  .refine(
+    (v) => new Set(v.blocks.map((b) => b.id)).size === v.blocks.length,
+    "Choose distinct occurrences.",
+  );
+export type SeriesUndoInput = z.infer<typeof seriesUndoInput>;
 export const calendarRangeQuery = z
   .object({ from: dateSchema, to: dateSchema })
   .strict()
@@ -137,7 +158,7 @@ export const calendarPlanSelection = z
   })
   .strict();
 export const groupDeleteInput = z
-  .object({ plans: z.array(calendarPlanSelection).min(2).max(100) })
+  .object({ plans: z.array(calendarPlanSelection).min(1).max(100) })
   .strict()
   .refine(
     (value) =>

@@ -24,12 +24,14 @@ export function MeasurementForm({
   initialTime,
   item,
   onSaved,
+  onCreated,
 }: {
   date?: string;
   initialTime?: string;
   kind: "water" | "weight";
   item?: Water | Weight;
   onSaved: (item: Water | Weight) => void;
+  onCreated?: (item: Water | Weight, key: string) => void;
 }) {
   const {
     preferences: { timezone, weightUnit },
@@ -96,6 +98,7 @@ export function MeasurementForm({
             ? await api.updateWater(item.id, input, item.version, key)
             : await api.logWater(input, key);
         }
+        if (!item) onCreated?.(saved, key);
         await cache.invalidateQueries({ queryKey: [kind] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
         await cache.invalidateQueries({ queryKey: ["calendar-activity"] });

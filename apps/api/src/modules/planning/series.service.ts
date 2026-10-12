@@ -1,4 +1,10 @@
-import { seriesInput, type SeriesInput } from "@168hours/contracts";
+import {
+  seriesInput,
+  seriesUndoInput,
+  type SeriesInput,
+  type SeriesUndoInput,
+} from "@168hours/contracts";
+import { isDeepStrictEqual } from "node:util";
 import { expandPlannedSeries } from "@168hours/domain-utils";
 import type { CategoriesService } from "../categories/categories.service.js";
 import type { GoalsService } from "../goals/goals.service.js";
@@ -37,6 +43,7 @@ export function seriesService(
     v: SeriesInput,
     excluded: string[],
     ctx: TransactionContext,
+    removedBlockUndoIds: string[],
   ) {
     const { occurrences, skippedDates } = expandSeries(v, excluded);
     if (!occurrences.length)
@@ -49,7 +56,17 @@ export function seriesService(
     const desired = new Set(occurrences.map((o) => o.date));
     for (const old of previous)
       if (!desired.has(old.occurrenceDate!))
-        await planning.deleteBlock(u, old.id, old.version, ctx, false);
+        removedBlockUndoIds.push(
+          (
+            await planning.deleteBlockWithUndo(
+              u,
+              old.id,
+              old.version,
+              ctx,
+              false,
+            )
+          ).undoId,
+        );
     for (const occurrence of occurrences) {
       const input = {
         title: v.title,
@@ -79,7 +96,23 @@ export function seriesService(
       return transaction(async (tx) => {
         const v = await validate(u, input, tx),
           s = await repo.create(u, v, tx);
-        return materialize(u, s.id, v, [], tx);
+        const result = await materialize(u, s.id, v, [], tx, []);
+        const after = await repo.snapshot(u, s.id, tx);
+        const receipt = await repo.recordChange(
+          u,
+          s.id,
+          null,
+          [],
+          after.series,
+          after.blocks,
+          [],
+          tx,
+        );
+        return {
+          ...result,
+          undoId: receipt.id,
+          blocks: after.blocks.map(({ id, version }) => ({ id, version })),
+        };
       }, ctx);
     },
     update(
@@ -91,9 +124,11 @@ export function seriesService(
     ) {
       return transaction(async (tx) => {
         const old = assertRevision(await repo.get(u, id, tx), version);
+        const before = await repo.snapshot(u, id, tx);
+        const removedBlockUndoIds: string[] = [];
         const v = await validate(u, input, tx);
         await repo.update(u, id, v, tx);
-        return materialize(
+        const result = await materialize(
           u,
           id,
           v,
@@ -101,16 +136,123 @@ export function seriesService(
             (date) => date >= v.startDate && date <= v.untilDate,
           ),
           tx,
+          removedBlockUndoIds,
         );
+        const after = await repo.snapshot(u, id, tx);
+        const receipt = await repo.recordChange(
+          u,
+          id,
+          before.series,
+          before.blocks,
+          after.series,
+          after.blocks,
+          removedBlockUndoIds,
+          tx,
+        );
+        return {
+          ...result,
+          undoId: receipt.id,
+          blocks: after.blocks.map(({ id, version }) => ({ id, version })),
+        };
       }, ctx);
     },
     remove(u: string, id: string, version: number, ctx?: TransactionContext) {
       return transaction(async (tx) => {
         assertRevision(await repo.get(u, id, tx), version);
+        const before = await repo.snapshot(u, id, tx);
+        const removedBlockUndoIds: string[] = [];
         for (const b of await repo.blocks(u, id, tx))
-          await planning.deleteBlock(u, b.id, b.version, tx, false);
+          removedBlockUndoIds.push(
+            (await planning.deleteBlockWithUndo(u, b.id, b.version, tx, false))
+              .undoId,
+          );
         await repo.remove(u, id, tx);
-        return { ok: true as const };
+        const receipt = await repo.recordChange(
+          u,
+          id,
+          before.series,
+          before.blocks,
+          null,
+          [],
+          removedBlockUndoIds,
+          tx,
+        );
+        return { ok: true as const, undoId: receipt.id };
+      }, ctx);
+    },
+    undo(u: string, input: SeriesUndoInput, ctx?: TransactionContext) {
+      return transaction(async (tx) => {
+        const v = seriesUndoInput.parse(input);
+        const receipt = found(await repo.change(u, v.undoId, tx));
+        const current = await repo.snapshot(u, receipt.seriesId, tx);
+        const content = (row: {
+          version: number;
+          createdAt: string;
+          updatedAt: string;
+        }) => {
+          const {
+            version: _version,
+            createdAt: _createdAt,
+            updatedAt: _updatedAt,
+            ...rest
+          } = row;
+          return rest;
+        };
+        // Parent revisions also advance during our own occurrence inverses.
+        // Compare the rule/exclusions and every occurrence's content and expected revision.
+        if (
+          !isDeepStrictEqual(
+            current.series ? content(current.series) : null,
+            receipt.after ? content(receipt.after) : null,
+          ) ||
+          !isDeepStrictEqual(
+            current.blocks.map(content),
+            receipt.afterBlocks.map(content),
+          ) ||
+          current.blocks.length !== v.blocks.length ||
+          current.blocks.some(
+            (block) =>
+              !v.blocks.some(
+                (expected) =>
+                  expected.id === block.id &&
+                  expected.version === block.version,
+              ),
+          )
+        )
+          throw new AppError(
+            409,
+            "UNDO_CONFLICT",
+            "The repeating plan changed. This action cannot be undone safely.",
+          );
+        const beforeIds = new Set(
+          receipt.beforeBlocks.map((block) => block.id),
+        );
+        for (const block of current.blocks)
+          if (!beforeIds.has(block.id))
+            await planning.deleteBlock(u, block.id, block.version, tx, false);
+        if (receipt.before) {
+          const {
+            id: _id,
+            version: _version,
+            createdAt: _createdAt,
+            updatedAt: _updatedAt,
+            excludedDates: _excludedDates,
+            ...rule
+          } = receipt.before;
+          await validate(u, rule, tx);
+          await repo.restoreDefinition(u, receipt.before, tx);
+          for (const block of receipt.beforeBlocks)
+            if (current.blocks.some((candidate) => candidate.id === block.id))
+              await repo.restoreOccurrence(u, block, tx);
+          for (const undoId of receipt.removedBlockUndoIds)
+            await planning.restoreBlock(u, undoId, tx, true);
+        } else await repo.remove(u, receipt.seriesId, tx);
+        const restored = await repo.snapshot(u, receipt.seriesId, tx);
+        await repo.consumeChange(u, receipt.id, tx);
+        return {
+          blocks: restored.blocks.map(({ id, version }) => ({ id, version })),
+          items: [],
+        };
       }, ctx);
     },
   };

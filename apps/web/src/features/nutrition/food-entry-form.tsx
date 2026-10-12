@@ -23,6 +23,7 @@ export function FoodEntryForm({
   onCreateFood,
   onRecent,
   onSaved,
+  onCreated,
 }: {
   food?: Food;
   entry?: FoodEntry;
@@ -33,6 +34,7 @@ export function FoodEntryForm({
   onCreateFood?: () => void;
   onRecent?: () => void;
   onSaved: (entry: FoodEntry) => void;
+  onCreated?: (entry: FoodEntry, key: string) => void;
 }) {
   const {
     preferences: { timezone },
@@ -79,6 +81,7 @@ export function FoodEntryForm({
             ? await api.repeatFoodEntry(entry.id, input, key)
             : await api.updateFoodEntry(entry.id, input, entry.version, key)
           : await api.logFood({ ...input, foodId: v.foodId }, key);
+        if (!entry || repeat) onCreated?.(saved, key);
         await cache.invalidateQueries({ queryKey: ["nutrition"] });
         await cache.invalidateQueries({ queryKey: ["dashboard"] });
         await cache.invalidateQueries({ queryKey: ["calendar-activity"] });

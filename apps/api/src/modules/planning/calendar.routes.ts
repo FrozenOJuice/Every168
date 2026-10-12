@@ -10,6 +10,7 @@ import {
   copyUndoInput,
   groupDeleteInput,
   groupDeleteUndoInput,
+  seriesUndoInput,
   dateSchema,
   idSchema,
   pageQuerySchema,
@@ -103,6 +104,12 @@ export function calendarRoutes(
       ({ userId, id, input, version, context }) =>
         items.schedule(userId, id, input, version, context),
       { versioned: true, status: 201 },
+    ),
+  );
+  r.post(
+    "/calendar/series/undo",
+    mutation(writes, seriesUndoInput, ({ userId, input, context }) =>
+      series.undo(userId, input, context),
     ),
   );
   r.get("/calendar/series/:id", async (req, res) =>

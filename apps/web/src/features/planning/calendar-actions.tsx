@@ -5,6 +5,7 @@ import { CardioForm } from "@/features/exercise/cardio-form";
 import { WorkoutStartForm } from "@/features/exercise/workout-start-form";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
 import { formatDate } from "@/lib/format";
+import { useCalendarInteractions } from "./calendar-interactions";
 export type CalendarAction =
   "series" | "all_day" | "unscheduled" | "copy" | "templates" | "quick";
 export function CalendarActions({
@@ -66,6 +67,22 @@ export function CalendarQuickActions({
   onSaved: (message: string) => void;
 }) {
   const [action, setAction] = useState<keyof typeof quickTitles | null>(null);
+  const interaction = useCalendarInteractions();
+  const created =
+    (resource: keyof typeof quickTitles) =>
+    (item: { id: string; version: number }, key: string) => {
+      interaction?.history.record({
+        key,
+        kind: "activity-create",
+        resource,
+        id: item.id,
+        version: item.version,
+      });
+      interaction?.showNotice(
+        resource === "strength" ? "Workout started" : "Activity logged",
+        { undoKey: key, kind: "change" },
+      );
+    };
   const saved = () => onSaved("Saved.");
   const initialTime =
     minute === undefined
@@ -102,17 +119,35 @@ export function CalendarQuickActions({
           )}
         </div>
       ) : action === "food" ? (
-        <FoodEntryForm date={date} initialTime={initialTime} onSaved={saved} />
+        <FoodEntryForm
+          date={date}
+          initialTime={initialTime}
+          onSaved={saved}
+          onCreated={created("food")}
+        />
       ) : action === "cardio" ? (
-        <CardioForm date={date} initialTime={initialTime} onSaved={saved} />
+        <CardioForm
+          date={date}
+          initialTime={initialTime}
+          onSaved={saved}
+          onCreated={created("cardio")}
+        />
       ) : action === "strength" ? (
-        <WorkoutStartForm date={date} initialTime={initialTime} />
+        <WorkoutStartForm
+          date={date}
+          initialTime={initialTime}
+          onSaved={(item, key) => {
+            created("strength")(item, key);
+            saved();
+          }}
+        />
       ) : (
         <MeasurementForm
           kind={action}
           date={date}
           initialTime={initialTime}
           onSaved={saved}
+          onCreated={created(action)}
         />
       )}
     </Dialog>

@@ -52,6 +52,7 @@ export function CalendarTemplates({
       if ("template" in v)
         return {
           kind: "template" as const,
+          key,
           result: await api.applyCalendarTemplate(
             v.template.id,
             v.preview.targetDate,
@@ -68,16 +69,22 @@ export function CalendarTemplates({
       };
     },
     onSuccess: async (outcome) => {
-      if (outcome.kind === "copy")
-        interaction?.history.record({
-          kind: "copy",
-          key: outcome.key,
-          blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
-            id,
-            version,
-          })),
-          items: outcome.result.createdItems,
-        });
+      interaction?.history.record({
+        kind: "copy",
+        key: outcome.key,
+        blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
+          id,
+          version,
+        })),
+        items: outcome.result.createdItems,
+      });
+      interaction?.showNotice(
+        outcome.kind === "copy" ? "Plans copied" : "Template applied",
+        {
+          undoKey: outcome.key,
+          kind: "change",
+        },
+      );
       await invalidateCalendar(cache);
       onSaved(
         `${outcome.result.count} plans added.`,

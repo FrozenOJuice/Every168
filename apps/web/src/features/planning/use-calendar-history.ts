@@ -19,6 +19,46 @@ export function useCalendarHistory(
   const cache = useQueryClient();
   const command = useCommand({
     mutationFn: async (action: CalendarAction, key: string) => {
+      if (action.kind === "series")
+        return {
+          action,
+          block: null,
+          selection: await api.undoCalendarSeries(
+            {
+              undoId: action.undoId,
+              blocks: action.blocks,
+            },
+            key,
+          ),
+        };
+      if (action.kind === "item-edit") {
+        const item = await api.updateCalendarItem(
+          action.itemId,
+          action.before,
+          action.version,
+          key,
+        );
+        return {
+          action,
+          block: null,
+          selection: {
+            blocks: [],
+            items: [{ id: item.id, version: item.version }],
+          },
+        };
+      }
+      if (action.kind === "activity-create") {
+        const remove = {
+          food: api.deleteFoodEntry,
+          water: api.deleteWater,
+          weight: api.deleteWeight,
+          cardio: api.deleteCardio,
+          strength: api.deleteWorkout,
+          entry: api.deleteTimeEntry,
+        }[action.resource];
+        await remove(action.id, action.version, key);
+        return { action, block: null, selection: null };
+      }
       if (action.kind === "group-delete")
         return {
           action,
@@ -46,6 +86,17 @@ export function useCalendarHistory(
     onSuccess: async ({ action, block, selection }) => {
       setActions((history) => undoAction(history, action, block, selection));
       await invalidateCalendar(cache);
+      await Promise.all(
+        [
+          "nutrition",
+          "water",
+          "weight",
+          "workouts",
+          "workout",
+          "cardio",
+          "progress",
+        ].map((name) => cache.invalidateQueries({ queryKey: [name] })),
+      );
       onUndone(block, action);
     },
   });

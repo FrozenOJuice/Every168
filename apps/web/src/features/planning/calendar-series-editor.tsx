@@ -17,6 +17,7 @@ import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { formatDate } from "@/lib/format";
+import { useCalendarInteractions } from "./calendar-interactions";
 export function CalendarSeriesEditor({
   id,
   date,
@@ -75,6 +76,7 @@ function SeriesForm({
 }) {
   const { preferences } = useMe(),
     cache = useQueryClient();
+  const interaction = useCalendarInteractions();
   const schema = z.object({
     ...seriesInput.shape,
     startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -111,10 +113,26 @@ function SeriesForm({
     ? expandPlannedSeries(previewInput.data, series?.excludedDates)
     : null;
   const remove = useCommand({
-    mutationFn: (_: void, key: string) =>
-      api.deleteCalendarSeries(series!.id, series!.version, key),
-    onSuccess: async () => {
+    mutationFn: async (_: void, key: string) => {
+      const result = await api.deleteCalendarSeries(
+        series!.id,
+        series!.version,
+        key,
+      );
+      interaction?.history.record({
+        key,
+        kind: "series",
+        undoId: result.undoId,
+        blocks: [],
+      });
+      return { ...result, key };
+    },
+    onSuccess: async ({ key }) => {
       await invalidateCalendar(cache);
+      interaction?.showNotice("Repeating plan deleted", {
+        undoKey: key,
+        kind: "change",
+      });
       onSaved("Repeating plan deleted. Recorded activity remains.");
     },
   });
@@ -149,6 +167,12 @@ function SeriesForm({
                 key,
               )
             : await api.createCalendarSeries(input, key);
+          interaction?.history.record({
+            key,
+            kind: "series",
+            undoId: result.undoId,
+            blocks: result.blocks,
+          });
           await invalidateCalendar(cache);
           onSaved(
             `${result.count} occurrences saved.${result.skippedDates.length ? " Skipped missing clock times: " + result.skippedDates.join(", ") + "." : ""}`,
@@ -264,14 +288,7 @@ function SeriesForm({
           <button
             className="button danger"
             disabled={formBusy || remove.isPending}
-            onClick={() => {
-              if (
-                confirm(
-                  "Delete every occurrence of this repeating plan? Recorded activity will remain.",
-                )
-              )
-                remove.mutate();
-            }}
+            onClick={() => remove.mutate()}
           >
             Delete entire series
           </button>

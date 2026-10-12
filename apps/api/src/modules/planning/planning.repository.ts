@@ -355,6 +355,7 @@ export function planningRepository(db: Database) {
       version: number,
       sourceLinks: BlockSourceLink[],
       context?: TransactionContext,
+      excludeOccurrence = true,
     ) {
       return transactionRunner(db)(async (scope) => {
         const tx = databaseFor(db, scope);
@@ -366,7 +367,9 @@ export function planningRepository(db: Database) {
             and(eq(timeEntries.userId, u), eq(timeEntries.timeBlockId, id)),
           )
           .for("update");
-        const deleted = found(await this.deleteBlock(u, id, version, scope));
+        const deleted = found(
+          await this.deleteBlock(u, id, version, scope, excludeOccurrence),
+        );
         const linkedEntries: Array<{ id: string; version: number }> = [];
         for (const entry of linked) {
           const current = found(await this.getEntry(u, entry.id, scope));
@@ -401,6 +404,7 @@ export function planningRepository(db: Database) {
       u: string,
       undoId: string,
       context?: TransactionContext,
+      seriesRestore = false,
     ) {
       return transactionRunner(db)(async (scope) => {
         const tx = databaseFor(db, scope);
@@ -419,7 +423,7 @@ export function planningRepository(db: Database) {
           )[0],
         );
         const block = receipt.snapshot;
-        if (block.seriesId) {
+        if (block.seriesId && !seriesRestore) {
           const series = await checkSeries(
             u,
             block.seriesId,

@@ -18,6 +18,7 @@ const deps = compose({
   BETTER_AUTH_URL: "http://localhost:3100",
   WEB_ORIGIN: "http://localhost:3100",
   LOG_LEVEL: "silent",
+  API_RATE_LIMIT: 10000,
 });
 await migrate(deps.db, { migrationsFolder: "./drizzle" });
 const running = await startServer(deps);

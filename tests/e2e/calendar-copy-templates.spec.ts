@@ -83,6 +83,26 @@ test("copy ranges and apply multi-day templates from separate Calendar tools", a
   await expect(dialog).toContainText("4 plans will be added");
   await dialog.getByRole("button", { name: "Add these plans" }).click();
   await expect(page).toHaveURL(/date=2026-10-05/);
+  await expect(page.locator(".calendar-notice")).toContainText(
+    "Template applied",
+  );
+  const applied = (
+    await (await page.request.get("/api/v1/weeks/2026-10-05")).json()
+  ).blocks;
+  expect(applied).toHaveLength(4);
+  await page
+    .locator(".calendar-notice")
+    .getByRole("button", { name: "Undo", exact: true })
+    .click();
+  await expect(
+    dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
+  ).toHaveCount(0);
+  expect(
+    (await (await page.request.get("/api/v1/weeks/2026-10-05")).json()).blocks,
+  ).toHaveLength(0);
+  expect(
+    (await (await page.request.get("/api/v1/weeks/2026-10-12")).json()).blocks,
+  ).toHaveLength(0);
   await page.goto("/?date=2026-09-07&view=day");
   await page
     .getByRole("region", { name: "Daily time grid" })

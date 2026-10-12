@@ -1,4 +1,4 @@
-import type { Block } from "@168hours/contracts";
+import type { Block, CalendarItemInput } from "@168hours/contracts";
 type RestoredSelection = {
   blocks: { id: string; version: number }[];
   items: { id: string; version: number }[];
@@ -25,6 +25,26 @@ export type CalendarAction =
       key: string;
       kind: "group-delete";
       undoId: string;
+    }
+  | {
+      key: string;
+      kind: "item-edit";
+      itemId: string;
+      version: number;
+      before: CalendarItemInput;
+    }
+  | {
+      key: string;
+      kind: "activity-create";
+      resource: "food" | "water" | "weight" | "cardio" | "strength" | "entry";
+      id: string;
+      version: number;
+    }
+  | {
+      key: string;
+      kind: "series";
+      undoId: string;
+      blocks: { id: string; version: number }[];
     };
 
 export function recordAction(
@@ -46,16 +66,15 @@ export function undoAction(
   if (history.at(-1)?.key !== action.key) return history;
   const remaining = history.slice(0, -1);
   if (action.kind === "copy") return remaining;
-  if (action.kind === "group-delete") {
-    if (!selection) return remaining;
+  if (selection) {
     for (const block of selection.blocks) {
       const index = remaining.findLastIndex((entry) =>
-        entry.kind === "copy"
+        entry.kind === "copy" || entry.kind === "series"
           ? entry.blocks.some((record) => record.id === block.id)
           : "blockId" in entry && entry.blockId === block.id,
       );
       const previous = remaining[index];
-      if (previous?.kind === "copy")
+      if (previous?.kind === "copy" || previous?.kind === "series")
         remaining[index] = {
           ...previous,
           blocks: previous.blocks.map((record) =>
@@ -68,8 +87,9 @@ export function undoAction(
     for (const item of selection.items) {
       const index = remaining.findLastIndex(
         (entry) =>
-          entry.kind === "copy" &&
-          entry.items.some((record) => record.id === item.id),
+          (entry.kind === "copy" &&
+            entry.items.some((record) => record.id === item.id)) ||
+          (entry.kind === "item-edit" && entry.itemId === item.id),
       );
       const previous = remaining[index];
       if (previous?.kind === "copy")
@@ -79,14 +99,37 @@ export function undoAction(
             record.id === item.id ? item : record,
           ),
         };
+      else if (previous?.kind === "item-edit")
+        remaining[index] = { ...previous, version: item.version };
     }
     return remaining;
   }
+  if (
+    action.kind === "group-delete" ||
+    action.kind === "item-edit" ||
+    action.kind === "series" ||
+    action.kind === "activity-create"
+  )
+    return remaining;
   if (!restored || action.kind === "create") return remaining;
   const index = remaining.findLastIndex(
-    (entry) => "blockId" in entry && entry.blockId === action.blockId,
+    (entry) =>
+      ("blockId" in entry && entry.blockId === action.blockId) ||
+      ((entry.kind === "copy" || entry.kind === "series") &&
+        entry.blocks.some((block) => block.id === action.blockId)),
   );
   const previous = remaining[index];
+  if (previous?.kind === "copy" || previous?.kind === "series") {
+    remaining[index] = {
+      ...previous,
+      blocks: previous.blocks.map((block) =>
+        block.id === restored.id
+          ? { id: restored.id, version: restored.version }
+          : block,
+      ),
+    };
+    return remaining;
+  }
   if (
     previous &&
     "version" in previous &&

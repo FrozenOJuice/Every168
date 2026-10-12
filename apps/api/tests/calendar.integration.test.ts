@@ -859,6 +859,260 @@ it("copies an arbitrary plan selection and deletes/restores a mixed group atomic
     .expect(404);
 });
 
+it("deletes and restores one all-day plan with ownership, revision and replay guards", async () => {
+  const a = api((await signUp()).cookie),
+    b = api((await signUp()).cookie);
+  const input = {
+    title: "Multi-day plan",
+    kind: "all_day",
+    date: "2026-09-07",
+    endDate: "2026-09-09",
+    notes: "Keep these details on undo",
+  };
+  const item = (await a.post("calendar/items", input).expect(201)).body;
+  const selection = {
+    plans: [{ kind: "item", id: item.id, version: item.version }],
+  };
+  await a.post("calendar/selection/delete", { plans: [] }).expect(422);
+  await b.post("calendar/selection/delete", selection).expect(404);
+  await a
+    .post("calendar/selection/delete", {
+      plans: [{ ...selection.plans[0], version: item.version + 1 }],
+    })
+    .expect(409);
+  await a.get("calendar/items/" + item.id).expect(200);
+  const deleteHeaders = commandHeaders();
+  const deleted = (
+    await a
+      .post("calendar/selection/delete", selection, 1, deleteHeaders)
+      .expect(200)
+  ).body;
+  await a.get("calendar/items/" + item.id).expect(404);
+  expect(
+    (
+      await a
+        .post("calendar/selection/delete", selection, 1, deleteHeaders)
+        .expect(200)
+    ).body,
+  ).toEqual(deleted);
+  const undo = { undoId: deleted.undoId };
+  await b.post("calendar/selection/delete/undo", undo).expect(404);
+  const undoHeaders = commandHeaders();
+  const restored = (
+    await a
+      .post("calendar/selection/delete/undo", undo, 1, undoHeaders)
+      .expect(200)
+  ).body;
+  expect(restored).toMatchObject({
+    blocks: [],
+    items: [{ id: item.id, version: item.version + 1 }],
+  });
+  expect(
+    (await a.get("calendar/items/" + item.id).expect(200)).body,
+  ).toMatchObject({ ...input, id: item.id, version: item.version + 1 });
+  expect(
+    (
+      await a
+        .post("calendar/selection/delete/undo", undo, 1, undoHeaders)
+        .expect(200)
+    ).body,
+  ).toEqual(restored);
+  await a.post("calendar/selection/delete/undo", undo).expect(404);
+  const unscheduled = (
+    await a
+      .post("calendar/items", {
+        title: "Backlog",
+        kind: "unscheduled",
+        date: null,
+        endDate: null,
+      })
+      .expect(201)
+  ).body;
+  await a
+    .post("calendar/selection/delete", {
+      plans: [
+        { kind: "item", id: unscheduled.id, version: unscheduled.version },
+      ],
+    })
+    .expect(422);
+  await a.get("calendar/items/" + unscheduled.id).expect(200);
+});
+
+it("undoes entire-series edits and deletion while restoring exceptions, exclusions and recorded links", async () => {
+  const a = api((await signUp()).cookie),
+    b = api((await signUp()).cookie);
+  const input = {
+    ...rule,
+    startDate: "2026-09-07",
+    untilDate: "2026-09-10",
+    startMinute: 540,
+  };
+  const created = (await a.post("calendar/series", input).expect(201)).body;
+  const sourceBlocks = (await a.get("weeks/2026-09-07").expect(200)).body
+    .blocks;
+  const exception = (
+    await a
+      .put(
+        "time-blocks/" + sourceBlocks[0].id,
+        {
+          ...block,
+          title: "Individual exception",
+          startsAt: sourceBlocks[0].startsAt,
+          endsAt: sourceBlocks[0].endsAt,
+        },
+        sourceBlocks[0].version,
+      )
+      .expect(200)
+  ).body;
+  await a
+    .del("time-blocks/" + sourceBlocks[1].id, sourceBlocks[1].version)
+    .expect(200);
+  const linkedBlock = sourceBlocks[3];
+  const recorded = (
+    await a
+      .post("time-entries", {
+        title: "Actual work",
+        startsAt: linkedBlock.startsAt,
+        endsAt: linkedBlock.endsAt,
+        timeBlockId: linkedBlock.id,
+      })
+      .expect(201)
+  ).body;
+  const cardio = (
+    await a
+      .post("cardio-activities", {
+        activityType: "walk",
+        title: "Linked walk",
+        startedAt: linkedBlock.startsAt,
+        durationSeconds: 600,
+        distanceMeters: null,
+        linkedTimeBlockId: linkedBlock.id,
+        notes: null,
+      })
+      .expect(201)
+  ).body;
+  const beforeSeries = (
+    await a.get("calendar/series/" + created.series.id).expect(200)
+  ).body;
+  const before = (await a.get("weeks/2026-09-07").expect(200)).body.blocks;
+  const changed = (
+    await a
+      .put(
+        "calendar/series/" + created.series.id,
+        {
+          ...input,
+          title: "Shorter replacement",
+          untilDate: "2026-09-09",
+          startMinute: 600,
+        },
+        beforeSeries.version,
+      )
+      .expect(200)
+  ).body;
+  expect((await a.get("time-entries/" + recorded.id)).body.timeBlockId).toBe(
+    null,
+  );
+  const deletion = (
+    await a
+      .del("calendar/series/" + created.series.id, changed.series.version)
+      .expect(200)
+  ).body;
+  await a.get("calendar/series/" + created.series.id).expect(404);
+  await b
+    .post("calendar/series/undo", { undoId: deletion.undoId, blocks: [] })
+    .expect(404);
+  const restoredDeletion = (
+    await a
+      .post("calendar/series/undo", { undoId: deletion.undoId, blocks: [] })
+      .expect(200)
+  ).body;
+  const restoredEdit = (
+    await a
+      .post("calendar/series/undo", {
+        undoId: changed.undoId,
+        blocks: restoredDeletion.blocks,
+      })
+      .expect(200)
+  ).body;
+  const content = (v: Record<string, unknown>) => {
+    const { version: _version, updatedAt: _updatedAt, ...rest } = v;
+    return rest;
+  };
+  const restored = (await a.get("weeks/2026-09-07").expect(200)).body.blocks;
+  expect(restored.map(content)).toEqual(before.map(content));
+  expect(
+    restored.find((v: { id: string }) => v.id === exception.id).isException,
+  ).toBe(true);
+  expect(
+    (await a.get("calendar/series/" + created.series.id)).body.excludedDates,
+  ).toEqual(beforeSeries.excludedDates);
+  expect((await a.get("time-entries/" + recorded.id)).body.timeBlockId).toBe(
+    linkedBlock.id,
+  );
+  expect(
+    (await a.get("cardio-activities/" + cardio.id)).body.linkedTimeBlockId,
+  ).toBe(linkedBlock.id);
+  expect(restoredEdit.blocks).toHaveLength(before.length);
+  await a
+    .post("calendar/series/undo", {
+      undoId: changed.undoId,
+      blocks: restoredEdit.blocks,
+    })
+    .expect(404);
+});
+
+it("guards series undo against later occurrence edits and replays a completed inverse", async () => {
+  const a = api((await signUp()).cookie);
+  const input = {
+    ...rule,
+    startDate: "2026-09-07",
+    untilDate: "2026-09-08",
+    startMinute: 540,
+  };
+  const created = (await a.post("calendar/series", input).expect(201)).body;
+  const first = (await a.get("time-blocks/" + created.blocks[0].id).expect(200))
+    .body;
+  const edited = (
+    await a
+      .put(
+        "time-blocks/" + first.id,
+        {
+          ...block,
+          title: "Changed elsewhere",
+          startsAt: first.startsAt,
+          endsAt: first.endsAt,
+        },
+        first.version,
+      )
+      .expect(200)
+  ).body;
+  await a
+    .post("calendar/series/undo", {
+      undoId: created.undoId,
+      blocks: created.blocks,
+    })
+    .expect(409);
+  expect((await a.get("time-blocks/" + first.id)).body.title).toBe(
+    "Changed elsewhere",
+  );
+  await a
+    .post("time-block-edits/" + edited.undoId + "/undo", {}, edited.version)
+    .expect(200);
+  const blocks = (await a.get("weeks/2026-09-07")).body.blocks.map(
+    ({ id, version }: { id: string; version: number }) => ({ id, version }),
+  );
+  const headers = commandHeaders();
+  const undo = { undoId: created.undoId, blocks };
+  const result = (
+    await a.post("calendar/series/undo", undo, 1, headers).expect(200)
+  ).body;
+  expect(
+    (await a.post("calendar/series/undo", undo, 1, headers).expect(200)).body,
+  ).toEqual(result);
+  await a.get("calendar/series/" + created.series.id).expect(404);
+  expect((await a.get("weeks/2026-09-07")).body.blocks).toHaveLength(0);
+});
+
 it("serializes occurrence versus series edits and rejects a changed timezone after template preview", async () => {
   const owner = await signUp(),
     a = api(owner.cookie);

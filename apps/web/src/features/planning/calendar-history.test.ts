@@ -85,3 +85,55 @@ it("restores a deleted group as one action and advances earlier copy revisions",
     },
   ]);
 });
+
+it("unwinds all-day deletion, edits and creation using the revisions returned by each inverse", () => {
+  const creation: CalendarAction = {
+    kind: "copy",
+    key: "all-day-create",
+    blocks: [],
+    items: [{ id: "day", version: 1 }],
+  };
+  const edit: CalendarAction = {
+    kind: "item-edit",
+    key: "all-day-edit",
+    itemId: "day",
+    version: 2,
+    before: {
+      title: "Before",
+      notes: null,
+      categoryId: null,
+      goalId: null,
+      kind: "all_day",
+      date: "2026-09-07",
+      endDate: "2026-09-07",
+    },
+  };
+  const deletion: CalendarAction = {
+    kind: "group-delete",
+    key: "all-day-delete",
+    undoId: "receipt",
+  };
+  let history = undoAction([creation, edit, deletion], deletion, null, {
+    blocks: [],
+    items: [{ id: "day", version: 3 }],
+  });
+  expect(history.at(-1)).toMatchObject({ kind: "item-edit", version: 3 });
+  history = undoAction(history, history.at(-1)!, null, {
+    blocks: [],
+    items: [{ id: "day", version: 4 }],
+  });
+  expect(history).toEqual([
+    { ...creation, items: [{ id: "day", version: 4 }] },
+  ]);
+});
+
+it("advances a series occurrence after undoing its edit before undoing the series", () => {
+  const series: CalendarAction = {
+    kind: "series",
+    key: "series-create",
+    undoId: "receipt",
+    blocks: [{ id: "a", version: 1 }],
+  };
+  const history = undoAction([series, renamed], renamed, restored(3));
+  expect(history).toEqual([{ ...series, blocks: [{ id: "a", version: 3 }] }]);
+});

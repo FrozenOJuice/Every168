@@ -8,6 +8,7 @@ import type {
   CalendarSeries,
   SeriesInput,
   SeriesResult,
+  SeriesUndoInput,
   CalendarSearchQuery,
   SearchRecord,
   Page,
@@ -87,9 +88,18 @@ export function calendarClient(http: Http) {
         headers: writeHeaders(key, version),
       }),
     deleteCalendarSeries: (id: string, version: number, key?: string) =>
-      http<{ ok: true }>(root + "/series/" + id, {
+      http<{ ok: true; undoId: string }>(root + "/series/" + id, {
         method: "DELETE",
         headers: writeHeaders(key, version),
+      }),
+    undoCalendarSeries: (v: SeriesUndoInput, key?: string) =>
+      http<{
+        blocks: { id: string; version: number }[];
+        items: { id: string; version: number }[];
+      }>(root + "/series/undo", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
       }),
     searchCalendar: (q: Partial<CalendarSearchQuery>) =>
       http<Page<SearchRecord>>(root + "/search" + query(q)),
@@ -187,13 +197,15 @@ export function calendarClient(http: Http) {
       preferencesVersion: number,
       key?: string,
     ) =>
-      http<{ count: number; targetDate: string }>(
-        root + "/templates/" + id + "/apply",
-        {
-          method: "POST",
-          body: body({ targetDate, cycles, preferencesVersion }),
-          headers: writeHeaders(key, version),
-        },
-      ),
+      http<{
+        count: number;
+        targetDate: string;
+        createdBlocks: { id: string; version: number; title: string }[];
+        createdItems: { id: string; version: number }[];
+      }>(root + "/templates/" + id + "/apply", {
+        method: "POST",
+        body: body({ targetDate, cycles, preferencesVersion }),
+        headers: writeHeaders(key, version),
+      }),
   };
 }

@@ -130,16 +130,34 @@ export function planningService(
       id: string,
       version: number,
       context: TransactionContext,
+      excludeOccurrence = true,
     ) {
       const links = (await sourceLinks?.capture(u, id, context)) ?? [];
-      return repo.deleteBlockWithUndo(u, id, version, links, context);
+      return repo.deleteBlockWithUndo(
+        u,
+        id,
+        version,
+        links,
+        context,
+        excludeOccurrence,
+      );
     },
-    async restoreBlock(u: string, undoId: string, context: TransactionContext) {
+    async restoreBlock(
+      u: string,
+      undoId: string,
+      context: TransactionContext,
+      seriesRestore = false,
+    ) {
       const receipt = found(await repo.getDeletion(u, undoId, context));
       await category(u, receipt.snapshot.categoryId, context);
       if (receipt.snapshot.goalId)
         await goals.get(u, receipt.snapshot.goalId, context);
-      const restored = await repo.restoreBlock(u, undoId, context);
+      const restored = await repo.restoreBlock(
+        u,
+        undoId,
+        context,
+        seriesRestore,
+      );
       await sourceLinks?.restore(u, restored.id, receipt.sourceLinks, context);
       return restored;
     },

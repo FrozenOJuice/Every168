@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { workoutStartInput } from "@168hours/contracts";
+import { workoutStartInput, type Workout } from "@168hours/contracts";
 import {
   instantToLocalInput,
   localInputToInstant,
@@ -15,9 +15,11 @@ import { BlockPicker } from "./block-picker";
 export function WorkoutStartForm({
   date,
   initialTime,
+  onSaved,
 }: {
   date?: string;
   initialTime?: string;
+  onSaved?: (workout: Workout, key: string) => void;
 }) {
   const {
     preferences: { timezone },
@@ -49,7 +51,8 @@ export function WorkoutStartForm({
         );
         await cache.invalidateQueries({ queryKey: ["workouts"] });
         await cache.invalidateQueries({ queryKey: ["calendar-activity"] });
-        router.push("/exercise/workout/" + workout.id);
+        if (onSaved) onSaved(workout, key);
+        else router.push("/exercise/workout/" + workout.id);
       }}
     >
       <Field name="title" label="Workout title" />

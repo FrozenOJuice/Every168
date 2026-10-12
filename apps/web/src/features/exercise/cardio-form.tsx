@@ -19,11 +19,13 @@ export function CardioForm({
   date,
   initialTime,
   onSaved,
+  onCreated,
 }: {
   date?: string;
   initialTime?: string;
   activity?: Cardio;
   onSaved: () => void;
+  onCreated?: (activity: Cardio, key: string) => void;
 }) {
   const {
     preferences: { timezone, distanceUnit },
@@ -84,7 +86,10 @@ export function CardioForm({
         });
         if (activity)
           await api.updateCardio(activity.id, input, activity.version, key);
-        else await api.logCardio(input, key);
+        else {
+          const saved = await api.logCardio(input, key);
+          onCreated?.(saved, key);
+        }
         await invalidateExercise(cache);
         onSaved();
       }}

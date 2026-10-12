@@ -302,7 +302,13 @@ export function TimeForm({
             date: v.allDayDate,
             endDate: v.spansMultipleDays ? v.allDayEndDate : v.allDayDate,
           });
-          await api.createCalendarItem(input, key);
+          const result = await api.createCalendarItem(input, key);
+          interaction?.history.record({
+            key,
+            kind: "copy",
+            blocks: [],
+            items: [{ id: result.id, version: result.version }],
+          });
           await invalidateCalendar(cache);
           onSaved({ kind: "all_day", date: v.allDayDate });
           return;
@@ -336,6 +342,12 @@ export function TimeForm({
             weekdays: v.repeatWeekdays,
           });
           const result = await api.createCalendarSeries(input, key);
+          interaction?.history.record({
+            key,
+            kind: "series",
+            undoId: result.undoId,
+            blocks: result.blocks,
+          });
           await invalidateCalendar(cache);
           onSaved({
             kind: "timed",
@@ -390,7 +402,16 @@ export function TimeForm({
           });
           if (item)
             await api.updateTimeEntry(item.id, input, item.version, key);
-          else await api.createTimeEntry(input, key);
+          else {
+            const result = await api.createTimeEntry(input, key);
+            interaction?.history.record({
+              key,
+              kind: "activity-create",
+              resource: "entry",
+              id: result.id,
+              version: result.version,
+            });
+          }
         }
         await invalidateCalendar(cache);
         onSaved({ kind: "timed", startsAt: times.startsAt });

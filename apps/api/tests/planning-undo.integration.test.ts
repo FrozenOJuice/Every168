@@ -416,3 +416,87 @@ it("rejects edit/deletion undo after the recurring plan's rule changes", async (
     ).body.error.code,
   ).toBe("UNDO_CONFLICT");
 });
+
+it("edit inverses support repeated undo/redo with exact fields and reject a later revision", async () => {
+  const a = await signUp();
+  const post = (
+    path: string,
+    data: object,
+    version?: number,
+    headers = commandHeaders(version),
+  ) =>
+    request(app)
+      .post("/api/v1/" + path)
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(headers)
+      .send(data);
+  const created = (await post("time-blocks", plan).expect(201)).body;
+  const edited = (
+    await request(app)
+      .put("/api/v1/time-blocks/" + created.id)
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(created.version))
+      .send({ ...plan, title: "Changed", notes: "Saved details" })
+      .expect(200)
+  ).body;
+  const undo = (
+    await post(
+      "time-block-edits/" + edited.undoId + "/undo",
+      {},
+      edited.version,
+    ).expect(200)
+  ).body;
+  expect(undo).toMatchObject({
+    id: created.id,
+    title: plan.title,
+    notes: null,
+    isException: false,
+  });
+  expect(undo.undoId).toBeTruthy();
+  const headers = commandHeaders(undo.version);
+  const redo = (
+    await post(
+      "time-block-edits/" + undo.undoId + "/undo",
+      {},
+      undo.version,
+      headers,
+    ).expect(200)
+  ).body;
+  expect(redo).toMatchObject({
+    id: created.id,
+    title: "Changed",
+    notes: "Saved details",
+  });
+  expect(
+    (
+      await post(
+        "time-block-edits/" + undo.undoId + "/undo",
+        {},
+        undo.version,
+        headers,
+      ).expect(200)
+    ).body,
+  ).toEqual(redo);
+  const undoneAgain = (
+    await post(
+      "time-block-edits/" + redo.undoId + "/undo",
+      {},
+      redo.version,
+    ).expect(200)
+  ).body;
+  expect(undoneAgain.title).toBe(plan.title);
+  await request(app)
+    .put("/api/v1/time-blocks/" + created.id)
+    .set("Cookie", a.cookie)
+    .set("Origin", origin)
+    .set(commandHeaders(undoneAgain.version))
+    .send({ ...plan, title: "Other tab" })
+    .expect(200);
+  await post(
+    "time-block-edits/" + undoneAgain.undoId + "/undo",
+    {},
+    undoneAgain.version,
+  ).expect(409);
+});

@@ -3,14 +3,11 @@ import { useState } from "react";
 import { useWatch } from "react-hook-form";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  copyInput,
   dateSchema,
   templateCaptureInput,
   type CalendarTemplate,
-  type CopyInput,
   type CopyPreview,
 } from "@168hours/contracts";
-import { addDays } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { Dialog } from "@/components/ui/dialog";
@@ -20,26 +17,18 @@ import { CalendarCopyPreview } from "./calendar-copy-preview";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { invalidateCalendar } from "./invalidate-calendar";
 type Template = Omit<CalendarTemplate, "entries">;
-type Review =
-  | { preview: CopyPreview; input: CopyInput; token: string }
-  | {
-      preview: CopyPreview;
-      template: Template;
-      version: number;
-      preferencesVersion: number;
-      cycles: number;
-    };
+type Review = {
+  preview: CopyPreview;
+  template: Template;
+  version: number;
+  preferencesVersion: number;
+  cycles: number;
+};
 export function CalendarTemplates({
-  mode,
-  sourceId,
-  sourceKind = "block",
   date,
   onClose,
   onSaved,
 }: {
-  mode: "copy" | "templates";
-  sourceId?: string;
-  sourceKind?: "block" | "item";
   date: string;
   onClose: () => void;
   onSaved: (message: string, date?: string) => void;
@@ -48,29 +37,21 @@ export function CalendarTemplates({
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
   const apply = useCommand({
-    mutationFn: async (v: Review, key: string) => {
-      if ("template" in v)
-        return {
-          kind: "template" as const,
-          key,
-          result: await api.applyCalendarTemplate(
-            v.template.id,
-            v.preview.targetDate,
-            v.cycles,
-            v.version,
-            v.preferencesVersion,
-            key,
-          ),
-        };
-      return {
-        kind: "copy" as const,
+    mutationFn: async (v: Review, key: string) => ({
+      key,
+      result: await api.applyCalendarTemplate(
+        v.template.id,
+        v.preview.targetDate,
+        v.cycles,
+        v.version,
+        v.preferencesVersion,
         key,
-        result: await api.copyCalendar({ ...v.input, token: v.token }, key),
-      };
-    },
+      ),
+    }),
     onSuccess: async (outcome) => {
       interaction?.history.record({
         kind: "copy",
+        transient: true,
         key: outcome.key,
         blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
           id,
@@ -78,13 +59,10 @@ export function CalendarTemplates({
         })),
         items: outcome.result.createdItems,
       });
-      interaction?.showNotice(
-        outcome.kind === "copy" ? "Plans copied" : "Template applied",
-        {
-          undoKey: outcome.key,
-          kind: "change",
-        },
-      );
+      interaction?.showNotice("Template applied", {
+        undoKey: outcome.key,
+        kind: "change",
+      });
       await invalidateCalendar(cache);
       onSaved(
         `${outcome.result.count} plans added.`,
@@ -93,10 +71,7 @@ export function CalendarTemplates({
     },
   });
   return (
-    <Dialog
-      title={mode === "copy" ? "Copy plans" : "Templates"}
-      onClose={onClose}
-    >
+    <Dialog title="Templates" onClose={onClose}>
       {review ? (
         <>
           <CalendarCopyPreview preview={review.preview} />
@@ -124,71 +99,12 @@ export function CalendarTemplates({
       ) : (
         <>
           <p className="muted text-small">
-            {mode === "copy"
-              ? "Copy up to 100 plans once. Weeks follow your account’s first day; overnight plans stay whole."
-              : "Save a pattern of up to 31 days, then place it once or in cycles."}
+            Save a pattern of up to 31 days, then place it once or in cycles.
           </p>
-          {mode === "copy" ? (
-            <CopyForm
-              date={date}
-              sourceId={sourceId}
-              sourceKind={sourceKind}
-              onReview={setReview}
-            />
-          ) : (
-            <TemplateLibrary date={date} onReview={setReview} />
-          )}
+          <TemplateLibrary date={date} onReview={setReview} />
         </>
       )}
     </Dialog>
-  );
-}
-function CopyForm({
-  date,
-  sourceId,
-  sourceKind,
-  onReview,
-}: {
-  date: string;
-  sourceId?: string;
-  sourceKind: "block" | "item";
-  onReview: (review: Review) => void;
-}) {
-  const form = useZodForm(copyInput, {
-    sourceDate: date,
-    targetDate: addDays(date, 7),
-    span: sourceId ? "single" : "week",
-    sourceId,
-    sourceKind: sourceId ? sourceKind : undefined,
-    sourceEndDate: undefined,
-  });
-  const span = useWatch({ control: form.control, name: "span" });
-  return (
-    <Form
-      form={form}
-      retrySafe={false}
-      onSubmit={async (input) => {
-        const preview = await api.previewCalendarCopy(input);
-        onReview({ preview, input, token: preview.token });
-      }}
-    >
-      <Field name="span" label="Copy">
-        <option value="single" disabled={!sourceId}>
-          Selected plan
-        </option>
-        <option value="day">Day</option>
-        <option value="week">Week</option>
-        <option value="range">Date range</option>
-      </Field>
-      {span !== "single" && (
-        <Field name="sourceDate" label="Copy from" type="date" />
-      )}
-      {span === "range" && (
-        <Field name="sourceEndDate" label="Through" type="date" required />
-      )}
-      <Field name="targetDate" label="Copy to" type="date" />
-      <Submit>Preview copy</Submit>
-    </Form>
   );
 }
 function TemplateLibrary({

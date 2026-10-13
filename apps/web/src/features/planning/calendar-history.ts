@@ -4,7 +4,7 @@ type RestoredSelection = {
   items: { id: string; version: number }[];
 };
 
-export type CalendarAction =
+export type CalendarAction = (
   | ({ key: string; blockId: string; title: string } & (
       | { kind: "create"; version: number }
       | {
@@ -32,6 +32,7 @@ export type CalendarAction =
       itemId: string;
       version: number;
       before: CalendarItemInput;
+      after: CalendarItemInput;
     }
   | {
       key: string;
@@ -45,7 +46,8 @@ export type CalendarAction =
       kind: "series";
       undoId: string;
       blocks: { id: string; version: number }[];
-    };
+    }
+) & { transient?: boolean };
 
 export function recordAction(
   history: CalendarAction[],
@@ -137,4 +139,55 @@ export function undoAction(
   )
     remaining[index] = { ...previous, version: restored.version };
   return remaining;
+}
+
+export type HistoryDirection = "undo" | "redo";
+export type CalendarHistory = {
+  actions: CalendarAction[];
+  redo: CalendarAction[];
+  seen: string[];
+  pending: {
+    direction: HistoryDirection;
+    action: CalendarAction;
+    key: string;
+  } | null;
+};
+export const emptyHistory = (): CalendarHistory => ({
+  actions: [],
+  redo: [],
+  seen: [],
+  pending: null,
+});
+export function addHistoryAction(
+  history: CalendarHistory,
+  action: CalendarAction,
+): CalendarHistory {
+  if (history.seen.includes(action.key)) return history;
+  return {
+    ...history,
+    actions: [...history.actions, action].slice(-100),
+    redo: [],
+    seen: [...history.seen, action.key].slice(-200),
+  };
+}
+
+export function finishHistoryStep(
+  history: CalendarHistory,
+  direction: HistoryDirection,
+  action: CalendarAction,
+  inverse: CalendarAction | null,
+  block: Block | null,
+  selection?: RestoredSelection | null,
+): CalendarHistory {
+  const stack = direction === "undo" ? history.actions : history.redo;
+  if (stack.at(-1)?.key !== action.key) return history;
+  const remaining = undoAction(stack, action, block, selection);
+  const other = [...(direction === "undo" ? history.redo : history.actions)];
+  if (inverse) other.push(inverse);
+  return {
+    ...history,
+    actions: direction === "undo" ? remaining : other,
+    redo: direction === "redo" ? remaining : other,
+    pending: null,
+  };
 }

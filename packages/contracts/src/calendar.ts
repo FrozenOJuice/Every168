@@ -101,6 +101,16 @@ export const seriesUndoInput = z
     "Choose distinct occurrences.",
   );
 export type SeriesUndoInput = z.infer<typeof seriesUndoInput>;
+export const seriesUndoResultSchema = z.object({
+  undoId: idSchema,
+  blocks: z.array(
+    z.object({ id: idSchema, version: z.number().int().positive() }),
+  ),
+  items: z.array(
+    z.object({ id: idSchema, version: z.number().int().positive() }),
+  ),
+});
+export type SeriesUndoResult = z.infer<typeof seriesUndoResultSchema>;
 export const calendarRangeQuery = z
   .object({ from: dateSchema, to: dateSchema })
   .strict()

@@ -14,7 +14,6 @@ export function CalendarItemEditor({
   onClose,
   onSchedule,
   onAddTime,
-  onCopy,
   onSaved,
 }: {
   item?: CalendarItem;
@@ -23,7 +22,6 @@ export function CalendarItemEditor({
   onClose: () => void;
   onSchedule: (item: CalendarItem) => void;
   onAddTime?: (item: CalendarItem) => void;
-  onCopy?: (item: CalendarItem) => void;
   onSaved: (message: string, date?: string) => void;
 }) {
   const cache = useQueryClient();
@@ -86,6 +84,7 @@ export function CalendarItemEditor({
                 kind: "item-edit",
                 itemId: item.id,
                 version: result.version,
+                after: v,
                 before: {
                   title: item.title,
                   notes: item.notes,
@@ -182,11 +181,6 @@ export function CalendarItemEditor({
           ) : (
             <button className="button" onClick={() => onSchedule(item)}>
               Schedule as time block
-            </button>
-          )}
-          {item.date && onCopy && (
-            <button className="button" onClick={() => onCopy(item)}>
-              Copy…
             </button>
           )}
           <button

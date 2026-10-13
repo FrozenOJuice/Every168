@@ -514,7 +514,14 @@ export function CalendarGrid({
                   {days.map((day) => {
                     const plans = allDayPlansOnDate(day.date);
                     return (
-                      <div key={day.date} className="calendar-anytime-cell">
+                      <div
+                        key={day.date}
+                        className="calendar-anytime-cell"
+                        data-context-all-day={day.date}
+                        tabIndex={0}
+                        role="group"
+                        aria-label={`All-day area for ${day.date}`}
+                      >
                         {plans.slice(0, 1).map((item) => (
                           <CalendarItemButton
                             key={item.id}

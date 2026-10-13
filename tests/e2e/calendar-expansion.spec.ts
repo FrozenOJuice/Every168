@@ -171,14 +171,17 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await page.getByLabel("Duration (minutes)").fill("30");
   await dialog.getByRole("button", { name: "Save entire series" }).click();
   await expect(dialog).toHaveCount(0);
-  await tool("Copy plans");
-  await page.getByLabel("Copy", { exact: true }).selectOption("day");
-  await page.getByLabel("Copy to").fill("2026-09-14");
-  await dialog.getByRole("button", { name: "Preview copy" }).click();
-  await expect(dialog).toContainText("4 plans will be added");
-  await audit("copy-preview");
-  await dialog.getByRole("button", { name: "Add these plans" }).click();
-  await expect(page).toHaveURL(/date=2026-09-14/);
+  await day
+    .getByRole("button", { name: "Select 2026-09-07", exact: true })
+    .click();
+  await page.keyboard.press("Meta+c");
+  await expect(page.locator(".calendar-notice")).toContainText("1 day copied.");
+  await page.goto("/?date=2026-09-14&view=day");
+  await day
+    .getByRole("button", { name: "Select 2026-09-14", exact: true })
+    .click();
+  await page.keyboard.press("Meta+v");
+  await expect(page.locator(".calendar-notice")).toContainText("Plans pasted");
   await tool("Templates");
   await dialog
     .getByRole("button", { name: "Save calendar as template" })

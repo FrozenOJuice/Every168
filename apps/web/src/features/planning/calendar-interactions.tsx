@@ -87,6 +87,7 @@ type Interactions = {
   draggingId?: string;
   preview: Preview | null;
   busy: boolean;
+  setClipboardBusy: (busy: boolean) => void;
   quickActionsAvailable: boolean;
   status: string;
   notice: CalendarNotice | null;
@@ -111,6 +112,7 @@ type Interactions = {
   history: ReturnType<typeof useCalendarHistory>;
   deleteBlock: (block: Block) => void;
   deleteItem: (item: CalendarItem) => void;
+  deletePlans: (plans: PlanSelection[]) => void;
   command: ReturnType<
     typeof useCommand<Block, { block: Block; input: BlockInput }>
   >;
@@ -179,6 +181,7 @@ export function CalendarInteractions({
     [status, setStatus] = useState(""),
     [notice, setNotice] = useState<CalendarNotice | null>(null);
   const noticeId = useRef(0);
+  const [clipboardBusy, setClipboardBusy] = useState(false);
   function showNotice(
     message: string,
     options?: {
@@ -288,23 +291,25 @@ export function CalendarInteractions({
     setMode("move");
     setAdjusting(false);
   }
-  const history = useCalendarHistory((block, action) => {
+  const history = useCalendarHistory((block, action, direction) => {
     setSelectedPlans(block ? [{ kind: "block", id: block.id }] : []);
     selectionAnchor.current = block ? `block:${block.id}` : null;
     setStatus(
-      action.kind === "group-delete"
-        ? "Plans restored."
-        : action.kind === "series"
-          ? "Repeating plan change undone."
-          : action.kind === "item-edit"
-            ? "Plan edit undone."
-            : action.kind === "activity-create"
-              ? "Activity logging undone."
-              : action.kind === "delete"
-                ? "Plan restored."
-                : action.kind === "edit"
-                  ? "Plan edit undone."
-                  : "Plan creation undone.",
+      direction === "redo"
+        ? "Calendar change redone."
+        : action.kind === "group-delete"
+          ? "Plans restored."
+          : action.kind === "series"
+            ? "Repeating plan change undone."
+            : action.kind === "item-edit"
+              ? "Plan edit undone."
+              : action.kind === "activity-create"
+                ? "Activity logging undone."
+                : action.kind === "delete"
+                  ? "Plan restored."
+                  : action.kind === "edit"
+                    ? "Plan edit undone."
+                    : "Plan creation undone.",
     );
     if (block)
       requestAnimationFrame(() =>
@@ -394,6 +399,7 @@ export function CalendarInteractions({
     },
   });
   const busy =
+    clipboardBusy ||
     command.isPending ||
     remove.isPending ||
     groupDelete.isPending ||
@@ -410,10 +416,41 @@ export function CalendarInteractions({
       plans: [{ kind: "item", id: item.id, version: item.version }],
     });
   }
+  function deletePlans(plans: PlanSelection[]) {
+    if (busy || editorOpen || gesture || !plans.length) return;
+    if (plans.length === 1) {
+      const plan = plans[0]!;
+      if (plan.kind === "block") {
+        const block = blocks.find((block) => block.id === plan.id);
+        if (block) deleteBlock(block);
+      } else {
+        const item = items.find((item) => item.id === plan.id);
+        if (item) deleteItem(item);
+      }
+      return;
+    }
+    const records = plans.map((plan) => {
+      const record =
+        plan.kind === "block"
+          ? blocks.find((block) => block.id === plan.id)
+          : items.find(
+              (item) => item.id === plan.id && item.kind === "all_day",
+            );
+      return record ? { ...plan, version: record.version } : null;
+    });
+    if (records.some((record) => record === null)) {
+      clearSelectedPlans();
+      setStatus("Selection changed. Select the plans again.");
+    } else groupDelete.mutate({ plans: records as GroupDeleteInput["plans"] });
+  }
   useEffect(() => {
     function undo(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+      const redo =
+        (key === "z" && event.shiftKey) ||
+        (key === "y" && event.ctrlKey && !event.metaKey && !event.shiftKey);
       if (
-        !history.actions.length ||
+        !(redo ? history.redoActions.length : history.actions.length) ||
         editorOpen ||
         gesture ||
         busy ||
@@ -421,9 +458,9 @@ export function CalendarInteractions({
         event.repeat ||
         event.isComposing ||
         event.altKey ||
-        event.shiftKey ||
+        (event.shiftKey && !redo) ||
         !(event.metaKey || event.ctrlKey) ||
-        event.key.toLowerCase() !== "z" ||
+        (key !== "z" && !redo) ||
         (event.target instanceof Element &&
           event.target.closest(
             'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]',
@@ -431,7 +468,8 @@ export function CalendarInteractions({
       )
         return;
       event.preventDefault();
-      history.undo();
+      if (redo) history.redo();
+      else history.undo();
     }
     window.addEventListener("keydown", undo);
     return () => window.removeEventListener("keydown", undo);
@@ -734,12 +772,14 @@ export function CalendarInteractions({
       preview && gesture?.mode === "move" ? gesture.block?.id : undefined,
     preview,
     busy,
+    setClipboardBusy,
     quickActionsAvailable: !gesture && !editorOpen && !busy,
     remove,
     groupDelete,
     history,
     deleteBlock,
     deleteItem,
+    deletePlans,
     status,
     notice,
     showNotice,
@@ -752,6 +792,12 @@ export function CalendarInteractions({
         className="calendar-interactions"
         aria-busy={busy}
         onPointerDownCapture={(event) => {
+          if (
+            event.button !== 0 ||
+            (event.target instanceof Element &&
+              event.target.closest('[role="menu"]'))
+          )
+            return;
           if (
             !busy &&
             event.target instanceof Element &&
@@ -789,40 +835,9 @@ export function CalendarInteractions({
               'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]',
             )
           ) {
-            if (selectedPlans.length > 1) {
-              const plans = selectedPlans.map((plan) => {
-                const record =
-                  plan.kind === "block"
-                    ? blocks.find((block) => block.id === plan.id)
-                    : items.find((item) => item.id === plan.id);
-                return record
-                  ? { kind: plan.kind, id: plan.id, version: record.version }
-                  : null;
-              });
-              event.preventDefault();
-              event.stopPropagation();
-              if (plans.some((plan) => plan === null)) {
-                clearSelectedPlans();
-                setStatus("Selection changed. Select the plans again.");
-              } else
-                groupDelete.mutate({
-                  plans: plans as GroupDeleteInput["plans"],
-                });
-              return;
-            }
-            const block = blocks.find((block) => block.id === selectedId);
-            if (block) {
-              event.preventDefault();
-              event.stopPropagation();
-              deleteBlock(block);
-            } else {
-              const item = items.find((item) => item.id === selectedItemId);
-              if (item) {
-                event.preventDefault();
-                event.stopPropagation();
-                deleteItem(item);
-              }
-            }
+            event.preventDefault();
+            event.stopPropagation();
+            deletePlans(selectedPlans);
             return;
           }
           if (event.key === "Escape" && !gesture && !busy) {

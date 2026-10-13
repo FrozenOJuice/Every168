@@ -13,6 +13,70 @@
 .calendar-interactions {
   display: contents;
 }
+.calendar-context-surface {
+  display: contents;
+}
+.context-menu {
+  position: fixed;
+  z-index: 80;
+  width: 224px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-popover);
+}
+.context-menu [role="menuitem"] {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+.context-menu [role="menuitem"]:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+  background: var(--muted);
+}
+.context-menu [role="menuitem"][data-destructive] {
+  color: var(--destructive);
+}
+.context-menu [role="menuitem"]:disabled {
+  color: var(--muted-foreground);
+  cursor: default;
+}
+.context-menu kbd {
+  font-family: inherit;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+.context-menu [role="menuitem"]:focus kbd {
+  color: var(--foreground);
+}
+.context-menu [role="separator"] {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border);
+}
+@media (pointer: coarse) {
+  .context-menu [role="menuitem"] {
+    min-height: 44px;
+  }
+}
 .calendar-notice {
   position: fixed;
   z-index: 50;

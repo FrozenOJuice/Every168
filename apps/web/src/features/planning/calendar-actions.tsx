@@ -7,7 +7,7 @@ import { MeasurementForm } from "@/features/measurements/measurement-form";
 import { formatDate } from "@/lib/format";
 import { useCalendarInteractions } from "./calendar-interactions";
 export type CalendarAction =
-  "series" | "all_day" | "unscheduled" | "copy" | "templates" | "quick";
+  "series" | "all_day" | "unscheduled" | "templates" | "quick";
 export function CalendarActions({
   onClose,
   onAction,
@@ -25,11 +25,6 @@ export function CalendarActions({
               "all_day",
               "Add all-day plan",
               "A date or several days without allocated hours.",
-            ],
-            [
-              "copy",
-              "Copy plans",
-              "Copy one plan, a day, a week, or a date range.",
             ],
             ["templates", "Templates", "Save and apply calendar patterns."],
             ["quick", "Quick actions", "Log food, exercise, water or weight."],

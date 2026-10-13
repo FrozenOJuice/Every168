@@ -227,9 +227,20 @@ export function seriesService(
         const beforeIds = new Set(
           receipt.beforeBlocks.map((block) => block.id),
         );
+        const removedBlockUndoIds: string[] = [];
         for (const block of current.blocks)
           if (!beforeIds.has(block.id))
-            await planning.deleteBlock(u, block.id, block.version, tx, false);
+            removedBlockUndoIds.push(
+              (
+                await planning.deleteBlockWithUndo(
+                  u,
+                  block.id,
+                  block.version,
+                  tx,
+                  false,
+                )
+              ).undoId,
+            );
         if (receipt.before) {
           const {
             id: _id,
@@ -248,8 +259,19 @@ export function seriesService(
             await planning.restoreBlock(u, undoId, tx, true);
         } else await repo.remove(u, receipt.seriesId, tx);
         const restored = await repo.snapshot(u, receipt.seriesId, tx);
+        const inverse = await repo.recordChange(
+          u,
+          receipt.seriesId,
+          current.series,
+          current.blocks,
+          restored.series,
+          restored.blocks,
+          removedBlockUndoIds,
+          tx,
+        );
         await repo.consumeChange(u, receipt.id, tx);
         return {
+          undoId: inverse.id,
           blocks: restored.blocks.map(({ id, version }) => ({ id, version })),
           items: [],
         };

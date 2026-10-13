@@ -1205,3 +1205,126 @@ it("serializes occurrence versus series edits and rejects a changed timezone aft
     expect(result.rows[0]!.count).toBe(0);
   }
 });
+
+it("series inverses redo creation, editing and deletion with stable occurrence identities", async () => {
+  const a = await signUp();
+  const post = (
+    path: string,
+    data: object,
+    version?: number,
+    headers = commandHeaders(version),
+  ) =>
+    request(app)
+      .post("/api/v1/" + path)
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(headers)
+      .send(data);
+  const rule = {
+    title: "History series",
+    timezone: "UTC",
+    startDate: "2026-09-07",
+    untilDate: "2026-09-09",
+    startMinute: 540,
+    durationMinutes: 60,
+    frequency: "daily",
+    interval: 1,
+    weekdays: [1],
+  };
+  const created = (await post("calendar/series", rule).expect(201)).body;
+  const gone = (
+    await post("calendar/series/undo", {
+      undoId: created.undoId,
+      blocks: created.blocks,
+    }).expect(200)
+  ).body;
+  expect(gone.blocks).toHaveLength(0);
+  const headers = commandHeaders();
+  const redo = (
+    await post(
+      "calendar/series/undo",
+      { undoId: gone.undoId, blocks: gone.blocks },
+      undefined,
+      headers,
+    ).expect(200)
+  ).body;
+  expect(redo.blocks.map((block: { id: string }) => block.id)).toEqual(
+    created.blocks.map((block: { id: string }) => block.id),
+  );
+  expect(
+    (
+      await post(
+        "calendar/series/undo",
+        { undoId: gone.undoId, blocks: gone.blocks },
+        undefined,
+        headers,
+      ).expect(200)
+    ).body,
+  ).toEqual(redo);
+  let series = (
+    await request(app)
+      .get("/api/v1/calendar/series/" + created.series.id)
+      .set("Cookie", a.cookie)
+      .expect(200)
+  ).body;
+  const edited = (
+    await request(app)
+      .put("/api/v1/calendar/series/" + series.id)
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(series.version))
+      .send({ ...rule, title: "Edited series", untilDate: "2026-09-08" })
+      .expect(200)
+  ).body;
+  const original = (
+    await post("calendar/series/undo", {
+      undoId: edited.undoId,
+      blocks: edited.blocks,
+    }).expect(200)
+  ).body;
+  expect(original.blocks).toHaveLength(3);
+  const reapplied = (
+    await post("calendar/series/undo", {
+      undoId: original.undoId,
+      blocks: original.blocks,
+    }).expect(200)
+  ).body;
+  expect(reapplied.blocks.map((block: { id: string }) => block.id)).toEqual(
+    edited.blocks.map((block: { id: string }) => block.id),
+  );
+  series = (
+    await request(app)
+      .get("/api/v1/calendar/series/" + created.series.id)
+      .set("Cookie", a.cookie)
+      .expect(200)
+  ).body;
+  expect(series.title).toBe("Edited series");
+  const deleted = (
+    await request(app)
+      .delete("/api/v1/calendar/series/" + series.id)
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(series.version))
+      .expect(200)
+  ).body;
+  const restored = (
+    await post("calendar/series/undo", {
+      undoId: deleted.undoId,
+      blocks: [],
+    }).expect(200)
+  ).body;
+  expect(restored.blocks.map((block: { id: string }) => block.id)).toEqual(
+    edited.blocks.map((block: { id: string }) => block.id),
+  );
+  const deletedAgain = (
+    await post("calendar/series/undo", {
+      undoId: restored.undoId,
+      blocks: restored.blocks,
+    }).expect(200)
+  ).body;
+  expect(deletedAgain.blocks).toHaveLength(0);
+  await request(app)
+    .get("/api/v1/calendar/series/" + series.id)
+    .set("Cookie", a.cookie)
+    .expect(404);
+});

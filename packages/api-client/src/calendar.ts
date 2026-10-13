@@ -9,6 +9,7 @@ import type {
   SeriesInput,
   SeriesResult,
   SeriesUndoInput,
+  SeriesUndoResult,
   CalendarSearchQuery,
   SearchRecord,
   Page,
@@ -93,10 +94,7 @@ export function calendarClient(http: Http) {
         headers: writeHeaders(key, version),
       }),
     undoCalendarSeries: (v: SeriesUndoInput, key?: string) =>
-      http<{
-        blocks: { id: string; version: number }[];
-        items: { id: string; version: number }[];
-      }>(root + "/series/undo", {
+      http<SeriesUndoResult>(root + "/series/undo", {
         method: "POST",
         body: body(v),
         headers: writeHeaders(key),

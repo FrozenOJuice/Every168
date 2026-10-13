@@ -23,7 +23,6 @@ export function CalendarEditor({
   onChange,
   onSaved,
   onSeries,
-  onCopy,
   composer = false,
   onDraftChange,
 }: {
@@ -35,7 +34,6 @@ export function CalendarEditor({
   onChange: (editor: TimeEditor) => void;
   onSaved: (result: CalendarSaveResult) => void;
   onSeries: (id: string) => void;
-  onCopy: (id: string) => void;
 }) {
   const interaction = useCalendarInteractions(),
     router = useRouter();
@@ -189,13 +187,6 @@ export function CalendarEditor({
                   }}
                 >
                   Move or resize on calendar
-                </button>
-                <button
-                  className="button"
-                  disabled={remove.isPending}
-                  onClick={() => onCopy(item.id)}
-                >
-                  Copy…
                 </button>
                 <button
                   className="button"

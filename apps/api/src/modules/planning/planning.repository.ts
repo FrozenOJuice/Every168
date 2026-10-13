@@ -347,7 +347,18 @@ export function planningRepository(db: Database) {
         .where(
           and(eq(editedTimeBlocks.userId, u), eq(editedTimeBlocks.id, undoId)),
         );
-      return restored;
+      const inverse = (
+        await tx
+          .insert(editedTimeBlocks)
+          .values({
+            userId: u,
+            before: snapshot(current),
+            after: snapshot(restored),
+            seriesState: await getSeriesState(u, before.seriesId, context),
+          })
+          .returning()
+      )[0]!;
+      return { ...restored, undoId: inverse.id };
     },
     async deleteBlockWithUndo(
       u: string,

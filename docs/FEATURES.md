@@ -181,7 +181,8 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 #### Pasting
 
-- Select a destination, then use ⌘V / Ctrl+V.
+- With plans selected, use ⌘C / Ctrl+C then ⌘V / Ctrl+V to duplicate them at their copied dates and times, including all-day plans and groups.
+- Select a destination before pasting to place the copied plans elsewhere.
 - Select a Day/Week heading or Month cell to keep the copied plans' original clock times.
 - Select a five-minute slice in Day/Week to place a copied timed plan at that time.
 - For a group of plans, a time-slice destination shifts the earliest timed plan to that time and preserves spacing between timed plans.
@@ -194,28 +195,43 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Paste happens immediately without a confirmation popup.
 - A brief “Plans pasted” message offers Undo; the whole paste is one undo action.
 
-#### Copy plans form
+### Right-click menus
 
-- Calendar tools also has a Copy plans form for a single plan, day, week, or date range.
-- The form previews the copy before applying it.
-- Copies made through the form can also be undone as one action.
+- Right-click a timed or all-day plan for Edit, Duplicate, Copy, and Delete. A selected group offers Copy, Duplicate, and Delete.
+- Duplicate creates independent plans at the same dates and times without replacing the clipboard; the group is one undo action.
+- Right-click empty Day/Week time for Add plan here or Paste here, snapped to five minutes.
+- Plan menus also offer Paste here. In the Day/Week timed grid, use the five-minute time under the pointer, even over an occupied block; keyboard-opened menus use the focused plan’s start time. Month and all-day row targets use the clicked day and preserve copied clock times. Mixed groups retain their types and spacing; overlap is allowed.
+- Right-click empty all-day space for Add all-day plan or Paste. Pasting preserves timed and all-day plan types.
+- Right-click a day heading or Month cell for Open Day, Add plan, Copy day, and Paste into day. Open Day is omitted in Day view.
+- Selected days offer Copy selected days and Paste. Paste uses the day invoked as its destination anchor, preserving relative dates and clock times.
+- Right-clicking a selected plan or day preserves its group; an unselected plan or day becomes the sole selection. Empty-space menus preserve the existing selection.
+- Right-click the time column for Reset zoom. Every menu ends with Undo and Redo; unavailable actions are disabled.
+- Shift+F10 or the Context Menu key opens the menu beside the focused plan, day, time slot, or time column. Arrow keys navigate, Enter activates, and Escape closes and returns focus.
+- Menus fit the viewport and close on outside interaction. Text fields retain their native browser menus.
 
-### Deletion and undo
+### Deletion, undo and redo
 
 - Delete / Backspace removes a selected timed or all-day plan without a confirmation alert.
 - Delete an all-day plan through its editor without confirmation; the same undo support applies.
 - With several plans selected, Delete / Backspace removes the group, including mixed timed/all-day selections, as one undo action.
 - ⌘Z / Ctrl+Z undoes the latest supported action; repeat it to undo several actions in reverse order.
-- Supported actions include timed/all-day creation and edits, duplication, moves, resizing, deletion, group deletion, copying/pasting, and template application.
+- ⌘⇧Z / Ctrl+Shift+Z or Ctrl+Y redoes the most recently undone Calendar plan action. Repeated shortcuts walk backward or forward through history.
+- Plan undo/redo covers timed and all-day creation/duplication, edits, moving, resizing, deletion, individual/group copy-paste, group deletion, and whole repeating-series changes.
+- Calendar plan history keeps the latest 100 actions per account and tab, across date/view changes, leaving and returning to Calendar, and page refreshes.
+- A successful new action clears redo. Selection, navigation, copying, cancelled drafts, and failed requests keep it available.
+- Redo restores the exact saved plans and their identities, independently of the clipboard. Each group action stays one history step.
+- Sign-out clears history. Fresh browser visits start empty; history stays local to the tab.
+- Conflicting newer changes stop undo/redo without advancing history. Interrupted history requests can be retried after refresh with the original request key.
+- Applying a template can be undone as one action.
 - Creating, editing, or deleting an entire repeating series is one undo action. Undo restores its previous rule, individual edits, and excluded dates.
 - Activity created through Calendar forms can be undone, including food, water, weight, cardio, workout starts, and manually recorded time. Undo removes the original activity record as well as its Calendar entry.
 - Undoing a paste removes all plans created by that paste; undoing a group deletion restores the group.
-- Undo preserves recorded activity when restoring or removing plans. Changes made elsewhere are checked before undo to avoid overwriting newer work.
+- Undoing plan changes preserves recorded activity when restoring or removing plans.
 
 ### Feedback messages
 
 - Copying shows a brief confirmation.
-- Keyboard pasting, supported deletions, template application, and Calendar activity logging show a brief message with Undo.
+- Pasting, duplication, supported deletions, template application, and Calendar activity logging show a brief message with Undo.
 - Undo remains available by keyboard after the message disappears.
 - Missing selections and empty copies show guidance; failed actions show an error and offer retry where supported.
 
@@ -228,7 +244,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 ### Templates and quick actions
 
-- Calendar tools contains Repeating plan, All-day plan, Copy plans, Templates, and Quick actions.
+- Calendar tools contains Repeating plan, All-day plan, Templates, and Quick actions.
 - Save a named template from a day, week, or date range.
 - Rename or delete saved templates.
 - Choose a start date and number of cycles, preview, then apply a template to create independent plans.
@@ -244,18 +260,19 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 | ⌘C / Ctrl+C                          | Copy selected plans or days                         |
 | ⌘V / Ctrl+V                          | Paste at the selected destination                   |
 | ⌘Z / Ctrl+Z                          | Undo the latest supported action                    |
+| ⌘⇧Z / Ctrl+Shift+Z; Ctrl+Y           | Redo the latest undone Calendar plan action         |
 | Delete / Backspace                   | Delete selected timed or all-day plans              |
 | Enter on a plan                      | Open its editor                                     |
 | Enter on a Week heading / Month cell | Open that date in Day view                          |
 | Escape                               | Cancel an active drag or dismiss an editor/dropdown |
 | R                                    | Reset Day/Week time-grid zoom                       |
+| Shift+F10 / Context Menu key         | Open actions for the focused Calendar target        |
 
 Calendar shortcuts leave normal typing and text-field shortcuts available while editing fields.
 
 ### Needs work
 
-- Undo history is lost on reload or when leaving Calendar; redo is not available.
-- Immediate duplication: copying a selected block and pasting requires selecting a destination day or slice first.
+- Template application and activity logging retain their existing current-Calendar-visit undo only; they are outside plan redo and persisted history.
 - Current limits: all-day spans and template sources cover up to 31 days; repeating plans cover up to 366 local dates.
 - Copy limit: up to 100 plans within a 31-day range. Template application allows up to 52 cycles, bounded by 100 plans and 366 days.
 - External calendar sync and reminders are not available.

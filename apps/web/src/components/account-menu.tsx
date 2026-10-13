@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronUp, LogOut, Settings } from "lucide-react";
 import type { Me } from "@168hours/contracts";
 import { api } from "@/lib/api";
+import { clearCalendarHistory } from "@/features/planning/calendar-history-store";
 
 export function AccountMenu({ user }: { user: Me["user"] }) {
   const [open, setOpen] = useState(false);
@@ -27,6 +28,7 @@ export function AccountMenu({ user }: { user: Me["user"] }) {
     setError("");
     try {
       await api.signOut();
+      clearCalendarHistory();
       cache.clear();
       // Clear the document and router cache across account changes.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination

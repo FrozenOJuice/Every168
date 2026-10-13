@@ -66,7 +66,7 @@ export function planningClient(http: Http) {
         body: "{}",
       }),
     undoTimeBlockEdit: (undoId: string, version: number, key?: string) =>
-      http<Block>("/api/v1/time-block-edits/" + undoId + "/undo", {
+      http<BlockEdit>("/api/v1/time-block-edits/" + undoId + "/undo", {
         method: "POST",
         headers: writeHeaders(key, version),
         body: "{}",

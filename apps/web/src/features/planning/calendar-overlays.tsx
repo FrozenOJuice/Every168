@@ -10,15 +10,12 @@ import { CalendarTemplates } from "./calendar-templates";
 import { CalendarSearch } from "./calendar-search";
 import type { CalendarFilter } from "./calendar-filters";
 import type { RefObject } from "react";
-import { useCalendarInteractions } from "./calendar-interactions";
 export type CalendarOverlay = {
   mode: "tools" | "search" | CalendarAction;
   date?: string;
   minute?: number;
   item?: CalendarItem;
   seriesId?: string;
-  sourceId?: string;
-  sourceKind?: "block" | "item";
 };
 export function CalendarOverlays({
   overlay,
@@ -33,7 +30,6 @@ export function CalendarOverlays({
   onAddRepeating,
   onAddAllDay,
   onAddTime,
-  onCopyItem,
 }: {
   overlay: CalendarOverlay;
   setOverlay: (overlay: CalendarOverlay | null) => void;
@@ -47,10 +43,8 @@ export function CalendarOverlays({
   onAddRepeating: () => void;
   onAddAllDay: () => void;
   onAddTime: (item: CalendarItem, date: string) => void;
-  onCopyItem: (item: CalendarItem) => void;
 }) {
   const close = () => setOverlay(null);
-  const interaction = useCalendarInteractions();
   if (overlay.mode === "tools")
     return (
       <CalendarActions
@@ -85,25 +79,8 @@ export function CalendarOverlays({
         onSaved={onSaved}
       />
     );
-  if (overlay.mode === "copy" || overlay.mode === "templates")
-    return (
-      <CalendarTemplates
-        mode={overlay.mode}
-        sourceId={
-          overlay.sourceId ??
-          interaction?.selectedId ??
-          interaction?.selectedItemId ??
-          undefined
-        }
-        sourceKind={
-          overlay.sourceKind ??
-          (!overlay.sourceId && interaction?.selectedItemId ? "item" : "block")
-        }
-        date={date}
-        onClose={close}
-        onSaved={onSaved}
-      />
-    );
+  if (overlay.mode === "templates")
+    return <CalendarTemplates date={date} onClose={close} onSaved={onSaved} />;
   if (overlay.mode === "quick")
     return (
       <CalendarQuickActions
@@ -122,7 +99,6 @@ export function CalendarOverlays({
       onClose={close}
       onSchedule={onSchedule}
       onAddTime={(item) => onAddTime(item, date)}
-      onCopy={onCopyItem}
       onSaved={onSaved}
     />
   );

@@ -79,6 +79,8 @@ export function CalendarHourSlot({
           (tickMinutes === 30 ? " has-half-hour-tick" : "") +
           (tickMinutes === 15 ? " has-quarter-hour-ticks" : "")
         }
+        data-context-date={date}
+        data-context-hour={hour}
         aria-pressed={active}
         aria-describedby={hintId}
         aria-label={`Select time on ${date} at ${String(hour).padStart(2, "0")}:00`}

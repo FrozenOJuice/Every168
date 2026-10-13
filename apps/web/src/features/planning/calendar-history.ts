@@ -31,8 +31,8 @@ export type CalendarAction = (
       kind: "item-edit";
       itemId: string;
       version: number;
-      before: CalendarItemInput;
-      after: CalendarItemInput;
+      before: CalendarItemInput & { isException?: boolean };
+      after: CalendarItemInput & { isException?: boolean };
     }
   | {
       key: string;
@@ -44,6 +44,7 @@ export type CalendarAction = (
   | {
       key: string;
       kind: "series";
+      items?: { id: string; version: number }[];
       undoId: string;
       blocks: { id: string; version: number }[];
     }
@@ -89,15 +90,15 @@ export function undoAction(
     for (const item of selection.items) {
       const index = remaining.findLastIndex(
         (entry) =>
-          (entry.kind === "copy" &&
-            entry.items.some((record) => record.id === item.id)) ||
+          ((entry.kind === "copy" || entry.kind === "series") &&
+            entry.items?.some((record) => record.id === item.id)) ||
           (entry.kind === "item-edit" && entry.itemId === item.id),
       );
       const previous = remaining[index];
-      if (previous?.kind === "copy")
+      if (previous?.kind === "copy" || previous?.kind === "series")
         remaining[index] = {
           ...previous,
-          items: previous.items.map((record) =>
+          items: previous.items!.map((record) =>
             record.id === item.id ? item : record,
           ),
         };

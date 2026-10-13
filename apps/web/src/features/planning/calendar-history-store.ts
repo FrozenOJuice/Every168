@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { calendarItemInput } from "@168hours/contracts";
+import { calendarItemUpdateInput } from "@168hours/contracts";
 import {
   emptyHistory,
   type CalendarAction,
@@ -52,14 +52,15 @@ const actionSchema: z.ZodType<CalendarAction> = z.discriminatedUnion("kind", [
     kind: z.literal("item-edit"),
     itemId: z.string().min(1),
     version: block.version,
-    before: calendarItemInput,
-    after: calendarItemInput,
+    before: calendarItemUpdateInput,
+    after: calendarItemUpdateInput,
   }),
   z.object({
     ...base,
     kind: z.literal("series"),
+    items: z.array(ref).max(732).optional(),
     undoId: z.string().min(1),
-    blocks: z.array(ref).max(366),
+    blocks: z.array(ref).max(732),
   }),
   z.object({
     ...base,
@@ -90,7 +91,7 @@ const historySchema = z
       .nullable(),
   })
   .refine((v) => v.actions.length + v.redo.length <= 100);
-const prefix = "168hours:calendar-history:v1:";
+const prefix = "168hours:calendar-history:v2:";
 const stores = new Map<string, CalendarHistory>();
 const listeners = new Set<() => void>();
 let initialized = false;

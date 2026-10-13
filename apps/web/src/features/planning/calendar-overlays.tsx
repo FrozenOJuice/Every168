@@ -1,4 +1,4 @@
-import type { CalendarItem, SearchRecord } from "@168hours/contracts";
+import type { Block, CalendarItem, SearchRecord } from "@168hours/contracts";
 import {
   CalendarActions,
   CalendarQuickActions,
@@ -16,6 +16,8 @@ export type CalendarOverlay = {
   minute?: number;
   item?: CalendarItem;
   seriesId?: string;
+  seriesSource?: Block | CalendarItem;
+  occurrenceDate?: string;
 };
 export function CalendarOverlays({
   overlay,
@@ -74,6 +76,8 @@ export function CalendarOverlays({
     return (
       <CalendarSeriesEditor
         id={overlay.seriesId}
+        source={overlay.seriesSource}
+        occurrenceDate={overlay.occurrenceDate}
         date={date}
         onClose={close}
         onSaved={onSaved}
@@ -99,6 +103,15 @@ export function CalendarOverlays({
       onClose={close}
       onSchedule={onSchedule}
       onAddTime={(item) => onAddTime(item, date)}
+      onRepeat={(item) =>
+        setOverlay({
+          mode: "series",
+          seriesId: item.seriesId ?? undefined,
+          seriesSource: item.seriesId ? undefined : item,
+          occurrenceDate: item.occurrenceDate ?? item.date ?? date,
+          date,
+        })
+      }
       onSaved={onSaved}
     />
   );

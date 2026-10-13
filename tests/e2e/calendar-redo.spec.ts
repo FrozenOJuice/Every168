@@ -353,8 +353,9 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
   await expect(editor).toHaveCount(0);
   await plan(page, "Individual exception").dblclick();
   await editor
-    .getByRole("button", { name: "Edit entire series", exact: true })
+    .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
+  await editor.getByLabel("Replace individual edits", { exact: true }).check();
   await editor.getByLabel("Title", { exact: true }).fill("Series revised");
   await editor.getByLabel("Repeat through", { exact: true }).fill("2026-09-08");
   await editor
@@ -382,7 +383,7 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
   await ready(page);
   await plan(page, "Series revised").dblclick();
   await editor
-    .getByRole("button", { name: "Edit entire series", exact: true })
+    .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
   await editor
     .getByRole("button", { name: "Delete entire series", exact: true })

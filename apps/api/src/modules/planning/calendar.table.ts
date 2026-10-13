@@ -5,6 +5,8 @@ import {
   uuid,
   integer,
   doublePrecision,
+  boolean,
+  uniqueIndex,
   date,
   check,
   unique,
@@ -12,7 +14,8 @@ import {
   foreignKey,
   jsonb,
 } from "drizzle-orm/pg-core";
-import type { CalendarItem, CalendarSeries, Block } from "@168hours/contracts";
+import type { CalendarItem } from "@168hours/contracts";
+import type { SeriesSnapshot, SeriesUndoState } from "./planning.types.js";
 import { ownedColumns } from "../../infrastructure/database/columns.js";
 import { categories } from "../categories/categories.table.js";
 import { goals } from "../goals/goals.table.js";
@@ -28,12 +31,24 @@ export const calendarItems = pgTable(
   {
     ...ownedColumns(),
     ...details(),
+    seriesId: uuid("series_id"),
+    occurrenceDate: date("occurrence_date"),
+    isException: boolean("is_exception").notNull().default(false),
     kind: text("kind", { enum: ["all_day", "unscheduled"] }).notNull(),
     date: date("date"),
     endDate: date("end_date"),
   },
   (t) => [
     unique("calendar_item_owner").on(t.userId, t.id),
+    uniqueIndex("calendar_item_series_date").on(t.seriesId, t.occurrenceDate),
+    foreignKey({
+      columns: [t.userId, t.seriesId],
+      foreignColumns: [calendarSeries.userId, calendarSeries.id],
+    }),
+    check(
+      "calendar_item_series_shape",
+      sql`(${t.seriesId} is null and ${t.occurrenceDate} is null and not ${t.isException}) or (${t.seriesId} is not null and ${t.kind}='all_day' and ${t.occurrenceDate} is not null and isfinite(${t.occurrenceDate}))`,
+    ),
     index("calendar_item_date_idx").on(t.userId, t.date),
     index("calendar_item_created_idx").on(t.userId, t.createdAt, t.id),
     foreignKey({
@@ -58,14 +73,16 @@ export const deletedCalendarGroups = pgTable("deleted_calendar_groups", {
   ...ownedColumns(),
   blockUndoIds: jsonb("block_undo_ids").$type<string[]>().notNull(),
   items: jsonb("items").$type<CalendarItem[]>().notNull(),
+  itemSeriesStates: jsonb("item_series_states")
+    .$type<Record<string, SeriesUndoState>>()
+    .notNull()
+    .default({}),
 });
 export const calendarSeriesChanges = pgTable("calendar_series_changes", {
   ...ownedColumns(),
   seriesId: uuid("series_id").notNull(),
-  before: jsonb("before").$type<CalendarSeries>(),
-  after: jsonb("after").$type<CalendarSeries>(),
-  beforeBlocks: jsonb("before_blocks").$type<Block[]>().notNull(),
-  afterBlocks: jsonb("after_blocks").$type<Block[]>().notNull(),
+  before: jsonb("before").$type<SeriesSnapshot[]>().notNull(),
+  after: jsonb("after").$type<SeriesSnapshot[]>().notNull(),
   removedBlockUndoIds: jsonb("removed_block_undo_ids")
     .$type<string[]>()
     .notNull(),
@@ -75,6 +92,10 @@ export const calendarSeries = pgTable(
   {
     ...ownedColumns(),
     ...details(),
+    kind: text("kind", { enum: ["timed", "all_day"] })
+      .notNull()
+      .default("timed"),
+    dateSpan: integer("date_span").notNull().default(1),
     timezone: text("timezone").notNull(),
     startDate: date("start_date").notNull(),
     untilDate: date("until_date").notNull(),
@@ -90,6 +111,10 @@ export const calendarSeries = pgTable(
   },
   (t) => [
     unique("calendar_series_owner").on(t.userId, t.id),
+    check(
+      "calendar_series_kind",
+      sql`${t.kind} in ('timed','all_day') and ${t.dateSpan} between 1 and 31`,
+    ),
     foreignKey({
       columns: [t.userId, t.categoryId],
       foreignColumns: [categories.userId, categories.id],

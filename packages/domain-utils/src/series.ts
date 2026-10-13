@@ -9,6 +9,8 @@ export type PlannedSeriesRule = {
   interval: number;
   weekdays: number[];
   timezone: string;
+  kind?: "timed" | "all_day";
+  dateSpan?: number;
 };
 
 export function expandPlannedSeries(
@@ -30,7 +32,10 @@ export function expandPlannedSeries(
         : Math.floor((days + mondayOffset) / 7) % rule.interval === 0 &&
           rule.weekdays.includes(weekday(date));
     if (!matches || excluded.includes(date)) continue;
-    const startsAt = plannedInstant(date, rule.startMinute, rule.timezone);
+    const startsAt =
+      rule.kind === "all_day"
+        ? `${date}T00:00:00.000Z`
+        : plannedInstant(date, rule.startMinute, rule.timezone);
     if (!startsAt) {
       skippedDates.push(date);
       continue;

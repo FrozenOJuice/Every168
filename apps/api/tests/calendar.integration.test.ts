@@ -109,7 +109,12 @@ it("materializes local recurrence, protects series revisions, and preserves actu
   const updated = await a
     .put(
       "calendar/series/" + id,
-      { ...rule, title: "Whole series", startMinute: 540 },
+      {
+        ...rule,
+        title: "Whole series",
+        startMinute: 540,
+        preserveExceptions: false,
+      },
       latest.version,
     )
     .expect(200);
@@ -1327,4 +1332,387 @@ it("series inverses redo creation, editing and deletion with stable occurrence i
     .get("/api/v1/calendar/series/" + series.id)
     .set("Cookie", a.cookie)
     .expect(404);
+});
+
+it("converts standalone timed/all-day plans into reversible series without losing identity or links", async () => {
+  const a = api((await signUp()).cookie),
+    b = api((await signUp()).cookie);
+  for (const kind of ["timed", "all_day"] as const) {
+    const source = (
+      kind === "timed"
+        ? await a.post("time-blocks", block).expect(201)
+        : await a
+            .post("calendar/items", {
+              title: "Trip",
+              kind: "all_day",
+              date: "2026-09-07",
+              endDate: "2026-09-08",
+            })
+            .expect(201)
+    ).body;
+    const sourceKind = kind === "timed" ? "block" : "item";
+    const input = {
+      ...rule,
+      kind,
+      dateSpan: 2,
+      timezone: "UTC",
+      startDate: "2026-09-07",
+      untilDate: "2026-09-09",
+      startMinute: 540,
+      source: { kind: sourceKind, id: source.id, version: source.version },
+    };
+    await b.post("calendar/series", input).expect(404);
+    const created = (await a.post("calendar/series", input).expect(201)).body;
+    expect(created.count).toBe(3);
+    const path = kind === "timed" ? "time-blocks/" : "calendar/items/";
+    expect((await a.get(path + source.id)).body.seriesId).toBe(
+      created.series.id,
+    );
+    const undone = (
+      await a
+        .post("calendar/series/undo", {
+          undoId: created.undoId,
+          blocks: created.blocks,
+          items: created.items,
+        })
+        .expect(200)
+    ).body;
+    expect((await a.get(path + source.id)).body).toMatchObject({
+      title: source.title,
+      seriesId: null,
+      occurrenceDate: null,
+      isException: false,
+    });
+    await a.get("calendar/series/" + created.series.id).expect(404);
+    const redone = (await a.post("calendar/series/undo", undone).expect(200))
+      .body;
+    expect((await a.get(path + source.id)).body.seriesId).toBe(
+      created.series.id,
+    );
+    expect(kind === "timed" ? redone.blocks.length : redone.items.length).toBe(
+      3,
+    );
+  }
+});
+
+it("splits following timed occurrences with preserved overrides and exclusions, and reverses the split atomically", async () => {
+  const a = api((await signUp()).cookie);
+  const input = {
+    ...rule,
+    timezone: "UTC",
+    startDate: "2026-09-07",
+    untilDate: "2026-09-11",
+    startMinute: 540,
+  };
+  const created = (await a.post("calendar/series", input).expect(201)).body;
+  const plans = (await a.get("weeks/2026-09-07")).body.blocks;
+  const middle = plans[2],
+    last = plans[4];
+  const exception = (
+    await a
+      .put(
+        "time-blocks/" + last.id,
+        {
+          ...block,
+          title: "Special",
+          startsAt: last.startsAt,
+          endsAt: last.endsAt,
+        },
+        last.version,
+      )
+      .expect(200)
+  ).body;
+  await a.del("time-blocks/" + plans[3].id, plans[3].version).expect(200);
+  const parent = (await a.get("calendar/series/" + created.series.id)).body;
+  const split = (
+    await a
+      .put(
+        "calendar/series/" + parent.id,
+        {
+          ...input,
+          title: "Following",
+          startDate: middle.occurrenceDate,
+          scope: "following",
+          fromDate: middle.occurrenceDate,
+        },
+        parent.version,
+      )
+      .expect(200)
+  ).body;
+  expect(split.series.id).not.toBe(parent.id);
+  expect(split.series.excludedDates).toEqual(["2026-09-10"]);
+  expect((await a.get("time-blocks/" + plans[0].id)).body).toMatchObject({
+    title: "Repeat",
+    seriesId: parent.id,
+  });
+  expect((await a.get("time-blocks/" + middle.id)).body).toMatchObject({
+    title: "Following",
+    seriesId: split.series.id,
+  });
+  expect((await a.get("time-blocks/" + last.id)).body).toMatchObject({
+    title: "Special",
+    seriesId: split.series.id,
+    isException: true,
+  });
+  const undone = (
+    await a
+      .post("calendar/series/undo", {
+        undoId: split.undoId,
+        blocks: split.blocks,
+        items: split.items,
+      })
+      .expect(200)
+  ).body;
+  expect((await a.get("time-blocks/" + middle.id)).body).toMatchObject({
+    title: "Repeat",
+    seriesId: parent.id,
+  });
+  await a.get("calendar/series/" + split.series.id).expect(404);
+  const redo = (await a.post("calendar/series/undo", undone).expect(200)).body;
+  const current = (await a.get("calendar/series/" + split.series.id)).body;
+  const replaced = (
+    await a
+      .put(
+        "calendar/series/" + current.id,
+        {
+          ...input,
+          startDate: middle.occurrenceDate,
+          title: "Replace",
+          preserveExceptions: false,
+        },
+        current.version,
+      )
+      .expect(200)
+  ).body;
+  expect((await a.get("time-blocks/" + exception.id)).body).toMatchObject({
+    title: "Replace",
+    isException: false,
+  });
+  await a
+    .post("calendar/series/undo", {
+      undoId: redo.undoId,
+      blocks: redo.blocks,
+      items: redo.items,
+    })
+    .expect(409);
+  expect(replaced.count).toBe(2);
+});
+
+it("uses date-based all-day recurrence across DST and supports scoped changes, stops, exclusions and history", async () => {
+  const a = api((await signUp()).cookie),
+    b = api((await signUp()).cookie);
+  const input = {
+    ...rule,
+    kind: "all_day",
+    dateSpan: 2,
+    startMinute: 150,
+    startDate: "2026-03-07",
+    untilDate: "2026-03-10",
+  };
+  const created = (await a.post("calendar/series", input).expect(201)).body;
+  expect(created.count).toBe(4);
+  expect(created.skippedDates).toEqual([]);
+  expect(created.blocks).toEqual([]);
+  const read = async () =>
+    (await a.get("calendar/items?from=2026-03-07&to=2026-03-12")).body;
+  const plans = await read();
+  expect(plans.map((p: { date: string }) => p.date)).toEqual([
+    "2026-03-07",
+    "2026-03-08",
+    "2026-03-09",
+    "2026-03-10",
+  ]);
+  expect(plans[1].endDate).toBe("2026-03-09");
+  const exception = (
+    await a
+      .put(
+        "calendar/items/" + plans[2].id,
+        {
+          title: "Individual",
+          kind: "all_day",
+          date: plans[2].date,
+          endDate: plans[2].endDate,
+        },
+        plans[2].version,
+      )
+      .expect(200)
+  ).body;
+  const parent = (await a.get("calendar/series/" + created.series.id)).body;
+  const split = (
+    await a
+      .put(
+        "calendar/series/" + parent.id,
+        {
+          ...input,
+          startDate: "2026-03-08",
+          scope: "following",
+          fromDate: "2026-03-08",
+          title: "Future",
+        },
+        parent.version,
+      )
+      .expect(200)
+  ).body;
+  expect((await a.get("calendar/items/" + exception.id)).body.title).toBe(
+    "Individual",
+  );
+  const current = (await a.get("calendar/series/" + split.series.id)).body;
+  const stopInput = {
+    operation: "stop",
+    scope: "following",
+    fromDate: "2026-03-09",
+  };
+  await b
+    .post(
+      "calendar/series/" + current.id + "/change",
+      stopInput,
+      current.version,
+    )
+    .expect(404);
+  const stopped = (
+    await a
+      .post(
+        "calendar/series/" + current.id + "/change",
+        stopInput,
+        current.version,
+      )
+      .expect(200)
+  ).body;
+  expect(await read()).toHaveLength(2);
+  const undone = (
+    await a
+      .post("calendar/series/undo", {
+        undoId: stopped.undoId,
+        blocks: stopped.blocks,
+        items: stopped.items,
+      })
+      .expect(200)
+  ).body;
+  expect(await read()).toHaveLength(4);
+  const item = (await read())[1];
+  const deleted = (
+    await a
+      .post("calendar/selection/delete", {
+        plans: [{ kind: "item", id: item.id, version: item.version }],
+      })
+      .expect(200)
+  ).body;
+  expect(
+    (await a.get("calendar/series/" + current.id)).body.excludedDates,
+  ).toContain(item.occurrenceDate);
+  await a
+    .post("calendar/selection/delete/undo", { undoId: deleted.undoId })
+    .expect(200);
+  expect(
+    (await a.get("calendar/series/" + current.id)).body.excludedDates,
+  ).not.toContain(item.occurrenceDate);
+  const latest = (await a.get("calendar/series/" + current.id)).body;
+  const changed = (
+    await a
+      .post(
+        "calendar/series/" + current.id + "/change",
+        {
+          operation: "edit",
+          scope: "following",
+          fromDate: item.occurrenceDate,
+          occurrence: {
+            kind: "item",
+            id: item.id,
+            version: (await a.get("calendar/items/" + item.id)).body.version,
+            item: {
+              title: "Shifted",
+              kind: "all_day",
+              date: "2026-03-09",
+              endDate: "2026-03-10",
+            },
+          },
+        },
+        latest.version,
+      )
+      .expect(200)
+  ).body;
+  expect(changed.items.length).toBeGreaterThan(0);
+  expect(undone.items).toHaveLength(3);
+});
+
+it("scoped title edits do not spread an occurrence's exceptional time and reject mismatched all-day details", async () => {
+  const a = api((await signUp()).cookie);
+  const input = {
+    ...rule,
+    timezone: "UTC",
+    startDate: "2026-09-07",
+    untilDate: "2026-09-09",
+    startMinute: 540,
+  };
+  const created = (await a.post("calendar/series", input).expect(201)).body;
+  const plans = ((await a.get("weeks/2026-09-07")).body as Week).blocks;
+  const first = plans.find((p) => p.occurrenceDate === "2026-09-07")!;
+  const exception = (
+    await a
+      .put(
+        "time-blocks/" + first.id,
+        {
+          ...block,
+          startsAt: "2026-09-07T11:00:00Z",
+          endsAt: "2026-09-07T13:00:00Z",
+        },
+        first.version,
+      )
+      .expect(200)
+  ).body;
+  const parent = (await a.get("calendar/series/" + created.series.id)).body;
+  await a
+    .post(
+      "calendar/series/" + parent.id + "/change",
+      {
+        operation: "edit",
+        scope: "all",
+        fromDate: exception.occurrenceDate,
+        occurrence: {
+          kind: "block",
+          id: exception.id,
+          version: exception.version,
+          block: {
+            ...block,
+            title: "Rename series",
+            startsAt: exception.startsAt,
+            endsAt: exception.endsAt,
+          },
+        },
+      },
+      parent.version,
+    )
+    .expect(200);
+  const others = ((await a.get("weeks/2026-09-07")).body as Week).blocks.filter(
+    (p) => p.id !== first.id,
+  );
+  expect(
+    others.every(
+      (p) =>
+        p.title === "Rename series" &&
+        p.startsAt.includes("T09:00") &&
+        p.endsAt.includes("T10:00"),
+    ),
+  ).toBe(true);
+  const allDay = (
+    await a.post("calendar/series", { ...input, kind: "all_day" }).expect(201)
+  ).body;
+  const item = (await a.get("calendar/items/" + allDay.items[0].id)).body;
+  await a
+    .post(
+      "calendar/series/" + allDay.series.id + "/change",
+      {
+        operation: "edit",
+        scope: "all",
+        fromDate: item.occurrenceDate,
+        occurrence: {
+          kind: "item",
+          id: item.id,
+          version: item.version,
+          item: { title: "Wrong type", kind: "unscheduled" },
+        },
+      },
+      allDay.series.version,
+    )
+    .expect(422);
 });

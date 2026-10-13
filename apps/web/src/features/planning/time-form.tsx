@@ -1,7 +1,12 @@
 "use client";
+import {
+  CalendarOccurrenceOptions,
+  changeOccurrence,
+  type OccurrenceScope,
+} from "./calendar-repeating";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { z } from "zod";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,6 +61,8 @@ export function TimeForm({
   allowAllDay?: boolean;
   initialAllDay?: boolean;
 }) {
+  const [scope, setScope] = useState<OccurrenceScope>("this");
+  const [preserve, setPreserve] = useState(true);
   const { preferences } = useMe();
   const { timezone, weekStartsOn } = preferences;
   const cache = useQueryClient();
@@ -93,23 +100,27 @@ export function TimeForm({
             path: [value.spansMultipleDays ? "allDayEndDate" : "allDayDate"],
             message: "Choose dates spanning no more than 31 days.",
           });
-        return;
       }
-      for (const field of ["startsAt", "endsAt"] as const) {
-        const result = localTimeField(timezone).safeParse(value[field]);
-        if (!result.success)
-          context.addIssue({
-            code: "custom",
-            path: [field],
-            message: result.error.issues[0]?.message ?? "Choose a valid time.",
-          });
-      }
+      if (!value.allDay)
+        for (const field of ["startsAt", "endsAt"] as const) {
+          const result = localTimeField(timezone).safeParse(value[field]);
+          if (!result.success)
+            context.addIssue({
+              code: "custom",
+              path: [field],
+              message:
+                result.error.issues[0]?.message ?? "Choose a valid time.",
+            });
+        }
       if (value.repeat === "never") return;
+      const repeatDate = value.allDay
+        ? value.allDayDate
+        : value.startsAt.slice(0, 10);
       if (
         !dateSchema.safeParse(value.repeatUntil).success ||
-        !dateSchema.safeParse(value.startsAt.slice(0, 10)).success ||
-        value.repeatUntil < value.startsAt.slice(0, 10) ||
-        daysBetween(value.startsAt.slice(0, 10), value.repeatUntil) >= 366
+        !dateSchema.safeParse(repeatDate).success ||
+        value.repeatUntil < repeatDate ||
+        daysBetween(repeatDate, value.repeatUntil) >= 366
       )
         context.addIssue({
           code: "custom",
@@ -164,6 +175,7 @@ export function TimeForm({
     repeatWeekdays,
     allDay,
     allDayEndDate,
+    allDayDate,
     spansMultipleDays,
   ] = useWatch({
     control: form.control,
@@ -178,6 +190,7 @@ export function TimeForm({
       "repeatWeekdays",
       "allDay",
       "allDayEndDate",
+      "allDayDate",
       "spansMultipleDays",
     ],
   });
@@ -193,18 +206,18 @@ export function TimeForm({
   const frequency = repeat === "custom" ? repeatFrequency : repeat;
   const interval = repeat === "custom" ? repeatInterval : 1;
   const seriesPreview =
-    !allDay &&
     repeat !== "never" &&
     selectedDuration !== null &&
     Number.isInteger(selectedDuration) &&
     repeatUntil &&
     dateSchema.safeParse(repeatUntil).success &&
-    repeatUntil >= start.slice(0, 10) &&
+    repeatUntil >= (allDay ? allDayDate : start.slice(0, 10)) &&
     dateSchema.safeParse(start.slice(0, 10)).success &&
-    daysBetween(start.slice(0, 10), repeatUntil) < 366 &&
+    daysBetween(allDay ? allDayDate : start.slice(0, 10), repeatUntil) < 366 &&
     (!weekly || repeatWeekdays.length)
       ? expandPlannedSeries({
-          startDate: start.slice(0, 10),
+          kind: allDay ? "all_day" : "timed",
+          startDate: allDay ? allDayDate : start.slice(0, 10),
           untilDate: repeatUntil,
           startMinute:
             Number(start.slice(11, 13)) * 60 + Number(start.slice(14, 16)),
@@ -302,6 +315,37 @@ export function TimeForm({
             date: v.allDayDate,
             endDate: v.spansMultipleDays ? v.allDayEndDate : v.allDayDate,
           });
+          if (allowRepeat && v.repeat !== "never") {
+            const result = await api.createCalendarSeries(
+              seriesInput.parse({
+                title: v.title,
+                notes: v.notes,
+                categoryId: v.categoryId,
+                goalId: v.goalId,
+                kind: "all_day",
+                dateSpan: daysBetween(input.date!, input.endDate!) + 1,
+                timezone,
+                startDate: v.allDayDate,
+                untilDate: v.repeatUntil,
+                startMinute: 0,
+                durationMinutes: 1440,
+                frequency: v.repeat === "custom" ? v.repeatFrequency : v.repeat,
+                interval: v.repeat === "custom" ? v.repeatInterval : 1,
+                weekdays: v.repeatWeekdays,
+              }),
+              key,
+            );
+            interaction?.history.record({
+              key,
+              kind: "series",
+              undoId: result.undoId,
+              blocks: result.blocks,
+              items: result.items,
+            });
+            await invalidateCalendar(cache);
+            onSaved({ kind: "all_day", date: v.allDayDate });
+            return;
+          }
           const result = await api.createCalendarItem(input, key);
           interaction?.history.record({
             key,
@@ -347,6 +391,7 @@ export function TimeForm({
             kind: "series",
             undoId: result.undoId,
             blocks: result.blocks,
+            items: result.items,
           });
           await invalidateCalendar(cache);
           onSaved({
@@ -362,7 +407,25 @@ export function TimeForm({
             goalId: v.goalId,
             notes: v.notes,
           });
-          if (item) {
+          if (item && "seriesId" in item && item.seriesId && scope !== "this") {
+            const result = await changeOccurrence(
+              item,
+              "block",
+              "edit",
+              scope,
+              key,
+              input,
+              undefined,
+              preserve,
+            );
+            interaction?.history.record({
+              key,
+              kind: "series",
+              undoId: result.undoId,
+              blocks: result.blocks,
+              items: result.items,
+            });
+          } else if (item) {
             const result = await api.updateTimeBlock(
               item.id,
               input,
@@ -430,6 +493,14 @@ export function TimeForm({
         </p>
       )}
       <Field name="title" label="Title" />
+      {item && "seriesId" in item && item.seriesId && (
+        <CalendarOccurrenceOptions
+          scope={scope}
+          onScope={setScope}
+          preserve={preserve}
+          onPreserve={setPreserve}
+        />
+      )}
       {kind === "block" && allowAllDay && (
         <label className="calendar-all-day-toggle">
           <input
@@ -438,7 +509,9 @@ export function TimeForm({
             onChange={(event) => {
               void allDayRegistration.onChange(event);
               if (event.target.checked) {
-                const startDate = form.getValues("startsAt").slice(0, 10);
+                const startDate = form.getValues("allDay")
+                  ? form.getValues("allDayDate")
+                  : form.getValues("startsAt").slice(0, 10);
                 if (dateSchema.safeParse(startDate).success) {
                   form.setValue("allDayDate", startDate);
                   form.setValue("allDayEndDate", startDate);
@@ -539,7 +612,7 @@ export function TimeForm({
           {kind === "entry" ? "Enter the time you actually spent." : ""}
         </small>
       )}
-      {kind === "block" && allowRepeat && !allDay && (
+      {kind === "block" && allowRepeat && (
         <div className="calendar-repeat-fields">
           <Field
             name="repeat"
@@ -627,8 +700,9 @@ export function TimeForm({
                     {seriesPreview.occurrences.length} plans will be added
                   </strong>
                   <p>
-                    {repeatSummary}, {start.slice(11, 16)}–{end.slice(11, 16)},
-                    through{" "}
+                    {repeatSummary}
+                    {!allDay && `, ${start.slice(11, 16)}–${end.slice(11, 16)}`}
+                    , through{" "}
                     {formatDate(repeatUntil, {
                       month: "long",
                       day: "numeric",

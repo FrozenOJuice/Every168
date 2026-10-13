@@ -1,36 +1,49 @@
 import { z } from "zod";
 import { useWatch } from "react-hook-form";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { seriesInput, type CalendarSeries } from "@168hours/contracts";
+import {
+  seriesInput,
+  type CalendarSeries,
+  type Block,
+  type CalendarItem,
+} from "@168hours/contracts";
 import {
   addDays,
+  daysBetween,
   expandPlannedSeries,
   weekday,
   localDate,
+  instantToLocalInput,
 } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { formatDate } from "@/lib/format";
 import { useCalendarInteractions } from "./calendar-interactions";
+import { repeatSummary } from "./calendar-repeating";
+
 export function CalendarSeriesEditor({
   id,
   date,
+  source,
+  occurrenceDate,
   onClose,
   onSaved,
 }: {
   id?: string;
   date: string;
+  source?: Block | CalendarItem;
+  occurrenceDate?: string;
   onClose: () => void;
   onSaved: (message: string, date?: string) => void;
 }) {
-  const [formBusy, setFormBusy] = useState(false);
-  const [removeBusy, setRemoveBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const q = useQuery({
     queryKey: ["calendar-series", id],
     queryFn: () => api.getCalendarSeries(id!),
@@ -39,8 +52,9 @@ export function CalendarSeriesEditor({
   return (
     <CalendarPlanPopover
       date={date}
-      busy={removeBusy}
-      onBusyChange={setFormBusy}
+      recordId={source?.id}
+      busy={removing}
+      onBusyChange={setBusy}
       title={id ? "Edit repeating plan" : "Add repeating plan"}
       onClose={onClose}
     >
@@ -50,11 +64,13 @@ export function CalendarSeriesEditor({
         <ErrorState error={q.error} retry={() => void q.refetch()} />
       ) : (
         <SeriesForm
-          key={id ?? "new"}
+          key={id ?? source?.id ?? "new"}
           series={q.data}
-          formBusy={formBusy}
-          onRemoveBusy={setRemoveBusy}
+          source={source}
           date={date}
+          occurrenceDate={occurrenceDate}
+          formBusy={busy}
+          onRemoveBusy={setRemoving}
           onSaved={onSaved}
         />
       )}
@@ -63,138 +79,261 @@ export function CalendarSeriesEditor({
 }
 function SeriesForm({
   series,
+  source,
+  date,
+  occurrenceDate,
   formBusy,
   onRemoveBusy,
-  date,
   onSaved,
 }: {
   series?: CalendarSeries;
+  source?: Block | CalendarItem;
+  date: string;
+  occurrenceDate?: string;
   formBusy: boolean;
   onRemoveBusy: (busy: boolean) => void;
-  date: string;
   onSaved: (message: string, date?: string) => void;
 }) {
-  const { preferences } = useMe(),
-    cache = useQueryClient();
-  const interaction = useCalendarInteractions();
+  const { preferences } = useMe();
+  const version = useRef(series?.version).current;
+  const cache = useQueryClient(),
+    interaction = useCalendarInteractions();
+  const sourceBlock = source && "startsAt" in source ? source : undefined;
+  const sourceItem = source && "kind" in source ? source : undefined;
+  const start = sourceBlock
+    ? instantToLocalInput(sourceBlock.startsAt, preferences.timezone)
+    : undefined;
+  const firstDay =
+    series?.startDate ?? sourceItem?.date ?? start?.slice(0, 10) ?? date;
+  const minute =
+    series?.startMinute ??
+    (start
+      ? Number(start.slice(11, 13)) * 60 + Number(start.slice(14, 16))
+      : 540);
+  const kind = series?.kind ?? (sourceItem ? "all_day" : "timed");
+  const [preserve, setPreserve] = useState(true);
+  const [stopDate, setStopDate] = useState(
+    series ? [series.startDate, date, series.untilDate].sort()[1]! : date,
+  );
   const schema = z.object({
     ...seriesInput.shape,
     startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    scope: z.enum(["all", "following"]),
   });
-  const minute = series?.startMinute ?? 540;
   const form = useZodForm(schema, {
-    ...series,
-    title: series?.title ?? "",
-    categoryId: series?.categoryId ?? null,
-    goalId: series?.goalId ?? null,
-    notes: series?.notes ?? null,
+    title: series?.title ?? source?.title ?? "",
+    categoryId: series?.categoryId ?? source?.categoryId ?? null,
+    goalId: series?.goalId ?? source?.goalId ?? null,
+    notes: series?.notes ?? source?.notes ?? null,
+    kind,
+    dateSpan:
+      series?.dateSpan ??
+      (sourceItem ? daysBetween(sourceItem.date!, sourceItem.endDate!) + 1 : 1),
     timezone: series?.timezone ?? preferences.timezone,
-    startDate: series?.startDate ?? date,
-    untilDate: series?.untilDate ?? addDays(date, 83),
+    startDate: firstDay,
+    untilDate: series?.untilDate ?? addDays(firstDay, 83),
     startMinute: minute,
     startTime: `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`,
-    durationMinutes: series?.durationMinutes ?? 60,
+    durationMinutes:
+      series?.durationMinutes ??
+      (sourceBlock
+        ? (Date.parse(sourceBlock.endsAt) - Date.parse(sourceBlock.startsAt)) /
+          60000
+        : 60),
     frequency: series?.frequency ?? "weekly",
     interval: series?.interval ?? 1,
-    weekdays: series?.weekdays ?? [weekday(date)],
+    weekdays: series?.weekdays ?? [weekday(firstDay)],
+    scope: "all",
   });
   const values = useWatch({ control: form.control });
-  const frequency = values.frequency ?? "weekly";
-  const days = values.weekdays ?? [];
-  const { startTime: previewTime, ...previewValues } = values;
-  const [previewHour, previewMinute] = (previewTime ?? "")
-    .split(":")
-    .map(Number);
-  const previewInput = seriesInput.safeParse({
+  const frequency = values.frequency ?? "weekly",
+    days = values.weekdays ?? [],
+    scope = values.scope ?? "all";
+  const { startTime: time, scope: _scope, ...previewValues } = values;
+  const [hour, minutes] = (time ?? "").split(":").map(Number);
+  const parsed = seriesInput.safeParse({
     ...previewValues,
-    startMinute: (previewHour ?? NaN) * 60 + (previewMinute ?? NaN),
+    startMinute: kind === "all_day" ? 0 : hour! * 60 + minutes!,
   });
-  const preview = previewInput.success
-    ? expandPlannedSeries(previewInput.data, series?.excludedDates)
+  const preview = parsed.success
+    ? expandPlannedSeries(parsed.data, series?.excludedDates)
     : null;
   const remove = useCommand({
-    mutationFn: async (_: void, key: string) => {
-      const result = await api.deleteCalendarSeries(
-        series!.id,
-        series!.version,
-        key,
-      );
+    mutationFn: async (operation: "delete" | "stop", key: string) => {
+      const result =
+        operation === "stop"
+          ? await api.changeCalendarSeries(
+              series!.id,
+              {
+                scope: "following",
+                fromDate: addDays(stopDate, 1),
+                operation: "stop",
+              },
+              version!,
+              key,
+            )
+          : scope === "following"
+            ? await api.changeCalendarSeries(
+                series!.id,
+                {
+                  scope: "following",
+                  fromDate: occurrenceDate ?? firstDay,
+                  operation: "delete",
+                },
+                version!,
+                key,
+              )
+            : await api.deleteCalendarSeries(series!.id, version!, key);
       interaction?.history.record({
         key,
         kind: "series",
         undoId: result.undoId,
-        blocks: [],
+        blocks: result.blocks,
+        items: result.items,
       });
-      return { ...result, key };
+      return { key, operation };
     },
-    onSuccess: async ({ key }) => {
+    onSuccess: async ({ key, operation }) => {
       await invalidateCalendar(cache);
-      interaction?.showNotice("Repeating plan deleted", {
-        undoKey: key,
-        kind: "change",
-      });
-      onSaved("Repeating plan deleted. Recorded activity remains.");
+      interaction?.showNotice(
+        operation === "stop"
+          ? "Repeating plan ended"
+          : "Repeating plans deleted",
+        { undoKey: key, kind: "change" },
+      );
+      onSaved(
+        operation === "stop"
+          ? "Repeating plan ended."
+          : "Repeating plans deleted.",
+      );
     },
   });
-  useEffect(() => {
-    onRemoveBusy(remove.isPending);
-  }, [remove.isPending, onRemoveBusy]);
+  useEffect(
+    () => onRemoveBusy(remove.isPending),
+    [remove.isPending, onRemoveBusy],
+  );
   return (
     <>
       {series && (
-        <p className="notice">
-          You are editing the entire series. Saving replaces individual edits;
-          deleted occurrences stay excluded. To change one occurrence, close
-          this editor and edit that block. Recorded activity keeps its original
-          times.
-        </p>
+        <>
+          <p className="muted text-small">{repeatSummary(series)}</p>
+          <small>
+            Changes apply to the scope below. Deleted occurrences stay excluded.
+          </small>
+        </>
       )}
       <Form
         form={form}
-        disabled={remove.isPending}
+        disabled={remove.isPending || interaction?.busy}
         onSubmit={async (value, key) => {
-          const { startTime, ...v } = value;
-          const [hour, minute] = startTime.split(":").map(Number);
+          const { startTime, scope, ...v } = value;
+          const [h, m] = startTime.split(":").map(Number);
           const input = seriesInput.parse({
             ...v,
-            startMinute: hour! * 60 + minute!,
+            startMinute: kind === "all_day" ? 0 : h! * 60 + m!,
           });
           const result = series
             ? await api.updateCalendarSeries(
                 series.id,
-                input,
-                series.version,
+                {
+                  ...input,
+                  scope,
+                  fromDate: occurrenceDate ?? series.startDate,
+                  preserveExceptions: preserve,
+                },
+                version!,
                 key,
               )
-            : await api.createCalendarSeries(input, key);
+            : await api.createCalendarSeries(
+                {
+                  ...input,
+                  ...(source
+                    ? {
+                        source: {
+                          kind: sourceBlock
+                            ? ("block" as const)
+                            : ("item" as const),
+                          id: source.id,
+                          version: source.version,
+                        },
+                      }
+                    : {}),
+                },
+                key,
+              );
           interaction?.history.record({
             key,
             kind: "series",
             undoId: result.undoId,
             blocks: result.blocks,
+            items: result.items,
           });
           await invalidateCalendar(cache);
           onSaved(
             `${result.count} occurrences saved.${result.skippedDates.length ? " Skipped missing clock times: " + result.skippedDates.join(", ") + "." : ""}`,
-            localDate(result.firstStartsAt, preferences.timezone),
+            result.series.kind === "all_day"
+              ? result.series.startDate
+              : localDate(result.firstStartsAt, preferences.timezone),
           );
         }}
       >
         <Field name="title" label="Title" />
+        {series && (
+          <>
+            <Field
+              name="scope"
+              label="Apply changes to"
+              onChange={(value) => {
+                if (value === "following")
+                  form.setValue(
+                    "startDate",
+                    occurrenceDate ?? series.startDate,
+                  );
+                else form.setValue("startDate", series.startDate);
+              }}
+            >
+              <option value="all">Entire series</option>
+              <option value="following">This and following occurrences</option>
+            </Field>
+            <label className="calendar-all-day-toggle">
+              <input
+                type="checkbox"
+                checked={!preserve}
+                onChange={(e) => setPreserve(!e.target.checked)}
+              />
+              Replace individual edits
+            </label>
+            <small>
+              {preserve
+                ? "Individual edits within the new date range are preserved, even on days no longer in the rule."
+                : "Individual edits will be replaced by this rule."}
+            </small>
+          </>
+        )}
         <div className="form-grid">
           <Field name="startDate" label="First day" type="date" />
           <Field name="untilDate" label="Repeat through" type="date" />
         </div>
-        <div className="form-grid">
-          <Field name="startTime" label="Start time" type="time" />
+        {kind === "all_day" ? (
           <Field
-            name="durationMinutes"
-            label="Duration (minutes)"
+            name="dateSpan"
+            label="Days per occurrence"
             type="number"
             min={1}
-            max={44640}
+            max={31}
           />
-        </div>
+        ) : (
+          <div className="form-grid">
+            <Field name="startTime" label="Start time" type="time" />
+            <Field
+              name="durationMinutes"
+              label="Duration (minutes)"
+              type="number"
+              min={1}
+              max={44640}
+            />
+          </div>
+        )}
         <div className="form-grid">
           <Field name="frequency" label="Repeat">
             <option value="daily">Daily</option>
@@ -247,9 +386,9 @@ function SeriesForm({
               help="The series keeps this timezone even if your account timezone changes."
             />
             <small>
-              Repeat through a date within one year. Missing clock times are
-              skipped; repeated times use the first occurrence. Duration is
-              elapsed time.
+              Choose an end within one year. Timed plans skip missing clock
+              times and use the first repeated time. All-day spans use calendar
+              dates.
             </small>
             <Field
               name="notes"
@@ -261,17 +400,16 @@ function SeriesForm({
         </details>
         {preview && (
           <div className="calendar-repeat-preview">
-            <strong>{preview.occurrences.length} plans in this series</strong>
-            {preview.occurrences.length > 0 && (
-              <p>
-                First dates:{" "}
-                {preview.occurrences
-                  .slice(0, 3)
-                  .map((occurrence) => formatDate(occurrence.date))
-                  .join(", ")}
-                {preview.occurrences.length > 3 ? "…" : ""}
-              </p>
-            )}
+            <strong>{preview.occurrences.length} plans in this rule</strong>
+            <p>{parsed.success ? repeatSummary(parsed.data) : ""}</p>
+            <p>
+              First dates:{" "}
+              {preview.occurrences
+                .slice(0, 3)
+                .map((o) => formatDate(o.date))
+                .join(", ")}
+              {preview.occurrences.length > 3 ? "…" : ""}
+            </p>
             {preview.skippedDates.length > 0 && (
               <p>
                 Missing clock times skipped: {preview.skippedDates.join(", ")}.
@@ -280,19 +418,48 @@ function SeriesForm({
           </div>
         )}
         <Submit>
-          {series ? "Save entire series" : "Create repeating plan"}
+          {series
+            ? scope === "following"
+              ? "Save this and following"
+              : "Save entire series"
+            : "Create repeating plan"}
         </Submit>
       </Form>
       {series && (
-        <div className="editor-actions">
+        <fieldset
+          className="editor-actions"
+          disabled={formBusy || remove.isPending || interaction?.busy}
+        >
+          <label>
+            Last repeating date
+            <input
+              type="date"
+              value={stopDate}
+              min={series.startDate}
+              max={series.untilDate}
+              onChange={(e) => setStopDate(e.target.value)}
+            />
+          </label>
+          <button
+            className="button"
+            disabled={
+              !stopDate ||
+              stopDate < series.startDate ||
+              stopDate > series.untilDate
+            }
+            onClick={() => remove.mutate("stop")}
+          >
+            Stop repeating after this date
+          </button>
           <button
             className="button danger"
-            disabled={formBusy || remove.isPending}
-            onClick={() => remove.mutate()}
+            onClick={() => remove.mutate("delete")}
           >
-            Delete entire series
+            {scope === "following"
+              ? "Delete this and following"
+              : "Delete entire series"}
           </button>
-        </div>
+        </fieldset>
       )}
       <CommandError command={remove} />
     </>

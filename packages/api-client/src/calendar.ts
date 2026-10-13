@@ -6,7 +6,9 @@ import type {
   CalendarItem,
   CalendarItemInput,
   CalendarSeries,
-  SeriesInput,
+  SeriesCreateInput,
+  SeriesUpdateInput,
+  SeriesChangeInput,
   SeriesResult,
   SeriesUndoInput,
   SeriesUndoResult,
@@ -44,7 +46,7 @@ export function calendarClient(http: Http) {
       }),
     updateCalendarItem: (
       id: string,
-      v: CalendarItemInput,
+      v: CalendarItemInput & { isException?: boolean },
       version: number,
       key?: string,
     ) =>
@@ -71,7 +73,11 @@ export function calendarClient(http: Http) {
       }),
     getCalendarSeries: (id: string) =>
       http<CalendarSeries>(root + "/series/" + id),
-    createCalendarSeries: (v: SeriesInput, key?: string) =>
+    createCalendarSeries: (
+      v: Omit<SeriesCreateInput, "kind" | "dateSpan"> &
+        Partial<Pick<SeriesCreateInput, "kind" | "dateSpan">>,
+      key?: string,
+    ) =>
       http<SeriesResult>(root + "/series", {
         method: "POST",
         body: body(v),
@@ -79,7 +85,16 @@ export function calendarClient(http: Http) {
       }),
     updateCalendarSeries: (
       id: string,
-      v: SeriesInput,
+      v: Omit<
+        SeriesUpdateInput,
+        "kind" | "dateSpan" | "scope" | "preserveExceptions"
+      > &
+        Partial<
+          Pick<
+            SeriesUpdateInput,
+            "kind" | "dateSpan" | "scope" | "preserveExceptions"
+          >
+        >,
       version: number,
       key?: string,
     ) =>
@@ -88,8 +103,21 @@ export function calendarClient(http: Http) {
         body: body(v),
         headers: writeHeaders(key, version),
       }),
+    changeCalendarSeries: (
+      id: string,
+      v: Omit<SeriesChangeInput, "preserveExceptions"> & {
+        preserveExceptions?: boolean;
+      },
+      version: number,
+      key?: string,
+    ) =>
+      http<SeriesUndoResult>(root + "/series/" + id + "/change", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key, version),
+      }),
     deleteCalendarSeries: (id: string, version: number, key?: string) =>
-      http<{ ok: true; undoId: string }>(root + "/series/" + id, {
+      http<{ ok: true } & SeriesUndoResult>(root + "/series/" + id, {
         method: "DELETE",
         headers: writeHeaders(key, version),
       }),

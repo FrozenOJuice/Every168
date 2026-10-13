@@ -39,10 +39,20 @@ export const calendarItemInput = z
         "All-day items need dates spanning at most 31 days; unscheduled items have no end date.",
     },
   );
-export const calendarItemSchema = recordSchema.extend(calendarItemInput.shape);
+export const calendarItemSchema = recordSchema.extend({
+  ...calendarItemInput.shape,
+  seriesId: idSchema.nullable().default(null),
+  occurrenceDate: dateSchema.nullable().default(null),
+  isException: z.boolean().default(false),
+});
+export const calendarItemUpdateInput = calendarItemInput.safeExtend({
+  isException: z.boolean().optional(),
+});
 export const seriesInput = z
   .object({
     ...planDetails,
+    kind: z.enum(["timed", "all_day"]).default("timed"),
+    dateSpan: z.number().int().min(1).max(31).default(1),
     timezone: preferencesInput.shape.timezone,
     startDate: dateSchema,
     untilDate: dateSchema,
@@ -74,12 +84,51 @@ export const seriesSchema = recordSchema.extend({
   ...seriesInput.shape,
   excludedDates: z.array(dateSchema),
 });
+export const seriesCreateInput = seriesInput.safeExtend({
+  source: z
+    .object({
+      kind: z.enum(["block", "item"]),
+      id: idSchema,
+      version: z.number().int().positive(),
+    })
+    .strict()
+    .optional(),
+});
+export const seriesUpdateInput = seriesInput.safeExtend({
+  scope: z.enum(["all", "following"]).default("all"),
+  fromDate: dateSchema.optional(),
+  preserveExceptions: z.boolean().default(true),
+});
+export const seriesChangeInput = z
+  .object({
+    scope: z.enum(["all", "following"]),
+    fromDate: dateSchema,
+    operation: z.enum(["edit", "delete", "stop"]),
+    preserveExceptions: z.boolean().default(true),
+    occurrence: z
+      .object({
+        kind: z.enum(["block", "item"]),
+        id: idSchema,
+        version: z.number().int().positive(),
+        block: blockInput.optional(),
+        item: calendarItemInput.optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type SeriesCreateInput = z.infer<typeof seriesCreateInput>;
+export type SeriesUpdateInput = z.infer<typeof seriesUpdateInput>;
+export type SeriesChangeInput = z.infer<typeof seriesChangeInput>;
 export const seriesResultSchema = z.object({
   series: seriesSchema,
   firstStartsAt: instantSchema,
   count: z.number(),
   skippedDates: z.array(dateSchema),
   undoId: idSchema,
+  items: z
+    .array(z.object({ id: idSchema, version: z.number().int().positive() }))
+    .default([]),
   blocks: z.array(
     z.object({ id: idSchema, version: z.number().int().positive() }),
   ),
@@ -87,13 +136,17 @@ export const seriesResultSchema = z.object({
 export const seriesUndoInput = z
   .object({
     undoId: idSchema,
+    items: z
+      .array(z.object({ id: idSchema, version: z.number().int().positive() }))
+      .max(732)
+      .default([]),
     blocks: z
       .array(
         z
           .object({ id: idSchema, version: z.number().int().positive() })
           .strict(),
       )
-      .max(366),
+      .max(732),
   })
   .strict()
   .refine(

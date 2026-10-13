@@ -231,3 +231,43 @@ it("bounds history, ignores successful replay, and clears redo only for a new su
   expect(staleCompletion).toBe(state);
   expect(addHistoryAction(state, { ...created, key: "new" }).redo).toEqual([]);
 });
+
+it("advances all-day series occurrence revisions after an individual edit is undone", () => {
+  const series: CalendarAction = {
+    key: "series",
+    kind: "series",
+    undoId: "series-undo",
+    blocks: [],
+    items: [{ id: "item", version: 1 }],
+  };
+  const edit: CalendarAction = {
+    key: "edit",
+    kind: "item-edit",
+    itemId: "item",
+    version: 2,
+    before: {
+      title: "Before",
+      notes: null,
+      categoryId: null,
+      goalId: null,
+      kind: "all_day",
+      date: "2026-09-07",
+      endDate: "2026-09-07",
+    },
+    after: {
+      title: "After",
+      notes: null,
+      categoryId: null,
+      goalId: null,
+      kind: "all_day",
+      date: "2026-09-07",
+      endDate: "2026-09-07",
+    },
+  };
+  expect(
+    undoAction([series, edit], edit, null, {
+      blocks: [],
+      items: [{ id: "item", version: 3 }],
+    }),
+  ).toEqual([{ ...series, items: [{ id: "item", version: 3 }] }]);
+});

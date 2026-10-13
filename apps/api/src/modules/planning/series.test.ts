@@ -58,3 +58,20 @@ it("bounds recurrence and rejects duplicate weekdays", () => {
     false,
   );
 });
+
+it("all-day recurrence follows local dates through missing/repeated clock times", () => {
+  for (const startDate of ["2026-03-07", "2026-10-31"]) {
+    const result = expandSeries({
+      ...rule,
+      kind: "all_day",
+      dateSpan: 2,
+      startDate,
+      untilDate: startDate === "2026-03-07" ? "2026-03-09" : "2026-11-02",
+    });
+    expect(result.occurrences).toHaveLength(3);
+    expect(result.skippedDates).toEqual([]);
+    expect(result.occurrences.map((o) => o.date)).toEqual(
+      result.occurrences.map((o) => o.startsAt.slice(0, 10)),
+    );
+  }
+});

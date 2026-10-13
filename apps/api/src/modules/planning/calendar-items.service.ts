@@ -1,6 +1,7 @@
 import {
   calendarItemInput,
   calendarItemSchema,
+  calendarItemUpdateInput,
   type BlockInput,
   type CalendarItem,
   type CalendarItemInput,
@@ -14,7 +15,8 @@ import type {
   RunInTransaction,
   TransactionContext,
 } from "../../shared/transactions.js";
-import { found } from "../../shared/errors/app-error.js";
+import type { SeriesUndoState } from "./planning.types.js";
+import { AppError, found } from "../../shared/errors/app-error.js";
 import { assertRevision } from "../../shared/errors/revision.js";
 export function calendarItemsService(
   repo: ReturnType<typeof calendarItemsRepository>,
@@ -38,31 +40,67 @@ export function calendarItemsService(
       return found(await repo.get(u, id, ctx));
     },
     range: repo.range,
+    seriesState: repo.seriesState,
     backlog(u: string, q: PageQuery) {
       return repo.backlog(u, q);
     },
     async create(u: string, v: CalendarItemInput, ctx?: TransactionContext) {
       return repo.create(u, await validate(u, v, ctx), ctx);
     },
-    async update(
+    update(
       u: string,
       id: string,
-      v: CalendarItemInput,
+      v: CalendarItemInput & { isException?: boolean },
       version: number,
       ctx?: TransactionContext,
     ) {
-      return repo.update(u, id, await validate(u, v, ctx), version, ctx);
+      return transaction(async (tx) => {
+        const input = calendarItemUpdateInput.parse(v);
+        const original = await this.get(u, id, tx);
+        if (original.seriesId && input.kind !== "all_day")
+          throw new AppError(
+            422,
+            "SERIES_KIND",
+            "A repeating all-day plan must remain all-day.",
+          );
+        const values = await validate(
+          u,
+          calendarItemInput.parse(
+            Object.fromEntries(
+              Object.keys(calendarItemInput.shape).map((key) => [
+                key,
+                input[key as keyof typeof input],
+              ]),
+            ),
+          ),
+          tx,
+        );
+        return repo.update(
+          u,
+          id,
+          {
+            ...values,
+            ...(input.isException === undefined
+              ? {}
+              : { isException: input.isException }),
+          },
+          version,
+          tx,
+        );
+      }, ctx);
     },
-    async remove(
+    remove(u: string, id: string, version: number, ctx?: TransactionContext) {
+      return transaction(async (tx) => {
+        await repo.remove(u, id, version, tx);
+        return { ok: true as const };
+      }, ctx);
+    },
+    async restore(
       u: string,
-      id: string,
-      version: number,
-      ctx?: TransactionContext,
+      snapshot: CalendarItem,
+      ctx: TransactionContext,
+      state?: SeriesUndoState,
     ) {
-      await repo.remove(u, id, version, ctx);
-      return { ok: true as const };
-    },
-    async restore(u: string, snapshot: CalendarItem, ctx: TransactionContext) {
       const item = calendarItemSchema.parse(snapshot);
       await validate(
         u,
@@ -77,7 +115,7 @@ export function calendarItemsService(
         },
         ctx,
       );
-      return repo.restore(u, item, ctx);
+      return repo.restore(u, item, ctx, state);
     },
     schedule(
       u: string,

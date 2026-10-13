@@ -156,10 +156,17 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 #### Repeating plans
 
-- Repeat daily or weekly, including custom intervals and selected weekdays.
+- Repeat timed or all-day plans daily or weekly, including custom intervals and selected weekdays.
+- Add repetition while creating a plan, or choose Repeat from an existing plan's editor. The original plan becomes the first occurrence.
 - Choose an end date and preview the occurrences before saving.
-- Edit or delete one occurrence, or the whole series.
-- Editing the whole series replaces individual occurrence overrides.
+- An occurrence's editor shows its repeating schedule and provides Edit repeating rule.
+- Editing, moving, resizing, or deleting one repeating plan offers This occurrence, This and following occurrences, or Entire series.
+- This and following starts a separate series at the chosen occurrence; earlier occurrences keep their original rule.
+- Series edits preserve other individually edited occurrences within the new date range by default. Choose Replace individual edits to apply the rule to them too.
+- Deleted occurrences stay excluded when the rule changes.
+- Stop repeating after a chosen date removes later occurrences and keeps earlier ones. A multi-day occurrence that starts on or before that date keeps its full span.
+- Repeating all-day plans use calendar dates and preserve their one-day or multi-day spans across clock changes.
+- Creating repetition, changing either series scope, stopping repetition, and deleting a series each support undo and redo as one action.
 
 #### Unscheduled plans
 
@@ -212,8 +219,10 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 ### Deletion, undo and redo
 
 - Delete / Backspace removes a selected timed or all-day plan without a confirmation alert.
-- Delete an all-day plan through its editor without confirmation; the same undo support applies.
+- Delete a standalone all-day plan through its editor without confirmation; the same undo support applies.
+- A single repeating plan asks which occurrence scope to delete.
 - With several plans selected, Delete / Backspace removes the group, including mixed timed/all-day selections, as one undo action.
+- Group deletion removes only the selected occurrences, even when they belong to repeating series.
 - ⌘Z / Ctrl+Z undoes the latest supported action; repeat it to undo several actions in reverse order.
 - ⌘⇧Z / Ctrl+Shift+Z or Ctrl+Y redoes the most recently undone Calendar plan action. Repeated shortcuts walk backward or forward through history.
 - Plan undo/redo covers timed and all-day creation/duplication, edits, moving, resizing, deletion, individual/group copy-paste, group deletion, and whole repeating-series changes.
@@ -223,7 +232,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Sign-out clears history. Fresh browser visits start empty; history stays local to the tab.
 - Conflicting newer changes stop undo/redo without advancing history. Interrupted history requests can be retried after refresh with the original request key.
 - Applying a template can be undone as one action.
-- Creating, editing, or deleting an entire repeating series is one undo action. Undo restores its previous rule, individual edits, and excluded dates.
+- Creating, splitting, editing, stopping, or deleting repeating plans is one undo action. Undo restores previous rules, individual edits, and excluded dates; undoing conversion restores the original standalone plan.
 - Activity created through Calendar forms can be undone, including food, water, weight, cardio, workout starts, and manually recorded time. Undo removes the original activity record as well as its Calendar entry.
 - Undoing a paste removes all plans created by that paste; undoing a group deletion restores the group.
 - Undoing plan changes preserves recorded activity when restoring or removing plans.

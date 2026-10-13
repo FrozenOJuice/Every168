@@ -11,11 +11,20 @@ export async function applyHistoryAction(action: CalendarAction, key: string) {
   let inverse: CalendarAction | null = null;
   if (action.kind === "series") {
     const result = await api.undoCalendarSeries(
-      { undoId: action.undoId, blocks: action.blocks },
+      {
+        undoId: action.undoId,
+        blocks: action.blocks,
+        items: action.items ?? [],
+      },
       key,
     );
     selection = result;
-    inverse = { ...action, undoId: result.undoId, blocks: result.blocks };
+    inverse = {
+      ...action,
+      undoId: result.undoId,
+      blocks: result.blocks,
+      items: result.items,
+    };
   } else if (action.kind === "item-edit") {
     const item = await api.updateCalendarItem(
       action.itemId,

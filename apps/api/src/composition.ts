@@ -76,6 +76,7 @@ export function compose(input: ConfigInput) {
     categories,
     goals,
     planning,
+    calendarItems,
     runInTransaction,
   );
   const templates = templatesService(

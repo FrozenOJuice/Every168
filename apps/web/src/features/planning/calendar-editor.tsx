@@ -7,12 +7,13 @@ import { calendarHref } from "./calendar-layout";
 import { invalidateCalendar } from "./invalidate-calendar";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Week } from "@168hours/contracts";
+import type { Block, Week } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
 import { formatDate, formatTime } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
+import { CalendarRepeatSummary } from "./calendar-repeating";
 import { TimeForm } from "./time-form";
 import type { TimeEditor } from "./calendar-layout";
 
@@ -23,6 +24,7 @@ export function CalendarEditor({
   onChange,
   onSaved,
   onSeries,
+  onRepeat,
   composer = false,
   onDraftChange,
 }: {
@@ -34,6 +36,7 @@ export function CalendarEditor({
   onChange: (editor: TimeEditor) => void;
   onSaved: (result: CalendarSaveResult) => void;
   onSeries: (id: string) => void;
+  onRepeat: (block: Block) => void;
 }) {
   const interaction = useCalendarInteractions(),
     router = useRouter();
@@ -89,18 +92,11 @@ export function CalendarEditor({
       onClose={onClose}
     >
       {item && "seriesId" in item && item.seriesId && (
-        <p className="notice">
-          You are editing only this occurrence
-          {item.isException ? ", which has an individual edit" : ""}. Other
-          occurrences will stay as they are.{" "}
-          <button
-            className="text-button"
-            disabled={formBusy || remove.isPending || interaction?.busy}
-            onClick={() => onSeries(item.seriesId!)}
-          >
-            Edit entire series
-          </button>
-        </p>
+        <CalendarRepeatSummary
+          id={item.seriesId}
+          disabled={formBusy || remove.isPending || interaction?.busy}
+          onEdit={() => onSeries(item.seriesId!)}
+        />
       )}
       {automatic ? (
         <div className="stack">
@@ -188,6 +184,15 @@ export function CalendarEditor({
                 >
                   Move or resize on calendar
                 </button>
+                {!item.seriesId && (
+                  <button
+                    className="button"
+                    disabled={formBusy || interaction?.busy}
+                    onClick={() => onRepeat(item)}
+                  >
+                    Repeat…
+                  </button>
+                )}
                 <button
                   className="button"
                   disabled={remove.isPending}

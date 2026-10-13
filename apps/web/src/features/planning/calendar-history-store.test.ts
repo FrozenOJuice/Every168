@@ -81,7 +81,7 @@ it("hydrates refreshes, isolates accounts, clears sign-out, and rejects restored
     getEntriesByType: () => [{ type: "reload" }],
   });
   storage.setItem(
-    "168hours:calendar-history:v1:one",
+    "168hours:calendar-history:v2:one",
     serializeHistory({ ...emptyHistory(), actions: [plan] }),
   );
   vi.resetModules();
@@ -99,11 +99,11 @@ it("hydrates refreshes, isolates accounts, clears sign-out, and rejects restored
   }));
   expect(store.calendarHistoryReady("two")).toBe(false);
   storage.setItem(
-    "168hours:calendar-history:v1:one",
+    "168hours:calendar-history:v2:one",
     serializeHistory({ ...emptyHistory(), actions: [plan] }),
   );
   // Real Storage exposes its keys as enumerable properties.
-  Object.defineProperty(storage, "168hours:calendar-history:v1:one", {
+  Object.defineProperty(storage, "168hours:calendar-history:v2:one", {
     value: "stored",
     configurable: true,
     enumerable: true,

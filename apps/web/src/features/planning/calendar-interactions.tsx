@@ -1,5 +1,9 @@
 "use client";
 import {
+  CalendarOccurrenceScope,
+  type OccurrenceRequest,
+} from "./calendar-repeating";
+import {
   createContext,
   useContext,
   useEffect,
@@ -181,6 +185,8 @@ export function CalendarInteractions({
     [status, setStatus] = useState(""),
     [notice, setNotice] = useState<CalendarNotice | null>(null);
   const noticeId = useRef(0);
+  const [occurrenceRequest, setOccurrenceRequest] =
+    useState<OccurrenceRequest | null>(null);
   const [clipboardBusy, setClipboardBusy] = useState(false);
   function showNotice(
     message: string,
@@ -399,6 +405,7 @@ export function CalendarInteractions({
     },
   });
   const busy =
+    !!occurrenceRequest ||
     clipboardBusy ||
     command.isPending ||
     remove.isPending ||
@@ -406,11 +413,32 @@ export function CalendarInteractions({
     history.command.isPending;
   function deleteBlock(block: Block) {
     if (busy) return;
+    if (block.seriesId) {
+      setOccurrenceRequest({
+        plan: block,
+        kind: "block",
+        operation: "delete",
+        onThis: () => remove.mutate(block),
+      });
+      return;
+    }
     setStatus("Deleting plan…");
     remove.mutate(block);
   }
   function deleteItem(item: CalendarItem) {
     if (busy || item.kind !== "all_day") return;
+    if (item.seriesId) {
+      setOccurrenceRequest({
+        plan: item,
+        kind: "item",
+        operation: "delete",
+        onThis: () =>
+          groupDelete.mutate({
+            plans: [{ kind: "item", id: item.id, version: item.version }],
+          }),
+      });
+      return;
+    }
     setStatus("Deleting plan…");
     groupDelete.mutate({
       plans: [{ kind: "item", id: item.id, version: item.version }],
@@ -474,10 +502,21 @@ export function CalendarInteractions({
     window.addEventListener("keydown", undo);
     return () => window.removeEventListener("keydown", undo);
   }, [history, editorOpen, gesture, busy]);
+  function submitAdjustment(value: { block: Block; input: BlockInput }) {
+    if (value.block.seriesId)
+      setOccurrenceRequest({
+        plan: value.block,
+        kind: "block",
+        operation: "edit",
+        input: value.input,
+        onThis: () => command.mutate(value),
+      });
+    else command.mutate(value);
+  }
   // The active gesture owns native listeners and its animation frame; a rerender does not replace them.
-  const callbacks = useRef({ onCreate, mutate: command.mutate });
+  const callbacks = useRef({ onCreate, mutate: submitAdjustment });
   useEffect(() => {
-    callbacks.current = { onCreate, mutate: command.mutate };
+    callbacks.current = { onCreate, mutate: submitAdjustment };
   });
   useEffect(() => {
     if (!gesture) return;
@@ -784,7 +823,7 @@ export function CalendarInteractions({
     notice,
     showNotice,
     dismissNotice: () => setNotice(null),
-    command,
+    command: { ...command, mutate: submitAdjustment },
   };
   return (
     <Context.Provider value={value}>
@@ -863,6 +902,12 @@ export function CalendarInteractions({
       >
         {children}
       </div>
+      {occurrenceRequest && (
+        <CalendarOccurrenceScope
+          request={occurrenceRequest}
+          onClose={() => setOccurrenceRequest(null)}
+        />
+      )}
       {preview?.bounds &&
         gesture?.block &&
         gesture.mode === "move" &&

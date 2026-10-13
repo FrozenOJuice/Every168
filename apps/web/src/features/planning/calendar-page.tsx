@@ -640,9 +640,24 @@ export function CalendarPage({
                 setEditor(null);
               }}
               onChange={setEditor}
+              onRepeat={(block) => {
+                setEditor(null);
+                setOverlay({
+                  mode: "series",
+                  seriesSource: block,
+                  date: selected,
+                });
+              }}
               onSeries={(seriesId) => {
                 setEditor(null);
-                setOverlay({ mode: "series", seriesId });
+                setOverlay({
+                  mode: "series",
+                  seriesId,
+                  occurrenceDate:
+                    editor.item && "occurrenceDate" in editor.item
+                      ? (editor.item.occurrenceDate ?? undefined)
+                      : undefined,
+                });
               }}
               onSaved={(result) => {
                 setDraft(null);

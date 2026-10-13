@@ -1,3 +1,9 @@
+import {
+  CalendarRepeatSummary,
+  CalendarOccurrenceOptions,
+  changeOccurrence,
+  type OccurrenceScope,
+} from "./calendar-repeating";
 import { useState } from "react";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,6 +20,7 @@ export function CalendarItemEditor({
   onClose,
   onSchedule,
   onAddTime,
+  onRepeat,
   onSaved,
 }: {
   item?: CalendarItem;
@@ -22,10 +29,13 @@ export function CalendarItemEditor({
   onClose: () => void;
   onSchedule: (item: CalendarItem) => void;
   onAddTime?: (item: CalendarItem) => void;
+  onRepeat?: (item: CalendarItem) => void;
   onSaved: (message: string, date?: string) => void;
 }) {
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
+  const [scope, setScope] = useState<OccurrenceScope>("this");
+  const [preserve, setPreserve] = useState(true);
   const [formBusy, setFormBusy] = useState(false);
   const [spansMultipleDays, setSpansMultipleDays] = useState(
     kind === "all_day" && !!item?.endDate && item.endDate !== item.date,
@@ -67,11 +77,36 @@ export function CalendarItemEditor({
       }
       onClose={onClose}
     >
+      {item?.seriesId && onRepeat && (
+        <CalendarRepeatSummary
+          id={item.seriesId}
+          onEdit={() => onRepeat(item)}
+          disabled={formBusy || interaction?.busy}
+        />
+      )}
       <Form
         form={form}
         disabled={remove.isPending || interaction?.busy}
         onSubmit={async (v, key) => {
-          if (item) {
+          if (item?.seriesId && scope !== "this") {
+            const result = await changeOccurrence(
+              item,
+              "item",
+              "edit",
+              scope,
+              key,
+              undefined,
+              v,
+              preserve,
+            );
+            interaction?.history.record({
+              key,
+              kind: "series",
+              undoId: result.undoId,
+              blocks: result.blocks,
+              items: result.items,
+            });
+          } else if (item) {
             const result = await api.updateCalendarItem(
               item.id,
               v,
@@ -84,8 +119,9 @@ export function CalendarItemEditor({
                 kind: "item-edit",
                 itemId: item.id,
                 version: result.version,
-                after: v,
+                after: { ...v, isException: result.isException },
                 before: {
+                  isException: item.isException,
                   title: item.title,
                   notes: item.notes,
                   categoryId: item.categoryId,
@@ -164,6 +200,14 @@ export function CalendarItemEditor({
             />
           </div>
         </details>
+        {item?.seriesId && (
+          <CalendarOccurrenceOptions
+            scope={scope}
+            onScope={setScope}
+            preserve={preserve}
+            onPreserve={setPreserve}
+          />
+        )}
         <Submit>{item ? "Save plan" : "Create plan"}</Submit>
       </Form>
       {item && (
@@ -171,6 +215,11 @@ export function CalendarItemEditor({
           className="editor-actions"
           disabled={formBusy || remove.isPending || interaction?.busy}
         >
+          {kind === "all_day" && !item.seriesId && onRepeat && (
+            <button className="button" onClick={() => onRepeat(item)}>
+              Repeat…
+            </button>
+          )}
           {kind === "all_day" && onAddTime ? (
             <div className="form-stack">
               <button className="button" onClick={() => onAddTime(item)}>

@@ -167,7 +167,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await day
     .getByRole("button", { name: /Training routine.*planned/ })
     .dblclick();
-  await dialog.getByRole("button", { name: "Edit entire series" }).click();
+  await dialog.getByRole("button", { name: "Edit repeating rule" }).click();
   await page.getByLabel("Duration (minutes)").fill("30");
   await dialog.getByRole("button", { name: "Save entire series" }).click();
   await expect(dialog).toHaveCount(0);

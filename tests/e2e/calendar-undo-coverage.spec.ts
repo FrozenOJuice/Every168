@@ -114,8 +114,9 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
   await expect(plan("Individual exception")).toBeVisible();
   await plan("Individual exception").dblclick();
   await dialog
-    .getByRole("button", { name: "Edit entire series", exact: true })
+    .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
+  await dialog.getByLabel("Replace individual edits", { exact: true }).check();
   await dialog.getByLabel("Title", { exact: true }).fill("Revised series");
   await dialog.getByLabel("Repeat through", { exact: true }).fill("2026-09-08");
   await dialog
@@ -124,7 +125,7 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
   await expect(plan("Revised series")).toBeVisible();
   await plan("Revised series").dblclick();
   await dialog
-    .getByRole("button", { name: "Edit entire series", exact: true })
+    .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
   await dialog
     .getByRole("button", { name: "Delete entire series", exact: true })

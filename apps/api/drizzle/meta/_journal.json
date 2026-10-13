@@ -127,6 +127,20 @@
       "when": 1791778769417,
       "tag": "0017_funny_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791860720068,
+      "tag": "0018_salty_zombie",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791861345576,
+      "tag": "0019_calendar_occurrence_identity",
+      "breakpoints": true
     }
   ]
 }

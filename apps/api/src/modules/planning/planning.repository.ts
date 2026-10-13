@@ -31,6 +31,8 @@ export function planningRepository(db: Database) {
     notes: series.notes,
     categoryId: series.categoryId,
     goalId: series.goalId,
+    kind: series.kind,
+    dateSpan: series.dateSpan,
     timezone: series.timezone,
     startDate: series.startDate,
     untilDate: series.untilDate,

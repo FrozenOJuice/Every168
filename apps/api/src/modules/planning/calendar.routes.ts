@@ -4,6 +4,10 @@ import { z } from "zod";
 import {
   blockInput,
   calendarItemInput,
+  calendarItemUpdateInput,
+  seriesCreateInput,
+  seriesUpdateInput,
+  seriesChangeInput,
   calendarRangeQuery,
   calendarSearchQuery,
   copyInput,
@@ -14,7 +18,6 @@ import {
   dateSchema,
   idSchema,
   pageQuerySchema,
-  seriesInput,
   snapshotPasteInput,
   templateApplyInput,
   templateCaptureInput,
@@ -80,7 +83,7 @@ export function calendarRoutes(
     "/calendar/items/:id",
     mutation(
       writes,
-      calendarItemInput,
+      calendarItemUpdateInput,
       ({ userId, id, input, version, context }) =>
         items.update(userId, id, input, version, context),
       { versioned: true },
@@ -121,7 +124,7 @@ export function calendarRoutes(
     "/calendar/series",
     mutation(
       writes,
-      seriesInput,
+      seriesCreateInput,
       ({ userId, input, context }) => series.create(userId, input, context),
       { status: 201 },
     ),
@@ -130,9 +133,19 @@ export function calendarRoutes(
     "/calendar/series/:id",
     mutation(
       writes,
-      seriesInput,
+      seriesUpdateInput,
       ({ userId, id, input, version, context }) =>
         series.update(userId, id, input, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/calendar/series/:id/change",
+    mutation(
+      writes,
+      seriesChangeInput,
+      ({ userId, id, input, version, context }) =>
+        series.change(userId, id, input, version, context),
       { versioned: true },
     ),
   );

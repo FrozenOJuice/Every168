@@ -225,7 +225,7 @@ test("all-day edits, group paste and group deletion redo exact saved plans despi
   await editor.getByLabel("Title", { exact: true }).fill("One edited");
   await editor.getByLabel("Spans multiple days").check();
   await editor.getByLabel("Last day", { exact: true }).fill("2026-09-09");
-  await editor.getByRole("button", { name: "Save plan", exact: true }).click();
+  await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await step(page, "Control+z");
   await expect(allDay(page, "One")).toBeVisible();

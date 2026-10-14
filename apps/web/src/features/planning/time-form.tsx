@@ -2,6 +2,7 @@
 import {
   CalendarOccurrenceOptions,
   changeOccurrence,
+  convertPlan,
   type OccurrenceScope,
 } from "./calendar-repeating";
 import { invalidateCalendar } from "./invalidate-calendar";
@@ -26,7 +27,13 @@ import { useMe } from "@/features/identity/me";
 import { api } from "@/lib/api";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { formatDate, localTimeField } from "@/lib/format";
-import { editorTimes, elapsedMilliseconds, endAfter } from "./calendar-times";
+import {
+  editorTimes,
+  elapsedMilliseconds,
+  endAfter,
+  coveredPlanDates,
+  inputAtMinute,
+} from "./calendar-times";
 import type {
   TimeEditor,
   CalendarDraft,
@@ -36,6 +43,7 @@ import { useCalendarInteractions } from "./calendar-interactions";
 export function TimeForm({
   kind,
   item,
+  allDayItem,
   date,
   minute,
   durationMinutes,
@@ -64,7 +72,8 @@ export function TimeForm({
   const [scope, setScope] = useState<OccurrenceScope>("this");
   const [preserve, setPreserve] = useState(true);
   const { preferences } = useMe();
-  const { timezone, weekStartsOn } = preferences;
+  const [settings] = useState(() => preferences);
+  const { timezone, weekStartsOn } = settings;
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
   const schema = z
@@ -138,11 +147,37 @@ export function TimeForm({
         });
     });
   const initial = editorTimes(
-    { kind, item, date, minute, linkedBlock, duplicateOf, durationMinutes },
+    {
+      kind,
+      item,
+      allDayItem,
+      date,
+      minute,
+      linkedBlock,
+      duplicateOf,
+      durationMinutes,
+    },
     timezone,
   );
-  const source = item ?? duplicateOf ?? scheduledItem ?? fromItem;
+  const source = item ?? allDayItem ?? duplicateOf ?? scheduledItem ?? fromItem;
+  const savedPlan =
+    allDayItem ??
+    (kind === "block" && item && "seriesId" in item ? item : undefined);
+  const dates = allDayItem
+    ? { date: allDayItem.date!, endDate: allDayItem.endDate! }
+    : item && kind === "block"
+      ? coveredPlanDates(item.startsAt, item.endsAt, timezone)
+      : {
+          date: initial.startsAt.slice(0, 10),
+          endDate: initial.startsAt.slice(0, 10),
+        };
   const duration = useRef(initial.duration);
+  const timedRange = useRef({
+    start: initial.startsAt,
+    end: initial.endsAt,
+    date: dates.date,
+    endDate: dates.endDate,
+  });
   const form = useZodForm(schema, {
     title: source?.title ?? linkedBlock?.title ?? "",
     categoryId: source?.categoryId ?? linkedBlock?.categoryId ?? null,
@@ -159,10 +194,10 @@ export function TimeForm({
     repeatFrequency: "weekly",
     repeatInterval: 1,
     repeatWeekdays: [weekday(initial.startsAt.slice(0, 10))],
-    allDay: initialAllDay,
-    allDayDate: initial.startsAt.slice(0, 10),
-    allDayEndDate: initial.startsAt.slice(0, 10),
-    spansMultipleDays: false,
+    allDay: !!allDayItem || initialAllDay,
+    allDayDate: dates.date,
+    allDayEndDate: dates.endDate,
+    spansMultipleDays: dates.date !== dates.endDate,
   });
   const [
     start,
@@ -305,6 +340,99 @@ export function TimeForm({
       form={form}
       disabled={disabled || interaction?.busy}
       onSubmit={async (v, key) => {
+        if (savedPlan && v.allDay !== !!allDayItem) {
+          const target = v.allDay
+            ? {
+                kind: "all_day" as const,
+                input: calendarItemInput.parse({
+                  title: v.title,
+                  categoryId: v.categoryId,
+                  goalId: v.goalId,
+                  notes: v.notes,
+                  kind: "all_day",
+                  date: v.allDayDate,
+                  endDate: v.spansMultipleDays ? v.allDayEndDate : v.allDayDate,
+                }),
+              }
+            : {
+                kind: "timed" as const,
+                input: blockInput.parse({
+                  title: v.title,
+                  categoryId: v.categoryId,
+                  goalId: v.goalId,
+                  notes: v.notes,
+                  startsAt: localInputToInstant(v.startsAt, timezone),
+                  endsAt: localInputToInstant(v.endsAt, timezone),
+                }),
+              };
+          const result = await convertPlan(
+            savedPlan,
+            target,
+            scope,
+            timezone,
+            preserve,
+            key,
+          );
+          interaction?.history.record({ key, kind: "conversion", ...result });
+          await invalidateCalendar(cache);
+          onSaved(
+            target.kind === "all_day"
+              ? { kind: "all_day", date: target.input.date! }
+              : { kind: "timed", startsAt: target.input.startsAt },
+          );
+          return;
+        }
+        if (allDayItem && v.allDay) {
+          const input = calendarItemInput.parse({
+            title: v.title,
+            notes: v.notes,
+            categoryId: v.categoryId,
+            goalId: v.goalId,
+            kind: "all_day",
+            date: v.allDayDate,
+            endDate: v.spansMultipleDays ? v.allDayEndDate : v.allDayDate,
+          });
+          if (allDayItem.seriesId && scope !== "this") {
+            const result = await changeOccurrence(
+              allDayItem,
+              "item",
+              "edit",
+              scope,
+              key,
+              undefined,
+              input,
+              preserve,
+            );
+            interaction?.history.record({ key, kind: "series", ...result });
+          } else {
+            const result = await api.updateCalendarItem(
+              allDayItem.id,
+              input,
+              allDayItem.version,
+              key,
+            );
+            interaction?.history.record({
+              key,
+              kind: "item-edit",
+              itemId: result.id,
+              version: result.version,
+              before: {
+                title: allDayItem.title,
+                notes: allDayItem.notes,
+                categoryId: allDayItem.categoryId,
+                goalId: allDayItem.goalId,
+                kind: "all_day",
+                date: allDayItem.date,
+                endDate: allDayItem.endDate,
+                isException: allDayItem.isException,
+              },
+              after: { ...input, isException: result.isException },
+            });
+          }
+          await invalidateCalendar(cache);
+          onSaved({ kind: "all_day", date: input.date! });
+          return;
+        }
         if (kind === "block" && allowAllDay && v.allDay) {
           const input = calendarItemInput.parse({
             title: v.title,
@@ -493,7 +621,7 @@ export function TimeForm({
         </p>
       )}
       <Field name="title" label="Title" />
-      {item && "seriesId" in item && item.seriesId && (
+      {savedPlan?.seriesId && (
         <CalendarOccurrenceOptions
           scope={scope}
           onScope={setScope}
@@ -507,14 +635,26 @@ export function TimeForm({
             type="checkbox"
             {...allDayRegistration}
             onChange={(event) => {
-              void allDayRegistration.onChange(event);
               if (event.target.checked) {
-                const startDate = form.getValues("allDay")
-                  ? form.getValues("allDayDate")
-                  : form.getValues("startsAt").slice(0, 10);
-                if (dateSchema.safeParse(startDate).success) {
-                  form.setValue("allDayDate", startDate);
-                  form.setValue("allDayEndDate", startDate);
+                try {
+                  const dates = coveredPlanDates(
+                    localInputToInstant(form.getValues("startsAt"), timezone),
+                    localInputToInstant(form.getValues("endsAt"), timezone),
+                    timezone,
+                  );
+                  timedRange.current = {
+                    start: form.getValues("startsAt"),
+                    end: form.getValues("endsAt"),
+                    ...dates,
+                  };
+                  form.setValue("allDayDate", dates.date);
+                  form.setValue("allDayEndDate", dates.endDate);
+                  form.setValue(
+                    "spansMultipleDays",
+                    dates.date !== dates.endDate,
+                  );
+                } catch {
+                  /* Invalid time fields remain editable when switching back. */
                 }
               } else {
                 const selectedDate = form.getValues("allDayDate");
@@ -522,16 +662,60 @@ export function TimeForm({
                 if (dateSchema.safeParse(selectedDate).success) {
                   const next = selectedDate + previous.slice(10);
                   form.setValue("startsAt", next);
-                  setEnd(next, duration.current);
+                  const last = form.getValues("spansMultipleDays")
+                    ? form.getValues("allDayEndDate")
+                    : selectedDate;
+                  if (
+                    selectedDate === timedRange.current.date &&
+                    last === timedRange.current.endDate
+                  ) {
+                    form.setValue("startsAt", timedRange.current.start);
+                    form.setValue("endsAt", timedRange.current.end);
+                    void allDayRegistration.onChange(event);
+                    return;
+                  }
+                  const oldEnd = form.getValues("endsAt");
+                  const endMinute =
+                    Number(oldEnd.slice(11, 13)) * 60 +
+                    Number(oldEnd.slice(14, 16));
+                  const end = inputAtMinute(last, endMinute);
+                  form.setValue(
+                    "endsAt",
+                    end > next
+                      ? end
+                      : inputAtMinute(
+                          last,
+                          Number(next.slice(11, 13)) * 60 +
+                            Number(next.slice(14, 16)) +
+                            60,
+                        ),
+                  );
+                  try {
+                    duration.current = elapsedMilliseconds(
+                      next,
+                      form.getValues("endsAt"),
+                      timezone,
+                    );
+                  } catch {
+                    /* Validate clock-change choices on save. */
+                  }
                 }
               }
+              void allDayRegistration.onChange(event);
             }}
           />
           All day
         </label>
       )}
+      {savedPlan && allDay !== !!allDayItem && (
+        <small>
+          {allDay
+            ? "Save changes this plan to all-day."
+            : "Save changes this plan to one continuous timed plan, including any nights between its start and end."}
+        </small>
+      )}
       {allDay ? (
-        <div className="calendar-all-day-fields">
+        <div key="all-day" className="calendar-all-day-fields">
           <Field
             name="allDayDate"
             label="Date"
@@ -560,7 +744,7 @@ export function TimeForm({
           <small>All-day plans do not allocate hours.</small>
         </div>
       ) : (
-        <div className="form-grid">
+        <div key="timed" className="form-grid">
           <Field
             name="startsAt"
             label="Start"

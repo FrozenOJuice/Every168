@@ -1,45 +1,29 @@
-import {
-  CalendarRepeatSummary,
-  CalendarOccurrenceOptions,
-  changeOccurrence,
-  type OccurrenceScope,
-} from "./calendar-repeating";
 import { useState } from "react";
-import { CalendarPlanPopover } from "./calendar-plan-popover";
 import { useQueryClient } from "@tanstack/react-query";
 import { calendarItemInput, type CalendarItem } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
+import { CalendarPlanPopover } from "./calendar-plan-popover";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { useCalendarInteractions } from "./calendar-interactions";
 export function CalendarItemEditor({
   item,
   date,
-  kind = "all_day",
   onClose,
   onSchedule,
-  onAddTime,
-  onRepeat,
   onSaved,
 }: {
   item?: CalendarItem;
   date: string;
-  kind?: CalendarItem["kind"];
+  kind?: "unscheduled";
   onClose: () => void;
   onSchedule: (item: CalendarItem) => void;
-  onAddTime?: (item: CalendarItem) => void;
-  onRepeat?: (item: CalendarItem) => void;
   onSaved: (message: string, date?: string) => void;
 }) {
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
-  const [scope, setScope] = useState<OccurrenceScope>("this");
-  const [preserve, setPreserve] = useState(true);
   const [formBusy, setFormBusy] = useState(false);
-  const [spansMultipleDays, setSpansMultipleDays] = useState(
-    kind === "all_day" && !!item?.endDate && item.endDate !== item.date,
-  );
   const form = useZodForm(
     calendarItemInput,
     item ?? {
@@ -47,9 +31,9 @@ export function CalendarItemEditor({
       categoryId: null,
       goalId: null,
       notes: null,
-      kind,
-      date: kind === "all_day" ? date : null,
-      endDate: kind === "all_day" ? date : null,
+      kind: "unscheduled",
+      date: null,
+      endDate: null,
     },
   );
   const remove = useCommand({
@@ -66,81 +50,15 @@ export function CalendarItemEditor({
       recordId={item?.id}
       busy={remove.isPending || interaction?.busy}
       onBusyChange={setFormBusy}
-      title={
-        item
-          ? kind === "all_day"
-            ? "Edit all-day plan"
-            : "Edit unscheduled plan"
-          : kind === "all_day"
-            ? "Add all-day plan"
-            : "Add unscheduled plan"
-      }
+      title={item ? "Edit unscheduled plan" : "Add unscheduled plan"}
       onClose={onClose}
     >
-      {item?.seriesId && onRepeat && (
-        <CalendarRepeatSummary
-          id={item.seriesId}
-          onEdit={() => onRepeat(item)}
-          disabled={formBusy || interaction?.busy}
-        />
-      )}
       <Form
         form={form}
         disabled={remove.isPending || interaction?.busy}
         onSubmit={async (v, key) => {
-          if (item?.seriesId && scope !== "this") {
-            const result = await changeOccurrence(
-              item,
-              "item",
-              "edit",
-              scope,
-              key,
-              undefined,
-              v,
-              preserve,
-            );
-            interaction?.history.record({
-              key,
-              kind: "series",
-              undoId: result.undoId,
-              blocks: result.blocks,
-              items: result.items,
-            });
-          } else if (item) {
-            const result = await api.updateCalendarItem(
-              item.id,
-              v,
-              item.version,
-              key,
-            );
-            if (item.kind === "all_day")
-              interaction?.history.record({
-                key,
-                kind: "item-edit",
-                itemId: item.id,
-                version: result.version,
-                after: { ...v, isException: result.isException },
-                before: {
-                  isException: item.isException,
-                  title: item.title,
-                  notes: item.notes,
-                  categoryId: item.categoryId,
-                  goalId: item.goalId,
-                  kind: item.kind,
-                  date: item.date,
-                  endDate: item.endDate,
-                },
-              });
-          } else {
-            const result = await api.createCalendarItem(v, key);
-            if (v.kind === "all_day")
-              interaction?.history.record({
-                key,
-                kind: "copy",
-                blocks: [],
-                items: [{ id: result.id, version: result.version }],
-              });
-          }
+          if (item) await api.updateCalendarItem(item.id, v, item.version, key);
+          else await api.createCalendarItem(v, key);
           await invalidateCalendar(cache);
           onSaved(
             v.date ? "Plan saved." : "Saved to unscheduled plans.",
@@ -149,46 +67,8 @@ export function CalendarItemEditor({
         }}
       >
         <Field name="title" label="Title" />
-        {kind === "all_day" && (
-          <p className="muted text-small">All day · No hours allocated</p>
-        )}
-        <div className="form-grid">
-          <Field
-            name="date"
-            label={kind === "all_day" ? "Date" : "Date (optional)"}
-            type="date"
-            optional={kind !== "all_day"}
-            onChange={(value) => {
-              if (
-                kind === "all_day" &&
-                value &&
-                (!spansMultipleDays ||
-                  (form.getValues("endDate") ?? "") < value)
-              )
-                form.setValue("endDate", value);
-            }}
-          />
-          {kind === "all_day" && (
-            <label className="calendar-all-day-toggle">
-              <input
-                type="checkbox"
-                checked={spansMultipleDays}
-                onChange={(event) => {
-                  setSpansMultipleDays(event.target.checked);
-                  if (!event.target.checked)
-                    form.setValue("endDate", form.getValues("date"));
-                }}
-              />
-              Spans multiple days
-            </label>
-          )}
-          {kind === "all_day" && spansMultipleDays && (
-            <Field name="endDate" label="Last day" type="date" required />
-          )}
-        </div>
-        {kind === "unscheduled" && (
-          <small>Plans without a date stay in your unscheduled list.</small>
-        )}
+        <Field name="date" label="Date (optional)" type="date" optional />
+        <small>Plans without a date stay in your unscheduled list.</small>
         <details>
           <summary>More details</summary>
           <div className="form-stack">
@@ -200,14 +80,6 @@ export function CalendarItemEditor({
             />
           </div>
         </details>
-        {item?.seriesId && (
-          <CalendarOccurrenceOptions
-            scope={scope}
-            onScope={setScope}
-            preserve={preserve}
-            onPreserve={setPreserve}
-          />
-        )}
         <Submit>{item ? "Save plan" : "Create plan"}</Submit>
       </Form>
       {item && (
@@ -215,32 +87,12 @@ export function CalendarItemEditor({
           className="editor-actions"
           disabled={formBusy || remove.isPending || interaction?.busy}
         >
-          {kind === "all_day" && !item.seriesId && onRepeat && (
-            <button className="button" onClick={() => onRepeat(item)}>
-              Repeat…
-            </button>
-          )}
-          {kind === "all_day" && onAddTime ? (
-            <div className="form-stack">
-              <button className="button" onClick={() => onAddTime(item)}>
-                Add a time
-              </button>
-              <small>The all-day plan will stay on the calendar.</small>
-            </div>
-          ) : (
-            <button className="button" onClick={() => onSchedule(item)}>
-              Schedule as time block
-            </button>
-          )}
+          <button className="button" onClick={() => onSchedule(item)}>
+            Schedule as time block
+          </button>
           <button
             className="button danger"
-            disabled={remove.isPending || interaction?.busy}
             onClick={() => {
-              if (kind === "all_day" && interaction) {
-                interaction.deleteItem(item);
-                onClose();
-                return;
-              }
               if (confirm("Delete this plan?")) remove.mutate();
             }}
           >

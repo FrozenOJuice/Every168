@@ -160,6 +160,8 @@ export function CalendarPage({
   const [filter, setFilter] = useState(emptyCalendarFilter);
   const [notice, setNotice] = useState("");
   const [listDate, setListDate] = useState<string | null>(null);
+  const [listPortal, setListPortal] = useState<HTMLDialogElement | null>(null);
+  const overlayContainer = listDate ? listPortal : null;
   const calendarSurface = useRef<HTMLDivElement>(null);
   const searchAnchor = useRef<HTMLButtonElement>(null);
   const scrollPosition = useRef<CalendarScrollPosition>({});
@@ -279,6 +281,7 @@ export function CalendarPage({
   const visibleDraft =
     editor?.kind === "block" &&
     !editor.item &&
+    !editor.allDayItem &&
     !editor.duplicateOf &&
     !editor.linkedBlock &&
     !editor.scheduledItem
@@ -288,6 +291,16 @@ export function CalendarPage({
     setNotice("");
     setListDate(null);
     if (record.kind === "item") {
+      if (record.item.kind === "all_day") {
+        setOverlay(null);
+        setEditor({
+          kind: "block",
+          date,
+          allDay: true,
+          allDayItem: record.item,
+        });
+        return;
+      }
       setOverlay({ mode: record.item.kind, item: record.item, date });
       return;
     }
@@ -319,16 +332,6 @@ export function CalendarPage({
   function schedule(item: CalendarItem) {
     setOverlay(null);
     setEditor({ kind: "block", date: selected, scheduledItem: item });
-  }
-  function addTime(item: CalendarItem, date: string) {
-    setOverlay(null);
-    setDraft(null);
-    setEditor({
-      kind: "block",
-      date,
-      minute: currentHourMinute(new Date().toISOString(), preferences.timezone),
-      fromItem: item,
-    });
   }
   function addGridRecord(
     date: string,
@@ -368,7 +371,7 @@ export function CalendarPage({
       record.kind === "item"
         ? (record.item.date ?? selected)
         : localDate(record.item.startsAt, preferences.timezone);
-    if (record.kind !== "item")
+    if (record.kind !== "item" || record.item.kind === "all_day")
       router.push(calendarHref(target, "day"), { scroll: false });
     setFilter(emptyCalendarFilter);
     openRecord(record, target);
@@ -386,7 +389,8 @@ export function CalendarPage({
       }}
       onClearTimeSelection={clearTimeSelection}
       onSelectPlan={clearDaySelection}
-      editorOpen={!!editor || !!overlay || !!listDate}
+      editorOpen={!!editor || !!overlay}
+      overlayContainer={overlayContainer}
       onCreate={addGridRecord}
     >
       <CalendarClipboard
@@ -397,16 +401,19 @@ export function CalendarPage({
         selectedDays={selectedDays}
         weeks={query.weeks}
         items={query.items}
-        unavailable={!!editor || !!overlay || !!listDate}
+        unavailable={!!editor || !!overlay}
+        feedbackContainer={overlayContainer}
       >
         <CalendarContextMenus
+          date={selected}
           blocks={query.weeks.flatMap((week) => week.blocks)}
           items={query.items}
           timezone={preferences.timezone}
           selectedDays={selectedDays}
           view={view}
           scope={scope}
-          unavailable={!!editor || !!overlay || !!listDate || !query.complete}
+          unavailable={!!editor || !!overlay || !query.complete}
+          overlayContainer={overlayContainer}
           onSelectDay={selectDay}
           onAdd={(date, minute, allDay) => {
             if (allDay) addRecord(date, minute, undefined, false, true);
@@ -453,7 +460,7 @@ export function CalendarPage({
                   view === "month" ? undefined : date;
               }}
             />
-            <CalendarInteractionStatus />
+            <CalendarInteractionStatus container={overlayContainer} />
             {(notice ||
               filter.q ||
               filter.categoryId ||
@@ -530,7 +537,9 @@ export function CalendarPage({
                     week={query.week}
                     items={query.items}
                     filter={filter}
-                    onOpenItem={(item) => setOverlay({ mode: item.kind, item })}
+                    onOpenItem={(item) =>
+                      openRecord({ kind: "item", item }, selected)
+                    }
                     date={selected}
                     today={today}
                     view={view}
@@ -569,6 +578,7 @@ export function CalendarPage({
           </div>
           {listDate && listWeek && (
             <CalendarDayRecords
+              dialogRef={setListPortal}
               date={listDate}
               now={now}
               week={listWeek}
@@ -605,7 +615,6 @@ export function CalendarPage({
                 )
               }
               onSchedule={schedule}
-              onAddTime={addTime}
               onSaved={(message, target) => {
                 setOverlay(null);
                 setNotice(message);
@@ -620,6 +629,7 @@ export function CalendarPage({
               onDraftChange={setDraft}
               composer={
                 !editor.item &&
+                !editor.allDayItem &&
                 !editor.duplicateOf &&
                 !editor.linkedBlock &&
                 !editor.scheduledItem
@@ -627,6 +637,7 @@ export function CalendarPage({
               key={
                 editor.kind +
                 (editor.item?.id ??
+                  editor.allDayItem?.id ??
                   editor.linkedBlock?.id ??
                   editor.fromItem?.id ??
                   (editor.duplicateOf
@@ -654,9 +665,10 @@ export function CalendarPage({
                   mode: "series",
                   seriesId,
                   occurrenceDate:
-                    editor.item && "occurrenceDate" in editor.item
+                    editor.allDayItem?.occurrenceDate ??
+                    (editor.item && "occurrenceDate" in editor.item
                       ? (editor.item.occurrenceDate ?? undefined)
-                      : undefined,
+                      : undefined),
                 });
               }}
               onSaved={(result) => {

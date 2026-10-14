@@ -29,7 +29,9 @@ test("hover preview follows fast pointer jumps and labels the slice above", asyn
     name: "Select time on 2026-10-08 at 15:00",
     exact: true,
   });
-  await hour14.scrollIntoViewIfNeeded();
+  await hour14.evaluate((element) =>
+    element.scrollIntoView({ block: "center", inline: "nearest" }),
+  );
   const first = (await hour14.boundingBox())!;
   const second = (await hour15.boundingBox())!;
   const x = first.x + first.width / 2;
@@ -79,7 +81,9 @@ test("hover preview follows fast pointer jumps and labels the slice above", asyn
       name: "Select time on 2026-10-10 at 15:00",
       exact: true,
     });
-  await weekSlot.scrollIntoViewIfNeeded();
+  await weekSlot.evaluate((element) =>
+    element.scrollIntoView({ block: "center", inline: "nearest" }),
+  );
   const weekBounds = (await weekSlot.boundingBox())!;
   await page.mouse.move(
     weekBounds.x + weekBounds.width / 2,
@@ -300,7 +304,9 @@ test("dragging the time axis adjusts Day and Week spacing and can reset it", asy
       name: "Select time on 2026-10-08 at 14:00",
       exact: true,
     });
-  await slot.scrollIntoViewIfNeeded();
+  await slot.evaluate((element) =>
+    element.scrollIntoView({ block: "center", inline: "nearest" }),
+  );
   const slotBounds = (await slot.boundingBox())!;
   await page.mouse.move(slotBounds.x + 20, slotBounds.y + 12);
   await page.mouse.down();
@@ -1165,7 +1171,7 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(day.getByRole("button", { name: /Busy block/ })).toHaveCount(4);
   await day.getByRole("button", { name: /Quick note/ }).dblclick();
   await expect(
-    page.getByRole("dialog", { name: "Edit block", exact: true }),
+    page.getByRole("dialog", { name: "Edit plan", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await page.goBack();
@@ -1251,7 +1257,7 @@ test("day, week and month calendars keep planning focused", async ({
   await day.getByRole("button", { name: /Month planning check/ }).focus();
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("dialog", { name: "Edit block", exact: true }),
+    page.getByRole("dialog", { name: "Edit plan", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await auditAndCapture("calendar-day");

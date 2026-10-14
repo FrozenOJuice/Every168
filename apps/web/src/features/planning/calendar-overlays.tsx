@@ -11,7 +11,7 @@ import { CalendarSearch } from "./calendar-search";
 import type { CalendarFilter } from "./calendar-filters";
 import type { RefObject } from "react";
 export type CalendarOverlay = {
-  mode: "tools" | "search" | CalendarAction;
+  mode: "tools" | "search" | Exclude<CalendarAction, "all_day">;
   date?: string;
   minute?: number;
   item?: CalendarItem;
@@ -31,7 +31,6 @@ export function CalendarOverlays({
   searchAnchor,
   onAddRepeating,
   onAddAllDay,
-  onAddTime,
 }: {
   overlay: CalendarOverlay;
   setOverlay: (overlay: CalendarOverlay | null) => void;
@@ -44,7 +43,6 @@ export function CalendarOverlays({
   searchAnchor: RefObject<HTMLButtonElement | null>;
   onAddRepeating: () => void;
   onAddAllDay: () => void;
-  onAddTime: (item: CalendarItem, date: string) => void;
 }) {
   const close = () => setOverlay(null);
   if (overlay.mode === "tools")
@@ -102,16 +100,6 @@ export function CalendarOverlays({
       date={date}
       onClose={close}
       onSchedule={onSchedule}
-      onAddTime={(item) => onAddTime(item, date)}
-      onRepeat={(item) =>
-        setOverlay({
-          mode: "series",
-          seriesId: item.seriesId ?? undefined,
-          seriesSource: item.seriesId ? undefined : item,
-          occurrenceDate: item.occurrenceDate ?? item.date ?? date,
-          date,
-        })
-      }
       onSaved={onSaved}
     />
   );

@@ -3,6 +3,13 @@ type RestoredSelection = {
   blocks: { id: string; version: number }[];
   items: { id: string; version: number }[];
 };
+type PlanChangeAction<Kind extends "series" | "conversion"> = {
+  key: string;
+  kind: Kind;
+  items?: { id: string; version: number }[];
+  undoId: string;
+  blocks: { id: string; version: number }[];
+};
 
 export type CalendarAction = (
   | ({ key: string; blockId: string; title: string } & (
@@ -28,6 +35,13 @@ export type CalendarAction = (
     }
   | {
       key: string;
+      kind: "group-edit";
+      undoId: string;
+      blocks: { id: string; version: number }[];
+      items: { id: string; version: number }[];
+    }
+  | {
+      key: string;
       kind: "item-edit";
       itemId: string;
       version: number;
@@ -41,13 +55,8 @@ export type CalendarAction = (
       id: string;
       version: number;
     }
-  | {
-      key: string;
-      kind: "series";
-      items?: { id: string; version: number }[];
-      undoId: string;
-      blocks: { id: string; version: number }[];
-    }
+  | PlanChangeAction<"series">
+  | PlanChangeAction<"conversion">
 ) & { transient?: boolean };
 
 export function recordAction(
@@ -72,12 +81,20 @@ export function undoAction(
   if (selection) {
     for (const block of selection.blocks) {
       const index = remaining.findLastIndex((entry) =>
-        entry.kind === "copy" || entry.kind === "series"
+        entry.kind === "copy" ||
+        entry.kind === "series" ||
+        entry.kind === "conversion" ||
+        entry.kind === "group-edit"
           ? entry.blocks.some((record) => record.id === block.id)
           : "blockId" in entry && entry.blockId === block.id,
       );
       const previous = remaining[index];
-      if (previous?.kind === "copy" || previous?.kind === "series")
+      if (
+        previous?.kind === "copy" ||
+        previous?.kind === "series" ||
+        previous?.kind === "conversion" ||
+        previous?.kind === "group-edit"
+      )
         remaining[index] = {
           ...previous,
           blocks: previous.blocks.map((record) =>
@@ -90,12 +107,20 @@ export function undoAction(
     for (const item of selection.items) {
       const index = remaining.findLastIndex(
         (entry) =>
-          ((entry.kind === "copy" || entry.kind === "series") &&
+          ((entry.kind === "copy" ||
+            entry.kind === "series" ||
+            entry.kind === "conversion" ||
+            entry.kind === "group-edit") &&
             entry.items?.some((record) => record.id === item.id)) ||
           (entry.kind === "item-edit" && entry.itemId === item.id),
       );
       const previous = remaining[index];
-      if (previous?.kind === "copy" || previous?.kind === "series")
+      if (
+        previous?.kind === "copy" ||
+        previous?.kind === "series" ||
+        previous?.kind === "conversion" ||
+        previous?.kind === "group-edit"
+      )
         remaining[index] = {
           ...previous,
           items: previous.items!.map((record) =>
@@ -109,8 +134,10 @@ export function undoAction(
   }
   if (
     action.kind === "group-delete" ||
+    action.kind === "group-edit" ||
     action.kind === "item-edit" ||
     action.kind === "series" ||
+    action.kind === "conversion" ||
     action.kind === "activity-create"
   )
     return remaining;
@@ -118,11 +145,19 @@ export function undoAction(
   const index = remaining.findLastIndex(
     (entry) =>
       ("blockId" in entry && entry.blockId === action.blockId) ||
-      ((entry.kind === "copy" || entry.kind === "series") &&
+      ((entry.kind === "copy" ||
+        entry.kind === "series" ||
+        entry.kind === "conversion" ||
+        entry.kind === "group-edit") &&
         entry.blocks.some((block) => block.id === action.blockId)),
   );
   const previous = remaining[index];
-  if (previous?.kind === "copy" || previous?.kind === "series") {
+  if (
+    previous?.kind === "copy" ||
+    previous?.kind === "series" ||
+    previous?.kind === "conversion" ||
+    previous?.kind === "group-edit"
+  ) {
     remaining[index] = {
       ...previous,
       blocks: previous.blocks.map((block) =>

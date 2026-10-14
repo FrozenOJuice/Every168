@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Block, CalendarItem } from "@168hours/contracts";
 import { instantToLocalInput, localDate } from "@168hours/domain-utils";
@@ -15,6 +23,8 @@ import {
 } from "./calendar-interactions";
 import type { CalendarDisplayRecord } from "./calendar-filters";
 import { calendarHref, slotMinute, type CalendarView } from "./calendar-layout";
+import { useCalendarNavigation } from "./calendar-navigation";
+import { CalendarMoveGroup } from "./calendar-move-group";
 
 type Target =
   | {
@@ -38,8 +48,50 @@ type OpenMenu = {
 const nativeTargets =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="menu"], .calendar-plan-popover';
 
+const ActionsContext = createContext<{
+  openActions: (anchor: HTMLButtonElement) => void;
+  label: string;
+  expanded: boolean;
+  disabled: boolean;
+} | null>(null);
+
+export function CalendarActionButtons() {
+  const actions = useContext(ActionsContext);
+  const interaction = useCalendarInteractions();
+  if (!actions || !interaction) return null;
+  return (
+    <div className="calendar-selection-actions">
+      <span className="calendar-selection-summary" aria-live="polite">
+        {interaction.multiSelect
+          ? "Tap plans or days to add or remove them."
+          : actions.label}
+      </span>
+      <button
+        type="button"
+        className="button"
+        aria-pressed={interaction.multiSelect}
+        disabled={actions.disabled}
+        onClick={() => interaction.setMultiSelect(!interaction.multiSelect)}
+      >
+        {interaction.multiSelect ? "Done selecting" : "Select multiple"}
+      </button>
+      <button
+        type="button"
+        className="button"
+        aria-haspopup="menu"
+        disabled={actions.disabled}
+        aria-expanded={actions.expanded}
+        onClick={(event) => actions.openActions(event.currentTarget)}
+      >
+        Actions
+      </button>
+    </div>
+  );
+}
+
 export function CalendarContextMenus({
   children,
+  date,
   blocks,
   items,
   timezone,
@@ -47,12 +99,14 @@ export function CalendarContextMenus({
   view,
   scope,
   unavailable,
-  onSelectDay,
+  onSelectDay: onSelectDayWithMode,
   onAdd,
   onOpen,
   onResetZoom,
+  overlayContainer,
 }: {
   children: ReactNode;
+  date: string;
   blocks: Block[];
   items: CalendarItem[];
   timezone: string;
@@ -60,27 +114,68 @@ export function CalendarContextMenus({
   view: CalendarView;
   scope: string;
   unavailable: boolean;
-  onSelectDay: (date: string) => void;
+  onSelectDay: (date: string, mode?: "replace" | "toggle" | "extend") => void;
   onAdd: (date: string, minute?: number, allDay?: boolean) => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   onResetZoom: () => void;
+  overlayContainer?: Element | null;
 }) {
   const interaction = useCalendarInteractions()!;
   const clipboard = useCalendarClipboard()!;
   const router = useRouter();
   const [menu, setMenu] = useState<(OpenMenu & { scope: string }) | null>(null);
+  const [movePlans, setMovePlans] = useState<PlanSelection[] | null>(null);
   if (menu && menu.scope !== scope) setMenu(null);
   const close = useCallback(() => setMenu(null), []);
   const blocked =
     unavailable || clipboard.busy || !interaction.quickActionsAvailable;
 
-  function open(element: Element, x?: number, y?: number) {
+  const surface = useRef<HTMLDivElement>(null);
+  const navigation = useCalendarNavigation({
+    surface,
+    date,
+    view,
+    blocked,
+    onSelectDayWithMode,
+  });
+
+  function openActions(trigger: HTMLButtonElement) {
+    const root = overlayContainer ?? surface.current;
+    if (!root || blocked) return;
+    let target: HTMLElement | null = null;
+    const plan = interaction.selectedPlans[0];
+    if (plan)
+      target = root.querySelector(`[data-calendar-record="${plan.id}"]`);
+    else if (interaction.timeSelection?.minute !== undefined) {
+      const point = interaction.timeSelection;
+      target = root.querySelector(
+        `.hour-slot[data-context-date="${point.date}"][data-context-hour="${Math.floor(point.minute! / 60)}"]`,
+      );
+    } else {
+      const day = selectedDays[0] ?? date;
+      target = root.querySelector(
+        `.grid-day-heading[data-date="${day}"] > button, .month-day[data-date="${day}"] .month-select-day`,
+      );
+    }
+    if (target) open(target, undefined, undefined, trigger);
+  }
+
+  function open(
+    element: Element,
+    x?: number,
+    y?: number,
+    trigger?: HTMLElement,
+  ) {
     if (blocked || element.closest(nativeTargets)) return false;
     let target: Target | null = null;
     let anchor =
       element.closest<HTMLElement>("button, [tabindex]") ??
       (element as HTMLElement);
-    const record = element.closest<HTMLElement>("[data-calendar-record]");
+    const record =
+      element.closest<HTMLElement>("[data-calendar-record]") ??
+      element
+        .closest(".calendar-date-plan")
+        ?.querySelector<HTMLElement>("[data-calendar-record]");
     const heading = element.closest<HTMLElement>(
       ".grid-day-heading[data-date], .month-day[data-date]",
     );
@@ -176,11 +271,12 @@ export function CalendarContextMenus({
       const selected = selectedDays.includes(date);
       if (!selected) {
         interaction.selectTime({ date });
-        onSelectDay(date);
+        onSelectDayWithMode(date);
       }
       target = { kind: "day", date, days: selected ? selectedDays : [date] };
     }
     if (!target) return false;
+    if (trigger) anchor = trigger;
     const bounds = anchor.getBoundingClientRect();
     setMenu({
       target,
@@ -229,6 +325,8 @@ export function CalendarContextMenus({
         shortcut: `${mod}C`,
         run: () => clipboard.copyPlans(target.plans),
       });
+      if (target.plans.length > 1)
+        actions.push({ label: "Move…", run: () => setMovePlans(target.plans) });
       if (target.plans.length > 1)
         actions.push({
           label: "Duplicate",
@@ -299,50 +397,80 @@ export function CalendarContextMenus({
     );
   }
   return (
-    <div
-      className="calendar-context-surface"
-      onContextMenu={(event) => {
-        if (event.defaultPrevented || !(event.target instanceof Element))
-          return;
-        if (
-          open(
-            event.target,
-            event.clientX || undefined,
-            event.clientY || undefined,
-          )
-        ) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }}
-      onKeyDownCapture={(event) => {
-        if (
-          event.key !== "ContextMenu" &&
-          !(event.key === "F10" && event.shiftKey)
-        )
-          return;
-        if (
-          event.repeat ||
-          event.nativeEvent.isComposing ||
-          !(event.target instanceof Element)
-        )
-          return;
-        if (open(event.target)) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
+    <ActionsContext.Provider
+      value={{
+        openActions,
+        disabled: blocked,
+        expanded: !!menu,
+        label: interaction.selectedPlanCount
+          ? `${interaction.selectedPlanCount} ${interaction.selectedPlanCount === 1 ? "plan" : "plans"} selected`
+          : selectedDays.length
+            ? `${selectedDays.length} ${selectedDays.length === 1 ? "day" : "days"} selected`
+            : interaction.timeSelection?.minute !== undefined
+              ? "Time selected"
+              : "",
       }}
     >
-      {children}
-      {menu && menu.scope === scope && !blocked && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          anchor={menu.anchor}
-          actions={actions}
-          onClose={close}
-        />
-      )}
-    </div>
+      <div
+        ref={surface}
+        className="calendar-context-surface"
+        onFocusCapture={navigation.onFocus}
+        onContextMenu={(event) => {
+          if (event.defaultPrevented || !(event.target instanceof Element))
+            return;
+          if (
+            open(
+              event.target,
+              event.clientX || undefined,
+              event.clientY || undefined,
+            )
+          ) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+        onKeyDownCapture={(event) => {
+          if (navigation.onKeyDown(event)) return;
+          if (
+            event.key !== "ContextMenu" &&
+            !(event.key === "F10" && event.shiftKey)
+          )
+            return;
+          if (
+            event.repeat ||
+            event.nativeEvent.isComposing ||
+            !(event.target instanceof Element)
+          )
+            return;
+          if (open(event.target)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+      >
+        {children}
+        {overlayContainer &&
+          createPortal(<CalendarActionButtons />, overlayContainer)}
+        {movePlans && (
+          <CalendarMoveGroup
+            container={overlayContainer}
+            plans={movePlans}
+            blocks={blocks}
+            items={items}
+            timezone={timezone}
+            onClose={() => setMovePlans(null)}
+          />
+        )}
+        {menu && menu.scope === scope && !blocked && (
+          <ContextMenu
+            x={menu.x}
+            y={menu.y}
+            anchor={menu.anchor}
+            actions={actions}
+            onClose={close}
+          />
+        )}
+      </div>
+    </ActionsContext.Provider>
   );
 }

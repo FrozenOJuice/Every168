@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
 import {
   clipboardSnapshotSchema,
   type Block,
@@ -75,6 +76,7 @@ export function CalendarClipboard({
   weeks,
   items,
   unavailable,
+  feedbackContainer,
   children,
 }: {
   userId: string;
@@ -85,6 +87,7 @@ export function CalendarClipboard({
   weeks: Week[];
   items: CalendarItem[];
   unavailable: boolean;
+  feedbackContainer?: Element | null;
   children: ReactNode;
 }) {
   const interaction = useCalendarInteractions();
@@ -390,18 +393,8 @@ export function CalendarClipboard({
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
   });
-  return (
-    <ClipboardContext.Provider
-      value={{
-        copyPlans,
-        copyDays,
-        duplicate,
-        pasteAt,
-        canPaste: () => !!readClip(userId),
-        busy: blocked,
-      }}
-    >
-      {children}
+  const feedback = (
+    <>
       <span
         className="sr-only"
         aria-live="polite"
@@ -415,6 +408,21 @@ export function CalendarClipboard({
         interaction?.notice?.kind !== "error" && (
           <CommandError command={paste} />
         )}
+    </>
+  );
+  return (
+    <ClipboardContext.Provider
+      value={{
+        copyPlans,
+        copyDays,
+        duplicate,
+        pasteAt,
+        canPaste: () => !!readClip(userId),
+        busy: blocked,
+      }}
+    >
+      {children}
+      {feedbackContainer ? createPortal(feedback, feedbackContainer) : feedback}
     </ClipboardContext.Provider>
   );
 }

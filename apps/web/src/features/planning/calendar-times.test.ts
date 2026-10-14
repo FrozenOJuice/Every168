@@ -94,3 +94,35 @@ describe("calendar time drafts", () => {
     expect(source.version).toBe(3);
   });
 });
+
+it("all-day conversion carries its full date range into one continuous timed draft", () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-10-13T17:25:00Z"));
+    const item = {
+      id: "item",
+      title: "Trip",
+      date: "2026-09-07",
+      endDate: "2026-09-09",
+      kind: "all_day",
+    } as import("@168hours/contracts").CalendarItem;
+    expect(
+      editorTimes({ kind: "block", date: item.date!, allDayItem: item }, "UTC"),
+    ).toEqual({
+      startsAt: "2026-09-07T17:00",
+      endsAt: "2026-09-09T18:00",
+      duration: 49 * 3600000,
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it("all-day covered dates exclude a midnight ending and include overnight portions", async () => {
+  const { coveredPlanDates } = await import("./calendar-times");
+  expect(
+    coveredPlanDates("2026-09-07T09:00:00Z", "2026-09-08T00:00:00Z", "UTC"),
+  ).toEqual({ date: "2026-09-07", endDate: "2026-09-07" });
+  expect(
+    coveredPlanDates("2026-09-07T22:00:00Z", "2026-09-09T02:00:00Z", "UTC"),
+  ).toEqual({ date: "2026-09-07", endDate: "2026-09-09" });
+});

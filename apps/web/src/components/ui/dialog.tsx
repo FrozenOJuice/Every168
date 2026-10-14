@@ -1,17 +1,26 @@
 "use client";
-import { useLayoutEffect, useRef, useId } from "react";
+import { useCallback, useLayoutEffect, useRef, useId } from "react";
 import { X } from "lucide-react";
 export function Dialog({
   title,
   onClose,
   children,
+  dialogRef,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  dialogRef?: (element: HTMLDialogElement | null) => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  const attach = useCallback(
+    (element: HTMLDialogElement | null) => {
+      ref.current = element;
+      dialogRef?.(element);
+    },
+    [dialogRef],
+  );
   useLayoutEffect(() => {
     const dialog = ref.current;
     const opener = document.activeElement;
@@ -24,7 +33,7 @@ export function Dialog({
   }, []);
   return (
     <dialog
-      ref={ref}
+      ref={attach}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();

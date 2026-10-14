@@ -72,7 +72,7 @@ export function CalendarMonth({
       first,
       event.shiftKey
         ? "extend"
-        : event.metaKey || event.ctrlKey
+        : interaction?.multiSelect || event.metaKey || event.ctrlKey
           ? "toggle"
           : "replace",
     );
@@ -173,7 +173,15 @@ export function CalendarMonth({
         {weeks.flatMap((week) =>
           week.days.map((day) => {
             const records: CalendarDisplayRecord[] = [
-              ...itemsOnDate(items, day.date, filter).map((item) => ({
+              ...itemsOnDate(
+                items.map((item) =>
+                  interaction?.preview?.dateResize?.id === item.id
+                    ? interaction.preview.dateResize
+                    : item,
+                ),
+                day.date,
+                filter,
+              ).map((item) => ({
                 kind: "item" as const,
                 item,
               })),
@@ -237,13 +245,15 @@ export function CalendarMonth({
                       day.date,
                       event.shiftKey
                         ? "extend"
-                        : event.metaKey || event.ctrlKey
+                        : interaction?.multiSelect ||
+                            event.metaKey ||
+                            event.ctrlKey
                           ? "toggle"
                           : "replace",
                     );
                   }}
                   onDoubleClick={() => {
-                    if (!interaction?.busy)
+                    if (!interaction?.busy && !interaction?.multiSelect)
                       router.push(calendarHref(day.date, "day"), {
                         scroll: false,
                       });
@@ -282,6 +292,7 @@ export function CalendarMonth({
                         <CalendarItemButton
                           compact
                           item={record.item}
+                          date={day.date}
                           onOpen={() => onOpen(record, day.date)}
                         />
                       ) : (

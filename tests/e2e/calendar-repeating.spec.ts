@@ -162,7 +162,7 @@ test("all-day repetition preserves individual edits and supports series editing,
     });
   await plan().dblclick();
   await editor.getByLabel("Title", { exact: true }).fill("Special holiday");
-  await editor.getByRole("button", { name: "Save plan", exact: true }).click();
+  await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await grid(page)
     .getByRole("button", {

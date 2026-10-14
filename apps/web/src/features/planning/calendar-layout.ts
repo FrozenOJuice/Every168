@@ -13,6 +13,7 @@ export type TimeEditor = {
   scheduledItem?: CalendarItem;
   fromItem?: CalendarItem;
   item?: Block | TimeEntry;
+  allDayItem?: CalendarItem;
   linkedBlock?: Block;
   duplicateOf?: Block;
 };

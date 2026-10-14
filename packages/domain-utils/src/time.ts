@@ -123,3 +123,27 @@ export function intervalCoverage(intervals: Interval[], range: Interval) {
   }
   return covered / 1000;
 }
+/** Shift local calendar dates/clock times while retaining each plan's elapsed duration. */
+export function shiftPlannedTime(
+  startsAt: string,
+  endsAt: string,
+  dayDelta: number,
+  minuteDelta: number,
+  timezone: string,
+) {
+  if (dayDelta === 0 && minuteDelta === 0) return { startsAt, endsAt };
+  const minute = localMinute(startsAt, timezone) + minuteDelta;
+  const date = addDays(
+    localDate(startsAt, timezone),
+    dayDelta + Math.floor(minute / 1440),
+  );
+  const next = plannedInstant(date, ((minute % 1440) + 1440) % 1440, timezone);
+  return next
+    ? {
+        startsAt: next,
+        endsAt: new Date(
+          Date.parse(next) + Date.parse(endsAt) - Date.parse(startsAt),
+        ).toISOString(),
+      }
+    : null;
+}

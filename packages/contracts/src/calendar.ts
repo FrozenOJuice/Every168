@@ -164,6 +164,34 @@ export const seriesUndoResultSchema = z.object({
   ),
 });
 export type SeriesUndoResult = z.infer<typeof seriesUndoResultSchema>;
+export const planConversionInput = z
+  .object({
+    source: z
+      .object({
+        kind: z.enum(["block", "item"]),
+        id: idSchema,
+        version: z.number().int().positive(),
+      })
+      .strict(),
+    target: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("timed"), input: blockInput }).strict(),
+      z
+        .object({
+          kind: z.literal("all_day"),
+          input: calendarItemInput.refine(
+            (v) => v.kind === "all_day",
+            "Choose an all-day plan.",
+          ),
+        })
+        .strict(),
+    ]),
+    scope: z.enum(["this", "following", "all"]).default("this"),
+    seriesVersion: z.number().int().positive().optional(),
+    timezone: preferencesInput.shape.timezone,
+    preserveExceptions: z.boolean().default(true),
+  })
+  .strict();
+export type PlanConversionInput = z.infer<typeof planConversionInput>;
 export const calendarRangeQuery = z
   .object({ from: dateSchema, to: dateSchema })
   .strict()
@@ -229,6 +257,22 @@ export const groupDeleteInput = z
       value.plans.length,
     "Select distinct plans.",
   );
+export const selectionMoveInput = groupDeleteInput.safeExtend({
+  timezone: preferencesInput.shape.timezone,
+  dayDelta: z.number().int().min(-366).max(366),
+  minuteDelta: z.number().int().min(-1439).max(1439).multipleOf(5),
+});
+export const selectionMoveUndoInput = seriesUndoInput
+  .safeExtend({
+    blocks: seriesUndoInput.shape.blocks.max(100),
+    items: seriesUndoInput.shape.items.unwrap().max(100).default([]),
+  })
+  .refine(
+    (v) => new Set(v.items.map((p) => p.id)).size === v.items.length,
+    "Choose distinct plans.",
+  );
+export type SelectionMoveInput = z.infer<typeof selectionMoveInput>;
+export type SelectionMoveUndoInput = z.infer<typeof selectionMoveUndoInput>;
 export const groupDeleteUndoInput = z.object({ undoId: idSchema }).strict();
 export const copyUndoInput = z
   .object({

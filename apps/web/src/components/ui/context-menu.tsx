@@ -159,6 +159,6 @@ export function ContextMenu({
         ),
       )}
     </div>,
-    document.body,
+    anchor.closest("dialog[open]") ?? document.body,
   );
 }

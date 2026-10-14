@@ -729,7 +729,8 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   }
   await page.goto("/?date=2026-09-07&view=day");
   await day.getByRole("button", { name: /Conference, all day/ }).dblclick();
-  await dialog.getByRole("button", { name: "Add a time" }).click();
+  await dialog.getByText("Actions", { exact: true }).click();
+  await dialog.getByRole("button", { name: "Create timed copy…" }).click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
     "Conference",
   );

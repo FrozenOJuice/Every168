@@ -8,12 +8,15 @@ import {
   seriesCreateInput,
   seriesUpdateInput,
   seriesChangeInput,
+  planConversionInput,
   calendarRangeQuery,
   calendarSearchQuery,
   copyInput,
   copyUndoInput,
   groupDeleteInput,
   groupDeleteUndoInput,
+  selectionMoveInput,
+  selectionMoveUndoInput,
   seriesUndoInput,
   dateSchema,
   idSchema,
@@ -41,6 +44,12 @@ export function calendarRoutes(
   activity: CalendarActivityService,
 ) {
   const r = Router();
+  r.post(
+    "/calendar/plans/convert",
+    mutation(writes, planConversionInput, ({ userId, input, context }) =>
+      series.convertPlan(userId, input, context),
+    ),
+  );
   r.get("/calendar/activity", async (req, res) => {
     const q = calendarRangeQuery.parse(req.query);
     res.json(await activity.range(currentUser(res).id, q.from, q.to));
@@ -209,6 +218,18 @@ export function calendarRoutes(
     "/calendar/selection/delete",
     mutation(writes, groupDeleteInput, ({ userId, input, context }) =>
       selection.deleteGroup(userId, input, context),
+    ),
+  );
+  r.post(
+    "/calendar/selection/move",
+    mutation(writes, selectionMoveInput, ({ userId, input, context }) =>
+      selection.moveGroup(userId, input, context),
+    ),
+  );
+  r.post(
+    "/calendar/selection/move/undo",
+    mutation(writes, selectionMoveUndoInput, ({ userId, input, context }) =>
+      selection.undoMove(userId, input, context),
     ),
   );
   r.post(

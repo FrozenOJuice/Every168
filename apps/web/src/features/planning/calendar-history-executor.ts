@@ -9,7 +9,14 @@ export async function applyHistoryAction(action: CalendarAction, key: string) {
     items: { id: string; version: number }[];
   } | null = null;
   let inverse: CalendarAction | null = null;
-  if (action.kind === "series") {
+  if (action.kind === "group-edit") {
+    const result = await api.undoCalendarSelectionMove(
+      { undoId: action.undoId, blocks: action.blocks, items: action.items },
+      key,
+    );
+    selection = result;
+    inverse = { ...action, ...result };
+  } else if (action.kind === "series" || action.kind === "conversion") {
     const result = await api.undoCalendarSeries(
       {
         undoId: action.undoId,

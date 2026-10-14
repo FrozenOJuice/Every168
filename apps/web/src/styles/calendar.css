@@ -304,6 +304,53 @@
 .date-record {
   border-left-style: double;
 }
+.calendar-date-plan {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+.calendar-all-day-row .calendar-date-plan {
+  flex: 1 1 auto;
+  width: 0;
+}
+.calendar-all-day-row .calendar-date-plan .calendar-record {
+  width: 100%;
+}
+.calendar-date-plan.is-draggable .calendar-record {
+  cursor: grab;
+}
+.calendar-date-resize {
+  position: absolute;
+  inset-block: 0;
+  width: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.calendar-date-resize::after {
+  content: "";
+  position: absolute;
+  inset-block: 25%;
+  width: 2px;
+  background: var(--primary);
+  opacity: 0;
+}
+.calendar-date-plan:hover .calendar-date-resize::after,
+.calendar-date-plan:focus-within .calendar-date-resize::after {
+  opacity: 1;
+}
+.date-resize-start {
+  left: 0;
+}
+.date-resize-end {
+  right: 0;
+}
+.calendar-date-plan.is-resizing {
+  outline: 1px solid var(--primary);
+  border-radius: 4px;
+}
 .copy-preview-list,
 .search-results {
   display: grid;
@@ -450,7 +497,9 @@
   background: var(--primary);
   color: var(--primary-foreground);
 }
-.calendar-record.drag-selected {
+.calendar-record.drag-selected,
+.calendar-record.plan-selected,
+.calendar-record.date-selected {
   touch-action: none;
   cursor: grab;
 }
@@ -1769,6 +1818,10 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+.day-at-a-glance-next[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
 .feed-time-record > small {
   color: var(--muted-foreground);
   display: block;
@@ -2048,6 +2101,34 @@
     height: 44px;
   }
   .calendar-picker-days button {
+    min-height: 44px;
+  }
+}
+
+.calendar-selection-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.calendar-selection-summary {
+  flex: 1 1 100px;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+.calendar-selection-actions .button {
+  min-height: 36px;
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+}
+.calendar-selection-actions [aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+@media (pointer: coarse) {
+  .calendar-selection-actions .button {
     min-height: 44px;
   }
 }

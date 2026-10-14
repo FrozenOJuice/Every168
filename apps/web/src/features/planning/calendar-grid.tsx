@@ -114,7 +114,7 @@ export function CalendarGrid({
       first,
       event.shiftKey
         ? "extend"
-        : event.metaKey || event.ctrlKey
+        : interaction?.multiSelect || event.metaKey || event.ctrlKey
           ? "toggle"
           : "replace",
     );
@@ -210,8 +210,22 @@ export function CalendarGrid({
       (day) => Date.parse(day.endsAt) - Date.parse(day.startsAt) !== 86400000,
     );
   const allDayPlansOnDate = (date: string) =>
-    itemsOnDate(items, date, filter).filter((item) => item.kind === "all_day");
-  const hasAllDay = days.some((day) => allDayPlansOnDate(day.date).length > 0);
+    itemsOnDate(
+      items.map((item) =>
+        interaction?.preview?.dateResize?.id === item.id
+          ? interaction.preview.dateResize
+          : item,
+      ),
+      date,
+      filter,
+    ).filter((item) => item.kind === "all_day");
+  const hasAllDay = days.some(
+    (day) =>
+      allDayPlansOnDate(day.date).length > 0 ||
+      itemsOnDate(items, day.date, filter).some(
+        (item) => item.kind === "all_day",
+      ),
+  );
   const unscheduledPlansOnDate = (date: string) =>
     itemsOnDate(items, date, filter).filter(
       (item) => item.kind === "unscheduled",
@@ -391,7 +405,9 @@ export function CalendarGrid({
                       date,
                       event.shiftKey
                         ? "extend"
-                        : event.metaKey || event.ctrlKey
+                        : interaction?.multiSelect ||
+                            event.metaKey ||
+                            event.ctrlKey
                           ? "toggle"
                           : "replace",
                     );
@@ -441,13 +457,18 @@ export function CalendarGrid({
                           day.date,
                           event.shiftKey
                             ? "extend"
-                            : event.metaKey || event.ctrlKey
+                            : interaction?.multiSelect ||
+                                event.metaKey ||
+                                event.ctrlKey
                               ? "toggle"
                               : "replace",
                         );
                       }}
                       onDoubleClick={() => {
-                        if (!suppressHeaderClick.current)
+                        if (
+                          !suppressHeaderClick.current &&
+                          !interaction?.multiSelect
+                        )
                           router.push(calendarHref(day.date, "day"), {
                             scroll: false,
                           });
@@ -526,6 +547,7 @@ export function CalendarGrid({
                           <CalendarItemButton
                             key={item.id}
                             item={item}
+                            date={day.date}
                             compact
                             titleOnly
                             onOpen={() => onOpenItem(item)}

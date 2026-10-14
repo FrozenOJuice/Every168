@@ -1,5 +1,6 @@
 import {
   addDays,
+  localDate,
   instantToLocalInput,
   localInputToInstant,
 } from "@168hours/domain-utils";
@@ -35,6 +36,22 @@ export function endAfter(start: string, duration: number, timezone: string) {
 }
 
 export function editorTimes(editor: TimeEditor, timezone: string) {
+  if (editor.allDayItem) {
+    const item = editor.allDayItem;
+    const minute = currentHourMinute(new Date().toISOString(), timezone);
+    const startsAt = inputAtMinute(item.date!, minute);
+    const endsAt = inputAtMinute(
+      item.endDate!,
+      item.date === item.endDate ? minute + 60 : Math.min(1439, minute + 60),
+    );
+    let duration = 3600000;
+    try {
+      duration = elapsedMilliseconds(startsAt, endsAt, timezone);
+    } catch {
+      /* Keep clock-change inputs editable. */
+    }
+    return { startsAt, endsAt, duration };
+  }
   const source = editor.item ?? editor.linkedBlock ?? editor.duplicateOf;
   const duration = source
     ? Date.parse(source.endsAt) - Date.parse(source.startsAt)
@@ -67,4 +84,14 @@ export function editorTimes(editor: TimeEditor, timezone: string) {
     );
   }
   return { startsAt, endsAt, duration };
+}
+export function coveredPlanDates(
+  startsAt: string,
+  endsAt: string,
+  timezone: string,
+) {
+  return {
+    date: localDate(startsAt, timezone),
+    endDate: localDate(new Date(Date.parse(endsAt) - 1), timezone),
+  };
 }

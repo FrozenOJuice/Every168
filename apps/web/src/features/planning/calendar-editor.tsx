@@ -7,7 +7,7 @@ import { calendarHref } from "./calendar-layout";
 import { invalidateCalendar } from "./invalidate-calendar";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Block, Week } from "@168hours/contracts";
+import type { Block, CalendarItem, Week } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
@@ -36,13 +36,16 @@ export function CalendarEditor({
   onChange: (editor: TimeEditor) => void;
   onSaved: (result: CalendarSaveResult) => void;
   onSeries: (id: string) => void;
-  onRepeat: (block: Block) => void;
+  onRepeat: (block: Block | CalendarItem) => void;
 }) {
   const interaction = useCalendarInteractions(),
     router = useRouter();
   const cache = useQueryClient();
   const [formBusy, setFormBusy] = useState(false);
   const { kind, item } = editor;
+  const plan =
+    editor.allDayItem ??
+    (kind === "block" && item && "seriesId" in item ? item : undefined);
   const automatic =
     item && "sourceType" in item && item.sourceType !== "manual";
   const linked =
@@ -75,14 +78,14 @@ export function CalendarEditor({
   return (
     <CalendarPlanPopover
       date={editor.date}
-      recordId={item?.id ?? editor.duplicateOf?.id}
+      recordId={plan?.id ?? item?.id ?? editor.duplicateOf?.id}
       busy={remove.isPending}
       onBusyChange={setFormBusy}
       title={
         automatic
           ? "Recorded activity"
-          : item
-            ? "Edit " + (kind === "block" ? "block" : "recorded time")
+          : item || plan
+            ? "Edit " + (kind === "block" ? "plan" : "recorded time")
             : editor.duplicateOf
               ? "Duplicate block"
               : kind === "block"
@@ -91,11 +94,11 @@ export function CalendarEditor({
       }
       onClose={onClose}
     >
-      {item && "seriesId" in item && item.seriesId && (
+      {plan?.seriesId && (
         <CalendarRepeatSummary
-          id={item.seriesId}
+          id={plan.seriesId}
           disabled={formBusy || remove.isPending || interaction?.busy}
-          onEdit={() => onSeries(item.seriesId!)}
+          onEdit={() => onSeries(plan.seriesId!)}
         />
       )}
       {automatic ? (
@@ -127,9 +130,49 @@ export function CalendarEditor({
         <TimeForm
           {...editor}
           compact
+          allowAllDay={kind === "block"}
           onSaved={onSaved}
           disabled={remove.isPending}
         />
+      )}
+      {editor.allDayItem && (
+        <details className="calendar-block-actions">
+          <summary>Actions</summary>
+          <fieldset
+            className="editor-actions"
+            disabled={formBusy || interaction?.busy}
+          >
+            {!editor.allDayItem.seriesId && (
+              <button
+                className="button"
+                onClick={() => onRepeat(editor.allDayItem!)}
+              >
+                Repeat…
+              </button>
+            )}
+            <button
+              className="button"
+              onClick={() =>
+                onChange({
+                  kind: "block",
+                  date: editor.allDayItem!.date!,
+                  fromItem: editor.allDayItem,
+                })
+              }
+            >
+              Create timed copy…
+            </button>
+            <button
+              className="button danger"
+              onClick={() => {
+                interaction?.deleteItem(editor.allDayItem!);
+                onClose();
+              }}
+            >
+              Delete plan
+            </button>
+          </fieldset>
+        </details>
       )}
       {linkedPlan && (
         <p className="notice">

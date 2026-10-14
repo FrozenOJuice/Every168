@@ -77,6 +77,7 @@ export function compose(input: ConfigInput) {
     goals,
     planning,
     calendarItems,
+    identity,
     runInTransaction,
   );
   const templates = templatesService(
@@ -90,6 +91,7 @@ export function compose(input: ConfigInput) {
     calendarSelectionRepository(db),
     planning,
     calendarItems,
+    identity,
     runInTransaction,
   );
   const routines = routinesService(routinesRepository(db));

@@ -26,6 +26,17 @@ const details = () => ({
   categoryId: uuid("category_id"),
   goalId: uuid("goal_id"),
 });
+export const editedCalendarGroups = pgTable("edited_calendar_groups", {
+  ...ownedColumns(),
+  blockEdits: jsonb("block_edits")
+    .$type<{ id: string; undoId: string }[]>()
+    .notNull(),
+  beforeItems: jsonb("before_items").$type<CalendarItem[]>().notNull(),
+  afterItems: jsonb("after_items").$type<CalendarItem[]>().notNull(),
+  itemSeriesStates: jsonb("item_series_states")
+    .$type<Record<string, SeriesUndoState>>()
+    .notNull(),
+});
 export const calendarItems = pgTable(
   "calendar_items",
   {

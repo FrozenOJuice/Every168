@@ -19,6 +19,7 @@ export function CalendarPlanPopover({
   onBusyChange,
   onClose,
   children,
+  container,
 }: {
   date?: string;
   recordId?: string;
@@ -27,6 +28,7 @@ export function CalendarPlanPopover({
   onBusyChange?: (busy: boolean) => void;
   onClose: () => void;
   children: ReactNode;
+  container?: Element | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -101,9 +103,10 @@ export function CalendarPlanPopover({
       panel.style.visibility = "visible";
     }
     place();
-    panel
-      .querySelector<HTMLInputElement>('input[name="title"]')
-      ?.focus({ preventScroll: true });
+    (
+      panel.querySelector<HTMLInputElement>('input[name="title"]') ??
+      panel.querySelector<HTMLInputElement>("form input")
+    )?.focus({ preventScroll: true });
     const observer = new ResizeObserver(place);
     observer.observe(panel);
     const grid = document.querySelector(".calendar-grid");
@@ -186,6 +189,6 @@ export function CalendarPlanPopover({
         {children}
       </FormBusyContext.Provider>
     </div>,
-    document.body,
+    container ?? document.body,
   );
 }

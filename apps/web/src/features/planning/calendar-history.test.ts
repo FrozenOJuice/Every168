@@ -271,3 +271,39 @@ it("advances all-day series occurrence revisions after an individual edit is und
     }),
   ).toEqual([{ ...series, items: [{ id: "item", version: 3 }] }]);
 });
+
+it("group movement advances every affected predecessor and keeps one inverse for redo", async () => {
+  const { emptyHistory, addHistoryAction, finishHistoryStep } =
+    await import("./calendar-history");
+  const copy: CalendarAction = {
+    key: "copy",
+    kind: "copy",
+    blocks: [{ id: "a", version: 1 }],
+    items: [{ id: "item", version: 1 }],
+  };
+  const group: CalendarAction = {
+    key: "group",
+    kind: "group-edit",
+    undoId: "group-undo",
+    blocks: [{ id: "a", version: 2 }],
+    items: [{ id: "item", version: 2 }],
+  };
+  const refs = {
+    blocks: [{ id: "a", version: 3 }],
+    items: [{ id: "item", version: 3 }],
+  };
+  const inverse = { ...group, undoId: "group-redo", ...refs };
+  const state = finishHistoryStep(
+    addHistoryAction(addHistoryAction(emptyHistory(), copy), group),
+    "undo",
+    group,
+    inverse,
+    null,
+    refs,
+  );
+  expect(state.actions).toEqual([{ ...copy, ...refs }]);
+  expect(state.redo).toEqual([inverse]);
+  expect(undoAction([group, renamed], renamed, restored(4))).toEqual([
+    { ...group, blocks: [{ id: "a", version: 4 }] },
+  ]);
+});

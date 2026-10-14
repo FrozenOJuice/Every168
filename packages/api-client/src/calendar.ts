@@ -12,6 +12,7 @@ import type {
   SeriesResult,
   SeriesUndoInput,
   SeriesUndoResult,
+  PlanConversionInput,
   CalendarSearchQuery,
   SearchRecord,
   Page,
@@ -22,6 +23,8 @@ import type {
   SnapshotPasteInput,
   GroupDeleteInput,
   GroupDeleteUndoInput,
+  SelectionMoveInput,
+  SelectionMoveUndoInput,
   TemplateCaptureInput,
   CalendarTemplate,
 } from "@168hours/contracts";
@@ -29,6 +32,12 @@ import { body, query, writeHeaders, type Http } from "./http";
 export function calendarClient(http: Http) {
   const root = "/api/v1/calendar";
   return {
+    convertCalendarPlan: (v: PlanConversionInput, key?: string) =>
+      http<SeriesUndoResult>(root + "/plans/convert", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
     getCalendarActivity: (from: string, to: string) =>
       http<CalendarActivityResult>(root + "/activity" + query({ from, to })),
     getTimeBlock: (id: string) => http<Block>("/api/v1/time-blocks/" + id),
@@ -169,6 +178,18 @@ export function calendarClient(http: Http) {
       }),
     deleteCalendarSelection: (v: GroupDeleteInput, key?: string) =>
       http<{ ok: true; undoId: string }>(root + "/selection/delete", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
+    moveCalendarSelection: (v: SelectionMoveInput, key?: string) =>
+      http<SeriesUndoResult>(root + "/selection/move", {
+        method: "POST",
+        body: body(v),
+        headers: writeHeaders(key),
+      }),
+    undoCalendarSelectionMove: (v: SelectionMoveUndoInput, key?: string) =>
+      http<SeriesUndoResult>(root + "/selection/move/undo", {
         method: "POST",
         body: body(v),
         headers: writeHeaders(key),

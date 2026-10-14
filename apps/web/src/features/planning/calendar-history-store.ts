@@ -49,6 +49,13 @@ const actionSchema: z.ZodType<CalendarAction> = z.discriminatedUnion("kind", [
   }),
   z.object({
     ...base,
+    kind: z.literal("group-edit"),
+    undoId: z.string().min(1),
+    blocks: z.array(ref).max(100),
+    items: z.array(ref).max(100),
+  }),
+  z.object({
+    ...base,
     kind: z.literal("item-edit"),
     itemId: z.string().min(1),
     version: block.version,
@@ -57,7 +64,7 @@ const actionSchema: z.ZodType<CalendarAction> = z.discriminatedUnion("kind", [
   }),
   z.object({
     ...base,
-    kind: z.literal("series"),
+    kind: z.enum(["series", "conversion"]),
     items: z.array(ref).max(732).optional(),
     undoId: z.string().min(1),
     blocks: z.array(ref).max(732),

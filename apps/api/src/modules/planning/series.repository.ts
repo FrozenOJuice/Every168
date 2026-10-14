@@ -23,6 +23,26 @@ import { timeBlocks } from "./planning.table.js";
 export function seriesRepository(db: Database) {
   const owned = (u: string, id: string) => and(eq(t.userId, u), eq(t.id, id));
   return {
+    async saveBlock(u: string, block: Block, ctx: TransactionContext) {
+      const {
+        id,
+        version,
+        createdAt,
+        updatedAt: _updatedAt,
+        ...values
+      } = block;
+      await databaseFor(db, ctx)
+        .insert(timeBlocks)
+        .values({
+          ...values,
+          id,
+          userId: u,
+          version: version + 1,
+          createdAt: new Date(createdAt),
+          startsAt: new Date(block.startsAt),
+          endsAt: new Date(block.endsAt),
+        });
+    },
     async recordChange(
       u: string,
       seriesId: string,

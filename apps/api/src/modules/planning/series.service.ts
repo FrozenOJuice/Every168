@@ -7,6 +7,14 @@ import {
   seriesUndoInput,
   blockSchema,
   calendarItemSchema,
+  planConversionInput,
+  blockInput,
+  calendarItemInput,
+  type Block,
+  type CalendarItem,
+  type BlockInput,
+  type CalendarItemInput,
+  type PlanConversionInput,
   type SeriesInput,
   type SeriesCreateInput,
   type SeriesUpdateInput,
@@ -19,10 +27,12 @@ import {
   expandPlannedSeries,
   instantToLocalInput,
 } from "@168hours/domain-utils";
+import { randomUUID } from "node:crypto";
 import type { CategoriesService } from "../categories/categories.service.js";
 import type { GoalsService } from "../goals/goals.service.js";
 import type { PlanningService } from "./planning.service.js";
 import type { CalendarItemsService } from "./calendar-items.service.js";
+import type { IdentityService } from "../identity/identity.service.js";
 import type { seriesRepository } from "./series.repository.js";
 import type { SeriesSnapshot } from "./planning.types.js";
 import type {
@@ -65,6 +75,7 @@ export function seriesService(
   goals: GoalsService,
   planning: PlanningService,
   items: CalendarItemsService,
+  identity: IdentityService,
   transaction: RunInTransaction,
 ) {
   async function validate(
@@ -89,6 +100,37 @@ export function seriesService(
           .undoId,
       );
     for (const item of state.items) await repo.removeItem(u, item.id, ctx);
+  }
+  async function retype(
+    u: string,
+    old: Block | CalendarItem,
+    input: BlockInput | CalendarItemInput,
+    ctx: TransactionContext,
+    removed: string[],
+    exception: boolean,
+  ) {
+    const metadata = {
+      id: old.id,
+      version: old.version,
+      createdAt: old.createdAt,
+      updatedAt: old.updatedAt,
+      seriesId: old.seriesId,
+      occurrenceDate: old.occurrenceDate,
+      isException: exception,
+    };
+    if ("startsAt" in old) {
+      removed.push(
+        (await planning.deleteBlockWithUndo(u, old.id, old.version, ctx, false))
+          .undoId,
+      );
+      const next = calendarItemSchema.parse({ ...metadata, ...input });
+      await repo.saveItem(u, next, ctx);
+      return next;
+    }
+    await repo.removeItem(u, old.id, ctx);
+    const next = blockSchema.parse({ ...metadata, ...input });
+    await repo.saveBlock(u, next, ctx);
+    return next;
   }
   async function materialize(
     u: string,
@@ -133,6 +175,35 @@ export function seriesService(
       if (!desired.has(old.occurrenceDate!) && !keep(old))
         await repo.removeItem(u, old.id, ctx);
     for (const o of expanded.occurrences) {
+      const opposite =
+        v.kind === "all_day"
+          ? previous.blocks.find((b) => b.occurrenceDate === o.date)
+          : previous.items.find((b) => b.occurrenceDate === o.date);
+      if (opposite && keep(opposite)) continue;
+      const details = {
+        title: v.title,
+        notes: v.notes,
+        categoryId: v.categoryId,
+        goalId: v.goalId,
+      };
+      if (opposite) {
+        await retype(
+          u,
+          opposite,
+          v.kind === "all_day"
+            ? {
+                ...details,
+                kind: "all_day",
+                date: o.date,
+                endDate: addDays(o.date, v.dateSpan - 1),
+              }
+            : { ...details, startsAt: o.startsAt, endsAt: o.endsAt },
+          ctx,
+          removed,
+          false,
+        );
+        continue;
+      }
       if (v.kind === "all_day") {
         const old = previous.items.find((b) => b.occurrenceDate === o.date);
         if (old && keep(old)) continue;
@@ -196,19 +267,26 @@ export function seriesService(
     version: number,
     ctx?: TransactionContext,
     replaceOccurrenceId?: string,
+    convertedInput?: {
+      input: BlockInput | CalendarItemInput;
+      isException: boolean;
+    },
   ) {
     return transaction(async (tx) => {
       const v = seriesUpdateInput.parse(input);
       const old = assertRevision(await repo.get(u, id, tx), version);
-      if (old.kind !== v.kind)
-        throw new AppError(
-          422,
-          "SERIES_KIND",
-          "Keep the series type unchanged.",
-        );
       const before = [await repo.snapshot(u, id, tx)];
       const removed: string[] = [];
       const rule = await validate(u, ruleOf(v), tx);
+      if (
+        rule.kind !== old.kind &&
+        expandSeries(rule, old.excludedDates).skippedDates.length
+      )
+        throw new AppError(
+          422,
+          "CONVERSION_TIME",
+          "This time falls in a daylight-saving gap on an occurrence date. Choose another start time.",
+        );
       let targetId = id;
       let excluded = old.excludedDates;
       if (v.scope === "following") {
@@ -280,6 +358,31 @@ export function seriesService(
         tx,
         removed,
       );
+      if (replaceOccurrenceId && convertedInput) {
+        const state = await repo.snapshot(u, targetId, tx);
+        const block = state.blocks.find((b) => b.id === replaceOccurrenceId);
+        const item = state.items.find((b) => b.id === replaceOccurrenceId);
+        if (block && "startsAt" in convertedInput.input)
+          await repo.restoreOccurrence(
+            u,
+            {
+              ...block,
+              ...convertedInput.input,
+              isException: convertedInput.isException,
+            },
+            tx,
+          );
+        if (item && "kind" in convertedInput.input)
+          await repo.saveItem(
+            u,
+            {
+              ...item,
+              ...convertedInput.input,
+              isException: convertedInput.isException,
+            },
+            tx,
+          );
+      }
       return result(u, targetId, before, removed, tx, expanded.skippedDates);
     }, ctx);
   }
@@ -334,6 +437,140 @@ export function seriesService(
     }, ctx);
   }
   return {
+    convertPlan(
+      u: string,
+      input: PlanConversionInput,
+      ctx?: TransactionContext,
+    ) {
+      return transaction(async (tx) => {
+        const v = planConversionInput.parse(input);
+        if ((await identity.getPreferences(u, tx)).timezone !== v.timezone)
+          throw new AppError(
+            409,
+            "CONVERSION_CONFLICT",
+            "Your timezone changed. Open the plan again.",
+          );
+        const source = assertRevision(
+          v.source.kind === "block"
+            ? await planning.getBlock(u, v.source.id, tx)
+            : await items.get(u, v.source.id, tx),
+          v.source.version,
+        );
+        const old =
+          "startsAt" in source
+            ? blockSchema.parse(json(source))
+            : calendarItemSchema.parse(json(source));
+        if ("kind" in old && old.kind !== "all_day")
+          throw new AppError(
+            422,
+            "CONVERSION_KIND",
+            "Choose a timed or all-day plan.",
+          );
+        const target =
+          v.target.kind === "timed"
+            ? blockInput.parse(v.target.input)
+            : calendarItemInput.parse(v.target.input);
+        if (target.categoryId) await categories.get(u, target.categoryId, tx);
+        if (target.goalId) await goals.get(u, target.goalId, tx);
+        const parent = old.seriesId
+          ? found(await repo.get(u, old.seriesId, tx))
+          : null;
+        if (v.scope !== "this") {
+          if (!parent)
+            throw new AppError(
+              422,
+              "CONVERSION_SCOPE",
+              "Choose one plan, or an occurrence in a repeating series.",
+            );
+          assertRevision(parent, v.seriesVersion ?? 0);
+          const rule = ruleOf(parent);
+          rule.kind = v.target.kind;
+          for (const field of [
+            "title",
+            "notes",
+            "categoryId",
+            "goalId",
+          ] as const)
+            if (target[field] !== old[field])
+              Object.assign(rule, { [field]: target[field] });
+          const oldDate =
+            "startsAt" in old
+              ? instantToLocalInput(old.startsAt, v.timezone).slice(0, 10)
+              : old.date!;
+          const nextDate =
+            "startsAt" in target
+              ? instantToLocalInput(target.startsAt, v.timezone).slice(0, 10)
+              : target.date!;
+          const delta = daysBetween(oldDate, nextDate);
+          rule.startDate = addDays(
+            v.scope === "following" ? old.occurrenceDate! : parent.startDate,
+            delta,
+          );
+          rule.untilDate = addDays(parent.untilDate, delta);
+          rule.weekdays = parent.weekdays.map((d) => (d + (delta % 7) + 7) % 7);
+          if ("startsAt" in target) {
+            const time = instantToLocalInput(target.startsAt, parent.timezone);
+            rule.startMinute =
+              Number(time.slice(11, 13)) * 60 + Number(time.slice(14, 16));
+            rule.durationMinutes =
+              (Date.parse(target.endsAt) - Date.parse(target.startsAt)) / 60000;
+          } else rule.dateSpan = daysBetween(target.date!, target.endDate!) + 1;
+          const preview = expandSeries(rule, parent.excludedDates);
+          if (preview.skippedDates.length)
+            throw new AppError(
+              422,
+              "CONVERSION_TIME",
+              "Some occurrences fall in a missing clock time. Choose another start time.",
+            );
+          const result = await update(
+            u,
+            parent.id,
+            {
+              ...rule,
+              scope: v.scope,
+              fromDate: old.occurrenceDate!,
+              preserveExceptions: v.preserveExceptions,
+            },
+            parent.version,
+            tx,
+            old.id,
+            {
+              input: target,
+              isException: old.isException && v.preserveExceptions,
+            },
+          );
+          return {
+            undoId: result.undoId,
+            blocks: result.blocks,
+            items: result.items,
+          };
+        }
+        if ("startsAt" in old === (v.target.kind === "timed"))
+          throw new AppError(
+            422,
+            "CONVERSION_KIND",
+            "Choose the other plan mode.",
+          );
+        const root = parent?.id ?? randomUUID();
+        const before = parent
+          ? await repo.snapshot(u, root, tx)
+          : {
+              ...empty(root),
+              blocks: "startsAt" in old ? [old] : [],
+              items: "kind" in old ? [old] : [],
+            };
+        const removed: string[] = [];
+        const next = await retype(u, old, target, tx, removed, !!parent);
+        const tracked = {
+          ...before,
+          blocks: [...before.blocks, ...("startsAt" in next ? [next] : [])],
+          items: [...before.items, ...("kind" in next ? [next] : [])],
+        };
+        const after = await repo.snapshot(u, root, tx, tracked);
+        const change = await receipt(u, [before], [after], removed, tx);
+        return { undoId: change.id, ...refs([after]) };
+      }, ctx);
+    },
     async get(u: string, id: string) {
       return found(await repo.get(u, id));
     },
@@ -392,6 +629,9 @@ export function seriesService(
             "Choose the occurrence being edited.",
           );
         let rule = ruleOf(old);
+        let convertedInput:
+          | { input: BlockInput | CalendarItemInput; isException: boolean }
+          | undefined;
         if (v.occurrence) {
           const o = v.occurrence;
           const record = assertRevision(
@@ -410,16 +650,23 @@ export function seriesService(
             const change = o.block ?? o.item;
             if (
               !change ||
-              (old.kind === "timed") !== !!o.block ||
+              (o.kind === "block") !== !!o.block ||
               (o.item && o.item.kind !== "all_day") ||
-              (o.kind === "block") !== (old.kind === "timed")
+              ("kind" in record && record.kind !== "all_day")
             )
               throw new AppError(
                 422,
                 "SERIES_SCOPE",
-                "Choose details matching the series type.",
+                "Choose details matching this occurrence's type.",
               );
             const details = { ...rule };
+            details.kind = o.block ? "timed" : "all_day";
+            const modeChanged = details.kind !== old.kind;
+            if (modeChanged)
+              convertedInput = {
+                input: change,
+                isException: v.preserveExceptions && record.isException,
+              };
             for (const field of [
               "title",
               "notes",
@@ -438,22 +685,26 @@ export function seriesService(
               dateDelta = daysBetween(before.slice(0, 10), after.slice(0, 10));
               const minutes = (s: string) =>
                 Number(s.slice(11, 13)) * 60 + Number(s.slice(14, 16));
-              if (minutes(before) !== minutes(after))
+              if (modeChanged || minutes(before) !== minutes(after))
                 details.startMinute = minutes(after);
               const duration =
                 (Date.parse(o.block.endsAt) - Date.parse(o.block.startsAt)) /
                 60000;
               if (
+                modeChanged ||
                 duration !==
-                (new Date(record.endsAt).getTime() -
-                  new Date(record.startsAt).getTime()) /
-                  60000
+                  (new Date(record.endsAt).getTime() -
+                    new Date(record.startsAt).getTime()) /
+                    60000
               )
                 details.durationMinutes = duration;
             } else if (o.item && "date" in record) {
               dateDelta = daysBetween(record.date!, o.item.date!);
               const span = daysBetween(o.item.date!, o.item.endDate!) + 1;
-              if (span !== daysBetween(record.date!, record.endDate!) + 1)
+              if (
+                modeChanged ||
+                span !== daysBetween(record.date!, record.endDate!) + 1
+              )
                 details.dateSpan = span;
             }
             details.startDate = addDays(
@@ -489,6 +740,7 @@ export function seriesService(
           version,
           tx,
           v.occurrence?.id,
+          convertedInput,
         );
       }, ctx);
     },

@@ -157,18 +157,15 @@ export function CalendarDayFeed({
                 <span>Recorded: {next.activity.title}</span>
               </Link>
             ) : (
-              <button
-                className="day-at-a-glance-next"
-                type="button"
-                key={next.key}
-                onClick={() => next.record && onOpen(next.record, date)}
-              >
-                <strong>Next · {formatTime(next.at, week.timezone)}</strong>
-                <span>
-                  {next.record?.kind === "block" ? "Planned: " : "Recorded: "}
-                  {next.record?.item.title}
-                </span>
-              </button>
+              next.record && (
+                <CalendarRecord
+                  next
+                  key={next.key}
+                  record={next.record}
+                  week={week}
+                  onOpen={() => onOpen(next.record!, date)}
+                />
+              )
             ))}
         </div>
       )}

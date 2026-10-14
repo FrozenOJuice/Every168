@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CalendarActionButtons } from "./calendar-context-menu";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, type RefObject } from "react";
 import {
@@ -144,6 +145,7 @@ export function CalendarToolbar({
           </div>
         </div>
       </header>
+      <CalendarActionButtons />
       {jump && (
         <CalendarDatePicker
           date={date}

@@ -66,7 +66,7 @@ test("delete one all-day plan from selection or editor and undo without confirma
       await expect(plan).toBeVisible();
     }
     await plan.dblclick();
-    const editor = page.getByRole("dialog", { name: "Edit all-day plan" });
+    const editor = page.getByRole("dialog", { name: "Edit plan" });
     await expect(editor).toBeVisible();
     // Backspace inside an editor must keep editing text, not delete the plan.
     await editor.getByLabel("Title", { exact: true }).fill("All-day trips");
@@ -85,6 +85,7 @@ test("delete one all-day plan from selection or editor and undo without confirma
         await route.continue();
       });
     }
+    await editor.getByText("Actions", { exact: true }).click();
     await editor
       .getByRole("button", { name: "Delete plan", exact: true })
       .click();

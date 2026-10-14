@@ -16,10 +16,12 @@ export function CalendarDayRecords({
   items,
   filter,
   now,
+  dialogRef,
 }: {
   date: string;
   week: Week;
   now: string;
+  dialogRef?: (element: HTMLDialogElement | null) => void;
   onClose: () => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   items: CalendarItem[];
@@ -31,6 +33,7 @@ export function CalendarDayRecords({
   });
   return (
     <Dialog
+      dialogRef={dialogRef}
       title={formatDate(date, {
         weekday: "long",
         month: "short",

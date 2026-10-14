@@ -176,7 +176,8 @@ test("plan menus reuse editing, clipboard-independent duplication, group deletio
   await record(page, first.id).click();
   await record(page, item.id).click({ modifiers: ["Meta"] });
   await right(page, first.id);
-  await expect(menu(page).getByRole("menuitem")).toHaveCount(6);
+  await expect(menu(page).getByRole("menuitem")).toHaveCount(7);
+  await expect(action(page, "Move…")).toBeEnabled();
   await expect(action(page, "Edit")).toHaveCount(0);
   await expect(record(page, item.id)).toHaveAttribute("aria-pressed", "true");
   await choose(page, "Duplicate");

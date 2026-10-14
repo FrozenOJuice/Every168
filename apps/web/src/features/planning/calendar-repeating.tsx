@@ -7,6 +7,7 @@ import type {
   CalendarItem,
   CalendarItemInput,
   SeriesInput,
+  PlanConversionInput,
 } from "@168hours/contracts";
 import { uncertainWrite } from "@168hours/api-client";
 import { api } from "@/lib/api";
@@ -110,6 +111,45 @@ export function CalendarOccurrenceOptions({
   );
 }
 const preparedChanges = new Map<string, { id: string; version: number }>();
+export async function convertPlan(
+  plan: Block | CalendarItem,
+  target: PlanConversionInput["target"],
+  scope: OccurrenceScope,
+  timezone: string,
+  preserveExceptions: boolean,
+  key: string,
+) {
+  let series = preparedChanges.get(key);
+  if (scope !== "this" && plan.seriesId && !series) {
+    const parent = await api.getCalendarSeries(plan.seriesId);
+    series = { id: parent.id, version: parent.version };
+    preparedChanges.set(key, series);
+    if (preparedChanges.size > 100)
+      preparedChanges.delete(preparedChanges.keys().next().value!);
+  }
+  try {
+    const result = await api.convertCalendarPlan(
+      {
+        source: {
+          kind: "startsAt" in plan ? "block" : "item",
+          id: plan.id,
+          version: plan.version,
+        },
+        target,
+        scope,
+        timezone,
+        preserveExceptions,
+        seriesVersion: series?.version,
+      },
+      key,
+    );
+    preparedChanges.delete(key);
+    return result;
+  } catch (error) {
+    if (!uncertainWrite(error)) preparedChanges.delete(key);
+    throw error;
+  }
+}
 export async function changeOccurrence(
   plan: Block | CalendarItem,
   kind: "block" | "item",
@@ -122,8 +162,12 @@ export async function changeOccurrence(
 ) {
   let series = preparedChanges.get(key);
   if (!series) {
-    series = await api.getCalendarSeries(plan.seriesId!);
-    preparedChanges.set(key, { id: series.id, version: series.version });
+    const parent = await api.getCalendarSeries(plan.seriesId!);
+    series = { id: parent.id, version: parent.version };
+    preparedChanges.set(key, {
+      id: series.id,
+      version: series.version,
+    });
     if (preparedChanges.size > 100)
       preparedChanges.delete(preparedChanges.keys().next().value!);
   }
@@ -152,14 +196,17 @@ export type OccurrenceRequest = {
   kind: "block" | "item";
   operation: "edit" | "delete";
   input?: BlockInput;
+  itemInput?: CalendarItemInput;
   onThis: () => void;
 };
 export function CalendarOccurrenceScope({
   request,
   onClose,
+  container,
 }: {
   request: OccurrenceRequest;
   onClose: () => void;
+  container?: Element | null;
 }) {
   const interaction = useCalendarInteractions()!;
   const cache = useQueryClient();
@@ -173,7 +220,7 @@ export function CalendarOccurrenceScope({
         scope,
         key,
         request.input,
-        undefined,
+        request.itemInput,
         preserve,
       );
       interaction.history.record({
@@ -198,6 +245,7 @@ export function CalendarOccurrenceScope({
   });
   return (
     <CalendarPlanPopover
+      container={container}
       recordId={request.plan.id}
       date={request.plan.occurrenceDate!}
       title={

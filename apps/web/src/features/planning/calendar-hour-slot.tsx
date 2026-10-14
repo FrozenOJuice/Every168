@@ -70,7 +70,11 @@ export function CalendarHourSlot({
       onPointerMove={updatePreview}
     >
       <button
-        tabIndex={active || (!selected && hour === currentHour) ? 0 : -1}
+        tabIndex={
+          active || (selected?.minute === undefined && hour === currentHour)
+            ? 0
+            : -1
+        }
         className={
           "hour-slot" +
           (tickMinutes > 60 && (hour * 60) % tickMinutes
@@ -83,7 +87,7 @@ export function CalendarHourSlot({
         data-context-hour={hour}
         aria-pressed={active}
         aria-describedby={hintId}
-        aria-label={`Select time on ${date} at ${String(hour).padStart(2, "0")}:00`}
+        aria-label={`Select time on ${date} at ${String(hour).padStart(2, "0")}:${String(active ? selectedMinute % 60 : 0).padStart(2, "0")}`}
         onPointerDown={(event) =>
           interaction?.start(event, "create", undefined, date)
         }
@@ -115,7 +119,8 @@ export function CalendarHourSlot({
       >
         <span id={hintId} className="sr-only">
           Click to select a five-minute time. Double-click or press Enter to
-          create a plan.
+          create a plan. Use Up and Down to step five minutes, or Left and Right
+          to change days.
         </span>
         {active && (
           <span
@@ -140,8 +145,10 @@ export function CalendarHourSlot({
         ref={quickAdd}
         className="slot-quick-add"
         type="button"
-        style={{ top: `${(2.5 / 60) * 100}%` }}
-        aria-label={`Quick actions on ${date} at ${String(hour).padStart(2, "0")}:00`}
+        style={{
+          top: `${(((active ? selectedMinute % 60 : 0) + 2.5) / 60) * 100}%`,
+        }}
+        aria-label={`Quick actions on ${date} at ${String(hour).padStart(2, "0")}:${String(active ? selectedMinute % 60 : 0).padStart(2, "0")}`}
         onPointerDown={(event) => {
           event.stopPropagation();
           quickPress.current = {
@@ -166,7 +173,12 @@ export function CalendarHourSlot({
           const dragged = quickPress.current?.dragged;
           quickPress.current = null;
           if (!dragged && interaction?.quickActionsAvailable)
-            onQuickAction(date, hour * 60 + previewMinute.current);
+            onQuickAction(
+              date,
+              event.detail === 0 && active
+                ? selectedMinute
+                : hour * 60 + previewMinute.current,
+            );
         }}
       >
         <Plus size={14} aria-hidden="true" />

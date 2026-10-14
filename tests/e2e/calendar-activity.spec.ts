@@ -166,7 +166,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   );
   const day = page.getByRole("region", { name: "Daily time grid" });
   const slot = day.getByRole("button", {
-    name: "Select time on 2026-10-07 at 19:00",
+    name: /^Select time on 2026-10-07 at 19:\d{2}$/,
     exact: true,
   });
   await slot.scrollIntoViewIfNeeded();
@@ -334,8 +334,10 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(
     dialog.getByRole("button", { name: "Delete block", exact: true }),
   ).not.toBeVisible();
+  await expect(dialog.getByLabel("All day", { exact: true })).toBeVisible();
   if (testInfo.project.name === "desktop")
-    expect((await dialog.boundingBox())!.height).toBeLessThan(310);
+    // The shared saved-plan editor now includes the All day mode switch.
+    expect((await dialog.boundingBox())!.height).toBeLessThan(350);
   await dialog.getByLabel("Title", { exact: true }).fill("Edited compact plan");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
@@ -352,7 +354,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(page.locator("[data-calendar-draft]")).toBeInViewport();
   await page.keyboard.press("Escape");
   const otherDaySlot = page.getByRole("button", {
-    name: "Select time on 2026-10-08 at 19:00",
+    name: /^Select time on 2026-10-08 at 19:\d{2}$/,
     exact: true,
   });
   await otherDaySlot.click({ position: { x: 15, y: 16 } });

@@ -33,6 +33,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Today returns to the current date in the active view.
 - Switching views follows the selected date: a selected Month day opens its week or day; a selected Week time slice opens that day.
 - Dates, times, and week boundaries follow account settings.
+- Overflow lists support the same plan selection, editing, copy/paste, deletion, right-click actions, and undo/redo as the calendar, including mixed timed/all-day groups.
 
 #### Day
 
@@ -41,6 +42,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Clicking the date opens a small calendar; hovering over another day outlines it.
 - The activity list on the right shows plans and recorded activity for that day.
 - Ongoing activity appears as Now, and the next upcoming item appears as Next.
+- The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up groups organize the remaining activity without repeating Next.
 - Activity from another domain links back to its source.
 
@@ -88,7 +90,8 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Shift-click selects the chronological range from the plan anchor, including plans between them.
 - Timed and all-day plans can be selected together.
 - ⌘-click / Ctrl-click adds or removes individual plans.
-- The plan anchor is the most recently clicked plan, including a ⌘/Ctrl-click. Shift-click uses that anchor.
+- Space selects the focused plan; Shift+Space selects its chronological range, and ⌘/Ctrl+Space adds or removes it. Enter opens the editor.
+- The plan anchor is the most recent click or Space selection without Shift, including a ⌘/Ctrl toggle. Shift selection keeps that anchor.
 
 #### Days
 
@@ -98,8 +101,19 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - In Week and Month, drag across days to select a continuous range.
 - Shift-click selects the range from the day anchor to the clicked day.
 - ⌘-click / Ctrl-click adds or removes individual days.
-- The day anchor is an ordinary click, the start of a drag, or a ⌘/Ctrl-click when nothing was selected. Further ⌘/Ctrl-clicks keep that anchor.
+- The day anchor is an ordinary click or Space selection, the start of a drag, or an individual toggle when nothing was selected. Further individual toggles keep that anchor.
 - Clearing the selection resets its anchor.
+
+#### Keyboard and touch access
+
+- Tab enters the day headings/cells once, then arrow keys move between dates. Month Up/Down moves one week.
+- Arrow navigation continues into adjacent dates, weeks, or months when reaching the visible edge.
+- Space selects the focused day; Shift+Space extends from its anchor, and ⌘/Ctrl+Space toggles it. Shift+arrow extends within the displayed dates.
+- The time grid keeps a Tab entry after selecting a day. Up/Down steps by five minutes; Left/Right moves to the same time on the adjacent day.
+- Select multiple lets taps add or remove plans or days without modifier keys. Done selecting returns to ordinary selection; plan and day groups stay separate.
+- While Select multiple is active, taps toggle selection instead of dragging or double-tap editing/navigation.
+- Actions opens the existing Calendar menu for the selected plans, time, or days, or the viewed day when nothing is selected. For several selected days, the earliest selected day is its paste destination.
+- Actions and Select multiple are also available inside overflow lists. Copy, Paste, Delete, Undo, and Redo use the same operations as shortcuts and right-click menus.
 
 #### Five-minute slices
 
@@ -119,6 +133,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Add uses the selected slice's time, or the current hour on the selected/viewed date when no precise time is selected.
 - Add and double-click drafts start with a one-hour duration; dragging sets the duration directly.
 - A compact editor beside the plan provides its title, date, and start/end times.
+- The same editor creates timed and all-day plans; switch modes with All day.
 - Save creates the plan. Clicking outside or pressing Escape cancels an unsaved draft.
 - A click used to cancel the draft does not also select the calendar underneath it.
 - Plans can overlap and continue past midnight.
@@ -128,14 +143,22 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 - Double-click a plan, or press Enter when it is focused, to open its compact editor.
 - Change its title, date, start/end times, and notes; notes are under More details.
+- Toggle All day when editing to convert the existing plan, keeping its identity, title, and notes. Saving replaces its previous mode; cancelling leaves it unchanged.
+- Turning off All day gives one continuous plan with editable start/end dates and times, including any nights between them.
+- Turning on All day covers the dates occupied by the timed plan; an end exactly at midnight does not add another day.
+- Mode changes support undo and redo as one action, with the same occurrence scopes for repeating plans.
 - Use Duplicate in a timed plan's actions to open a separate draft with the same details.
 - Drag a timed block to another time or day, preserving its duration.
+- Drag any plan in a selected group to move the whole group, including mixed timed/all-day selections. Dragging an unselected plan moves only that plan.
+- Group moves preserve relative local dates, clock-time spacing, and each duration. All-day plans shift by dates and keep their type and span; a time-only move leaves their dates unchanged.
 - A ghost remains at the original position while the moving block snaps to its destination.
+- Group moves show previews and original ghosts for the selected plans. They save atomically and are one undo/redo action.
 - The moving preview shows the title, time range, date, and Escape-to-cancel hint.
 - Drag the top or bottom edge to resize a block; its height changes during the drag.
 - Release to save a move or resize; press Escape to cancel.
 - In Month view, moving a timed plan to another day preserves its clock time.
 - The editor also provides move/resize controls for touch use and precise time entry.
+- Resizing changes only the grabbed plan. Moving a group changes only selected repeating occurrences, leaving their series rules unchanged.
 
 #### Small blocks
 
@@ -152,7 +175,15 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Use one date or a multi-day span.
 - Day and Week show these in the All day row, with compact title-only blocks.
 - Select and copy an all-day plan individually or together with timed plans.
-- Add a time creates a separate timed plan and keeps the original all-day plan.
+- In Week and Month, drag an all-day plan between dates; grabbing a later day of a multi-day plan preserves its full span.
+- Drag the left/start edge to change its first date, or the right/end edge to change its last date. The calendar updates during resizing; Escape cancels, and releasing saves.
+- On touch screens, select the plan before dragging. The editor's date fields remain available in every view, including Day.
+- Single repeating all-day adjustments offer the same occurrence scopes as timed adjustments. All-day moves and resizes support undo and redo.
+- Create timed copy… under Actions opens a separate timed draft and keeps the original all-day plan.
+
+##### Needs work
+
+- Converting a timed plan to all-day preserves recorded activity but detaches its plan links. Undo restores those links; converting back through the editor does not reconnect them.
 
 #### Repeating plans
 
@@ -160,6 +191,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Add repetition while creating a plan, or choose Repeat from an existing plan's editor. The original plan becomes the first occurrence.
 - Choose an end date and preview the occurrences before saving.
 - An occurrence's editor shows its repeating schedule and provides Edit repeating rule.
+- Converting one occurrence keeps it in the series as an individual edit. Series changes preserve individually converted occurrences by default; Replace individual edits applies the series mode to them too.
 - Editing, moving, resizing, or deleting one repeating plan offers This occurrence, This and following occurrences, or Entire series.
 - This and following starts a separate series at the chosen occurrence; earlier occurrences keep their original rule.
 - Series edits preserve other individually edited occurrences within the new date range by default. Choose Replace individual edits to apply the rule to them too.
@@ -205,6 +237,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 ### Right-click menus
 
 - Right-click a timed or all-day plan for Edit, Duplicate, Copy, and Delete. A selected group offers Copy, Duplicate, and Delete.
+- Selected groups also offer Move… to enter a destination date and time precisely. The earliest timed plan is the anchor; an all-day-only group uses its earliest date.
 - Duplicate creates independent plans at the same dates and times without replacing the clipboard; the group is one undo action.
 - Right-click empty Day/Week time for Add plan here or Paste here, snapped to five minutes.
 - Plan menus also offer Paste here. In the Day/Week timed grid, use the five-minute time under the pointer, even over an occupied block; keyboard-opened menus use the focused plan’s start time. Month and all-day row targets use the clicked day and preserve copied clock times. Mixed groups retain their types and spacing; overlap is allowed.
@@ -215,6 +248,10 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Right-click the time column for Reset zoom. Every menu ends with Undo and Redo; unavailable actions are disabled.
 - Shift+F10 or the Context Menu key opens the menu beside the focused plan, day, time slot, or time column. Arrow keys navigate, Enter activates, and Escape closes and returns focus.
 - Menus fit the viewport and close on outside interaction. Text fields retain their native browser menus.
+
+#### Needs work
+
+- Improve the right-click → Move… flow for selected plans.
 
 ### Deletion, undo and redo
 
@@ -273,6 +310,13 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 | Delete / Backspace                   | Delete selected timed or all-day plans              |
 | Enter on a plan                      | Open its editor                                     |
 | Enter on a Week heading / Month cell | Open that date in Day view                          |
+| Space on a day heading / Month cell  | Select that day                                     |
+| Space on a plan                      | Select that plan                                    |
+| Shift+Space                          | Extend the focused plan/day selection               |
+| ⌘/Ctrl+Space                         | Add or remove the focused plan/day                  |
+| Arrow keys on headings / Month cells | Move focus between dates                            |
+| Up/Down on time grid                 | Select the previous/next five-minute slice          |
+| Left/Right on time grid              | Select the same time on the adjacent day            |
 | Escape                               | Cancel an active drag or dismiss an editor/dropdown |
 | R                                    | Reset Day/Week time-grid zoom                       |
 | Shift+F10 / Context Menu key         | Open actions for the focused Calendar target        |

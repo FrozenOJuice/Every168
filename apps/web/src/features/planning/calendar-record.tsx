@@ -14,6 +14,7 @@ export function CalendarRecord({
   detailsOnInteraction = false,
   month = false,
   date,
+  next = false,
 }: {
   record: Record;
   week: Week;
@@ -23,6 +24,7 @@ export function CalendarRecord({
   detailsOnInteraction?: boolean;
   month?: boolean;
   date?: string;
+  next?: boolean;
 }) {
   const interaction = useCalendarInteractions();
   const { item, kind } = record;
@@ -47,14 +49,24 @@ export function CalendarRecord({
         "calendar-record " +
         (compact ? "compact " : "") +
         (short ? "short " : "") +
+        (next ? "day-at-a-glance-next " : "") +
         (kind === "entry" ? "recorded" : "planned") +
         (selected
           ? interaction?.selectedPlanCount === 1
             ? " drag-selected"
             : " plan-selected"
           : "") +
-        (interaction?.draggingId === item.id ? " drag-source" : "")
+        (kind === "block" && interaction?.isDragging("block", item.id)
+          ? " drag-source"
+          : "")
       }
+      onKeyDown={(event) => {
+        if (kind === "block" && interaction && event.key === " ") {
+          event.preventDefault();
+          if (!event.repeat && interaction.quickActionsAvailable)
+            interaction.select(item.id, event);
+        }
+      }}
       onClick={(event) => {
         if (interaction?.busy) return;
         event.currentTarget.focus({ preventScroll: true });
@@ -63,7 +75,8 @@ export function CalendarRecord({
         else onOpen();
       }}
       onDoubleClick={() => {
-        if (kind === "block" && !interaction?.busy) onOpen();
+        if (kind === "block" && !interaction?.busy && !interaction?.multiSelect)
+          onOpen();
       }}
       aria-pressed={kind === "block" ? !!selected : undefined}
       onPointerDown={(event) => {
@@ -75,56 +88,70 @@ export function CalendarRecord({
           ? undefined
           : `${item.title} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`
       }
-      aria-label={`${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}`}
+      aria-label={`${next ? "Next: " : ""}${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}`}
     >
-      <span className="record-time">
-        {!compact && startDate !== endDate && formatDate(startDate) + ", "}
-        {continuing
-          ? endDate > date
-            ? "Continues"
-            : "Until " + formatTime(item.endsAt, week.timezone)
-          : formatTime(item.startsAt, week.timezone, !compact)}
-        {(!compact || resizing) && (
-          <>
-            {" "}
-            {resizing ? "-" : "–"}{" "}
-            {!resizing && startDate !== endDate && formatDate(endDate) + ", "}
-            {formatTime(item.endsAt, week.timezone, true)}
-          </>
-        )}
-      </span>
-      <strong>{item.title}</strong>
-      {resizing && (
-        <span className="record-meta">{formatDate(date ?? startDate)}</span>
-      )}
-      <span className="record-indicators">
-        {kind === "block" && record.item.seriesId && (
+      {next ? (
+        <>
+          <strong>Next · {formatTime(item.startsAt, week.timezone)}</strong>
           <span>
-            <Repeat size={12} aria-hidden="true" />
-            {record.item.isException ? "Exception" : "Repeats"}
+            {kind === "block" ? "Planned: " : "Recorded: "}
+            {item.title}
           </span>
-        )}
-        {kind === "entry" && (
-          <span>
-            <Check size={12} aria-hidden="true" />
-            Recorded
+        </>
+      ) : (
+        <>
+          <span className="record-time">
+            {!compact && startDate !== endDate && formatDate(startDate) + ", "}
+            {continuing
+              ? endDate > date
+                ? "Continues"
+                : "Until " + formatTime(item.endsAt, week.timezone)
+              : formatTime(item.startsAt, week.timezone, !compact)}
+            {(!compact || resizing) && (
+              <>
+                {" "}
+                {resizing ? "-" : "–"}{" "}
+                {!resizing &&
+                  startDate !== endDate &&
+                  formatDate(endDate) + ", "}
+                {formatTime(item.endsAt, week.timezone, true)}
+              </>
+            )}
           </span>
-        )}
-        {!!linked && (
-          <span>
-            <Link2 size={12} aria-hidden="true" />
-            {kind === "block" ? `${linked} linked` : "Linked plan"}
+          <strong>{item.title}</strong>
+          {resizing && (
+            <span className="record-meta">{formatDate(date ?? startDate)}</span>
+          )}
+          <span className="record-indicators">
+            {kind === "block" && record.item.seriesId && (
+              <span>
+                <Repeat size={12} aria-hidden="true" />
+                {record.item.isException ? "Exception" : "Repeats"}
+              </span>
+            )}
+            {kind === "entry" && (
+              <span>
+                <Check size={12} aria-hidden="true" />
+                Recorded
+              </span>
+            )}
+            {!!linked && (
+              <span>
+                <Link2 size={12} aria-hidden="true" />
+                {kind === "block" ? `${linked} linked` : "Linked plan"}
+              </span>
+            )}
+            {overlap && (
+              <span className="overlap-label">
+                <TriangleAlert size={12} aria-hidden="true" />
+                Overlap
+              </span>
+            )}
           </span>
-        )}
-        {overlap && (
-          <span className="overlap-label">
-            <TriangleAlert size={12} aria-hidden="true" />
-            Overlap
-          </span>
-        )}
-      </span>
-      {resizing && (
-        <small className="calendar-drag-hint">Escape to cancel</small>
+          {resizing && (
+            <small className="calendar-drag-hint">Escape to cancel</small>
+          )}
+        </>
       )}
     </button>
   );

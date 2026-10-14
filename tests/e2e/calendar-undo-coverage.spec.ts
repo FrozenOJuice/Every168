@@ -50,7 +50,7 @@ test("undo all-day creation, edits and deletion in sequence", async ({
   await dialog
     .getByLabel("Notes (optional)")
     .fill("Remember the prior details");
-  await dialog.getByRole("button", { name: "Save plan", exact: true }).click();
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(plan("Edited all-day plan")).toBeVisible();
   await plan("Edited all-day plan").click();
   await page.keyboard.press("Delete");

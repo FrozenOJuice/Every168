@@ -4,7 +4,10 @@ import type { SeriesUndoState } from "./planning.types.js";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import { deletedCalendarGroups } from "./calendar.table.js";
+import {
+  deletedCalendarGroups,
+  editedCalendarGroups as edits,
+} from "./calendar.table.js";
 
 export function calendarSelectionRepository(db: Database) {
   const owned = (userId: string, id: string) =>
@@ -13,6 +16,35 @@ export function calendarSelectionRepository(db: Database) {
       eq(deletedCalendarGroups.id, id),
     );
   return {
+    async createEdit(
+      userId: string,
+      values: Pick<
+        typeof edits.$inferInsert,
+        "blockEdits" | "beforeItems" | "afterItems" | "itemSeriesStates"
+      >,
+      context: TransactionContext,
+    ) {
+      return (
+        await databaseFor(db, context)
+          .insert(edits)
+          .values({ userId, ...values })
+          .returning()
+      )[0]!;
+    },
+    async getEdit(userId: string, id: string, context: TransactionContext) {
+      return (
+        await databaseFor(db, context)
+          .select()
+          .from(edits)
+          .where(and(eq(edits.userId, userId), eq(edits.id, id)))
+          .for("update")
+      )[0];
+    },
+    async removeEdit(userId: string, id: string, context: TransactionContext) {
+      await databaseFor(db, context)
+        .delete(edits)
+        .where(and(eq(edits.userId, userId), eq(edits.id, id)));
+    },
     async create(
       userId: string,
       blockUndoIds: string[],

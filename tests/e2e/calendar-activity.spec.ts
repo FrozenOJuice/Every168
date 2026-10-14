@@ -109,14 +109,14 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     await expect(page.locator(".calendar-toolbar-actions button")).toHaveText([
       "Add",
       "",
-      "",
+      "Actions",
     ]);
     await expect(
       page.locator(".calendar-toolbar-actions button").nth(1),
     ).toHaveAttribute("aria-label", "Search and filter calendar");
     await expect(
       page.locator(".calendar-toolbar-actions button").nth(2),
-    ).toHaveAttribute("aria-label", "Calendar tools");
+    ).toHaveAttribute("aria-label", "Actions");
     expect(period.x).toBeCloseTo(sidebar.x, 0);
     expect(period.width).toBeCloseTo(sidebar.width, 0);
     expect(tools.x + tools.width).toBeLessThanOrEqual(period.x);
@@ -143,18 +143,18 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(
     comingUp.getByRole("button", { name: /Later plan/ }),
   ).toHaveCount(0);
-  await expect(feed.getByRole("link", { name: /Recorded walk/ })).toHaveCount(
-    1,
-  );
+  await expect(
+    feed.locator(".activity-record").filter({ hasText: /Recorded walk/ }),
+  ).toHaveCount(1);
   await expect(feed.getByRole("button", { name: /Recorded walk/ })).toHaveCount(
     0,
   );
   await feed.getByText(/3 Water moments/).click();
-  await expect(feed.getByRole("link", { name: /Water.*250 ml/ })).toHaveCount(
-    3,
-  );
   await expect(
-    feed.getByRole("link", { name: /Recorded lunch/ }),
+    feed.locator(".activity-record").filter({ hasText: /Water.*250 ml/ }),
+  ).toHaveCount(3);
+  await expect(
+    feed.locator(".activity-record").filter({ hasText: /Recorded lunch/ }),
   ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
@@ -278,7 +278,10 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   expect(
     (await (await page.request.get("/api/v1/weeks/2026-10-05")).json()).blocks,
   ).toHaveLength(4);
-  await page.getByRole("button", { name: "Calendar tools" }).click();
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
+    .click();
   await dialog.getByRole("button", { name: /^Quick actions/ }).click();
   await dialog.getByRole("button", { name: "Log water", exact: true }).click();
   await dialog.getByLabel("Drank at", { exact: true }).fill("2026-10-07T19:15");
@@ -300,7 +303,9 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   expect(keys).toHaveLength(2);
   expect(keys[0]).toBe(keys[1]);
   await page.unroute("**/api/v1/water-entries");
-  await expect(feed.getByRole("link", { name: /Water.*7:15/ })).toHaveCount(1);
+  await expect(
+    feed.locator(".activity-record").filter({ hasText: /Water.*7:15/ }),
+  ).toHaveCount(1);
   // Verify the point log created no accounting duration.
   const week = await (
     await page.request.get("/api/v1/weeks/2026-10-05")
@@ -396,7 +401,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(marker).toBeVisible();
   await marker.click();
   await expect(
-    dialog.getByRole("link", { name: /Recorded lunch/ }),
+    dialog.locator(".activity-record").filter({ hasText: /Recorded lunch/ }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "Month", exact: true }).click();

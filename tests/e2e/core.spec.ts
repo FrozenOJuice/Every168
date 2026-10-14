@@ -2,9 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
 import type { Block } from "@168hours/contracts";
 import { randomUUID } from "node:crypto";
-test("Core planning, goals, nutrition and exercise flow", async ({
-  page,
-}, testInfo) => {
+test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   let createdBlock: Block | undefined;
   async function loseFirstWriteResponse(path: string) {
     let lost = false;
@@ -34,6 +32,11 @@ test("Core planning, goals, nutrition and exercise flow", async ({
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
+  ).toHaveText(["Calendar"]);
+  for (const route of ["/food", "/exercise", "/exercise/workout/retired"])
+    expect((await page.request.get(route)).status()).toBe(404);
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByLabel("Timezone", { exact: true }).fill("America/Edmonton");
@@ -71,11 +74,11 @@ test("Core planning, goals, nutrition and exercise flow", async ({
     .getByRole("button", { name: /Read a chapter.*planned/ })
     .dblclick();
   await page.getByText("More details", { exact: true }).click();
-  await page.getByText("Actions", { exact: true }).click();
+  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Log actual" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("link", { name: "Goals", exact: true }).click();
+  await page.goto("/goals");
   await page.getByRole("button", { name: "Add goal", exact: true }).click();
   await page.getByLabel("Goal title").fill("Read a book");
   await page.getByLabel("Target date (optional)").fill("2026-12-31");
@@ -114,7 +117,7 @@ test("Core planning, goals, nutrition and exercise flow", async ({
     },
   );
   expect(linkedResponse.status()).toBe(200);
-  await page.getByRole("link", { name: "Goals", exact: true }).click();
+  await page.goto("/goals");
   await page.getByRole("button", { name: "Complete", exact: true }).click();
   await page.getByRole("button", { name: "completed", exact: true }).click();
   await expect(
@@ -181,130 +184,11 @@ test("Core planning, goals, nutrition and exercise flow", async ({
     (await (await page.request.get("/api/v1/time-blocks/" + block.id)).json())
       .notes,
   ).toBe("Saved elsewhere");
-  await page.getByRole("link", { name: "Goals", exact: true }).click();
+  await page.goto("/goals");
   // The preceding reload can cause a full navigation. Wait for client data before clicking server-rendered controls.
   await expect(page.getByText(/^No active goals yet\./)).toBeVisible();
   await page.getByRole("button", { name: "completed", exact: true }).click();
   await page.getByRole("button", { name: "Reopen", exact: true }).click();
-  await page.getByRole("link", { name: "Food", exact: true }).click();
-  await page.getByRole("button", { name: "Add food", exact: true }).click();
-  await page.getByLabel("Food name").fill("Test oats");
-  await page.getByLabel("Serving amount", { exact: true }).fill("40");
-  await page.getByLabel("Calories per serving (kcal)").fill("150");
-  await page.getByLabel("Protein per serving (g)").fill("5");
-  await page.getByRole("button", { name: "Create food", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Log food", exact: true }).click();
-  await page
-    .getByLabel("Saved food")
-    .selectOption({ label: "Test oats · 40 g" });
-  await page.getByLabel("Quantity (servings)").fill("2");
-  await page.getByLabel("Meal", { exact: true }).selectOption("breakfast");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Log food", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByText("300 kcal", { exact: true })).toBeVisible();
-  await expect(page.getByText(/unknown from 1 item/).first()).toBeVisible();
-  await page.getByRole("button", { name: "Food library", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Your food library", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Calories per serving (kcal)").fill("200");
-  await page.getByRole("button", { name: "Save food", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: "Daily log", exact: true }).click();
-  await expect(page.getByText("300 kcal", { exact: true })).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath("food.png"),
-    fullPage: true,
-  });
-  await page.getByRole("link", { name: "Exercise", exact: true }).click();
-  await page.getByRole("button", { name: "Add exercise", exact: true }).click();
-  await page.getByLabel("Exercise name").fill("Squat");
-  await page
-    .getByRole("button", { name: "Create exercise", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Start workout", exact: true })
-    .click();
-  await page.getByLabel("Workout title").fill("Test strength");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Start workout", exact: true })
-    .click();
-  await expect(page).toHaveURL(/exercise\/workout/);
-  await page.getByLabel("Saved exercise").selectOption({ label: "Squat" });
-  await page
-    .getByRole("button", { name: "Add to workout", exact: true })
-    .click();
-  await page.getByLabel("Reps", { exact: true }).fill("5");
-  await page.getByLabel("Load (lb)").fill("100");
-  await page.getByRole("button", { name: "Add set", exact: true }).click();
-  await page.getByLabel("Reps", { exact: true }).nth(1).fill("6");
-  await page.getByLabel("Load (lb)").nth(1).fill("90");
-  await page
-    .getByRole("button", { name: "Move set 2 up", exact: true })
-    .click();
-  await expect(page.getByLabel("Reps", { exact: true }).first()).toHaveValue(
-    "6",
-  );
-  await page.getByRole("button", { name: "New exercise", exact: true }).click();
-  await page.getByLabel("Exercise name", { exact: true }).fill("Plank");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Create exercise", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByLabel("Saved exercise").selectOption({ label: "Plank" });
-  await page
-    .getByRole("button", { name: "Add to workout", exact: true })
-    .click();
-  await page.getByLabel("Time (seconds)").last().fill("60");
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await page
-    .getByRole("link", { name: "Workout history", exact: true })
-    .click();
-  await expect(page).toHaveURL(/exercise\/workout/);
-  await page.getByRole("button", { name: "Save workout", exact: true }).click();
-  await expect(page.getByText("Changes saved.", { exact: true })).toBeVisible();
-  await page
-    .getByRole("link", { name: "Workout history", exact: true })
-    .click();
-  await page
-    .getByRole("link", { name: "Continue workout", exact: true })
-    .click();
-  await expect(page.getByLabel("Reps", { exact: true }).first()).toHaveValue(
-    "6",
-  );
-  await page
-    .getByRole("button", { name: "Finish workout", exact: true })
-    .click();
-  await expect(
-    page.getByText("Completed workout", { exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("link", { name: "Workout history", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Log cardio", exact: true }).click();
-  await page.getByLabel("Activity type").selectOption("skip");
-  await page.getByLabel("Activity title").fill("Test skipping");
-  await page.getByLabel("Duration (minutes)").fill("12");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Log cardio", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Test skipping" }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath("exercise.png"),
-    fullPage: true,
-  });
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Weekly time grid" }),
@@ -321,9 +205,6 @@ test("Core planning, goals, nutrition and exercise flow", async ({
   expect(accessibility.violations).toEqual([]);
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
   await page.getByRole("link", { name: "Day", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: /Test skipping.*recorded/ }),
-  ).toBeVisible();
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/login/);

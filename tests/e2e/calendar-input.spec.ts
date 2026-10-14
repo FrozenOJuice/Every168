@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 const date = "2026-09-07";
 const headers = () => ({
@@ -63,6 +63,17 @@ const heading = (page: Page, day: string) =>
   );
 const actions = (page: Page) =>
   page.getByRole("button", { name: "Actions", exact: true });
+async function multiple(root: Page | Locator, enabled = true, touch = false) {
+  const button = root.getByRole("button", { name: "Actions", exact: true });
+  if (touch) await button.tap();
+  else await button.click();
+  const option = root.getByRole("menuitem", {
+    name: enabled ? "Select multiple" : "Done selecting",
+    exact: true,
+  });
+  if (touch) await option.tap();
+  else await option.click();
+}
 const menu = (page: Page) =>
   page.getByRole("menu", { name: "Calendar actions" });
 const selectedTime = (page: Page) => page.locator("[data-selected-time]");
@@ -201,9 +212,7 @@ test("touch actions support mixed groups, copy, destination paste and undo witho
 }, info) => {
   test.skip(info.project.name === "desktop", "Touch input");
   const plans = await start(page);
-  await page
-    .getByRole("button", { name: "Select multiple", exact: true })
-    .tap();
+  await multiple(page, true, true);
   const first = plan(page, plans[0]!.id),
     allDay = plan(page, plans[2]!.id);
   await first.tap();
@@ -217,7 +226,7 @@ test("touch actions support mixed groups, copy, destination paste and undo witho
   await expect(edit(page)).toHaveCount(0);
   await actions(page).tap();
   await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).tap();
-  await page.getByRole("button", { name: "Done selecting", exact: true }).tap();
+  await multiple(page, false, true);
   await heading(page, date).tap();
   await actions(page).tap();
   await menu(page)
@@ -233,11 +242,9 @@ test("touch actions support mixed groups, copy, destination paste and undo witho
   await expect(
     page.getByRole("region", { name: "Monthly calendar" }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Select multiple", exact: true })
-    .tap();
+  await multiple(page, true, true);
   await expect(
-    page.getByRole("button", { name: "Done selecting", exact: true }),
+    page.locator('.calendar-actions-button[data-selecting="true"]'),
   ).toBeVisible();
   await heading(page, date).tap({ position: { x: 6, y: 6 } });
   await heading(page, "2026-09-09").tap({ position: { x: 6, y: 6 } });
@@ -280,9 +287,7 @@ test("overflow lists expose the same explicit actions and selection toggle", asy
     .first()
     .click();
   const popup = page.locator("dialog[open]");
-  await popup
-    .getByRole("button", { name: "Select multiple", exact: true })
-    .click();
+  await multiple(popup, true, false);
   const first = popup.locator(`[data-calendar-record="${plans[0]!.id}"]`);
   const allDay = popup.locator(`[data-calendar-record="${plans[2]!.id}"]`);
   await first.click();
@@ -302,4 +307,229 @@ test("overflow lists expose the same explicit actions and selection toggle", asy
   await popup.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(first).toBeVisible();
   await expect(allDay).toBeVisible();
+});
+
+test("multi-select context menus preserve selected groups and replace them for unselected timed or all-day plans", async ({
+  page,
+}) => {
+  const plans = await start(page);
+  const first = plan(page, plans[0]!.id),
+    second = plan(page, plans[1]!.id),
+    allDay = plan(page, plans[2]!.id);
+  await multiple(page, true, false);
+  await first.click();
+  await allDay.click();
+  await first.click({ button: "right" });
+  await expect(first).toHaveAttribute("aria-pressed", "true");
+  await expect(allDay).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Edit", exact: true }),
+  ).toHaveCount(0);
+  await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
+  await expect(page.locator(".calendar-notice-message")).toHaveText(
+    "2 plans copied.",
+  );
+  await second.click({ button: "right" });
+  await expect(second).toHaveAttribute("aria-pressed", "true");
+  await expect(first).toHaveAttribute("aria-pressed", "false");
+  await expect(allDay).toHaveAttribute("aria-pressed", "false");
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Edit", exact: true }),
+  ).toBeVisible();
+  await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
+  await expect(page.locator(".calendar-notice-message")).toHaveText(
+    "Plan copied.",
+  );
+  await allDay.click({ button: "right" });
+  await expect(allDay).toHaveAttribute("aria-pressed", "true");
+  await expect(second).toHaveAttribute("aria-pressed", "false");
+  await menu(page)
+    .getByRole("menuitem", { name: "Delete", exact: true })
+    .click();
+  await expect(allDay).toHaveCount(0);
+  await expect(first).toBeVisible();
+  await expect(second).toBeVisible();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(allDay).toBeVisible();
+  await expect(
+    page.locator('.calendar-actions-button[data-selecting="true"]'),
+  ).toBeVisible();
+});
+
+test("keyboard date and view navigation clear plan selections and anchors without clearing the clipboard", async ({
+  page,
+}) => {
+  const plans = await start(page, "week");
+  const gridFirst = page.locator(
+    `.grid-day [data-calendar-record="${plans[0]!.id}"]`,
+  );
+  const gridSecond = page.locator(
+    `.grid-day [data-calendar-record="${plans[1]!.id}"]`,
+  );
+  const gridAllDay = page.locator(
+    `[data-context-all-day] [data-calendar-record="${plans[2]!.id}"]`,
+  );
+  await gridFirst.press("Space");
+  await gridAllDay.press("Control+Space");
+  await page.keyboard.press("Control+c");
+  await expect(page.locator(".calendar-notice-message")).toHaveText(
+    "2 plans copied.",
+  );
+  await page
+    .getByRole("link", { name: "Next week", exact: true })
+    .press("Enter");
+  await expect(heading(page, "2026-09-14")).toBeVisible();
+  await expect(page.locator(".calendar-selection-summary")).toBeEmpty();
+  await expect(
+    page.locator('[data-calendar-record][aria-pressed="true"]'),
+  ).toHaveCount(0);
+  await actions(page).click();
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Paste into day", exact: true }),
+  ).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("link", { name: "Previous week", exact: true })
+    .press("Enter");
+  await expect(heading(page, date)).toBeVisible();
+  await expect(page.locator(".calendar-selection-summary")).toBeEmpty();
+  await gridSecond.press("Shift+Space");
+  await expect(gridSecond).toHaveAttribute("aria-pressed", "true");
+  await expect(gridFirst).toHaveAttribute("aria-pressed", "false");
+  await expect(gridAllDay).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("link", { name: "Month", exact: true }).press("Enter");
+  await expect(
+    page.getByRole("region", { name: "Monthly calendar" }),
+  ).toBeVisible();
+  await expect(page.locator(".calendar-selection-summary")).toBeEmpty();
+  await page.getByRole("link", { name: "Day", exact: true }).press("Enter");
+  await expect(
+    page.getByRole("region", { name: "Daily time grid" }),
+  ).toBeVisible();
+  await plan(page, plans[2]!.id).press("Space");
+  await page
+    .getByRole("link", { name: "Next day", exact: true })
+    .press("Enter");
+  await expect(heading(page, "2026-09-08")).toBeVisible();
+  await expect(page.locator(".calendar-selection-summary")).toBeEmpty();
+  await actions(page).click();
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Paste into day", exact: true }),
+  ).toBeEnabled();
+});
+
+test("Actions resolves selected plan data without a rendered plan anchor and retains precise slot destinations", async ({
+  page,
+}) => {
+  const plans = await start(page);
+  await plan(page, plans[0]!.id).press("Space");
+  const style = await page.addStyleTag({
+    content: `[data-calendar-record="${plans[0]!.id}"] {display:none !important;}`,
+  });
+  await actions(page).click();
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Copy", exact: true }),
+  ).toBeEnabled();
+  await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
+  await expect(page.locator(".calendar-notice-message")).toHaveText(
+    "Plan copied.",
+  );
+  await style.evaluate((element) => element.remove());
+  await slot(page, date, 10).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(selectedTime(page)).toHaveAttribute(
+    "data-selected-time",
+    `${date}T10:05`,
+  );
+  await actions(page).click();
+  await menu(page)
+    .getByRole("menuitem", { name: "Add plan here", exact: true })
+    .click();
+  await expect(
+    page
+      .getByRole("dialog", { name: "Add plan", exact: true })
+      .getByLabel("Start", { exact: true }),
+  ).toHaveValue(`${date}T10:05`);
+  await page.keyboard.press("Escape");
+  await heading(page, date).press("Space");
+  await page.keyboard.press("Escape");
+  await expect(heading(page, date)).toHaveAttribute("aria-pressed", "false");
+});
+
+test("compact toolbar keeps selection and Calendar tools reachable without an extra controls row", async ({
+  page,
+}, info) => {
+  await start(page);
+  const toolbar = page.locator(".calendar-toolbar");
+  await expect(toolbar.locator(".calendar-toolbar-actions button")).toHaveCount(
+    3,
+  );
+  await expect(
+    toolbar.getByRole("button", { name: "Actions", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".calendar-surface > .calendar-selection-actions"),
+  ).toHaveCount(0);
+  await actions(page).press("Enter");
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Select multiple", exact: true }),
+  ).toBeVisible();
+  await menu(page)
+    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
+    .click();
+  const tools = page.getByRole("dialog", {
+    name: "Calendar tools",
+    exact: true,
+  });
+  await expect(
+    tools.getByRole("button", { name: /repeating plan/i }),
+  ).toBeVisible();
+  await expect(
+    tools.getByRole("button", { name: /all-day plan/i }),
+  ).toBeVisible();
+  await expect(tools.getByRole("button", { name: /Templates/ })).toBeVisible();
+  await expect(
+    tools.getByRole("button", { name: /Quick actions/ }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(actions(page)).toBeFocused();
+  for (const view of ["day", "week", "month"]) {
+    await page
+      .getByRole("link", {
+        name: view[0]!.toUpperCase() + view.slice(1),
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("region", {
+        name:
+          view === "day"
+            ? "Daily time grid"
+            : view === "week"
+              ? "Weekly time grid"
+              : "Monthly calendar",
+      }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: `/private/tmp/calendar-compact-${info.project.name}-${view}.png`,
+    });
+  }
+  if (info.project.name === "phone") {
+    await page.setViewportSize({ width: 320, height: 740 });
+    const button = await actions(page).boundingBox();
+    const selector = await page
+      .getByRole("navigation", { name: "Calendar view", exact: true })
+      .boundingBox();
+    expect(button!.x + button!.width).toBeLessThanOrEqual(selector!.x);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
 });

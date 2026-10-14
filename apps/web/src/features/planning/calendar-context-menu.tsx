@@ -1,21 +1,11 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Block, CalendarItem } from "@168hours/contracts";
 import { instantToLocalInput, localDate } from "@168hours/domain-utils";
-import {
-  ContextMenu,
-  type ContextMenuAction,
-} from "@/components/ui/context-menu";
+import { ContextMenu } from "@/components/ui/context-menu";
 import { useCalendarClipboard } from "./calendar-clipboard";
 import {
   useCalendarInteractions,
@@ -24,71 +14,30 @@ import {
 import type { CalendarDisplayRecord } from "./calendar-filters";
 import { calendarHref, slotMinute, type CalendarView } from "./calendar-layout";
 import { useCalendarNavigation } from "./calendar-navigation";
+import { calendarMenuActions } from "./calendar-menu-actions";
 import { CalendarMoveGroup } from "./calendar-move-group";
 
-type Target =
-  | {
-      kind: "plans";
-      plans: PlanSelection[];
-      date: string;
-      pasteDate: string;
-      pasteMinute?: number;
-    }
-  | { kind: "day"; date: string; days: string[] }
-  | { kind: "time"; date: string; minute: number }
-  | { kind: "all-day"; date: string }
-  | { kind: "axis" };
+import {
+  planActionTarget,
+  dayActionTarget,
+  selectionActionTarget,
+  type CalendarActionTarget,
+} from "./calendar-action-target";
 type OpenMenu = {
-  target: Target;
+  target: CalendarActionTarget;
   anchor: HTMLElement;
   x: number;
   y: number;
   mac: boolean;
+  fromToolbar: boolean;
 };
 const nativeTargets =
   'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="menu"], .calendar-plan-popover';
 
-const ActionsContext = createContext<{
-  openActions: (anchor: HTMLButtonElement) => void;
-  label: string;
-  expanded: boolean;
-  disabled: boolean;
-} | null>(null);
-
-export function CalendarActionButtons() {
-  const actions = useContext(ActionsContext);
-  const interaction = useCalendarInteractions();
-  if (!actions || !interaction) return null;
-  return (
-    <div className="calendar-selection-actions">
-      <span className="calendar-selection-summary" aria-live="polite">
-        {interaction.multiSelect
-          ? "Tap plans or days to add or remove them."
-          : actions.label}
-      </span>
-      <button
-        type="button"
-        className="button"
-        aria-pressed={interaction.multiSelect}
-        disabled={actions.disabled}
-        onClick={() => interaction.setMultiSelect(!interaction.multiSelect)}
-      >
-        {interaction.multiSelect ? "Done selecting" : "Select multiple"}
-      </button>
-      <button
-        type="button"
-        className="button"
-        aria-haspopup="menu"
-        disabled={actions.disabled}
-        aria-expanded={actions.expanded}
-        onClick={(event) => actions.openActions(event.currentTarget)}
-      >
-        Actions
-      </button>
-    </div>
-  );
-}
-
+import {
+  ActionsContext,
+  CalendarActionButtons,
+} from "./calendar-action-controls";
 export function CalendarContextMenus({
   children,
   date,
@@ -103,6 +52,7 @@ export function CalendarContextMenus({
   onAdd,
   onOpen,
   onResetZoom,
+  onTools,
   overlayContainer,
 }: {
   children: ReactNode;
@@ -118,6 +68,7 @@ export function CalendarContextMenus({
   onAdd: (date: string, minute?: number, allDay?: boolean) => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   onResetZoom: () => void;
+  onTools: () => void;
   overlayContainer?: Element | null;
 }) {
   const interaction = useCalendarInteractions()!;
@@ -139,35 +90,40 @@ export function CalendarContextMenus({
     onSelectDayWithMode,
   });
 
-  function openActions(trigger: HTMLButtonElement) {
-    const root = overlayContainer ?? surface.current;
-    if (!root || blocked) return;
-    let target: HTMLElement | null = null;
-    const plan = interaction.selectedPlans[0];
-    if (plan)
-      target = root.querySelector(`[data-calendar-record="${plan.id}"]`);
-    else if (interaction.timeSelection?.minute !== undefined) {
-      const point = interaction.timeSelection;
-      target = root.querySelector(
-        `.hour-slot[data-context-date="${point.date}"][data-context-hour="${Math.floor(point.minute! / 60)}"]`,
-      );
-    } else {
-      const day = selectedDays[0] ?? date;
-      target = root.querySelector(
-        `.grid-day-heading[data-date="${day}"] > button, .month-day[data-date="${day}"] .month-select-day`,
-      );
-    }
-    if (target) open(target, undefined, undefined, trigger);
-  }
-
-  function open(
-    element: Element,
+  const targetData = { blocks, items, timezone };
+  function showMenu(
+    target: CalendarActionTarget,
+    anchor: HTMLElement,
     x?: number,
     y?: number,
-    trigger?: HTMLElement,
+    fromToolbar = false,
   ) {
+    if (blocked) return false;
+    const bounds = anchor.getBoundingClientRect();
+    setMenu({
+      target,
+      fromToolbar,
+      anchor,
+      x: x ?? bounds.left + Math.min(24, bounds.width / 2),
+      y: y ?? bounds.bottom,
+      mac: /Mac|iPhone|iPad/.test(navigator.platform),
+      scope,
+    });
+    return true;
+  }
+  function openActions(trigger: HTMLButtonElement) {
+    const target = selectionActionTarget(
+      interaction.selection,
+      date,
+      view,
+      targetData,
+    );
+    if (target) showMenu(target, trigger, undefined, undefined, true);
+  }
+
+  function open(element: Element, x?: number, y?: number) {
     if (blocked || element.closest(nativeTargets)) return false;
-    let target: Target | null = null;
+    let target: CalendarActionTarget | null = null;
     let anchor =
       element.closest<HTMLElement>("button, [tabindex]") ??
       (element as HTMLElement);
@@ -194,11 +150,7 @@ export function CalendarContextMenus({
         kind: block ? "block" : "item",
         id: (block ?? item)!.id,
       };
-      const selected = interaction.isSelected(plan.kind, plan.id);
-      if (!selected) {
-        if (plan.kind === "block") interaction.select(plan.id);
-        else interaction.selectItem(plan.id);
-      }
+      interaction.contextPlan(plan);
       anchor = record;
       const date = block ? localDate(block.startsAt, timezone) : item!.date!;
       const column = record.closest<HTMLElement>(".grid-day[data-drag-day]");
@@ -231,13 +183,10 @@ export function CalendarContextMenus({
           }
         }
       }
-      target = {
-        kind: "plans",
-        plans: selected ? interaction.selectedPlans : [plan],
-        date,
-        pasteDate,
-        pasteMinute,
-      };
+      target = planActionTarget(plan, interaction.selection, targetData, {
+        date: pasteDate,
+        minute: pasteMinute,
+      });
     } else if (element.closest('.hour-axis[role="slider"]')) {
       anchor = element.closest<HTMLElement>(".hour-axis")!;
       target = { kind: "axis" };
@@ -268,134 +217,30 @@ export function CalendarContextMenus({
       anchor = heading.querySelector<HTMLButtonElement>(
         ".month-select-day, button",
       )!;
-      const selected = selectedDays.includes(date);
-      if (!selected) {
-        interaction.selectTime({ date });
-        onSelectDayWithMode(date);
-      }
-      target = { kind: "day", date, days: selected ? selectedDays : [date] };
+      interaction.contextDay(date);
+      target = dayActionTarget(date, interaction.selection);
     }
     if (!target) return false;
-    if (trigger) anchor = trigger;
-    const bounds = anchor.getBoundingClientRect();
-    setMenu({
-      target,
-      anchor,
-      x: x ?? bounds.left + Math.min(24, bounds.width / 2),
-      y: y ?? bounds.bottom,
-      mac: /Mac|iPhone|iPad/.test(navigator.platform),
-      scope,
-    });
-    return true;
+    return showMenu(target, anchor, x, y);
   }
-  const actions: ContextMenuAction[] = [];
-  if (menu) {
-    const target = menu.target;
-    const mod = menu.mac ? "⌘" : "Ctrl+";
-    const paste = (label: string, date: string, minute?: number) =>
-      actions.push({
-        label,
-        shortcut: `${mod}V`,
-        disabled: !clipboard.canPaste(),
-        run: () => clipboard.pasteAt(date, minute),
-      });
-    if (target.kind === "plans") {
-      if (target.plans.length === 1) {
-        actions.push({
-          label: "Edit",
-          shortcut: "Enter",
-          run: () => {
-            const plan = target.plans[0]!;
-            if (plan.kind === "block") {
-              const block = blocks.find((block) => block.id === plan.id);
-              if (block) onOpen({ kind: "block", item: block }, target.date);
-            } else {
-              const item = items.find((item) => item.id === plan.id);
-              if (item) onOpen({ kind: "item", item }, target.date);
-            }
-          },
-        });
-        actions.push({
-          label: "Duplicate",
-          run: () => clipboard.duplicate(target.plans),
-        });
-      }
-      actions.push({
-        label: "Copy",
-        shortcut: `${mod}C`,
-        run: () => clipboard.copyPlans(target.plans),
-      });
-      if (target.plans.length > 1)
-        actions.push({ label: "Move…", run: () => setMovePlans(target.plans) });
-      if (target.plans.length > 1)
-        actions.push({
-          label: "Duplicate",
-          run: () => clipboard.duplicate(target.plans),
-        });
-      paste("Paste here", target.pasteDate, target.pasteMinute);
-      actions.push({
-        label: "Delete",
-        shortcut: menu.mac ? "⌫" : "Delete",
-        destructive: true,
-        run: () => interaction.deletePlans(target.plans),
-      });
-    } else if (target.kind === "time") {
-      actions.push({
-        label: "Add plan here",
-        run: () => onAdd(target.date, target.minute),
-      });
-      paste("Paste here", target.date, target.minute);
-    } else if (target.kind === "all-day") {
-      actions.push({
-        label: "Add all-day plan",
-        run: () => onAdd(target.date, undefined, true),
-      });
-      paste("Paste", target.date);
-    } else if (target.kind === "day") {
-      if (target.days.length === 1) {
-        if (view !== "day")
-          actions.push({
-            label: "Open Day",
-            run: () =>
-              router.push(calendarHref(target.date, "day"), { scroll: false }),
-          });
-        actions.push({ label: "Add plan", run: () => onAdd(target.date) });
-      }
-      const hasPlans =
-        blocks.some((block) =>
-          target.days.includes(localDate(block.startsAt, timezone)),
-        ) ||
-        items.some(
-          (item) =>
-            item.kind === "all_day" &&
-            !!item.date &&
-            target.days.includes(item.date),
-        );
-      actions.push({
-        label: target.days.length > 1 ? "Copy selected days" : "Copy day",
-        shortcut: `${mod}C`,
-        disabled: !hasPlans,
-        run: () => clipboard.copyDays(target.days),
-      });
-      paste(target.days.length > 1 ? "Paste" : "Paste into day", target.date);
-    } else
-      actions.push({ label: "Reset zoom", shortcut: "R", run: onResetZoom });
-    actions.push(
-      { separator: true },
-      {
-        label: "Undo",
-        shortcut: `${mod}Z`,
-        disabled: !interaction.history.actions.length,
-        run: () => interaction.history.undo(),
-      },
-      {
-        label: "Redo",
-        shortcut: menu.mac ? "⌘⇧Z" : "Ctrl+Shift+Z",
-        disabled: !interaction.history.redoActions.length,
-        run: () => interaction.history.redo(),
-      },
-    );
-  }
+  const actions = menu
+    ? calendarMenuActions({
+        ...menu,
+        view,
+        blocks,
+        items,
+        timezone,
+        interaction,
+        clipboard,
+        onTools,
+        onAdd,
+        onOpen,
+        onMove: setMovePlans,
+        onResetZoom,
+        onOpenDay: (date) =>
+          router.push(calendarHref(date, "day"), { scroll: false }),
+      })
+    : [];
   return (
     <ActionsContext.Provider
       value={{

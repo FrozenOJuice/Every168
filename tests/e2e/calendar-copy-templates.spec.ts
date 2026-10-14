@@ -40,8 +40,9 @@ test("templates and keyboard copying work without the Copy plans form", async ({
   await page.goto("/?date=2026-09-07&view=day");
   const dialog = page.getByRole("dialog");
   async function tool(name: string) {
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page
-      .getByRole("button", { name: "Calendar tools", exact: true })
+      .getByRole("menuitem", { name: "Calendar tools…", exact: true })
       .click();
     await expect(
       dialog.getByRole("button", { name: /^Copy plans/ }),

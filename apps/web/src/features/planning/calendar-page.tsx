@@ -1,6 +1,7 @@
 "use client";
+import { CalendarSourceLink } from "./calendar-source-link";
 import { CalendarDayFeed } from "./calendar-day-feed";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   dateSchema,
@@ -8,8 +9,6 @@ import {
   type CalendarItem,
 } from "@168hours/contracts";
 import {
-  addDays,
-  daysBetween,
   instantToLocalInput,
   localDate,
   localInputToInstant,
@@ -22,30 +21,21 @@ import {
   emptyCalendarFilter,
   type CalendarDisplayRecord,
 } from "./calendar-filters";
-import {
-  CalendarInteractions,
-  CalendarInteractionStatus,
-} from "./calendar-interactions";
+import { CalendarInteractions } from "./calendar-interactions";
+import { CalendarInteractionStatus } from "./calendar-interaction-status";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { CalendarGrid } from "./calendar-grid";
-import type { TimeScaleAnchor } from "./calendar-time-axis";
 import { CalendarMonth } from "./calendar-month";
 import { CalendarEditor } from "./calendar-editor";
 import { CalendarDayRecords } from "./calendar-day-records";
 import { CalendarClipboard } from "./calendar-clipboard";
 import { CalendarContextMenus } from "./calendar-context-menu";
+import { useCalendarZoom } from "./use-calendar-zoom";
 import { useCalendarClock } from "./use-calendar-clock";
 import type { CalendarScrollPosition } from "./calendar-grid";
 import { useCalendar } from "./use-calendar";
-import {
-  calendarHref,
-  HOUR_HEIGHT,
-  MAX_HOUR_HEIGHT,
-  MIN_HOUR_HEIGHT,
-  timeScaleScrollTop,
-  timeTickMinutes,
-  type TimeTickMinutes,
-} from "./calendar-layout";
+import { useCalendarSelection } from "./use-calendar-selection";
+import { calendarHref, HOUR_HEIGHT } from "./calendar-layout";
 import type {
   CalendarView,
   TimeEditor,
@@ -82,79 +72,20 @@ export function CalendarPage({
       : null,
   );
   const scope = `${view}:${selected}`;
-  const [timeSelection, setTimeSelection] = useState<{
-    scope: string;
-    point: { date: string; minute?: number } | null;
-  }>({ scope, point: null });
-  if (timeSelection.scope !== scope) setTimeSelection({ scope, point: null });
-  const selectedTime =
-    timeSelection.scope === scope ? timeSelection.point : null;
-  const [daySelection, setDaySelection] = useState<{
-    scope: string;
-    dates: string[];
-    anchor: string | null;
-  }>({ scope, dates: [], anchor: null });
-  if (daySelection.scope !== scope)
-    setDaySelection({ scope, dates: [], anchor: null });
-  const selectedDays = daySelection.scope === scope ? daySelection.dates : [];
-  function clearDaySelection() {
-    setDaySelection((current) =>
-      current.scope === scope && current.dates.length
-        ? { scope, dates: [], anchor: null }
-        : current,
-    );
-  }
-  function selectDay(
-    date: string,
-    mode: "replace" | "toggle" | "extend" = "replace",
-  ) {
-    if (mode === "toggle" && selectedDays.includes(date)) {
-      const remaining = selectedDays.filter((value) => value !== date);
-      const target = remaining.includes(daySelection.anchor ?? "")
-        ? daySelection.anchor
-        : remaining[0];
-      setTimeSelection({ scope, point: target ? { date: target } : null });
-    }
-    setDaySelection((current) => {
-      const active =
-        current.scope === scope ? current : { scope, dates: [], anchor: null };
-      if (mode === "toggle") {
-        const dates = active.dates.includes(date)
-          ? active.dates.filter((value) => value !== date)
-          : [...active.dates, date].sort();
-        return {
-          scope,
-          dates,
-          anchor: dates.length ? (active.anchor ?? date) : null,
-        };
-      }
-      if (mode === "extend" && active.anchor) {
-        const first = active.anchor < date ? active.anchor : date;
-        const last = active.anchor < date ? date : active.anchor;
-        const dates = Array.from(
-          { length: daysBetween(first, last) + 1 },
-          (_, index) => addDays(first, index),
-        );
-        return { scope, dates, anchor: active.anchor };
-      }
-      return { scope, dates: [date], anchor: date };
-    });
-  }
-  function selectDayRange(first: string, last: string) {
-    const start = first < last ? first : last;
-    const end = first < last ? last : first;
-    setTimeSelection({ scope, point: { date: start } });
-    setDaySelection({
-      scope,
-      anchor: first,
-      dates: Array.from({ length: daysBetween(start, end) + 1 }, (_, index) =>
-        addDays(start, index),
-      ),
-    });
-  }
-  function clearTimeSelection() {
-    setTimeSelection({ scope, point: null });
-  }
+  const query = useCalendar(selected, view);
+  const selection = useCalendarSelection(
+    scope,
+    query.weeks.flatMap((week) => week.blocks),
+    query.items,
+    preferences.timezone,
+  );
+  const {
+    timeSelection: selectedTime,
+    selectedDays,
+    selectDay,
+    selectDayRange,
+    clearTime: clearTimeSelection,
+  } = selection;
   const [overlay, setOverlay] = useState<CalendarOverlay | null>(null);
   const [draft, setDraft] = useState<CalendarDraft | null>(null);
   const [filter, setFilter] = useState(emptyCalendarFilter);
@@ -170,108 +101,19 @@ export function CalendarPage({
     scrollPosition.current = position;
   }, []);
   const [scrollReset, setScrollReset] = useState(0);
-  const [savedHourHeight, setSavedHourHeight] = useState(HOUR_HEIGHT);
-  const [minimumHourHeight, setMinimumHourHeight] = useState(MIN_HOUR_HEIGHT);
-  const hourHeight = Math.max(savedHourHeight, minimumHourHeight);
-  const [tickMinutes, setTickMinutes] = useState<TimeTickMinutes>(60);
-  const visibleTickMinutes = timeTickMinutes(tickMinutes, hourHeight);
-  const changeMinimumHourHeight = useCallback((height: number) => {
-    setMinimumHourHeight(Math.max(MIN_HOUR_HEIGHT, height));
-  }, []);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      try {
-        const stored = Number(
-          localStorage.getItem(`calendar-hour-height:${user.id}`),
-        );
-        if (
-          !Number.isInteger(stored) ||
-          stored < MIN_HOUR_HEIGHT ||
-          stored > MAX_HOUR_HEIGHT
-        )
-          return;
-        scrollPosition.current.top =
-          (scrollPosition.current.top ?? 0) * (stored / HOUR_HEIGHT);
-        setSavedHourHeight(stored);
-        const savedTicks = Number(
-          localStorage.getItem(`calendar-time-ticks:${user.id}`),
-        );
-        setTickMinutes(
-          timeTickMinutes(
-            savedTicks === 15 ||
-              savedTicks === 30 ||
-              savedTicks === 120 ||
-              savedTicks === 240
-              ? savedTicks
-              : 60,
-            stored,
-          ),
-        );
-      } catch {
-        // Browser storage is optional; the default scale remains usable.
-      }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [user.id]);
-  const changeHourHeight = useCallback(
-    (next: number, anchor?: TimeScaleAnchor) => {
-      const fitted = next <= minimumHourHeight;
-      const stored = fitted ? MIN_HOUR_HEIGHT : next;
-      if (stored === savedHourHeight) return;
-      const nextTicks = timeTickMinutes(visibleTickMinutes, next);
-      scrollPosition.current.top = anchor
-        ? timeScaleScrollTop(anchor, next, minimumHourHeight)
-        : ((scrollPosition.current.top ?? 0) * next) / hourHeight;
-      setSavedHourHeight(stored);
-      setTickMinutes(nextTicks);
-      try {
-        localStorage.setItem(`calendar-hour-height:${user.id}`, String(stored));
-        localStorage.setItem(
-          `calendar-time-ticks:${user.id}`,
-          String(nextTicks),
-        );
-      } catch {
-        // Keep the current scale even when browser storage is unavailable.
-      }
-    },
-    [
-      hourHeight,
-      minimumHourHeight,
-      savedHourHeight,
-      user.id,
-      visibleTickMinutes,
-    ],
-  );
-  useEffect(() => {
-    if (view === "month") return;
-    const resetHourSpacing = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() !== "r" ||
-        event.defaultPrevented ||
-        event.repeat ||
-        event.isComposing ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey ||
-        editor ||
-        overlay ||
-        listDate ||
-        (event.target instanceof Element &&
-          (event.target.closest(
-            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"], [role="menu"]',
-          ) ||
-            (event.target !== document.body &&
-              !calendarSurface.current?.contains(event.target))))
-      )
-        return;
-      event.preventDefault();
-      changeHourHeight(HOUR_HEIGHT);
-    };
-    window.addEventListener("keydown", resetHourSpacing);
-    return () => window.removeEventListener("keydown", resetHourSpacing);
-  }, [view, editor, overlay, listDate, changeHourHeight]);
-  const query = useCalendar(selected, view);
+  const {
+    hourHeight,
+    minimumHourHeight,
+    visibleTickMinutes,
+    changeMinimumHourHeight,
+    changeHourHeight,
+  } = useCalendarZoom({
+    userId: user.id,
+    view,
+    unavailable: !!editor || !!overlay || !!listDate,
+    calendarSurface,
+    scrollPositionRef: scrollPosition,
+  });
   const editorWeek = query.weeks.find(
     (week) => editor && week.days.some((day) => day.date === editor.date),
   );
@@ -378,17 +220,12 @@ export function CalendarPage({
   }
   return (
     <CalendarInteractions
+      scope={scope}
       timezone={preferences.timezone}
       hourHeight={hourHeight}
       blocks={query.weeks.flatMap((week) => week.blocks)}
       items={query.items}
-      timeSelection={selectedTime}
-      onSelectTime={(point) => {
-        setTimeSelection({ scope, point });
-        if (point.minute !== undefined) clearDaySelection();
-      }}
-      onClearTimeSelection={clearTimeSelection}
-      onSelectPlan={clearDaySelection}
+      selection={selection}
       editorOpen={!!editor || !!overlay}
       overlayContainer={overlayContainer}
       onCreate={addGridRecord}
@@ -421,6 +258,10 @@ export function CalendarPage({
             else addRecord(date);
           }}
           onOpen={openRecord}
+          onTools={() => {
+            setNotice("");
+            setOverlay({ mode: "tools" });
+          }}
           onResetZoom={() => changeHourHeight(HOUR_HEIGHT)}
         >
           <div className="calendar-surface" ref={calendarSurface}>
@@ -433,10 +274,6 @@ export function CalendarPage({
               onAdd={() =>
                 addRecord(selectedTime?.date ?? selected, selectedTime?.minute)
               }
-              onTools={() => {
-                setNotice("");
-                setOverlay({ mode: "tools" });
-              }}
               onSearch={() => {
                 setNotice("");
                 setOverlay((current) =>
@@ -500,7 +337,9 @@ export function CalendarPage({
                 {query.activity.truncatedSources.map((source, index) => (
                   <span key={`${source.label}-${index}`}>
                     {index > 0 && ", "}
-                    <a href={source.href}>{source.label} history</a>
+                    <CalendarSourceLink href={source.href}>
+                      {source.label} history
+                    </CalendarSourceLink>
                   </span>
                 ))}
                 .

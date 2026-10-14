@@ -1,8 +1,5 @@
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
-import { FoodEntryForm } from "@/features/nutrition/food-entry-form";
-import { CardioForm } from "@/features/exercise/cardio-form";
-import { WorkoutStartForm } from "@/features/exercise/workout-start-form";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
 import { formatDate } from "@/lib/format";
 import { useCalendarInteractions } from "./calendar-interactions";
@@ -27,7 +24,7 @@ export function CalendarActions({
               "A date or several days without allocated hours.",
             ],
             ["templates", "Templates", "Save and apply calendar patterns."],
-            ["quick", "Quick actions", "Log food, exercise, water or weight."],
+            ["quick", "Quick actions", "Log water or weight."],
           ] as const
         ).map(([id, title, description]) => (
           <button
@@ -44,9 +41,6 @@ export function CalendarActions({
   );
 }
 const quickTitles = {
-  food: "Log food",
-  cardio: "Log cardio",
-  strength: "Start workout",
   water: "Log water",
   weight: "Log weight",
 };
@@ -73,10 +67,10 @@ export function CalendarQuickActions({
         id: item.id,
         version: item.version,
       });
-      interaction?.showNotice(
-        resource === "strength" ? "Workout started" : "Activity logged",
-        { undoKey: key, kind: "change" },
-      );
+      interaction?.showNotice("Activity logged", {
+        undoKey: key,
+        kind: "change",
+      });
     };
   const saved = () => onSaved("Saved.");
   const initialTime =
@@ -113,29 +107,6 @@ export function CalendarQuickActions({
             ),
           )}
         </div>
-      ) : action === "food" ? (
-        <FoodEntryForm
-          date={date}
-          initialTime={initialTime}
-          onSaved={saved}
-          onCreated={created("food")}
-        />
-      ) : action === "cardio" ? (
-        <CardioForm
-          date={date}
-          initialTime={initialTime}
-          onSaved={saved}
-          onCreated={created("cardio")}
-        />
-      ) : action === "strength" ? (
-        <WorkoutStartForm
-          date={date}
-          initialTime={initialTime}
-          onSaved={(item, key) => {
-            created("strength")(item, key);
-            saved();
-          }}
-        />
       ) : (
         <MeasurementForm
           kind={action}

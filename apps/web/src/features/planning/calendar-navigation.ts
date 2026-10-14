@@ -140,14 +140,9 @@ export function useCalendarNavigation({
           if (heading && event.key === " ") {
             event.preventDefault();
             if (!event.repeat) {
-              interaction.selectTime({ date: day });
               onSelectDayWithMode(
                 day,
-                event.shiftKey
-                  ? "extend"
-                  : interaction.multiSelect || event.metaKey || event.ctrlKey
-                    ? "toggle"
-                    : "replace",
+                interaction?.daySelectionMode(event) ?? "replace",
               );
             }
             return true;
@@ -205,7 +200,6 @@ export function useCalendarNavigation({
               target.focus();
               if (slot) interaction.selectTime({ date: targetDate, minute });
               else if (event.shiftKey) {
-                interaction.selectTime({ date: targetDate });
                 onSelectDayWithMode(targetDate, "extend");
               }
             } else {

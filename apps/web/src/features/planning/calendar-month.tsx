@@ -67,15 +67,8 @@ export function CalendarMonth({
     )
       return;
     suppressClick.current = true;
-    interaction?.selectTime({ date: first });
-    onSelectDay(
-      first,
-      event.shiftKey
-        ? "extend"
-        : interaction?.multiSelect || event.metaKey || event.ctrlKey
-          ? "toggle"
-          : "replace",
-    );
+
+    onSelectDay(first, interaction?.daySelectionMode(event) ?? "replace");
     const pointer = event.pointerId;
     const x = event.clientX;
     const y = event.clientY;
@@ -240,16 +233,10 @@ export function CalendarMonth({
                       suppressClick.current = false;
                       return;
                     }
-                    interaction?.selectTime({ date: day.date });
+
                     onSelectDay(
                       day.date,
-                      event.shiftKey
-                        ? "extend"
-                        : interaction?.multiSelect ||
-                            event.metaKey ||
-                            event.ctrlKey
-                          ? "toggle"
-                          : "replace",
+                      interaction?.daySelectionMode(event) ?? "replace",
                     );
                   }}
                   onDoubleClick={() => {

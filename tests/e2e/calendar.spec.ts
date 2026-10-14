@@ -727,14 +727,7 @@ test("day, week and month calendars keep planning focused", async ({
       fullPage: true,
     });
   }
-  await expect(nav.getByRole("link")).toHaveText([
-    "Calendar",
-    "Unscheduled",
-    "Routines",
-    "Food",
-    "Exercise",
-    "Goals",
-  ]);
+  await expect(nav.getByRole("link")).toHaveText(["Calendar"]);
   await expect(views.getByRole("link")).toHaveText(["Day", "Week", "Month"]);
   await expect(
     views.getByRole("link", { name: "Week", exact: true }),
@@ -751,7 +744,7 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(toolbarActions.nth(1)).toHaveAccessibleName(
     "Search and filter calendar",
   );
-  await expect(toolbarActions.nth(2)).toHaveAccessibleName("Calendar tools");
+  await expect(toolbarActions.nth(2)).toHaveAccessibleName("Actions");
   const todayButton = page.getByRole("link", { name: "Today", exact: true });
   const todayBounds = (await todayButton.boundingBox())!;
   const todayPreviousBounds = (await arrows.first().boundingBox())!;
@@ -1069,14 +1062,12 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(page.getByRole("dialog")).toContainText(
     "Linked plan: Morning focus",
   );
-  await page.getByRole("link", { name: "View activity" }).click();
-  await expect(page).toHaveURL(/exercise\?tab=cardio/);
-  await expect(
-    nav.getByRole("link", { name: "Exercise", exact: true }),
-  ).toHaveAttribute("aria-current", "page");
-  await expect(
-    page.getByRole("heading", { name: "Recorded walk" }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "View activity" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("dialog")).toContainText(
+    "Activity editing is unavailable",
+  );
   await page.goto("/?date=2026-09-07");
   await page.getByRole("link", { name: "Next week" }).click();
   await expect(page).toHaveURL(/date=2026-09-14/);
@@ -1382,7 +1373,7 @@ test("day, week and month calendars keep planning focused", async ({
   await day
     .getByRole("button", { name: /Quarter-hour plan.*planned/ })
     .dblclick();
-  await page.getByText("Actions", { exact: true }).click();
+  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
   await page.getByRole("button", { name: "Duplicate", exact: true }).click();
   await expect(
     page.getByRole("dialog", { name: "Duplicate block" }),
@@ -1457,7 +1448,7 @@ test("day, week and month calendars keep planning focused", async ({
   await day
     .getByRole("button", { name: /Copied quarter-hour plan/ })
     .dblclick();
-  await page.getByText("Actions", { exact: true }).click();
+  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
   await page.getByRole("button", { name: "Delete block", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(

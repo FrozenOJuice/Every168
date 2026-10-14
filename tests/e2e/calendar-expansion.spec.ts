@@ -54,8 +54,9 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(day).toBeVisible();
   const dialog = page.getByRole("dialog");
   async function tool(name: string) {
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page
-      .getByRole("button", { name: "Calendar tools", exact: true })
+      .getByRole("menuitem", { name: "Calendar tools…", exact: true })
       .click();
     await dialog.getByRole("button", { name: new RegExp("^" + name) }).click();
   }
@@ -100,7 +101,10 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(
     day.getByRole("button", { name: /Conference, all day/ }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Calendar tools" }).click();
+  await page.getByRole("button", { name: "Actions", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
+    .click();
   await expect(
     dialog.getByRole("button", { name: "Add unscheduled plan" }),
   ).toHaveCount(0);
@@ -108,7 +112,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     dialog.getByRole("button", { name: "Unscheduled plans" }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "Close dialog" }).click();
-  await page.getByRole("link", { name: "Unscheduled", exact: true }).click();
+  await page.goto("/unscheduled");
   await expect(page).toHaveURL(/\/unscheduled$/);
   await page.getByRole("button", { name: "Add plan" }).click();
   const itemEditor = page.getByRole("dialog", {
@@ -261,10 +265,9 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     (await (await page.request.get("/api/v1/water-entries")).json()).items,
   ).toHaveLength(1);
   await tool("Quick actions");
-  await dialog.getByRole("button", { name: "Log cardio", exact: true }).click();
-  await expect(page.getByLabel("Started at")).toHaveValue("2026-09-21T09:00");
-  await close();
-  await tool("Quick actions");
+  await expect(
+    dialog.getByRole("button", { name: "Log cardio", exact: true }),
+  ).toHaveCount(0);
   await expect(
     dialog.getByRole("button", { name: "Create goal", exact: true }),
   ).toHaveCount(0);

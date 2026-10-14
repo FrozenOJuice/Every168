@@ -165,36 +165,19 @@ test("undo activity logged through Calendar quick actions at its source", async 
   page,
 }) => {
   await signUp(page);
-  const food = await page.request.post("/api/v1/foods", {
-    headers: headers(),
-    data: {
-      name: "Undo test food",
-      servingAmount: 1,
-      servingUnit: "item",
-      calories: 100,
-    },
-  });
-  expect(food.status()).toBe(201);
-  const foodId = (await food.json()).id;
   const dialog = page.getByRole("dialog");
   for (const [action, path] of [
     ["Log water", "water-entries"],
     ["Log weight", "weight-entries"],
-    ["Log food", "food-entries"],
-    ["Log cardio", "cardio-activities"],
-    ["Start workout", "strength-workouts"],
   ]) {
+    await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page
-      .getByRole("button", { name: "Calendar tools", exact: true })
+      .getByRole("menuitem", { name: "Calendar tools…", exact: true })
       .click();
     await dialog.getByRole("button", { name: /^Quick actions/ }).click();
     await dialog.getByRole("button", { name: action, exact: true }).click();
     if (path === "weight-entries")
       await dialog.getByLabel(/^Weight \(/).fill("75");
-    if (path === "food-entries")
-      await dialog
-        .getByLabel("Saved food", { exact: true })
-        .selectOption(foodId);
     const response = page.waitForResponse(
       (r) =>
         r.url().endsWith(`/api/v1/${path}`) &&

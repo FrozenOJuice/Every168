@@ -2,7 +2,7 @@
 
 The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows.
 
-Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, Food, Exercise, Goals, and Admin.
+Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, planned Fitness and Food workspaces, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
 - Put Account access first and Calendar immediately after it as the main product experience. Follow with settings, supporting planning features, daily logging, and review. Keep Admin and shared behavior at the end.
 - Within each section, introduce setup and creation before editing, reuse, deletion, and review. List current features and behavior in that order.
@@ -29,6 +29,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 - Switch between Day, Week, and Month; Calendar opens in Week view by default.
 - The calendar fills the available workspace beside the navigation sidebar.
+- Add, Search, and Actions share the compact toolbar; selection controls do not take a separate row.
 - Use the top-right arrows to move one day, week, or month at a time.
 - Today returns to the current date in the active view.
 - Switching views follows the selected date: a selected Month day opens its week or day; a selected Week time slice opens that day.
@@ -44,7 +45,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Ongoing activity appears as Now, and the next upcoming item appears as Next.
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up groups organize the remaining activity without repeating Next.
-- Activity from another domain links back to its source.
+- Retained domain activity stays visible; retired Food and Exercise pages are not linked.
 
 #### Week
 
@@ -103,6 +104,9 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - ⌘-click / Ctrl-click adds or removes individual days.
 - The day anchor is an ordinary click or Space selection, the start of a drag, or an individual toggle when nothing was selected. Further individual toggles keep that anchor.
 - Clearing the selection resets its anchor.
+- Changing the viewed date or calendar view clears plan, day, and time-slice selections and their anchors.
+- Escape clears the selection when no editor, menu, or drag is active.
+- Plans removed from the loaded Calendar data leave the selection; a plan spanning several weeks still counts once.
 
 #### Keyboard and touch access
 
@@ -110,10 +114,12 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Arrow navigation continues into adjacent dates, weeks, or months when reaching the visible edge.
 - Space selects the focused day; Shift+Space extends from its anchor, and ⌘/Ctrl+Space toggles it. Shift+arrow extends within the displayed dates.
 - The time grid keeps a Tab entry after selecting a day. Up/Down steps by five minutes; Left/Right moves to the same time on the adjacent day.
-- Select multiple lets taps add or remove plans or days without modifier keys. Done selecting returns to ordinary selection; plan and day groups stay separate.
+- Choose Actions → Select multiple to add or remove plans or days by tapping, without modifier keys. Actions → Done selecting returns to ordinary selection; plan and day groups stay separate.
 - While Select multiple is active, taps toggle selection instead of dragging or double-tap editing/navigation.
 - Actions opens the existing Calendar menu for the selected plans, time, or days, or the viewed day when nothing is selected. For several selected days, the earliest selected day is its paste destination.
-- Actions and Select multiple are also available inside overflow lists. Copy, Paste, Delete, Undo, and Redo use the same operations as shortcuts and right-click menus.
+- Actions remains available for selected plans hidden by the layout. Opening it preserves the selection, including a precise five-minute destination.
+- The Actions control shows the selected count and marks when multiple selection is on. The same menu is available inside overflow lists.
+- Copy, Paste, Delete, Undo, and Redo use the same operations as shortcuts and right-click menus.
 
 #### Five-minute slices
 
@@ -244,7 +250,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Right-click empty all-day space for Add all-day plan or Paste. Pasting preserves timed and all-day plan types.
 - Right-click a day heading or Month cell for Open Day, Add plan, Copy day, and Paste into day. Open Day is omitted in Day view.
 - Selected days offer Copy selected days and Paste. Paste uses the day invoked as its destination anchor, preserving relative dates and clock times.
-- Right-clicking a selected plan or day preserves its group; an unselected plan or day becomes the sole selection. Empty-space menus preserve the existing selection.
+- Right-clicking a selected plan or day preserves its group; an unselected plan or day becomes the sole selection, including in Select multiple mode. Empty-space menus preserve the existing selection.
 - Right-click the time column for Reset zoom. Every menu ends with Undo and Redo; unavailable actions are disabled.
 - Shift+F10 or the Context Menu key opens the menu beside the focused plan, day, time slot, or time column. Arrow keys navigate, Enter activates, and Escape closes and returns focus.
 - Menus fit the viewport and close on outside interaction. Text fields retain their native browser menus.
@@ -290,12 +296,11 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 ### Templates and quick actions
 
-- Calendar tools contains Repeating plan, All-day plan, Templates, and Quick actions.
+- Open Actions → Calendar tools for Repeating plan, All-day plan, Templates, and Quick actions.
 - Save a named template from a day, week, or date range.
 - Rename or delete saved templates.
 - Choose a start date and number of cycles, preview, then apply a template to create independent plans.
-- Quick actions open activity-entry forms from Calendar, using the chosen date/time where supported.
-- Starting a workout through Calendar keeps you on Calendar with an Undo option; open the workout to continue it.
+- Quick actions log water or weight using the chosen date/time.
 - The + beside a five-minute slice also opens quick actions; it hides while creating a block by dragging.
 - Point-in-time activity can appear as a moment without occupying a duration block.
 
@@ -332,7 +337,8 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Navigation and settings
 
-- Navigate to Calendar, Unscheduled, Routines, Food, Exercise, and Goals.
+- Calendar is the only main-navigation destination on desktop and mobile.
+- Unscheduled, Routines, and Goals pages are retained for later scope decisions and accessible by URL; they are absent from main navigation.
 - Open Settings through the account menu.
 - Choose a timezone or use the device's timezone.
 - Choose Sunday or Monday as the first day of the week.
@@ -354,17 +360,22 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
+- Goals are deferred and absent from main navigation.
 - Numeric targets, milestones, and automatic completion are not available.
 
 ## Unscheduled plans
 
-- Keep plans in a separate sidebar list until they have a scheduled time.
+- Keep plans in a separate list at `/unscheduled` until they have a scheduled time.
 - Create and edit a title, notes, and optional date.
 - Leave the date blank to keep a plan in the backlog; dated plans can appear in Calendar without occupying timed space.
 - Schedule a plan by choosing its date and start/end times.
 - Scheduling replaces the unscheduled item with a timed block and opens that date in Day view.
 - Delete an unscheduled plan through its editor, with confirmation.
 - Load more items when the list has additional results.
+
+### Needs work
+
+- Unscheduled plans are retained for later Tasks scoping and absent from main navigation.
 
 ## Routines
 
@@ -379,95 +390,22 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
+- Routines are retained for later Tasks scoping and absent from main navigation.
 - Checklists support up to 50 steps.
 - Completing a routine does not create Calendar blocks or record a timed session.
 
-## Food
+## Daily measurements
 
-### Food library
+- Log water or weight through Calendar quick actions, with a date and time.
+- Measurement logs appear as Calendar moments without allocating time.
 
-- Create and edit foods with a name, serving amount, and serving unit: grams, millilitres, items, or servings.
-- Enter calories per serving and optional protein, carbohydrates, fat, and fibre.
-- Search saved foods.
-- Archive foods, show archived foods, and restore them for future use.
-
-### Daily log
-
-- Move between dates to review meals, nutrition, water, and weight.
-- Log a saved food under Breakfast, Lunch, Dinner, Snack, or Other.
-- Choose the number of servings, including fractional servings, and when it was eaten.
-- Create a missing food while logging, then return to the entry.
-- Edit or delete a food entry; repeat an existing entry to log it again.
-- Review daily nutrition totals for calories, protein, carbohydrates, fat, and fibre.
-- Unknown nutrient values stay unknown instead of being counted as zero; totals indicate missing values.
-- Logged entries keep their original food details and nutrition when the library food changes or is archived.
-- Search food-entry history and load more results; repeat entries using their saved food details.
-- Food entries appear as moments on Calendar, linked back to Food.
-
-### Water
-
-- Log 250 ml or 500 ml with quick buttons, or enter a custom amount.
-- Choose or correct the time the water was consumed.
-- See the selected day's total and individual entries.
-- Review water history; edit or delete entries.
-- Water logs appear as Calendar moments without allocating time.
-
-### Weight
-
-- Log a weight and measurement time in the preferred kg/lb unit.
-- See the latest measurement through the selected day and that day's entries.
-- Review a 30-day trend chart.
-- Browse the full measurement history; edit or delete entries.
-- Weight logs appear as Calendar moments.
+## Fitness and Food
 
 ### Needs work
 
+- New Fitness and Food workspaces are planned. The old Food and Exercise pages, forms, and dedicated styles have been removed; backend APIs and stored records remain.
+- Existing activity is visible in Calendar, but its retired domain editing/history UI is unavailable until replacement workflows are implemented.
 - Recipes, barcode scanning, external food lookup, and custom nutrition targets are not available.
-- The weight trend chart shows up to 200 measurements over 30 days; remaining measurements are available in history.
-
-## Exercise
-
-### Exercise library
-
-- Create and edit named strength exercises with optional notes.
-- Search exercises; archive and restore them.
-- Existing workouts retain their saved exercise details when the library changes.
-- Create an exercise while building a workout.
-
-### Strength workouts
-
-- Start a workout with a title, start time, optional notes, and optional linked Calendar plan.
-- Add exercises and reorder or remove them.
-- Add sets with repetitions, load, and/or duration; mark sets completed or incomplete.
-- Repeat the last set, reorder sets, or remove them.
-- Add notes to each exercise in the workout.
-- Enter loads in the preferred kg/lb unit; missing loads remain unknown.
-- Save an in-progress workout and resume it later. Workout edits require an explicit save.
-- Finish a workout now, or enter its actual finish time when logging a past workout.
-- Edit completed workouts; clearing the finish time reopens a workout and removes its completed Calendar time until it is finished again.
-- Search workout history and filter by in-progress or completed status.
-- Delete a workout and its generated Calendar time.
-
-### Cardio
-
-- Log an activity type, title, start time, and duration.
-- Optionally add distance, notes, and a linked Calendar plan.
-- Enter distance in the preferred km/mi unit.
-- Search cardio history and filter by activity type.
-- Edit or delete an activity; its Calendar time updates or is removed with it.
-
-### Calendar connection
-
-- Finished strength workouts and cardio produce recorded sessions on Calendar.
-- Linking a session to a plan keeps planned and recorded time separate.
-- Open the source activity from Calendar to edit it.
-- A recorded session is counted once, even when it also has a linked plan.
-
-### Strength progress
-
-- Review an exercise's completed sets from finished workouts, newest first.
-- See the maximum recorded load and individual set details.
-- Timed sets count even without a load; incomplete sets and unfinished workouts do not count toward completed progress.
 
 ## Admin
 
@@ -519,4 +457,6 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
-- Custom/public domains, social sharing, and native mobile apps are not implemented.
+- Cross-domain AI and dedicated mobile/desktop apps are planned but not implemented.
+- Custom domains are deferred until later, before the stretch-goal watch app; neither is implemented.
+- Public domain sharing and social features are not implemented.

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { CalendarSourceLink } from "./calendar-source-link";
 import {
   Activity,
   CircleDot,
@@ -42,7 +42,10 @@ export function ActivityLink({
   timezone: string;
 }) {
   return (
-    <Link className="calendar-record activity-record" href={entry.href}>
+    <CalendarSourceLink
+      className="calendar-record activity-record"
+      href={entry.href}
+    >
       <span className="activity-record-heading">
         <ActivityIcon name={entry.icon} />
         <strong>{entry.title}</strong>
@@ -60,7 +63,7 @@ export function ActivityLink({
             ? "Draft session"
             : "Recorded session"}
       </small>
-    </Link>
+    </CalendarSourceLink>
   );
 }
 export function CalendarDayFeed({
@@ -148,14 +151,14 @@ export function CalendarDayFeed({
           ))}
           {next &&
             (next.activity ? (
-              <Link
+              <CalendarSourceLink
                 className="day-at-a-glance-next"
                 href={next.activity.href}
                 key={next.key}
               >
                 <strong>Next · {formatTime(next.at, week.timezone)}</strong>
                 <span>Recorded: {next.activity.title}</span>
-              </Link>
+              </CalendarSourceLink>
             ) : (
               next.record && (
                 <CalendarRecord
@@ -253,7 +256,9 @@ export function CalendarDayFeed({
       {activity.truncatedSources.map((source, index) => (
         <p className="notice" key={source.label + index}>
           Showing up to 200 records from {source.label} in this range.{" "}
-          <Link href={source.href}>Open full history</Link>
+          <CalendarSourceLink href={source.href}>
+            Open full history
+          </CalendarSourceLink>
         </p>
       ))}
     </section>

@@ -1,10 +1,14 @@
 # 168Hours — Core-First Build Specification
 
-**Version:** 2.0  
-**Date:** September 12, 2026  
+**Version:** 2.1\
+**Date:** October 14, 2026\
 **Repository:** `168hours`  
 **Status:** Authoritative implementation brief  
 **Primary objective:** Build a small, complete, genuinely usable 168Hours core quickly. Stop. Use it. Then expand it without rebuilding the foundation.
+
+**Owner-approved product scope revision (October 14, 2026):** Calendar is the shared overview of planned, ongoing and recorded activity across specialized domains. The intended built-in workspaces are Fitness, Food, and Tasks. Tasks covers commitments, to-dos, projects and progress; detailed workflows remain to be scoped. Tasks represent things to complete, while Calendar blocks allocate time; scheduling does not automatically complete a task. Domains may grow into specialized workspaces with deeper navigation, progressive complexity and shared interaction patterns while Calendar remains the common overview. Shared records stay canonical across surfaces; specialized tools do not all need Calendar entries. Fitness is a future product direction, not a rename of the existing Exercise implementation. Detailed workflows include logging workouts as they happen. Future cross-domain AI asks clarifying questions and uses relevant preferences, accepted plans, activity and prior decisions; suggestions, plans and completed records remain distinct. Dedicated mobile and desktop apps will use the same platform with device-appropriate interfaces. Custom domains are a later feature, before the stretch-goal watch app. The planned order is platform/Calendar → built-in domains → AI → mobile/desktop apps → custom domains → watch. See [Product scope](docs/SCOPE.md) for the current direction and boundaries. This revision supersedes older product framing and expansion ordering; it is roadmap documentation, not authorization to implement future phases now. Existing Core completion gates and domain/service/ownership boundaries remain in force.
+
+**Owner-approved workspace reset:** Calendar is the only current main-navigation destination. Remove the old Food and Exercise pages and domain-specific UI while retaining backend capabilities and data. Preserve Unscheduled and Routines for later Tasks decisions outside main navigation; Goals are deferred. Remove Food/workout quick-entry UI and links to retired source pages; retained Calendar activity remains visible. Future Fitness, Food and Tasks implementations require separate scope. This revision supersedes older navigation and Food/Exercise UI requirements below.
 
 **Owner-approved Core UI revision:** Calendar is the central general planner and occupies the main workspace. Its top toolbar uses Day, Week, Month in that order, with Week as the default on every screen. Previous/next arrows sit on either side of Today. Plans and actual entries share the calendar with explicit visual labels. Remove Calendar details and the entire settings/summary/Today section beneath it. Domain-specific reporting, hydration/weight UI, and health/goal context will be redesigned within their domains; selected-date quick actions are authorized by the Calendar expansion below. Keep the existing backend capabilities and exact palette. Main navigation remains Calendar, Food, Exercise, Goals, with Settings and sign out in the account menu. This owner revision supersedes the original dashboard, summary/filter, and health-logging placement requirements below; do not restore them to Calendar to satisfy the earlier completion checklist.
 
@@ -171,7 +175,7 @@ Do not duplicate this entire specification into those files.
 
 ## 1.1 What 168Hours is
 
-168Hours is a **life hub** organized around the week.
+168Hours is a **personal planning and tracking platform** with Calendar as its shared overview, specialized domains for detailed workflows, and future AI that connects relevant context across them. The 168-hour week remains a planning and review frame.
 
 The basic loop is:
 
@@ -189,7 +193,7 @@ Review what happened
 Adjust the next week
 ```
 
-The weekly planner is the organizing surface. Other features provide useful context around that plan.
+Calendar is the organizing surface for dated plans and activity. Domains such as Exercise and Food provide their own detailed experiences; their relevant plans and records appear on Calendar. See [Product scope](docs/SCOPE.md) for the agreed direction and planned phases.
 
 Examples of things a user may eventually track:
 
@@ -214,7 +218,7 @@ The Core Build does not need all of these. It must establish an architecture whe
 
 ## 1.2 Product principles
 
-1. **The week is the center.** Domain features support the weekly life-planning model rather than becoming unrelated mini-apps.
+1. **Calendar is the shared overview.** Domains provide useful detailed experiences and contribute relevant plans and activity to Calendar; the 168-hour week remains an important planning frame.
 2. **One platform, modular domains.** One backend and one database initially, with strong internal boundaries.
 3. **Personal-first, multi-user-ready.** Build for one person's real use while enforcing user ownership correctly from day one.
 4. **Plans are not reality.** A planned workout is not automatically a completed workout. Planned food is not food eaten.
@@ -2009,6 +2013,8 @@ Do not architect the Core around hypothetical distributed systems.
 ---
 
 # 20. Expansion A — AI Coach
+
+The current [product scope](docs/SCOPE.md) governs roadmap priorities. Sections 20–25 retain earlier expansion guidance and ideas, not an automatic implementation sequence or a commitment to every listed feature. Custom domains precede the stretch-goal watch app; dedicated desktop clients are also part of the later client direction.
 
 AI is intentionally **after** the Core.
 

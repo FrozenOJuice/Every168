@@ -1,26 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  Utensils,
-  Dumbbell,
-  Flag,
-  ListChecks,
-  Inbox,
-} from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import type { Me } from "@168hours/contracts";
 import { MeProvider } from "@/features/identity/me";
 import { AccountMenu } from "./account-menu";
 
-const links = [
-  ["/", "Calendar", CalendarDays],
-  ["/unscheduled", "Unscheduled", Inbox],
-  ["/routines", "Routines", ListChecks],
-  ["/food", "Food", Utensils],
-  ["/exercise", "Exercise", Dumbbell],
-  ["/goals", "Goals", Flag],
-] as const;
+const links = [["/", "Calendar", CalendarDays]] as const;
 
 export function AppShell({
   me,

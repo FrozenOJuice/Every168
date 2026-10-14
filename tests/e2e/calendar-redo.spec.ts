@@ -155,8 +155,9 @@ test("plan undo and redo survive navigation and refresh, preserve identity, bran
   await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
   const edited = (await blocks(page))[0]!;
-  await page.getByRole("link", { name: "Food", exact: true }).click();
-  await expect(page).toHaveURL(/\/food/);
+  await page.getByRole("button", { name: "Account menu" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/settings/);
   await page.goBack();
   await expect(grid(page)).toBeVisible();
   await page.reload();

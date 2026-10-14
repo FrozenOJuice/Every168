@@ -5,7 +5,6 @@ import { useCalendarInteractions } from "./calendar-interactions";
 import { useRouter } from "next/navigation";
 import { calendarHref } from "./calendar-layout";
 import { invalidateCalendar } from "./invalidate-calendar";
-import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Block, CalendarItem, Week } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -111,20 +110,10 @@ export function CalendarEditor({
               {formatTime(item.endsAt, week.timezone)}
             </p>
             <p className="muted text-small">
-              Recorded from Exercise. Edit the original activity to update its
-              time here.
+              Recorded from Exercise. Activity editing is unavailable while the
+              Fitness workspace is rebuilt.
             </p>
           </div>
-          <Link
-            className="button primary"
-            href={
-              "sourceType" in item && item.sourceType === "strength_workout"
-                ? "/exercise/workout/" + item.sourceId
-                : "/exercise?tab=cardio"
-            }
-          >
-            View activity
-          </Link>
         </div>
       ) : (
         <TimeForm

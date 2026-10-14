@@ -1,14 +1,8 @@
 import Link from "next/link";
-import { CalendarActionButtons } from "./calendar-context-menu";
+import { CalendarActionButtons } from "./calendar-action-controls";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, type RefObject } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Search,
-  Ellipsis,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { CalendarDatePicker } from "./calendar-date-picker";
 import { formatDate } from "@/lib/format";
 import { calendarHref, type CalendarView } from "./calendar-layout";
@@ -23,7 +17,6 @@ export function CalendarToolbar({
   onAdd,
   onToday,
   onJump,
-  onTools,
   onSearch,
   searchAnchor,
   searchOpen,
@@ -37,7 +30,6 @@ export function CalendarToolbar({
   onAdd: () => void;
   onToday: () => void;
   onJump: (date: string) => void;
-  onTools: () => void;
   onSearch: () => void;
   searchAnchor: RefObject<HTMLButtonElement | null>;
   searchOpen: boolean;
@@ -80,13 +72,7 @@ export function CalendarToolbar({
             >
               <Search size={18} />
             </button>
-            <button
-              className="icon-button"
-              aria-label="Calendar tools"
-              onClick={onTools}
-            >
-              <Ellipsis size={20} />
-            </button>
+            <CalendarActionButtons />
           </div>
         </div>
         <nav
@@ -145,7 +131,6 @@ export function CalendarToolbar({
           </div>
         </div>
       </header>
-      <CalendarActionButtons />
       {jump && (
         <CalendarDatePicker
           date={date}

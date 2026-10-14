@@ -1,3 +1,5 @@
+import { strengthPlansService } from "./modules/exercise/strength-plans.service.js";
+import { strengthPlansRepository } from "./modules/exercise/strength-plans.repository.js";
 import { calendarActivityService } from "./modules/planning/calendar-activity.service.js";
 import { routinesRepository } from "./modules/routines/routines.repository.js";
 import { routinesService } from "./modules/routines/routines.service.js";
@@ -109,11 +111,23 @@ export function compose(input: ConfigInput) {
   const exerciseRepo = exerciseRepository(db);
   const strengthRepo = strengthRepository(db);
   const cardioRepo = cardioRepository(db);
-  const exercises = exerciseService(exerciseRepo, strengthRepo, cardioRepo);
+  const strengthPlansRepo = strengthPlansRepository(db);
+  const exercises = exerciseService(
+    exerciseRepo,
+    strengthRepo,
+    cardioRepo,
+    strengthPlansRepo,
+  );
   const strength = strengthService(
     runInTransaction,
     strengthRepo,
     exerciseRepo,
+    planning,
+  );
+  const strengthPlans = strengthPlansService(
+    strengthPlansRepo,
+    exerciseRepo,
+    strength,
     planning,
   );
   const cardio = cardioService(runInTransaction, cardioRepo, planning);
@@ -198,6 +212,7 @@ export function compose(input: ConfigInput) {
     lifecycle: { draining: false },
     exercises,
     strength,
+    strengthPlans,
     cardio,
     nutrition,
     hydration,

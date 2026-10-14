@@ -60,7 +60,9 @@ export function ActivityLink({
         {entry.kind === "moment"
           ? "Moment"
           : entry.status === "draft"
-            ? "Draft session"
+            ? entry.domain === "Fitness"
+              ? "In progress"
+              : "Draft session"
             : "Recorded session"}
       </small>
     </CalendarSourceLink>

@@ -27,12 +27,110 @@ export const setInput = z
       .nullable()
       .default(null),
     completed: z.boolean().default(true),
+    skipped: z.boolean().default(false),
+    targetReps: z.number().int().positive().max(10000).nullable().default(null),
+    targetWeightKg: z
+      .number()
+      .finite()
+      .min(0)
+      .max(2000)
+      .nullable()
+      .default(null),
+    targetDurationSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(86400)
+      .nullable()
+      .default(null),
+    restSeconds: z.number().int().min(0).max(3600).nullable().default(null),
   })
   .strict()
-  .refine((v) => v.reps !== null || v.durationSeconds !== null, {
-    path: ["reps"],
-    message: "Enter reps or a timed duration.",
+  .refine(
+    (v) => !v.completed || v.reps !== null || v.durationSeconds !== null,
+    {
+      path: ["reps"],
+      message: "Enter actual reps or duration before completing a set.",
+    },
+  )
+  .refine((v) => !(v.completed && v.skipped), {
+    path: ["skipped"],
+    message: "A skipped set cannot be completed.",
   });
+export const plannedSetInput = z
+  .object({
+    targetReps: z.number().int().positive().max(10000).nullable().default(null),
+    targetWeightKg: z
+      .number()
+      .finite()
+      .min(0)
+      .max(2000)
+      .nullable()
+      .default(null),
+    targetDurationSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(86400)
+      .nullable()
+      .default(null),
+    restSeconds: z.number().int().min(0).max(3600).nullable().default(null),
+  })
+  .strict();
+export const strengthPlanInput = z
+  .object({
+    title: titleSchema,
+    notes: notesSchema,
+    exercises: z
+      .array(
+        z
+          .object({
+            exerciseId: idSchema,
+            notes: notesSchema,
+            sets: z.array(plannedSetInput).min(1).max(100),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(50),
+  })
+  .strict();
+export const strengthPlanSchema = recordSchema.extend({
+  title: titleSchema,
+  notes: notesSchema,
+  kind: z.enum(["workout", "scheduled"]),
+  timeBlockId: idSchema.nullable(),
+  sessionId: idSchema.nullable(),
+  exercises: z.array(
+    strengthPlanInput.shape.exercises.element.extend({ name: titleSchema }),
+  ),
+});
+export const strengthPlanForBlockSchema = z.object({
+  plan: strengthPlanSchema.nullable(),
+});
+export const strengthScheduleInput = z
+  .object({
+    startsAt: instantSchema,
+    endsAt: instantSchema,
+  })
+  .strict()
+  .refine(
+    (v) =>
+      Date.parse(v.endsAt) > Date.parse(v.startsAt) &&
+      Date.parse(v.endsAt) - Date.parse(v.startsAt) <= 31 * 86400000,
+    { message: "Choose an end after start, within 31 days." },
+  );
+export const strengthBeginInput = z
+  .object({ startedAt: instantSchema })
+  .strict();
+export const strengthPlanQuery = pageQuerySchema.extend({
+  kind: z.enum(["workout", "scheduled"]).default("workout"),
+});
+export type StrengthPlanInput = z.infer<typeof strengthPlanInput>;
+export type StrengthPlan = z.infer<typeof strengthPlanSchema>;
+export type StrengthPlanQuery = z.infer<typeof strengthPlanQuery>;
+export type StrengthScheduleInput = z.infer<typeof strengthScheduleInput>;
+
 export const workoutExerciseInput = z
   .object({
     id: idSchema.optional(),
@@ -128,6 +226,10 @@ export const cardioHistoryQuery = pageQuerySchema.extend({
 });
 export type WorkoutHistoryQuery = z.infer<typeof workoutHistoryQuery>;
 export type CardioHistoryQuery = z.infer<typeof cardioHistoryQuery>;
+export const strengthProgressQuery = pageQuerySchema.extend({
+  excludeWorkoutId: idSchema.optional(),
+});
+export type StrengthProgressQuery = z.infer<typeof strengthProgressQuery>;
 export const progressSetSchema = z.object({
   id: idSchema,
   createdAt: instantSchema,

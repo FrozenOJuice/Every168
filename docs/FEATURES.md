@@ -2,7 +2,7 @@
 
 The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows.
 
-Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, planned Fitness and Food workspaces, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
+Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness and the planned Food workspace, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
 - Put Account access first and Calendar immediately after it as the main product experience. Follow with settings, supporting planning features, daily logging, and review. Keep Admin and shared behavior at the end.
 - Within each section, introduce setup and creation before editing, reuse, deletion, and review. List current features and behavior in that order.
@@ -45,7 +45,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Ongoing activity appears as Now, and the next upcoming item appears as Next.
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up groups organize the remaining activity without repeating Next.
-- Retained domain activity stays visible; retired Food and Exercise pages are not linked.
+- Strength activity opens its Fitness session for review or correction. Retained Food and cardio activity stays visible without links to the retired pages.
 
 #### Week
 
@@ -337,7 +337,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Navigation and settings
 
-- Calendar is the only main-navigation destination on desktop and mobile.
+- Main navigation contains Calendar and Fitness on desktop and mobile.
 - Unscheduled, Routines, and Goals pages are retained for later scope decisions and accessible by URL; they are absent from main navigation.
 - Open Settings through the account menu.
 - Choose a timezone or use the device's timezone.
@@ -399,12 +399,63 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Log water or weight through Calendar quick actions, with a date and time.
 - Measurement logs appear as Calendar moments without allocating time.
 
-## Fitness and Food
+## Fitness
+
+### Exercises
+
+- Search your exercise library or create a named exercise with optional instructions.
+- Create an exercise while preparing or recording a workout, then return with it selected.
+- Edit, archive, and restore exercises. Past sessions retain their recorded exercise names.
+
+### Prepare and schedule
+
+- Create reusable strength workouts with ordered exercises, workout notes, and exercise notes.
+- Add, remove, and reorder sets. Set optional targets for reps, load, duration, and rest.
+- Start a reusable workout immediately, or start an empty one-off session.
+- Schedule a workout as Calendar time. Each scheduled workout keeps its own copy of the exercises and targets.
+- Edit or delete a reusable workout without changing scheduled copies or recorded sessions.
+- Start a scheduled workout from its Fitness card or Calendar editor; starting it again opens the same session.
+- Adjust scheduled dates, times, and titles in Calendar. Calendar deletion and undo preserve the scheduled workout link.
+- Scheduling does not start or complete a session; actual start/end times are recorded separately.
+
+### Train
+
+- Record actual reps, load, or duration alongside the planned targets, using the preferred kg/lb unit.
+- Mark sets Completed or Skipped; other sets remain Unfinished. Skipping remaining sets preserves already completed sets.
+- Add, remove, and reorder exercises and sets during the session without changing the reusable workout.
+- Show the latest recorded completed set from another session for each exercise when available.
+- Start an optional rest timer when completing a set with a rest target.
+- Session edits save automatically after a short pause; Save changes is also available.
+- Recover session edits across navigation and refresh in the same tab. Stale drafts cannot overwrite newer saved changes.
+- Uncertain saves offer Retry same change with the same request key.
+- Finish a partially completed session while preserving skipped and unfinished sets; at least one completed set is required.
+- Discard an accidental session with confirmation.
+
+### Review and reuse
+
+- Search sessions and filter by In progress or Finished; load more history when needed.
+- Review and correct titles, notes, exercise/set details, and actual start/end times.
+- Finished sessions appear on Calendar with one source of recorded time. Corrections and deletions update Calendar.
+- Repeat a previous session with fresh set completion and empty actual performance; reuse its targets, or actual values where targets were absent.
+- Save session exercises and targets as a separate reusable workout.
+- Review completed-set history for an individual exercise and open its original session.
+- Delete a session with confirmation; its planned Calendar time remains.
 
 ### Needs work
 
-- New Fitness and Food workspaces are planned. The old Food and Exercise pages, forms, and dedicated styles have been removed; backend APIs and stored records remain.
-- Existing activity is visible in Calendar, but its retired domain editing/history UI is unavailable until replacement workflows are implemented.
+- Training programs, progression recommendations, advanced analytics, supersets, drop sets, and cardio UI are deferred.
+- New workouts require active exercise definitions; restore archived exercises before starting a reusable workout or repeating a session that uses them.
+- Sessions support up to 50 exercises and 100 sets per exercise; recorded duration is limited to 31 days.
+- Recovery drafts and rest timers are local to the current tab; the timer is not restored on refresh. Unsaved session fields pause briefly while a save is in flight.
+- Fitness edits and scheduling are outside Calendar undo/redo; Calendar actions retain their existing history.
+- Calendar copying duplicates time plans only, without the attached workout definition. Use Fitness scheduling to place another workout.
+
+## Food
+
+### Needs work
+
+- A new Food workspace is planned. The old frontend is removed; backend APIs and stored records remain.
+- Retained food activity is visible on Calendar, but its editing/history UI is unavailable until replacement workflows are implemented.
 - Recipes, barcode scanning, external food lookup, and custom nutrition targets are not available.
 
 ## Admin

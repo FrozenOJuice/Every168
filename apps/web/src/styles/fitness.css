@@ -1,0 +1,94 @@
+.fitness-workspace {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.fitness-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 0 28px;
+}
+.fitness-tabs a {
+  padding: 12px 16px;
+  color: var(--foreground);
+}
+.fitness-tabs a[aria-current="page"] {
+  border-bottom: 3px solid var(--primary);
+  font-weight: 650;
+}
+.fitness-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 16px;
+}
+.fitness-section {
+  margin-top: 32px;
+}
+.fitness-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+}
+.fitness-check input {
+  width: 20px;
+  min-height: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+.fitness-exercise {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.fitness-exercise h2 {
+  margin: 0;
+}
+.fitness-set {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fitness-set.is-complete {
+  border-color: var(--primary);
+  background: var(--muted);
+}
+.fitness-set-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 12px;
+}
+.fitness-rest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  background: var(--muted);
+  color: var(--foreground);
+  border-radius: var(--radius);
+}
+.fitness-session-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+}
+.fitness-save-state {
+  color: var(--foreground);
+  font-size: 0.85rem;
+}
+@media (max-width: 480px) {
+  .fitness-tabs a {
+    padding: 12px;
+  }
+  .fitness-exercise {
+    padding: 14px;
+  }
+  .fitness-set {
+    padding: 12px;
+  }
+}

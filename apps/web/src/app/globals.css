@@ -4,6 +4,7 @@
 @import "../styles/calendar.css";
 @import "../styles/domains.css";
 @import "../styles/routines.css";
+@import "../styles/fitness.css";
 
 :root {
   --background: #f8f8f5;

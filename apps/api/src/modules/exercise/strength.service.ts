@@ -22,7 +22,7 @@ export function strengthService(
   exercises: ReturnType<typeof exerciseRepository>,
   planning: PlanningService,
 ) {
-  return {
+  const service = {
     async calendarActivity(
       u: string,
       range: {
@@ -34,22 +34,20 @@ export function strengthService(
     ): Promise<CalendarContribution> {
       const rows = await repo.activityRange(u, range.startsAt, range.endsAt);
       return {
-        label: "Exercise",
-        href: "/exercise",
+        label: "Fitness",
+        href: "/fitness?tab=history",
         truncated: rows.length > CALENDAR_ACTIVITY_LIMIT,
         entries: rows.slice(0, CALENDAR_ACTIVITY_LIMIT).map((row) => ({
           source: { type: "strength_workout", id: row.id },
-          domain: "Exercise",
+          domain: "Fitness",
           icon: "dumbbell",
           kind: "session",
           status: row.endedAt ? "recorded" : "draft",
           title: row.title,
-          summary: row.endedAt
-            ? "Finished workout"
-            : "Workout draft · not finished",
+          summary: row.endedAt ? "Finished workout" : "Workout in progress",
           occurredAt: row.startedAt.toISOString(),
           endsAt: row.endedAt?.toISOString() ?? null,
-          href: `/exercise/workout/${row.id}`,
+          href: `/fitness/session/${row.id}`,
         })),
       };
     },
@@ -132,6 +130,53 @@ export function strengthService(
         return result;
       }, context);
     },
+    async repeat(
+      u: string,
+      id: string,
+      version: number,
+      context: TransactionContext,
+    ) {
+      const old = assertRevision(await repo.get(u, id, context, true), version);
+      const start = await service.start(
+        u,
+        {
+          title: old.title,
+          startedAt: new Date().toISOString(),
+          notes: old.notes,
+          linkedTimeBlockId: null,
+        },
+        context,
+      );
+      return service.save(
+        u,
+        start.id,
+        {
+          title: start.title,
+          startedAt: start.startedAt.toISOString(),
+          endedAt: null,
+          notes: old.notes,
+          linkedTimeBlockId: null,
+          exercises: old.exercises.map((e) => ({
+            exerciseId: e.exerciseId,
+            notes: e.notes,
+            sets: e.sets.map((s) => ({
+              reps: null,
+              weightKg: null,
+              durationSeconds: null,
+              completed: false,
+              skipped: false,
+              targetReps: s.targetReps ?? s.reps,
+              targetWeightKg: s.targetWeightKg ?? s.weightKg,
+              targetDurationSeconds:
+                s.targetDurationSeconds ?? s.durationSeconds,
+              restSeconds: s.restSeconds,
+            })),
+          })),
+        },
+        start.version,
+        context,
+      );
+    },
     async remove(
       u: string,
       id: string,
@@ -146,5 +191,6 @@ export function strengthService(
       }, context);
     },
   };
+  return service;
 }
 export type StrengthService = ReturnType<typeof strengthService>;

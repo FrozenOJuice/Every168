@@ -1,4 +1,8 @@
 import type {
+  StrengthPlan,
+  StrengthPlanInput,
+  StrengthPlanQuery,
+  StrengthScheduleInput,
   Exercise,
   ExerciseInput,
   LibraryQuery,
@@ -9,7 +13,7 @@ import type {
   Cardio,
   CardioInput,
   StrengthProgress,
-  PageQuery,
+  StrengthProgressQuery,
   Page,
   WorkoutHistoryQuery,
   CardioHistoryQuery,
@@ -17,6 +21,58 @@ import type {
 import { writeHeaders, body, query, type Http } from "./http";
 export function exerciseClient(http: Http) {
   return {
+    getStrengthPlans: (q: Partial<StrengthPlanQuery> = {}) =>
+      http<Page<StrengthPlan>>("/api/v1/strength-plans" + query(q)),
+    getStrengthPlanForBlock: (id: string) =>
+      http<{ plan: StrengthPlan | null }>(
+        "/api/v1/strength-plan-for-block/" + id,
+      ).then((result) => result.plan),
+    getStrengthPlan: (id: string) =>
+      http<StrengthPlan>("/api/v1/strength-plans/" + id),
+    createStrengthPlan: (v: StrengthPlanInput, key?: string) =>
+      http<StrengthPlan>("/api/v1/strength-plans", {
+        method: "POST",
+        headers: writeHeaders(key),
+        body: body(v),
+      }),
+    updateStrengthPlan: (
+      id: string,
+      v: StrengthPlanInput,
+      version: number,
+      key?: string,
+    ) =>
+      http<StrengthPlan>("/api/v1/strength-plans/" + id, {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    deleteStrengthPlan: (id: string, version: number, key?: string) =>
+      http<{ ok: true }>("/api/v1/strength-plans/" + id, {
+        method: "DELETE",
+        headers: writeHeaders(key, version),
+      }),
+    scheduleStrengthPlan: (
+      id: string,
+      v: StrengthScheduleInput,
+      version: number,
+      key?: string,
+    ) =>
+      http<StrengthPlan>("/api/v1/strength-plans/" + id + "/schedule", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    beginStrengthPlan: (
+      id: string,
+      startedAt: string,
+      version: number,
+      key?: string,
+    ) =>
+      http<Workout>("/api/v1/strength-plans/" + id + "/begin", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: body({ startedAt }),
+      }),
     getExercises: (q: Partial<LibraryQuery> = {}) =>
       http<Page<Exercise>>("/api/v1/exercises" + query(q)),
     createExercise: (v: ExerciseInput, key?: string) =>
@@ -42,7 +98,7 @@ export function exerciseClient(http: Http) {
         headers: writeHeaders(key, version),
         body: "{}",
       }),
-    getStrengthProgress: (id: string, q: Partial<PageQuery> = {}) =>
+    getStrengthProgress: (id: string, q: Partial<StrengthProgressQuery> = {}) =>
       http<StrengthProgress>("/api/v1/strength-progress/" + id + query(q)),
     restoreExercise: (id: string, version: number, key?: string) =>
       http<Exercise>("/api/v1/exercises/" + id + "/restore", {
@@ -57,6 +113,12 @@ export function exerciseClient(http: Http) {
         method: "POST",
         headers: writeHeaders(key),
         body: body(v),
+      }),
+    repeatWorkout: (id: string, version: number, key?: string) =>
+      http<Workout>("/api/v1/strength-workouts/" + id + "/repeat", {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: "{}",
       }),
     getWorkout: (id: string) =>
       http<Workout>("/api/v1/strength-workouts/" + id),

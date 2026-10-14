@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ScheduledWorkoutAction } from "@/features/fitness/scheduled-workout-action";
 import { CalendarComposer } from "./calendar-composer";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
 import type { CalendarDraft, CalendarSaveResult } from "./calendar-layout";
@@ -110,8 +112,9 @@ export function CalendarEditor({
               {formatTime(item.endsAt, week.timezone)}
             </p>
             <p className="muted text-small">
-              Recorded from Exercise. Activity editing is unavailable while the
-              Fitness workspace is rebuilt.
+              {"sourceType" in item && item.sourceType === "strength_workout"
+                ? "Recorded from Fitness. Open the session to review or correct it."
+                : "Recorded activity. Its editing workspace is not available yet."}
             </p>
           </div>
         </div>
@@ -124,6 +127,17 @@ export function CalendarEditor({
           disabled={remove.isPending}
         />
       )}
+      {automatic &&
+        "sourceType" in item &&
+        item.sourceType === "strength_workout" && (
+          <Link
+            className="button primary"
+            href={`/fitness/session/${item.sourceId}`}
+          >
+            Open session
+          </Link>
+        )}
+      {plan && <ScheduledWorkoutAction blockId={plan.id} />}
       {editor.allDayItem && (
         <details className="calendar-block-actions">
           <summary>Actions</summary>

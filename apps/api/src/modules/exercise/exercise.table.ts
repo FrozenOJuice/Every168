@@ -1,3 +1,4 @@
+import type { StrengthPlan } from "@168hours/contracts";
 import {
   pgTable,
   uuid,
@@ -5,6 +6,7 @@ import {
   integer,
   doublePrecision,
   boolean,
+  jsonb,
   index,
   unique,
   foreignKey,
@@ -112,6 +114,11 @@ export const strengthSets = pgTable(
     weightKg: doublePrecision("weight_kg"),
     durationSeconds: integer("duration_seconds"),
     completed: boolean("completed").notNull(),
+    skipped: boolean("skipped").notNull().default(false),
+    targetReps: integer("target_reps"),
+    targetWeightKg: doublePrecision("target_weight_kg"),
+    targetDurationSeconds: integer("target_duration_seconds"),
+    restSeconds: integer("rest_seconds"),
   },
   (t) => [
     check(
@@ -130,7 +137,7 @@ export const strengthSets = pgTable(
     index("set_parent_idx").on(t.userId, t.workoutExerciseId),
     check(
       "set_positive_values",
-      sql`(${t.reps} is not null or ${t.durationSeconds} is not null) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
+      sql`(not ${t.completed} or ${t.reps} is not null or ${t.durationSeconds} is not null) and not (${t.completed} and ${t.skipped}) and (${t.targetReps} is null or ${t.targetReps} between 1 and 10000) and (${t.targetWeightKg} is null or ${t.targetWeightKg} between 0 and 2000) and (${t.targetDurationSeconds} is null or ${t.targetDurationSeconds} between 1 and 86400) and (${t.restSeconds} is null or ${t.restSeconds} between 0 and 3600) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
     ),
   ],
 );
@@ -169,6 +176,39 @@ export const cardioActivities = pgTable(
     check(
       "cardio_positive_values",
       sql`${t.durationSeconds}>0 and (${t.distanceMeters} is null or ${t.distanceMeters}>0)`,
+    ),
+  ],
+);
+
+export const strengthPlans = pgTable(
+  "strength_plans",
+  {
+    ...ownedColumns(),
+    title: text("title").notNull(),
+    notes: text("notes"),
+    kind: text("kind", { enum: ["workout", "scheduled"] }).notNull(),
+    exercises: jsonb("exercises").$type<StrengthPlan["exercises"]>().notNull(),
+    timeBlockId: uuid("time_block_id").references(() => timeBlocks.id, {
+      onDelete: "set null",
+    }),
+    sessionId: uuid("session_id").references(() => strengthWorkouts.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.userId, t.timeBlockId],
+      foreignColumns: [timeBlocks.userId, timeBlocks.id],
+    }),
+    foreignKey({
+      columns: [t.userId, t.sessionId],
+      foreignColumns: [strengthWorkouts.userId, strengthWorkouts.id],
+    }),
+    index("strength_plans_owner_created").on(t.userId, t.createdAt, t.id),
+    unique("strength_plans_block").on(t.timeBlockId),
+    check(
+      "strength_plans_fields",
+      sql`${t.version}>0 and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.kind} in ('workout','scheduled') and jsonb_typeof(${t.exercises})='array' and jsonb_array_length(${t.exercises}) between 1 and 50 and (${t.kind}='scheduled' or (${t.timeBlockId} is null and ${t.sessionId} is null))`,
     ),
   ],
 );

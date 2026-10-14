@@ -12,6 +12,7 @@ import type {
 import { writeHeaders, body, type Http } from "./http";
 export function planningClient(http: Http) {
   return {
+    getTimeBlock: (id: string) => http<Block>("/api/v1/time-blocks/" + id),
     getCategories: () => http<Category[]>("/api/v1/categories"),
     createCategory: (v: CategoryInput, key?: string) =>
       http<Category>("/api/v1/categories", {

@@ -727,7 +727,7 @@ test("day, week and month calendars keep planning focused", async ({
       fullPage: true,
     });
   }
-  await expect(nav.getByRole("link")).toHaveText(["Calendar"]);
+  await expect(nav.getByRole("link")).toHaveText(["Calendar", "Fitness"]);
   await expect(views.getByRole("link")).toHaveText(["Day", "Week", "Month"]);
   await expect(
     views.getByRole("link", { name: "Week", exact: true }),
@@ -1066,7 +1066,7 @@ test("day, week and month calendars keep planning focused", async ({
     0,
   );
   await expect(page.getByRole("dialog")).toContainText(
-    "Activity editing is unavailable",
+    "Its editing workspace is not available yet.",
   );
   await page.goto("/?date=2026-09-07");
   await page.getByRole("link", { name: "Next week" }).click();

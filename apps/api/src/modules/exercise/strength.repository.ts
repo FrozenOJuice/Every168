@@ -7,6 +7,7 @@ import {
   lt,
   or,
   eq,
+  ne,
   asc,
   desc,
   inArray,
@@ -22,7 +23,7 @@ import type {
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
 import type {
-  PageQuery,
+  StrengthProgressQuery,
   WorkoutHistoryQuery,
   WorkoutStartInput,
   WorkoutUpdateInput,
@@ -262,7 +263,7 @@ export function strengthRepository(db: Database) {
         )[0] ?? null
       );
     },
-    async progress(u: string, exerciseId: string, q: PageQuery) {
+    async progress(u: string, exerciseId: string, q: StrengthProgressQuery) {
       return db.transaction(
         async (tx) => {
           const scope = and(
@@ -272,6 +273,9 @@ export function strengthRepository(db: Database) {
             eq(workoutExercises.exerciseId, exerciseId),
             eq(strengthSets.completed, true),
             isNotNull(workouts.endedAt),
+            q.excludeWorkoutId
+              ? ne(workouts.id, q.excludeWorkoutId)
+              : undefined,
           );
           const rows = await tx
             .select({

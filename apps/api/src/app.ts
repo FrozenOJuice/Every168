@@ -45,6 +45,7 @@ export function createApp({
   body,
   exercises,
   strength,
+  strengthPlans,
   cardio,
 }: Omit<Dependencies, "db" | "pool">) {
   const app = express();
@@ -105,7 +106,7 @@ export function createApp({
     nutritionRoutes(nutrition, writes),
     hydrationRoutes(hydration, writes),
     bodyRoutes(body, writes),
-    exerciseRoutes(exercises, strength, cardio, writes),
+    exerciseRoutes(exercises, strength, cardio, strengthPlans, writes),
   );
   app.use((_req, _res, next) =>
     next(new AppError(404, "NOT_FOUND", "Route not found.")),

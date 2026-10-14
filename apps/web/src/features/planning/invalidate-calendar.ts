@@ -3,6 +3,7 @@ export async function invalidateCalendar(cache: QueryClient) {
   await Promise.all(
     [
       "week",
+      "fitness",
       "calendar-activity",
       "calendar-items",
       "calendar-search",

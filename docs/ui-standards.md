@@ -4,7 +4,7 @@ The owner approved a calendar-first home after backend hardening. This document 
 
 ## Navigation and information hierarchy
 
-- Calendar (`/`) is the only current primary destination, in the slim desktop sidebar and mobile bottom navigation. Keep the account control available. Unscheduled, Routines, and Goals are retained outside navigation for later decisions; the old Food and Exercise UI is removed. New Fitness, Food, and Tasks workspaces require their own implementation scope.
+- Calendar (`/`) and Fitness (`/fitness`) are the current primary destinations, in the slim desktop sidebar and mobile bottom navigation. Keep the account control available. Unscheduled, Routines, and Goals are retained outside navigation for later decisions; the old Food and Exercise UI is removed. Fitness provides Workouts, Sessions, and Exercises sections; Food and Tasks still require their own implementation scope.
 - Account disclosure: identity, Settings, Sign out. Keyboard Escape closes it and restores focus. Settings contains preferences and categories.
 - Calendar is the central general planner. Date and Day/Week/Month view live in URL query parameters. The old `/week` URL redirects to Calendar. Existing Food and Exercise backend capabilities and records remain available to future workspaces.
 - Domain page headers contain a title, one useful description and the page’s main actions. Calendar uses an integrated top toolbar so its grid fills the workspace. Domain reporting and tracking controls belong inside their domains.
@@ -63,3 +63,11 @@ CI is intentionally absent. `pnpm verify` remains the complete local check. No c
 - Keep Calendar free of the Planned/Recorded/Moments legend and account-timezone caption below its toolbar. Routine action confirmations/progress use screen-reader status announcements, while actionable failures and retry controls remain visible.
 
 - Day activity has no Your day heading, repeated date/plans explanation or Add to day button. Its contents use the sidebar height beneath the aligned toolbar date controls. Use toolbar Add for creation.
+
+## Fitness Strength
+
+- Use one focused workspace with Workouts, Sessions, and Exercises sections. Build reusable workouts on a dedicated page; ongoing and finished sessions share a session page.
+- Keep planned targets beside actual performance. Completed, Skipped, and Unfinished are distinct. Completing a set can start an optional rest timer.
+- Session fields autosave after a pause and expose saving/error/retry status. Preserve local recovery drafts per account/session in the tab; stale drafts require explicit discard instead of overwriting newer data. Keep a manual save option.
+- Use account timezone and kg/lb preferences. Preserve unchanged saved instants at repeated clock times; reject new ambiguous or nonexistent local times.
+- Calendar remains the scheduling overview. Start a scheduled workout from its compact editor; recorded Strength activity links to its session.

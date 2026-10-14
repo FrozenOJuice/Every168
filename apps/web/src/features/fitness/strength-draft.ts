@@ -1,0 +1,91 @@
+import {
+  setInput,
+  type Workout,
+  type WorkoutUpdateInput,
+  type StrengthPlan,
+  type StrengthPlanInput,
+  type SetInput,
+} from "@168hours/contracts";
+export type SetDraft = SetInput & { id?: string };
+export type ExerciseDraft = {
+  id?: string;
+  exerciseId: string;
+  name: string;
+  notes: string | null;
+  sets: SetDraft[];
+};
+export const emptySet = () => setInput.parse({ completed: false });
+export function sessionDraft(w: Workout): SessionDraft {
+  return {
+    title: w.title,
+    notes: w.notes,
+    startedAt: w.startedAt,
+    endedAt: w.endedAt,
+    linkedTimeBlockId: w.linkedTimeBlockId,
+    exercises: w.exercises.map((e) => ({
+      ...e,
+      name: e.exerciseNameSnapshot,
+      sets: e.sets.map((s) => ({ ...s })),
+    })),
+  };
+}
+export type SessionDraft = Omit<WorkoutUpdateInput, "exercises"> & {
+  exercises: ExerciseDraft[];
+};
+export function sessionInput(v: SessionDraft): WorkoutUpdateInput {
+  return {
+    ...v,
+    exercises: v.exercises.map((e) => ({
+      id: e.id,
+      exerciseId: e.exerciseId,
+      notes: e.notes,
+      sets: e.sets.map((s) => ({
+        id: s.id,
+        reps: s.reps,
+        weightKg: s.weightKg,
+        durationSeconds: s.durationSeconds,
+        completed: s.completed,
+        skipped: s.skipped,
+        targetReps: s.targetReps,
+        targetWeightKg: s.targetWeightKg,
+        targetDurationSeconds: s.targetDurationSeconds,
+        restSeconds: s.restSeconds,
+      })),
+    })),
+  };
+}
+export function planExercises(plan?: StrengthPlan): ExerciseDraft[] {
+  return (
+    plan?.exercises.map((e) => ({
+      ...e,
+      sets: e.sets.map((s) => ({ ...emptySet(), ...s })),
+    })) ?? []
+  );
+}
+export function planInput(
+  title: string,
+  notes: string | null,
+  exercises: ExerciseDraft[],
+  fromActual = false,
+): StrengthPlanInput {
+  return {
+    title,
+    notes,
+    exercises: exercises.map((e) => ({
+      exerciseId: e.exerciseId,
+      notes: e.notes,
+      sets: e.sets.map((s) => ({
+        targetReps: s.targetReps ?? (fromActual ? s.reps : null),
+        targetWeightKg: s.targetWeightKg ?? (fromActual ? s.weightKg : null),
+        targetDurationSeconds:
+          s.targetDurationSeconds ?? (fromActual ? s.durationSeconds : null),
+        restSeconds: s.restSeconds,
+      })),
+    })),
+  };
+}
+export function move<T>(values: T[], index: number, delta: number) {
+  const next = [...values];
+  [next[index], next[index + delta]] = [next[index + delta]!, next[index]!];
+  return next;
+}

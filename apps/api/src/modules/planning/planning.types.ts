@@ -1,5 +1,5 @@
 export type BlockSourceLink = {
-  kind: "cardio" | "strength";
+  kind: "cardio" | "strength" | "strength-plan";
   id: string;
   version: number;
 };

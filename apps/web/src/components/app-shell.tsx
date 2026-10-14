@@ -1,12 +1,15 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Dumbbell } from "lucide-react";
 import type { Me } from "@168hours/contracts";
 import { MeProvider } from "@/features/identity/me";
 import { AccountMenu } from "./account-menu";
 
-const links = [["/", "Calendar", CalendarDays]] as const;
+const links = [
+  ["/", "Calendar", CalendarDays],
+  ["/fitness", "Fitness", Dumbbell],
+] as const;
 
 export function AppShell({
   me,

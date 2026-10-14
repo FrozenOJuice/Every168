@@ -34,7 +34,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   ).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
-  ).toHaveText(["Calendar"]);
+  ).toHaveText(["Calendar", "Fitness"]);
   for (const route of ["/food", "/exercise", "/exercise/workout/retired"])
     expect((await page.request.get(route)).status()).toBe(404);
   await page.getByRole("button", { name: "Account menu" }).click();

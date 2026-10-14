@@ -1,3 +1,10 @@
+import type { StrengthPlansService } from "./strength-plans.service.js";
+import {
+  strengthPlanInput,
+  strengthPlanQuery,
+  strengthScheduleInput,
+  strengthBeginInput,
+} from "@168hours/contracts";
 import { mutation, emptyInput } from "../../shared/http/mutation.js";
 import type { WritesService } from "../../infrastructure/writes/writes.service.js";
 import { Router } from "express";
@@ -7,7 +14,7 @@ import {
   workoutUpdateInput,
   cardioInput,
   idSchema,
-  pageQuerySchema,
+  strengthProgressQuery,
   libraryQuery,
   workoutHistoryQuery,
   cardioHistoryQuery,
@@ -20,9 +27,77 @@ export function exerciseRoutes(
   exercises: ExerciseService,
   strength: StrengthService,
   cardio: CardioService,
+  plans: StrengthPlansService,
   writes: WritesService,
 ) {
   const r = Router();
+  r.get("/strength-plans", async (req, res) =>
+    res.json(
+      await plans.list(currentUser(res).id, strengthPlanQuery.parse(req.query)),
+    ),
+  );
+  r.get("/strength-plan-for-block/:id", async (req, res) =>
+    res.json({
+      plan: await plans.forBlock(
+        currentUser(res).id,
+        idSchema.parse(req.params.id),
+      ),
+    }),
+  );
+  r.get("/strength-plans/:id", async (req, res) =>
+    res.json(
+      await plans.get(currentUser(res).id, idSchema.parse(req.params.id)),
+    ),
+  );
+  r.post(
+    "/strength-plans",
+    mutation(
+      writes,
+      strengthPlanInput,
+      ({ userId, input, context }) => plans.create(userId, input, context),
+      { status: 201 },
+    ),
+  );
+  r.put(
+    "/strength-plans/:id",
+    mutation(
+      writes,
+      strengthPlanInput,
+      ({ userId, id, input, version, context }) =>
+        plans.update(userId, id, input, version, context),
+      { versioned: true },
+    ),
+  );
+  r.delete(
+    "/strength-plans/:id",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        plans.remove(userId, id, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/strength-plans/:id/schedule",
+    mutation(
+      writes,
+      strengthScheduleInput,
+      ({ userId, id, input, version, context }) =>
+        plans.schedule(userId, id, input, version, context),
+      { versioned: true, status: 201 },
+    ),
+  );
+  r.post(
+    "/strength-plans/:id/begin",
+    mutation(
+      writes,
+      strengthBeginInput,
+      ({ userId, id, input, version, context }) =>
+        plans.begin(userId, id, input.startedAt, version, context),
+      { versioned: true, status: 201 },
+    ),
+  );
   r.get("/exercises", async (req, res) =>
     res.json(
       await exercises.list(currentUser(res).id, libraryQuery.parse(req.query)),
@@ -67,7 +142,7 @@ export function exerciseRoutes(
       await exercises.progress(
         currentUser(res).id,
         idSchema.parse(req.params.id),
-        pageQuerySchema.parse(req.query),
+        strengthProgressQuery.parse(req.query),
       ),
     ),
   );
@@ -96,6 +171,16 @@ export function exerciseRoutes(
       workoutStartInput,
       ({ userId, input, context }) => strength.start(userId, input, context),
       { status: 201 },
+    ),
+  );
+  r.post(
+    "/strength-workouts/:id/repeat",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        strength.repeat(userId, id, version, context),
+      { versioned: true, status: 201 },
     ),
   );
   r.get("/strength-workouts/:id", async (req, res) =>

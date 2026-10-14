@@ -16,10 +16,10 @@ This document records the agreed direction and priority order. It describes futu
 
 ## Domains: useful experiences of their own
 
-- Current product reset: Calendar is the only main-navigation destination. Retire the old Food and Exercise UI while preserving backend capabilities and data for future Fitness and Food work. Keep Unscheduled and Routines for later Tasks decisions; Goals are deferred. This does not begin the new domain implementations.
+- Current foundation: Calendar and Fitness are the main-navigation destinations. The first Strength workflow covers reusable workouts, optional scheduling, set-by-set session logging, and review. The old Food and Exercise UI remains retired; Food backend capabilities and data are retained for later work. Keep Unscheduled and Routines for later Tasks decisions; Goals are deferred.
 
 - Work toward three built-in workspaces around Calendar: Fitness, Food, and Tasks.
-- Fitness covers workout planning, sessions, sets, reps, rest, and progress. Fitness is the intended product direction; the existing Exercise implementation is not renamed by this scope update.
+- Fitness covers workout planning, sessions, sets, reps, rest, and progress. Fitness is the product workspace name; the existing Exercise backend module supplies its canonical records and services.
 - Food covers meals, nutrition, and food records; recipes are part of the future Food direction.
 - Tasks helps users capture commitments, organize to-dos and projects, choose next actions, and follow progress. Projects organize tasks within this workspace; detailed workflows remain to be scoped.
 - A task represents something to complete; a Calendar block represents time allocated toward it. Scheduling or spending time on a task does not automatically complete it, and completing a task does not require scheduling it.

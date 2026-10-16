@@ -1,32 +1,55 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import {
-  instantToLocalInput,
-  localInputToInstant,
-} from "@168hours/domain-utils";
-import type { StrengthPlan } from "@168hours/contracts";
-import { strengthScheduleInput } from "@168hours/contracts";
+import { ArrowUpRight, ChevronDown, Play, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
-import {
-  Loading,
-  Empty,
-  ErrorState,
-  PageHeading,
-} from "@/components/ui/feedback";
-import { Dialog } from "@/components/ui/dialog";
-import { ExerciseLibrary } from "./exercise-library";
+import { ErrorState, Loading } from "@/components/ui/feedback";
+
+import { FitnessSelect } from "./fitness-select";
+import { PlanCard } from "./workout-actions";
 import { invalidateFitness } from "./fitness-cache";
-export function FitnessPage({ tab }: { tab?: string }) {
-  const active = tab === "history" || tab === "exercises" ? tab : "workouts";
+export function FitnessPage() {
+  const active = useQuery({
+    queryKey: ["fitness", "active"],
+    queryFn: () => api.getWorkouts({ status: "active", limit: 1 }),
+  });
+  const current = active.data?.items[0];
+  return (
+    <div className="fitness-training-overview">
+      <NextWorkout />
+      {current && (
+        <section className="fitness-current" aria-label="Workout in progress">
+          <div>
+            <span className="fitness-state">In progress</span>
+            <strong>{current.title}</strong>
+            <span className="text-small">Pick up where you left off.</span>
+          </div>
+          <Link
+            className="button primary"
+            href={`/fitness/session/${current.id}`}
+          >
+            Continue workout
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </Link>
+        </section>
+      )}
+      {active.error && (
+        <ErrorState error={active.error} retry={() => void active.refetch()} />
+      )}
+      <WorkoutsOverview />
+      <FitnessActivityOverview />
+    </div>
+  );
+}
+function WorkoutsOverview() {
   const router = useRouter();
   const cache = useQueryClient();
   const start = useCommand({
@@ -46,61 +69,91 @@ export function FitnessPage({ tab }: { tab?: string }) {
     },
   });
   return (
-    <div className="fitness-workspace">
-      <PageHeading
-        title="Fitness"
-        description="Prepare your training, record it as you go, and see what you did."
-      >
+    <div className="fitness-my-workouts">
+      <section id="my-workouts" aria-labelledby="my-workouts-heading">
+        <div className="fitness-section-heading">
+          <div>
+            <h2 id="my-workouts-heading">My workouts</h2>
+          </div>
+          <div className="fitness-workout-header-actions">
+            <Link
+              className="fitness-text-action"
+              href="/fitness/workout/new"
+              aria-label="Create workout"
+            >
+              <Plus size={16} aria-hidden="true" />
+              Create
+            </Link>
+          </div>
+        </div>
+        <PlanList kind="workout" />
         <button
-          className="button primary"
+          className="fitness-text-action fitness-empty-workout"
           disabled={start.isPending}
           onClick={() => start.mutate(new Date().toISOString())}
         >
+          <Play size={16} aria-hidden="true" />
           Start empty workout
         </button>
-      </PageHeading>
-      <CommandError command={start} />
-      <nav className="fitness-tabs" aria-label="Fitness sections">
-        {[
-          ["workouts", "Workouts"],
-          ["history", "Sessions"],
-          ["exercises", "Exercises"],
-        ].map(([key, label]) => (
-          <Link
-            key={key}
-            href={`/fitness?tab=${key}`}
-            aria-current={active === key ? "page" : undefined}
-          >
-            {label}
-          </Link>
-        ))}
-      </nav>
-      {active === "exercises" ? (
-        <ExerciseLibrary />
-      ) : active === "history" ? (
-        <SessionList />
-      ) : (
-        <>
-          <div className="row between">
-            <h2>Your workouts</h2>
-            <Link className="button" href="/fitness/workout/new">
-              Create workout
-            </Link>
-          </div>
-          <PlanList kind="workout" />
-          <h2 className="fitness-section">Scheduled training</h2>
-          <PlanList kind="scheduled" />
-        </>
-      )}
+        <CommandError command={start} />
+      </section>
     </div>
   );
 }
+function NextWorkout() {
+  const q = useQuery({
+    queryKey: ["fitness", "next"],
+    queryFn: api.getNextStrengthWorkout,
+    refetchInterval: 60000,
+  });
+  return (
+    <section aria-labelledby="next-workout-heading">
+      <div className="fitness-section-heading">
+        <h2 id="next-workout-heading">Next workout</h2>
+      </div>
+      {q.isPending ? (
+        <Loading />
+      ) : q.error ? (
+        <ErrorState error={q.error} retry={() => void q.refetch()} />
+      ) : q.data ? (
+        <PlanCard plan={q.data.plan} scheduledBlock={q.data.block} />
+      ) : (
+        <p className="fitness-overview-empty">No scheduled workouts.</p>
+      )}
+    </section>
+  );
+}
+function FitnessActivityOverview() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const reveal = () => {
+      if (window.location.hash === "#history") setOpen(true);
+    };
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, []);
+  return (
+    <details
+      id="history"
+      className="fitness-secondary fitness-overview-history"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>
+        History <ChevronDown size={16} aria-hidden="true" />
+      </summary>
+      <WorkoutHistory />
+    </details>
+  );
+}
+
 function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
   const q = useInfiniteQuery({
     queryKey: ["fitness", "plans", kind],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      api.getStrengthPlans({ kind, cursor: pageParam }),
+      api.getStrengthPlans({ kind, cursor: pageParam, limit: 3 }),
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   if (q.isPending) return <Loading />;
@@ -108,252 +161,129 @@ function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
     return <ErrorState error={q.error} retry={() => void q.refetch()} />;
   return (
     <>
-      {q.data.pages[0]?.items.length === 0 ? (
-        <Empty>
+      {!q.data.pages[0]?.items.length ? (
+        <p className="fitness-overview-empty">
           {kind === "workout"
-            ? "No saved workouts yet. Create one or start an empty session."
-            : "No scheduled workouts yet."}
-        </Empty>
+            ? "No saved workouts yet."
+            : "No planned workouts."}
+        </p>
       ) : (
         <div className="fitness-cards">
           {q.data.pages
             .flatMap((p) => p.items)
-            .map((p) => (
-              <PlanCard key={p.id} plan={p} />
+            .map((plan) => (
+              <PlanCard key={plan.id} plan={plan} />
             ))}
         </div>
       )}
       {q.hasNextPage && (
-        <button className="button" onClick={() => void q.fetchNextPage()}>
-          More workouts
+        <button
+          className="fitness-text-action"
+          disabled={q.isFetchingNextPage}
+          onClick={() => void q.fetchNextPage()}
+        >
+          Show more workouts
         </button>
       )}
     </>
   );
 }
-export function BeginWorkout({ plan }: { plan: StrengthPlan }) {
-  const router = useRouter();
-  const cache = useQueryClient();
-  const begin = useCommand({
-    mutationFn: (startedAt: string, key: string) =>
-      api.beginStrengthPlan(plan.id, startedAt, plan.version, key),
-    onSuccess: (w) => {
-      invalidateFitness(cache);
-      router.push(`/fitness/session/${w.id}`);
-    },
-  });
-  return (
-    <>
-      <button
-        className="button primary"
-        disabled={begin.isPending}
-        onClick={() => begin.mutate(new Date().toISOString())}
-      >
-        {plan.sessionId ? "Open session" : "Start workout"}
-      </button>
-      <CommandError command={begin} />
-    </>
-  );
-}
-function PlanCard({ plan }: { plan: StrengthPlan }) {
-  const [scheduling, setScheduling] = useState(false);
+function WorkoutHistory() {
   const timezone = useMe().preferences.timezone;
-  const block = useQuery({
-    queryKey: ["fitness", "block", plan.timeBlockId],
-    queryFn: () => api.getTimeBlock(plan.timeBlockId!),
-    enabled: !!plan.timeBlockId,
-  });
-  return (
-    <section className="panel">
-      <h3>{block.data?.title ?? plan.title}</h3>
-      <p className="text-small">
-        {plan.exercises.length} exercises ·{" "}
-        {plan.exercises.reduce((n, e) => n + e.sets.length, 0)} sets
-      </p>
-      {plan.notes && <p>{plan.notes}</p>}
-      {block.data && (
-        <p>
-          <Link
-            href={`/?date=${instantToLocalInput(block.data.startsAt, timezone).slice(0, 10)}&view=day`}
-          >
-            {new Intl.DateTimeFormat("en", {
-              timeZone: timezone,
-              dateStyle: "medium",
-              timeStyle: "short",
-            }).format(new Date(block.data.startsAt))}
-          </Link>
-        </p>
-      )}
-      {block.error && (
-        <ErrorState error={block.error} retry={() => void block.refetch()} />
-      )}
-      {plan.kind === "scheduled" && !plan.timeBlockId && (
-        <p className="muted">
-          Calendar time was removed. You can still start this workout.
-        </p>
-      )}
-      <div className="row">
-        <BeginWorkout plan={plan} />
-        {plan.kind === "workout" && (
-          <>
-            <Link className="button" href={`/fitness/workout/${plan.id}`}>
-              Edit
-            </Link>
-            <button className="button" onClick={() => setScheduling(true)}>
-              Schedule
-            </button>
-          </>
-        )}
-      </div>
-      {scheduling && (
-        <Dialog title="Schedule workout" onClose={() => setScheduling(false)}>
-          <ScheduleWorkout plan={plan} onSaved={() => setScheduling(false)} />
-        </Dialog>
-      )}
-    </section>
-  );
-}
-function ScheduleWorkout({
-  plan,
-  onSaved,
-}: {
-  plan: StrengthPlan;
-  onSaved: () => void;
-}) {
-  const timezone = useMe().preferences.timezone;
-  const cache = useQueryClient();
-  const [start, setStart] = useState(() =>
-    instantToLocalInput(new Date().toISOString(), timezone),
-  );
-  const [end, setEnd] = useState(() =>
-    instantToLocalInput(new Date(Date.now() + 3600000).toISOString(), timezone),
-  );
-  const [error, setError] = useState("");
-  const command = useCommand({
-    mutationFn: (v: { startsAt: string; endsAt: string }, key: string) =>
-      api.scheduleStrengthPlan(plan.id, v, plan.version, key),
-    onSuccess: () => {
-      invalidateFitness(cache);
-      onSaved();
-    },
-  });
-  return (
-    <form
-      className="form-stack"
-      onSubmit={(e) => {
-        e.preventDefault();
-        try {
-          const v = strengthScheduleInput.parse({
-            startsAt: localInputToInstant(start, timezone),
-            endsAt: localInputToInstant(end, timezone),
-          });
-          setError("");
-          command.mutate(v);
-        } catch {
-          setError(
-            "Choose valid, unambiguous start and end times in your timezone.",
-          );
-        }
-      }}
-    >
-      <p>
-        This reserves Calendar time. It does not start or complete a session.
-      </p>
-      <fieldset className="form-stack" disabled={command.isPending}>
-        <label>
-          Start
-          <input
-            type="datetime-local"
-            required
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-          />
-        </label>
-        <label>
-          End
-          <input
-            type="datetime-local"
-            required
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-          />
-        </label>
-        <button className="button primary">Schedule workout</button>
-      </fieldset>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <CommandError command={command} />
-    </form>
-  );
-}
-function SessionList() {
-  const timezone = useMe().preferences.timezone;
-  const [status, setStatus] = useState<"all" | "active" | "completed">("all");
+  const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<"all" | "active" | "completed">("all");
   const q = useInfiniteQuery({
     queryKey: ["fitness", "sessions", status, search],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
-      api.getWorkouts({ status, search, cursor: pageParam }),
+      api.getWorkouts({
+        status,
+        search,
+        cursor: pageParam,
+        limit: 10,
+      }),
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
   return (
-    <div className="form-stack">
-      <div className="row">
-        <label>
-          Search sessions
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-        <label>
-          Status
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as typeof status)}
-          >
-            <option value="all">All sessions</option>
-            <option value="active">In progress</option>
-            <option value="completed">Finished</option>
-          </select>
-        </label>
+    <section aria-labelledby="fitness-history-heading">
+      <div className="fitness-section-heading">
+        <div>
+          <h2 id="fitness-history-heading">History</h2>
+        </div>
+        <button
+          className="fitness-text-action"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? "Less" : "View all"}
+        </button>
       </div>
-      <p className="muted text-small">Most recently created first.</p>
+      {expanded && (
+        <div className="fitness-history-filters">
+          <label className="field">
+            Find a workout
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <FitnessSelect
+            label="Workout status"
+            value={status}
+            onChange={(value) => setStatus(value as typeof status)}
+            options={[
+              { value: "all", label: "All workouts" },
+              { value: "active", label: "In progress" },
+              { value: "completed", label: "Finished" },
+            ]}
+          />
+        </div>
+      )}
       {q.isPending ? (
         <Loading />
       ) : q.error ? (
         <ErrorState error={q.error} retry={() => void q.refetch()} />
-      ) : (
-        <ul className="record-list">
+      ) : q.data.pages[0]?.items.length ? (
+        <div className="fitness-history-items">
           {q.data.pages
             .flatMap((p) => p.items)
+            .slice(0, expanded ? undefined : 3)
             .map((w) => (
-              <li key={w.id}>
-                <Link href={`/fitness/session/${w.id}`}>{w.title}</Link>
-                <span>
-                  {new Intl.DateTimeFormat("en", {
-                    timeZone: timezone,
-                    dateStyle: "medium",
-                  }).format(new Date(w.startedAt))}{" "}
-                  · {w.endedAt ? "Finished" : "In progress"}
+              <Link
+                key={w.id}
+                href={`/fitness/session/${w.id}`}
+                className="fitness-history-item"
+              >
+                <div>
+                  <strong>{w.title}</strong>
+                  <small>
+                    {new Intl.DateTimeFormat("en", {
+                      timeZone: timezone,
+                      dateStyle: "medium",
+                    }).format(new Date(w.startedAt))}
+                  </small>
+                </div>
+                <span className="fitness-state">
+                  {w.endedAt ? "Finished" : "In progress"}
                 </span>
-              </li>
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </Link>
             ))}
-        </ul>
+        </div>
+      ) : (
+        <p className="fitness-overview-empty">No workouts recorded yet.</p>
       )}
-      {q.data?.pages[0]?.items.length === 0 && (
-        <Empty>No sessions found.</Empty>
-      )}
-      {q.hasNextPage && (
-        <button className="button" onClick={() => void q.fetchNextPage()}>
-          More sessions
+      {expanded && q.hasNextPage && (
+        <button
+          className="fitness-text-action"
+          disabled={q.isFetchingNextPage}
+          onClick={() => void q.fetchNextPage()}
+        >
+          More history
         </button>
       )}
-    </div>
+    </section>
   );
 }

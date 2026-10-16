@@ -71,3 +71,51 @@ describe("Strength target and actual boundaries", () => {
     expect(sessionInput(input).exercises[0]).not.toHaveProperty("name");
   });
 });
+
+describe("workout ordering", () => {
+  it("moves a whole item across several positions without changing its data or source array", async () => {
+    const { moveTo } = await import("./strength-draft");
+    const items = [
+      { id: "first", sets: [{ reps: 8, completed: true }] },
+      { id: "second", sets: [{ reps: null, completed: false }] },
+      { id: "third", sets: [{ reps: 12, completed: false }] },
+    ];
+    const next = moveTo(items, 0, 2);
+    expect(next.map((item) => item.id)).toEqual(["second", "third", "first"]);
+    expect(next[2]).toBe(items[0]);
+    expect(items.map((item) => item.id)).toEqual(["first", "second", "third"]);
+    expect(moveTo(next, 2, 0)).toEqual(items);
+    expect(moveTo(items, 0, -1)).toBe(items);
+    expect(moveTo(items, 2, 3)).toBe(items);
+  });
+  it("keeps distinct client keys out of canonical plan and session writes", () => {
+    const first = emptySet(),
+      second = emptySet();
+    expect(first.clientKey).not.toBe(second.clientKey);
+    const exercise = {
+      clientKey: "private-ui-key",
+      exerciseId: id,
+      name: "Squat",
+      notes: null,
+      sets: [first, second],
+    };
+    expect(planInput("A", null, [exercise]).exercises[0]).not.toHaveProperty(
+      "clientKey",
+    );
+    expect(
+      planInput("A", null, [exercise]).exercises[0]!.sets[0],
+    ).not.toHaveProperty("clientKey");
+    const input: SessionDraft = {
+      title: "A",
+      notes: null,
+      startedAt: "2026-10-14T15:00:00Z",
+      endedAt: null,
+      linkedTimeBlockId: null,
+      exercises: [exercise],
+    };
+    expect(sessionInput(input).exercises[0]).not.toHaveProperty("clientKey");
+    expect(sessionInput(input).exercises[0]!.sets[0]).not.toHaveProperty(
+      "clientKey",
+    );
+  });
+});

@@ -1,3 +1,4 @@
+import { useCatalogExerciseInput } from "@168hours/contracts";
 import type { StrengthPlansService } from "./strength-plans.service.js";
 import {
   strengthPlanInput,
@@ -15,7 +16,10 @@ import {
   cardioInput,
   idSchema,
   strengthProgressQuery,
-  libraryQuery,
+  exerciseLibraryQuery,
+  exerciseFavouriteInput,
+  exerciseHiddenInput,
+  exerciseDuplicateInput,
   workoutHistoryQuery,
   cardioHistoryQuery,
 } from "@168hours/contracts";
@@ -43,6 +47,9 @@ export function exerciseRoutes(
         idSchema.parse(req.params.id),
       ),
     }),
+  );
+  r.get("/strength-plans/next", async (_req, res) =>
+    res.json({ workout: await plans.next(currentUser(res).id) }),
   );
   r.get("/strength-plans/:id", async (req, res) =>
     res.json(
@@ -98,9 +105,25 @@ export function exerciseRoutes(
       { versioned: true, status: 201 },
     ),
   );
+  r.get("/exercise-catalog", async (_req, res) =>
+    res.json(await exercises.catalog(currentUser(res).id)),
+  );
+  r.post(
+    "/exercises/from-catalog",
+    mutation(
+      writes,
+      useCatalogExerciseInput,
+      ({ userId, input, context }) =>
+        exercises.useCatalog(userId, input.key, context),
+      { status: 201 },
+    ),
+  );
   r.get("/exercises", async (req, res) =>
     res.json(
-      await exercises.list(currentUser(res).id, libraryQuery.parse(req.query)),
+      await exercises.list(
+        currentUser(res).id,
+        exerciseLibraryQuery.parse(req.query),
+      ),
     ),
   );
   r.post(
@@ -110,6 +133,46 @@ export function exerciseRoutes(
       exerciseInput,
       ({ userId, input, context }) => exercises.create(userId, input, context),
       { status: 201 },
+    ),
+  );
+  r.put(
+    "/exercises/:id/favourite",
+    mutation(
+      writes,
+      exerciseFavouriteInput,
+      ({ userId, id, input, version, context }) =>
+        exercises.favourite(userId, id, input.favourite, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/exercises/duplicate",
+    mutation(
+      writes,
+      exerciseDuplicateInput,
+      ({ userId, input, context }) =>
+        exercises.duplicate(userId, input, context),
+      { status: 201 },
+    ),
+  );
+  r.put(
+    "/exercises/:id/hidden",
+    mutation(
+      writes,
+      exerciseHiddenInput,
+      ({ userId, id, input, version, context }) =>
+        exercises.hidden(userId, id, input.hidden, version, context),
+      { versioned: true },
+    ),
+  );
+  r.delete(
+    "/exercises/:id",
+    mutation(
+      writes,
+      emptyInput,
+      ({ userId, id, version, context }) =>
+        exercises.remove(userId, id, version, context),
+      { versioned: true },
     ),
   );
   r.get("/exercises/:id", async (req, res) =>

@@ -231,7 +231,7 @@ fieldset.form-stack {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
 }
 input,

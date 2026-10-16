@@ -23,6 +23,15 @@ export const exercises = pgTable(
   {
     ...ownedColumns(),
     name: text("name").notNull(),
+    catalogKey: text("catalog_key"),
+    equipment: text("equipment")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    muscles: text("muscles")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     notes: text("notes"),
     archivedAt: instant("archived_at"),
   },
@@ -35,8 +44,33 @@ export const exercises = pgTable(
       "exercise_fields",
       sql`char_length(btrim(${t.name})) between 1 and 160 and char_length(${t.notes})<=4000`,
     ),
+    check(
+      "exercise_metadata",
+      sql`cardinality(${t.equipment})<=10 and ${t.equipment} <@ ARRAY['Barbell','Dumbbells','Cable','Machine','Bodyweight','Bench','Kettlebell','Resistance band','Pull-up bar','Other']::text[] and cardinality(${t.muscles})<=6 and ${t.muscles} <@ ARRAY['Chest','Back','Shoulders','Arms','Legs','Core']::text[]`,
+    ),
     unique("exercise_owner_id").on(t.userId, t.id),
+    unique("exercise_owner_catalog_key").on(t.userId, t.catalogKey),
     index("exercise_user_created_idx").on(t.userId, t.createdAt, t.id),
+  ],
+);
+export const exercisePreferences = pgTable(
+  "exercise_preferences",
+  {
+    ...ownedColumns(),
+    exerciseId: uuid("exercise_id").notNull(),
+    favourite: boolean("favourite").notNull().default(false),
+    hidden: boolean("hidden").notNull().default(false),
+  },
+  (t) => [
+    unique("exercise_preference_owner_exercise").on(t.userId, t.exerciseId),
+    foreignKey({
+      columns: [t.userId, t.exerciseId],
+      foreignColumns: [exercises.userId, exercises.id],
+    }).onDelete("cascade"),
+    check(
+      "exercise_preference_revision",
+      sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
+    ),
   ],
 );
 export const strengthWorkouts = pgTable(
@@ -187,6 +221,7 @@ export const strengthPlans = pgTable(
     title: text("title").notNull(),
     notes: text("notes"),
     kind: text("kind", { enum: ["workout", "scheduled"] }).notNull(),
+    isDraft: boolean("is_draft").notNull().default(false),
     exercises: jsonb("exercises").$type<StrengthPlan["exercises"]>().notNull(),
     timeBlockId: uuid("time_block_id").references(() => timeBlocks.id, {
       onDelete: "set null",
@@ -208,7 +243,7 @@ export const strengthPlans = pgTable(
     unique("strength_plans_block").on(t.timeBlockId),
     check(
       "strength_plans_fields",
-      sql`${t.version}>0 and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.kind} in ('workout','scheduled') and jsonb_typeof(${t.exercises})='array' and jsonb_array_length(${t.exercises}) between 1 and 50 and (${t.kind}='scheduled' or (${t.timeBlockId} is null and ${t.sessionId} is null))`,
+      sql`${t.version}>0 and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.kind} in ('workout','scheduled') and jsonb_typeof(${t.exercises})='array' and jsonb_array_length(${t.exercises}) between (case when ${t.isDraft} then 0 else 1 end) and 50 and (not ${t.isDraft} or ${t.kind}='workout') and (${t.kind}='scheduled' or (${t.timeBlockId} is null and ${t.sessionId} is null))`,
     ),
   ],
 );

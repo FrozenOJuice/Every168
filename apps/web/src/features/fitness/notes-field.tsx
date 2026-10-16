@@ -5,16 +5,20 @@ export function NotesField({
   value,
   onChange,
   disabled = false,
+  hideLabel = false,
 }: {
   label: string;
   value: string | null;
   onChange: (value: string | null) => void;
   disabled?: boolean;
+  hideLabel?: boolean;
 }) {
   const id = useId();
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
+        {label}
+      </label>
       <textarea
         id={id}
         disabled={disabled}

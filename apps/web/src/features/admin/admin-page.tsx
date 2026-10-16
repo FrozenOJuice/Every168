@@ -70,7 +70,7 @@ function ManagementDialog({
               : "This user will need to sign in again on every device."}
       </p>
       {action.kind === "delete" && (
-        <label>
+        <label className="field">
           Confirm account email
           <input
             type="email"
@@ -278,7 +278,7 @@ export function AdminPage() {
               setSearch(draft.trim());
             }}
           >
-            <label>
+            <label className="field">
               Name, email or account ID
               <input
                 value={draft}
@@ -286,7 +286,7 @@ export function AdminPage() {
                 onChange={(event) => setDraft(event.target.value)}
               />
             </label>
-            <label>
+            <label className="field">
               Status
               <select
                 value={status}

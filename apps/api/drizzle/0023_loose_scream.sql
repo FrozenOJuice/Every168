@@ -1,0 +1,1 @@
+ALTER TABLE "exercises" ADD COLUMN "favourite" boolean DEFAULT false NOT NULL;

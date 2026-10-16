@@ -48,12 +48,15 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   ).toHaveText(["Calendar", "Fitness"]);
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
   await page.getByLabel("Workout title", { exact: true }).fill("Strength A");
-  await page.getByRole("button", { name: "Add exercise", exact: true }).click();
+  if (testInfo.project.name !== "desktop")
+    await page
+      .getByRole("button", { name: "Add exercise", exact: true })
+      .click();
   await page
-    .getByRole("dialog", { name: "Choose an exercise", exact: true })
+    .locator(".fitness-exercise-panel")
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
-  const create = page.getByRole("dialog", {
+  const create = page.getByRole("region", {
     name: "Create exercise",
     exact: true,
   });
@@ -62,10 +65,24 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
     .getByRole("button", { name: "Save exercise", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".fitness-panel-notice")).toContainText(
+    "Added Squat",
+  );
+  if (testInfo.project.name === "phone") {
+    await page
+      .getByRole("button", { name: "Back to workout", exact: true })
+      .click();
+  }
   await page.getByLabel("Target reps", { exact: true }).fill("8");
   await page.getByLabel("Target load (lb)", { exact: true }).fill("100");
+  await page
+    .getByRole("button", { name: "More details for set 1", exact: true })
+    .click();
   await page.getByLabel("Rest (seconds)", { exact: true }).fill("30");
   await page.getByRole("button", { name: "Add set", exact: true }).click();
+  await page
+    .getByRole("button", { name: "More details for set 2", exact: true })
+    .click();
   await page
     .getByLabel("Target duration (seconds)", { exact: true })
     .nth(1)
@@ -102,12 +119,14 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   const id = page.url().split("/").at(-1)!;
   const read = async () =>
     await (await page.request.get(`/api/v1/strength-workouts/${id}`)).json();
-  await expect(page.getByLabel("Session title", { exact: true })).toHaveValue(
+  await openWorkoutDetails(page);
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Strength A",
   );
   await expect(
     page.getByLabel("Actual reps", { exact: true }).first(),
   ).toHaveValue("");
+  await page.locator(".fitness-set-targets").first().locator("summary").click();
   await expect(
     page.getByLabel("Target load (lb)", { exact: true }).first(),
   ).toHaveValue("100");
@@ -138,10 +157,11 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   expect(row.exercises[0].sets[0].targetWeightKg).toBeCloseTo(45.359237, 5);
   // Reload immediately after an edit: the recovery draft must not disappear.
   await page
-    .getByLabel("Session notes", { exact: true })
+    .getByLabel("Workout notes", { exact: true })
     .fill("Felt strong today");
   await page.reload();
-  await expect(page.getByLabel("Session notes", { exact: true })).toHaveValue(
+  await openWorkoutDetails(page);
+  await expect(page.getByLabel("Workout notes", { exact: true })).toHaveValue(
     "Felt strong today",
   );
   await saved(page);
@@ -187,7 +207,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   const plans = await (await page.request.get("/api/v1/strength-plans")).json();
   expect(plans.items[0].exercises[0].sets[0].targetReps).toBe(8);
   await page
-    .getByRole("button", { name: "Repeat as new session", exact: true })
+    .getByRole("button", { name: "Repeat workout", exact: true })
     .click();
   await expect(page).not.toHaveURL(new RegExp(id));
   await expect(
@@ -200,15 +220,18 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   ).not.toBeChecked();
   page.once("dialog", (d) => d.accept());
   await page
-    .getByRole("button", { name: "Discard session", exact: true })
+    .getByRole("button", { name: "Discard workout", exact: true })
     .click();
-  await expect(page).toHaveURL(/tab=history/);
-  await page.getByRole("link", { name: "Strength A", exact: true }).click();
+  await expect(page).toHaveURL(/#history/);
+  await page
+    .locator("#history")
+    .getByRole("link", { name: /^Strength A/ })
+    .click();
   await expect(
     page.getByLabel("Actual reps", { exact: true }).first(),
   ).toHaveValue("9");
 });
-test("a newer saved session blocks autosave and preserves the local draft across refresh", async ({
+test("a newer saved workout blocks autosave and preserves the local draft across refresh", async ({
   page,
 }) => {
   await start(page);
@@ -216,7 +239,8 @@ test("a newer saved session blocks autosave and preserves the local draft across
     .getByRole("button", { name: "Start empty workout", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness\/session\//);
-  await expect(page.getByLabel("Session title", { exact: true })).toBeVisible();
+  await openWorkoutDetails(page);
+  await expect(page.getByLabel("Workout name", { exact: true })).toBeVisible();
   const id = page.url().split("/").at(-1)!;
   const current = await (
     await page.request.get(`/api/v1/strength-workouts/${id}`)
@@ -237,17 +261,18 @@ test("a newer saved session blocks autosave and preserves the local draft across
     ).status(),
   ).toBe(200);
   await page
-    .getByLabel("Session notes", { exact: true })
+    .getByLabel("Workout notes", { exact: true })
     .fill("My local notes");
   await expect(
     page.getByRole("alert").filter({ hasText: "changed since" }),
   ).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel("Session notes", { exact: true })).toHaveValue(
+  await openWorkoutDetails(page);
+  await expect(page.getByLabel("Workout notes", { exact: true })).toHaveValue(
     "My local notes",
   );
   await expect(
-    page.getByText("Recovered draft conflicts with a newer saved session", {
+    page.getByText("Recovered draft conflicts with a newer saved workout", {
       exact: true,
     }),
   ).toBeVisible();
@@ -258,10 +283,18 @@ test("a newer saved session blocks autosave and preserves the local draft across
       exact: true,
     })
     .click();
-  await expect(page.getByLabel("Session title", { exact: true })).toHaveValue(
+  await openWorkoutDetails(page);
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Changed elsewhere",
   );
-  await expect(page.getByLabel("Session notes", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Workout notes", { exact: true })).toHaveValue(
     "Remote notes",
   );
 });
+
+async function openWorkoutDetails(page: Page) {
+  const details = page.locator(".fitness-workout-details");
+  await expect(details).toBeVisible();
+  if ((await details.getAttribute("open")) === null)
+    await details.locator("summary").click();
+}

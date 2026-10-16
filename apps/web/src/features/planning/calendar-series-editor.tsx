@@ -430,7 +430,7 @@ function SeriesForm({
           className="editor-actions"
           disabled={formBusy || remove.isPending || interaction?.busy}
         >
-          <label>
+          <label className="field">
             Last repeating date
             <input
               type="date"

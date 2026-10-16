@@ -9,7 +9,7 @@ import {
   transactionRunner,
 } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import { and, or, eq, lt, gt, asc, sql } from "drizzle-orm";
+import { and, or, eq, lt, gt, asc, sql, inArray } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type { BlockInput, TimeEntryInput } from "@168hours/contracts";
 import { calendarSeries } from "./calendar.table.js";
@@ -118,6 +118,12 @@ export function planningRepository(db: Database) {
         await db.select({ total: count() }).from(timeBlocks)
       )[0]!.total;
       return { plannedBlocks };
+    },
+    blocksByIds(u: string, ids: string[]) {
+      return db
+        .select()
+        .from(timeBlocks)
+        .where(and(eq(timeBlocks.userId, u), inArray(timeBlocks.id, ids)));
     },
     async getBlock(u: string, id: string, context?: TransactionContext) {
       const tx = databaseFor(db, context);

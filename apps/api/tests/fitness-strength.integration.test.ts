@@ -320,3 +320,245 @@ it("enforces owner references, optimistic revisions and completed/skipped set in
     .expect(200);
   await a.write("post", "strength-plans", input).expect(422);
 });
+
+it("finds only the owner's next linked, unstarted workout using current Calendar times", async () => {
+  const a = client((await signUp()).cookie),
+    b = client((await signUp()).cookie);
+  const exercise = (
+    await a.write("post", "exercises", { name: "Bench" }).expect(201)
+  ).body;
+  const input = {
+    title: "Push day",
+    exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 8 }] }],
+  };
+  const plan = (await a.write("post", "strength-plans", input).expect(201))
+    .body;
+  await a
+    .write("post", "time-blocks", {
+      title: "Push day",
+      startsAt: "2030-01-02T15:00:00Z",
+      endsAt: "2030-01-02T16:00:00Z",
+    })
+    .expect(201);
+  expect(
+    (await a.get("strength-plans/next").expect(200)).body.workout,
+  ).toBeNull();
+  const otherExercise = (
+    await b.write("post", "exercises", { name: "Other bench" }).expect(201)
+  ).body;
+  const otherPlan = (
+    await b
+      .write("post", "strength-plans", {
+        title: "Other user's workout",
+        exercises: [
+          { exerciseId: otherExercise.id, sets: [{ targetReps: 8 }] },
+        ],
+      })
+      .expect(201)
+  ).body;
+  await b
+    .write("post", `strength-plans/${otherPlan.id}/schedule`, {
+      startsAt: "2030-01-01T15:00:00Z",
+      endsAt: "2030-01-01T16:00:00Z",
+    })
+    .expect(201);
+  const early = (
+    await a
+      .write("post", `strength-plans/${plan.id}/schedule`, {
+        startsAt: "2030-01-10T15:00:00Z",
+        endsAt: "2030-01-10T16:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  const late = (
+    await a
+      .write("post", `strength-plans/${plan.id}/schedule`, {
+        startsAt: "2030-01-20T15:00:00Z",
+        endsAt: "2030-01-20T16:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  expect(
+    (await a.get("strength-plans/next").expect(200)).body.workout.plan.id,
+  ).toBe(early.id);
+  await a
+    .write(
+      "put",
+      `strength-plans/${plan.id}`,
+      {
+        ...input,
+        title: "Changed saved workout",
+        exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 12 }] }],
+      },
+      plan.version,
+    )
+    .expect(200);
+  const block = (await a.get(`time-blocks/${early.timeBlockId}`).expect(200))
+    .body;
+  await a
+    .write(
+      "put",
+      `time-blocks/${block.id}`,
+      {
+        title: "Moved Push day",
+        startsAt: "2030-01-30T15:00:00Z",
+        endsAt: "2030-01-30T16:00:00Z",
+      },
+      block.version,
+    )
+    .expect(200);
+  const next = (await a.get("strength-plans/next").expect(200)).body.workout;
+  expect(next.plan.id).toBe(late.id);
+  expect(next.plan.title).toBe("Push day");
+  expect(next.plan.exercises[0].sets[0].targetReps).toBe(8);
+  await a
+    .write(
+      "post",
+      `strength-plans/${late.id}/begin`,
+      { startedAt: "2030-01-20T15:00:00Z" },
+      late.version,
+    )
+    .expect(201);
+  expect(
+    (await a.get("strength-plans/next").expect(200)).body.workout.plan.id,
+  ).toBe(early.id);
+  const moved = (await a.get(`time-blocks/${early.timeBlockId}`).expect(200))
+    .body;
+  await a
+    .write("delete", `time-blocks/${moved.id}`, {}, moved.version)
+    .expect(200);
+  expect(
+    (await a.get("strength-plans/next").expect(200)).body.workout,
+  ).toBeNull();
+  expect(
+    (await b.get("strength-plans/next").expect(200)).body.workout.plan.title,
+  ).toBe("Other user's workout");
+});
+
+it("saves incomplete private drafts, rejects starting/scheduling, and publishes with revision and replay protection", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const key = randomUUID();
+  const input = { title: "", isDraft: true, exercises: [] };
+  const draft = strengthPlanSchema.parse(
+    (await a.write("post", "strength-plans", input, 1, key).expect(201)).body,
+  );
+  expect(draft).toMatchObject({
+    title: "Untitled workout",
+    isDraft: true,
+    exercises: [],
+    kind: "workout",
+  });
+  expect(
+    strengthPlanSchema.parse(
+      (await a.write("post", "strength-plans", input, 1, key).expect(201)).body,
+    ),
+  ).toEqual(draft);
+  expect(
+    (await a.get("strength-plans")).body.items.map(
+      (plan: { id: string }) => plan.id,
+    ),
+  ).toContain(draft.id);
+  await b.get(`strength-plans/${draft.id}`).expect(404);
+  await b
+    .write("put", `strength-plans/${draft.id}`, input, draft.version)
+    .expect(404);
+  await a
+    .write(
+      "post",
+      `strength-plans/${draft.id}/begin`,
+      { startedAt: times.startsAt },
+      draft.version,
+    )
+    .expect(422);
+  await a
+    .write("post", `strength-plans/${draft.id}/schedule`, times, draft.version)
+    .expect(422);
+  await a
+    .write(
+      "put",
+      `strength-plans/${draft.id}`,
+      { ...input, isDraft: false },
+      draft.version,
+    )
+    .expect(422);
+  const foreign = (
+    await b.write("post", "exercises", { name: "Private movement" }).expect(201)
+  ).body;
+  await a
+    .write(
+      "put",
+      `strength-plans/${draft.id}`,
+      { ...input, exercises: [{ exerciseId: foreign.id, sets: [] }] },
+      draft.version,
+    )
+    .expect(404);
+  const exercise = (
+    await a.write("post", "exercises", { name: "Press" }).expect(201)
+  ).body;
+  const incomplete = {
+    title: "Push day",
+    isDraft: true,
+    exercises: [{ exerciseId: exercise.id, sets: [] }],
+  };
+  const revised = strengthPlanSchema.parse(
+    (
+      await a
+        .write("put", `strength-plans/${draft.id}`, incomplete, draft.version)
+        .expect(200)
+    ).body,
+  );
+  expect(revised.isDraft).toBe(true);
+  await a
+    .write(
+      "put",
+      `strength-plans/${draft.id}`,
+      { ...incomplete, isDraft: false },
+      revised.version,
+    )
+    .expect(422);
+  const ready = {
+    title: "Push day",
+    isDraft: false,
+    exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 8 }] }],
+  };
+  const published = strengthPlanSchema.parse(
+    (
+      await a
+        .write("put", `strength-plans/${draft.id}`, ready, revised.version)
+        .expect(200)
+    ).body,
+  );
+  expect(published.isDraft).toBe(false);
+  await a
+    .write("put", `strength-plans/${draft.id}`, incomplete, revised.version)
+    .expect(409);
+  const schedule = strengthPlanSchema.parse(
+    (
+      await a
+        .write(
+          "post",
+          `strength-plans/${draft.id}/schedule`,
+          times,
+          published.version,
+        )
+        .expect(201)
+    ).body,
+  );
+  expect(schedule.isDraft).toBe(false);
+  await a
+    .write(
+      "post",
+      `strength-plans/${draft.id}/begin`,
+      { startedAt: times.startsAt },
+      published.version,
+    )
+    .expect(201);
+  const disposable = strengthPlanSchema.parse(
+    (await a.write("post", "strength-plans", input).expect(201)).body,
+  );
+  await a
+    .write("delete", `strength-plans/${disposable.id}`, {}, disposable.version)
+    .expect(200);
+  await a.get(`strength-plans/${disposable.id}`).expect(404);
+});

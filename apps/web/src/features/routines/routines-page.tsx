@@ -185,7 +185,7 @@ function RoutineEditor({
         save.mutate(parsed.data);
       }}
     >
-      <label>
+      <label className="field">
         Routine name
         <input
           value={name}
@@ -199,7 +199,7 @@ function RoutineEditor({
         <legend>Steps, in order</legend>
         {steps.map((step, index) => (
           <div className="routine-step-edit" key={index}>
-            <label>
+            <label className="field">
               Step {index + 1}
               <input
                 value={step}

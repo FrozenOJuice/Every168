@@ -1,7 +1,13 @@
 "use client";
 import { NotesField } from "./notes-field";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -81,6 +87,7 @@ function SessionEditor({ session }: { session: Workout }) {
     start: number | null;
     end: number | null;
   } | null>(null);
+  const restoreFocus = useRef(false);
   const rememberFocus = useCallback(() => {
     const fields = Array.from(
       editorRef.current?.querySelectorAll<
@@ -133,16 +140,7 @@ function SessionEditor({ session }: { session: Workout }) {
         );
       }
       invalidateFitness(cache);
-      const previous = focusRef.current;
-      requestAnimationFrame(() => {
-        if (!previous || document.activeElement !== document.body) return;
-        const field = editorRef.current?.querySelectorAll<
-          HTMLInputElement | HTMLTextAreaElement
-        >("input,textarea")[previous.index];
-        field?.focus({ preventScroll: true });
-        if (field && previous.start !== null && previous.end !== null)
-          field.setSelectionRange(previous.start, previous.end);
-      });
+      restoreFocus.current = true;
     },
   });
   const remove = useCommand({
@@ -153,7 +151,7 @@ function SessionEditor({ session }: { session: Workout }) {
         sessionStorage.removeItem(storageKey);
       } catch {}
       invalidateFitness(cache);
-      router.push("/fitness?tab=history");
+      router.push("/fitness#history");
     },
   });
   const reusable = useCommand({
@@ -211,6 +209,18 @@ function SessionEditor({ session }: { session: Workout }) {
     }, 650);
     return () => clearTimeout(timer);
   }, [draft, busy, save, timeError, rememberFocus]);
+  useLayoutEffect(() => {
+    if (busy || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    const previous = focusRef.current;
+    if (!previous || document.activeElement !== document.body) return;
+    const field = editorRef.current?.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement
+    >("input,textarea")[previous.index];
+    field?.focus({ preventScroll: true });
+    if (field && previous.start !== null && previous.end !== null)
+      field.setSelectionRange(previous.start, previous.end);
+  }, [busy, draft]);
   const validation = workoutUpdateInput.safeParse(sessionInput(draft.input));
   function saveNow(input = draft.input) {
     if (timeError) {
@@ -247,10 +257,10 @@ function SessionEditor({ session }: { session: Workout }) {
   }
   const finished = !!draft.input.endedAt;
   return (
-    <div className="fitness-workspace" ref={editorRef}>
-      <Link href="/fitness?tab=history">← Sessions</Link>
+    <div className="fitness-session-workspace" ref={editorRef}>
+      <Link href="/fitness#history">← Fitness</Link>
       <PageHeading
-        title={finished ? "Workout review" : "Training session"}
+        title={finished ? "Workout review" : "Workout in progress"}
         description={
           finished
             ? "Review or correct what you actually did."
@@ -263,14 +273,14 @@ function SessionEditor({ session }: { session: Workout }) {
             ? "Save needs confirmation"
             : "Saving…"
           : draft.conflict
-            ? "Recovered draft conflicts with a newer saved session"
+            ? "Recovered draft conflicts with a newer saved workout"
             : draft.dirty
               ? "Unsaved changes"
               : "Saved"}
       </p>
       {draft.conflict && (
         <p className="error" role="alert">
-          The saved session changed elsewhere. Your recovered draft has been
+          The saved workout changed elsewhere. Your recovered draft has been
           kept, but it will not overwrite newer changes.
         </p>
       )}
@@ -279,7 +289,7 @@ function SessionEditor({ session }: { session: Workout }) {
           className="button"
           onClick={() => {
             if (
-              confirm("Discard local edits and load the latest saved session?")
+              confirm("Discard local edits and load the latest saved workout?")
             ) {
               sessionStorage.removeItem(storageKey);
               window.location.reload();
@@ -296,45 +306,51 @@ function SessionEditor({ session }: { session: Workout }) {
       )}
       <div className="form-stack">
         <fieldset className="form-stack" disabled={busy || draft.conflict}>
-          <label>
-            Session title
-            <input
-              maxLength={160}
-              value={draft.input.title}
-              onChange={(e) =>
-                change({ ...draft.input, title: e.target.value })
-              }
-            />
-          </label>
-          <p className="muted text-small">Times in {timezone}</p>
-          <div className="form-grid">
-            <label>
-              Started at
-              <input
-                type="datetime-local"
-                value={startText}
-                onChange={(e) => updateTime(e.target.value, "startedAt")}
-              />
-            </label>
-            {finished && (
-              <label>
-                Finished at
+          <details className="fitness-workout-details">
+            <summary>Workout details</summary>
+            <div className="form-stack">
+              {" "}
+              <label className="field">
+                Workout name
                 <input
-                  type="datetime-local"
-                  value={
-                    endText ||
-                    instantToLocalInput(draft.input.endedAt!, timezone)
+                  maxLength={160}
+                  value={draft.input.title}
+                  onChange={(e) =>
+                    change({ ...draft.input, title: e.target.value })
                   }
-                  onChange={(e) => updateTime(e.target.value, "endedAt")}
                 />
               </label>
-            )}
-          </div>
-          <NotesField
-            label="Session notes"
-            value={draft.input.notes}
-            onChange={(notes) => change({ ...draft.input, notes })}
-          />
+              <p className="muted text-small">Times in {timezone}</p>
+              <div className="form-grid">
+                <label className="field">
+                  Started at
+                  <input
+                    type="datetime-local"
+                    value={startText}
+                    onChange={(e) => updateTime(e.target.value, "startedAt")}
+                  />
+                </label>
+                {finished && (
+                  <label className="field">
+                    Finished at
+                    <input
+                      type="datetime-local"
+                      value={
+                        endText ||
+                        instantToLocalInput(draft.input.endedAt!, timezone)
+                      }
+                      onChange={(e) => updateTime(e.target.value, "endedAt")}
+                    />
+                  </label>
+                )}
+              </div>
+              <NotesField
+                label="Workout notes"
+                value={draft.input.notes}
+                onChange={(notes) => change({ ...draft.input, notes })}
+              />
+            </div>
+          </details>
           <StrengthExercises
             session
             sessionId={session.id}
@@ -399,7 +415,7 @@ function SessionEditor({ session }: { session: Workout }) {
               disabled={busy || draft.dirty || draft.conflict}
               onClick={() => repeat.mutate()}
             >
-              Repeat as new session
+              Repeat workout
             </button>
           )}
           <button
@@ -421,14 +437,14 @@ function SessionEditor({ session }: { session: Workout }) {
               if (
                 confirm(
                   finished
-                    ? "Delete this session and its recorded Calendar time?"
-                    : "Discard this session?",
+                    ? "Delete this workout and its recorded Calendar time?"
+                    : "Discard this workout?",
                 )
               )
                 remove.mutate();
             }}
           >
-            {finished ? "Delete session" : "Discard session"}
+            {finished ? "Delete workout" : "Discard workout"}
           </button>
         </div>
       </div>

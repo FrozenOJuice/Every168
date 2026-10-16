@@ -38,7 +38,7 @@
 }
 .admin-search label {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 .admin-search input,
 .admin-search select {

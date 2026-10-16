@@ -1,11 +1,14 @@
 import type {
   StrengthPlan,
+  NextStrengthWorkout,
   StrengthPlanInput,
   StrengthPlanQuery,
   StrengthScheduleInput,
   Exercise,
   ExerciseInput,
-  LibraryQuery,
+  ExerciseDuplicateInput,
+  ExerciseCatalogEntry,
+  ExerciseLibraryQuery,
   Workout,
   WorkoutSummary,
   WorkoutStartInput,
@@ -21,6 +24,18 @@ import type {
 import { writeHeaders, body, query, type Http } from "./http";
 export function exerciseClient(http: Http) {
   return {
+    getExerciseCatalog: () =>
+      http<ExerciseCatalogEntry[]>("/api/v1/exercise-catalog"),
+    useCatalogExercise: (key: string, requestKey?: string) =>
+      http<Exercise>("/api/v1/exercises/from-catalog", {
+        method: "POST",
+        headers: writeHeaders(requestKey),
+        body: body({ key }),
+      }),
+    getNextStrengthWorkout: () =>
+      http<{ workout: NextStrengthWorkout }>(
+        "/api/v1/strength-plans/next",
+      ).then((result) => result.workout),
     getStrengthPlans: (q: Partial<StrengthPlanQuery> = {}) =>
       http<Page<StrengthPlan>>("/api/v1/strength-plans" + query(q)),
     getStrengthPlanForBlock: (id: string) =>
@@ -73,8 +88,16 @@ export function exerciseClient(http: Http) {
         headers: writeHeaders(key, version),
         body: body({ startedAt }),
       }),
-    getExercises: (q: Partial<LibraryQuery> = {}) =>
-      http<Page<Exercise>>("/api/v1/exercises" + query(q)),
+    getExercise: (id: string) => http<Exercise>("/api/v1/exercises/" + id),
+    getExercises: (q: Partial<ExerciseLibraryQuery> = {}) =>
+      http<Page<Exercise>>(
+        "/api/v1/exercises" +
+          query({
+            ...q,
+            equipment: q.equipment?.length ? q.equipment.join(",") : undefined,
+            muscle: q.muscle?.length ? q.muscle.join(",") : undefined,
+          }),
+      ),
     createExercise: (v: ExerciseInput, key?: string) =>
       http<Exercise>("/api/v1/exercises", {
         method: "POST",
@@ -91,6 +114,39 @@ export function exerciseClient(http: Http) {
         method: "PUT",
         headers: writeHeaders(key, version),
         body: body(v),
+      }),
+    duplicateExercise: (input: ExerciseDuplicateInput, key?: string) =>
+      http<Exercise>("/api/v1/exercises/duplicate", {
+        method: "POST",
+        headers: writeHeaders(key),
+        body: body(input),
+      }),
+    hideExercise: (
+      id: string,
+      hidden: boolean,
+      version: number,
+      key?: string,
+    ) =>
+      http<Exercise>(`/api/v1/exercises/${id}/hidden`, {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body({ hidden }),
+      }),
+    deleteExercise: (id: string, version: number, key?: string) =>
+      http<{ ok: true }>(`/api/v1/exercises/${id}`, {
+        method: "DELETE",
+        headers: writeHeaders(key, version),
+      }),
+    favouriteExercise: (
+      id: string,
+      favourite: boolean,
+      version: number,
+      key?: string,
+    ) =>
+      http<Exercise>("/api/v1/exercises/" + id + "/favourite", {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body({ favourite }),
       }),
     archiveExercise: (id: string, version: number, key?: string) =>
       http<Exercise>("/api/v1/exercises/" + id + "/archive", {

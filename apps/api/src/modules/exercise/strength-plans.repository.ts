@@ -1,5 +1,5 @@
 import { AppError } from "../../shared/errors/app-error.js";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, isNull, isNotNull } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import {
@@ -48,6 +48,24 @@ export function strengthPlansRepository(db: Database) {
         .set({ timeBlockId: blockId })
         .where(owned(u, link.id));
     },
+    async unstartedScheduled(u: string, cursor?: string) {
+      const q = { cursor, limit: 100 };
+      const rows = await db
+        .select()
+        .from(plans)
+        .where(
+          and(
+            eq(plans.userId, u),
+            eq(plans.kind, "scheduled"),
+            isNull(plans.sessionId),
+            isNotNull(plans.timeBlockId),
+            cursorCondition(q, plans.createdAt, plans.id),
+          ),
+        )
+        .orderBy(desc(plans.createdAt), desc(plans.id))
+        .limit(101);
+      return pageResult(rows, 100);
+    },
     async list(u: string, q: StrengthPlanQuery) {
       const rows = await db
         .select()
@@ -95,7 +113,9 @@ export function strengthPlansRepository(db: Database) {
     async update(
       u: string,
       id: string,
-      v: Partial<Pick<Values, "title" | "notes" | "exercises" | "sessionId">>,
+      v: Partial<
+        Pick<Values, "title" | "notes" | "exercises" | "sessionId" | "isDraft">
+      >,
       context: TransactionContext,
     ) {
       return (

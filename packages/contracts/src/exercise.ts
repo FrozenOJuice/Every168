@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { blockSchema } from "./planning";
 import {
   recordSchema,
   titleSchema,
@@ -8,13 +9,130 @@ import {
   pageSchema,
   pageQuerySchema,
 } from "./common";
+export const exerciseEquipmentOptions = [
+  "Barbell",
+  "Dumbbells",
+  "Cable",
+  "Machine",
+  "Bodyweight",
+  "Bench",
+  "Kettlebell",
+  "Resistance band",
+  "Pull-up bar",
+  "Other",
+] as const;
+export const exerciseMuscleOptions = [
+  "Chest",
+  "Back",
+  "Shoulders",
+  "Arms",
+  "Legs",
+  "Core",
+] as const;
+export const exerciseEquipmentSchema = z.enum(exerciseEquipmentOptions);
+export const exerciseMuscleSchema = z.enum(exerciseMuscleOptions);
+const equipmentList = z
+  .array(exerciseEquipmentSchema)
+  .max(exerciseEquipmentOptions.length)
+  .refine(
+    (values) => new Set(values).size === values.length,
+    "Choose each item once.",
+  );
+const muscleList = z
+  .array(exerciseMuscleSchema)
+  .max(exerciseMuscleOptions.length)
+  .refine(
+    (values) => new Set(values).size === values.length,
+    "Choose each muscle once.",
+  );
 export const exerciseInput = z
-  .object({ name: titleSchema, notes: notesSchema })
+  .object({
+    name: titleSchema,
+    notes: notesSchema,
+    equipment: equipmentList.optional(),
+    muscles: muscleList.optional(),
+    favourite: z.boolean().optional(),
+  })
   .strict();
 export const exerciseSchema = recordSchema.extend({
   ...exerciseInput.shape,
+  equipment: equipmentList,
+  muscles: muscleList,
   archivedAt: instantSchema.nullable(),
+  catalogKey: z.string().nullable(),
+  favourite: z.boolean(),
+  hidden: z.boolean(),
+  source: z.enum(["system", "custom"]),
+  canDelete: z.boolean(),
 });
+export const exerciseFavouriteInput = z
+  .object({ favourite: z.boolean() })
+  .strict();
+export const exerciseHiddenInput = z.object({ hidden: z.boolean() }).strict();
+export const exerciseDuplicateInput = z.union([
+  z
+    .object({
+      catalogKey: z
+        .string()
+        .min(1)
+        .max(80)
+        .regex(/^[a-z0-9-]+$/),
+    })
+    .strict(),
+  z
+    .object({
+      exerciseId: idSchema,
+      version: z.number().int().positive().max(2147483647),
+    })
+    .strict(),
+]);
+export type ExerciseDuplicateInput = z.infer<typeof exerciseDuplicateInput>;
+export const exerciseSortSchema = z.enum(["name_asc", "name_desc", "recent"]);
+export type ExerciseSort = z.infer<typeof exerciseSortSchema>;
+export const exerciseLibraryQuery = pageQuerySchema.extend({
+  cursor: z.string().max(2000).optional(),
+  sort: exerciseSortSchema.optional(),
+  archived: z.enum(["true", "false"]).default("false"),
+  search: z.string().trim().max(100).default(""),
+  favourites: z.enum(["true", "false"]).optional(),
+  equipment: z.preprocess(
+    (value) => (typeof value === "string" ? value.split(",") : value),
+    equipmentList.optional(),
+  ),
+  muscle: z.preprocess(
+    (value) => (typeof value === "string" ? value.split(",") : value),
+    muscleList.optional(),
+  ),
+});
+export type ExerciseLibraryQuery = z.infer<typeof exerciseLibraryQuery>;
+export const exerciseCatalogDefinitionSchema = z.object({
+  key: z.string(),
+  name: titleSchema,
+  notes: notesSchema,
+  equipment: exerciseEquipmentSchema,
+  muscles: muscleList,
+  loggingType: z.enum(["reps_load", "reps", "duration"]),
+});
+export const exerciseCatalogSchema = z.array(
+  exerciseCatalogDefinitionSchema.extend({
+    exercise: exerciseSchema.nullable(),
+  }),
+);
+export const useCatalogExerciseInput = z
+  .object({
+    key: z
+      .string()
+      .min(1)
+      .max(80)
+      .regex(/^[a-z0-9-]+$/),
+  })
+  .strict();
+export type ExerciseCatalogDefinition = z.infer<
+  typeof exerciseCatalogDefinitionSchema
+>;
+export type ExerciseCatalogEntry = z.infer<
+  typeof exerciseCatalogSchema
+>[number];
 export const setInput = z
   .object({
     reps: z.number().int().positive().max(10000).nullable().default(null),
@@ -79,26 +197,48 @@ export const plannedSetInput = z
   .strict();
 export const strengthPlanInput = z
   .object({
-    title: titleSchema,
+    title: z.string().trim().max(160),
     notes: notesSchema,
+    isDraft: z.boolean().optional(),
     exercises: z
       .array(
         z
           .object({
             exerciseId: idSchema,
             notes: notesSchema,
-            sets: z.array(plannedSetInput).min(1).max(100),
+            sets: z.array(plannedSetInput).max(100),
           })
           .strict(),
       )
-      .min(1)
       .max(50),
   })
-  .strict();
+  .strict()
+  .superRefine((v, ctx) => {
+    if (v.isDraft) return;
+    if (!v.title)
+      ctx.addIssue({
+        code: "custom",
+        path: ["title"],
+        message: "Enter a workout title.",
+      });
+    if (!v.exercises.length)
+      ctx.addIssue({
+        code: "custom",
+        path: ["exercises"],
+        message: "Add at least one exercise.",
+      });
+    if (v.exercises.some((exercise) => !exercise.sets.length))
+      ctx.addIssue({
+        code: "custom",
+        path: ["exercises"],
+        message: "Add at least one set to each exercise.",
+      });
+  });
 export const strengthPlanSchema = recordSchema.extend({
   title: titleSchema,
   notes: notesSchema,
   kind: z.enum(["workout", "scheduled"]),
+  isDraft: z.boolean(),
   timeBlockId: idSchema.nullable(),
   sessionId: idSchema.nullable(),
   exercises: z.array(
@@ -129,6 +269,14 @@ export const strengthPlanQuery = pageQuerySchema.extend({
 export type StrengthPlanInput = z.infer<typeof strengthPlanInput>;
 export type StrengthPlan = z.infer<typeof strengthPlanSchema>;
 export type StrengthPlanQuery = z.infer<typeof strengthPlanQuery>;
+export const nextStrengthWorkoutSchema = z.object({
+  workout: z
+    .object({ plan: strengthPlanSchema, block: blockSchema })
+    .nullable(),
+});
+export type NextStrengthWorkout = z.infer<
+  typeof nextStrengthWorkoutSchema
+>["workout"];
 export type StrengthScheduleInput = z.infer<typeof strengthScheduleInput>;
 
 export const workoutExerciseInput = z

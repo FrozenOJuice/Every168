@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { idSchema } from "@168hours/contracts";
 import { assertRevision } from "../../shared/errors/revision.js";
 import type { GoalsService } from "../goals/goals.service.js";
 import {
@@ -43,6 +45,12 @@ export function planningService(
   }
   return {
     platformUsage: repo.platformUsage,
+    blocksByIds(u: string, ids: string[]) {
+      const checked = z.array(idSchema).max(100).parse(ids);
+      return checked.length
+        ? repo.blocksByIds(u, checked)
+        : Promise.resolve([]);
+    },
     async getBlock(u: string, id: string, tx?: TransactionContext) {
       return found(await repo.getBlock(u, id, tx));
     },

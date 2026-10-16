@@ -6,15 +6,19 @@ import {
   type StrengthPlanInput,
   type SetInput,
 } from "@168hours/contracts";
-export type SetDraft = SetInput & { id?: string };
+export type SetDraft = SetInput & { id?: string; clientKey?: string };
 export type ExerciseDraft = {
   id?: string;
+  clientKey?: string;
   exerciseId: string;
   name: string;
   notes: string | null;
   sets: SetDraft[];
 };
-export const emptySet = () => setInput.parse({ completed: false });
+export const emptySet = (): SetDraft => ({
+  ...setInput.parse({ completed: false }),
+  clientKey: crypto.randomUUID(),
+});
 export function sessionDraft(w: Workout): SessionDraft {
   return {
     title: w.title,
@@ -24,8 +28,9 @@ export function sessionDraft(w: Workout): SessionDraft {
     linkedTimeBlockId: w.linkedTimeBlockId,
     exercises: w.exercises.map((e) => ({
       ...e,
+      clientKey: e.id,
       name: e.exerciseNameSnapshot,
-      sets: e.sets.map((s) => ({ ...s })),
+      sets: e.sets.map((s) => ({ ...s, clientKey: s.id })),
     })),
   };
 }
@@ -58,6 +63,7 @@ export function planExercises(plan?: StrengthPlan): ExerciseDraft[] {
   return (
     plan?.exercises.map((e) => ({
       ...e,
+      clientKey: crypto.randomUUID(),
       sets: e.sets.map((s) => ({ ...emptySet(), ...s })),
     })) ?? []
   );
@@ -84,8 +90,20 @@ export function planInput(
     })),
   };
 }
-export function move<T>(values: T[], index: number, delta: number) {
+export function moveTo<T>(values: T[], from: number, to: number): T[] {
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= values.length ||
+    to >= values.length
+  )
+    return values;
   const next = [...values];
-  [next[index], next[index + delta]] = [next[index + delta]!, next[index]!];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item!);
   return next;
+}
+export function move<T>(values: T[], index: number, delta: number) {
+  return moveTo(values, index, index + delta);
 }

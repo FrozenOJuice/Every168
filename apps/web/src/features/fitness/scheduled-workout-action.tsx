@@ -1,7 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { BeginWorkout } from "./fitness-page";
+import { BeginWorkout } from "./workout-actions";
 export function ScheduledWorkoutAction({ blockId }: { blockId: string }) {
   const q = useQuery({
     queryKey: ["fitness", "scheduled-block", blockId],

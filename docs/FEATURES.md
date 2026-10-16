@@ -401,17 +401,53 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Fitness
 
-### Exercises
+### Workspace
 
-- Search your exercise library or create a named exercise with optional instructions.
-- Create an exercise while preparing or recording a workout, then return with it selected.
-- Edit, archive, and restore exercises. Past sessions retain their recorded exercise names.
+- The wider main area shows Next workout, saved My workouts, creation/start actions and secondary History access. A persistent exercise library sits on the right; no top-level tabs or separate Browse exercises screen.
+- Create/edit a reusable workout or start training in the main area, replacing its default content. Clicking an exercise card always opens details. While a workout is open, hovering or keyboard-focusing a card replaces its equipment/muscle preview with an inset button with a soft border and faint green tint, showing + beside Add to workout in the information area; clicking it adds without opening details. The name and illustration remain visible. Touch screens show the action without hovering. The independent favourite star stays top-right. There is no separate Info button or bottom Add row. Exercises can also be added from details, each with an unfinished set. Titles, notes, ordered exercises and targets remain in place.
+- Exercise help/details replace the right-side library while the main workout stays visible. Back to exercises restores the library filters and scroll position.
+- Exercise creation/editing uses the main area while retaining the current workout's draft. The right library remains available on desktop; saving or cancelling returns to the previous main view. Creating an exercise while building or training adds it to the current workout.
+- On narrow screens, Add exercise/Help shows the library or details, and Back to workout restores the active editor or training view without losing its state. Exercise forms use the main area and return to the library when closed.
+- Next workout uses the earliest unstarted linked Calendar workout whose scheduled time has not ended. Calendar moves update it; started instances and deleted links are excluded. A matching title on an ordinary Calendar block does not establish a Fitness connection.
+
+### Exercise library
+
+- On desktop, the main workout area and right library/details use the remaining viewport height with equal 16px outer spacing and scroll independently. The right panel keeps its width while switching between browsing and building, with two card columns, a full-width search row and compact toolbar controls.
+- While search, equipment/muscle filters, Favourites or Hidden are active, the matching exercise count appears in muted text beside Clear all. It hides when no filters are active; the library heading and space above the cards stay clear.
+- Browse 16 built-in strength exercises with equipment, muscle groups, short instructions, and visual placeholders. Cards emphasize the exercise name, show equipment beneath it, and show as many muscle tags as fit on one line, with a +N count for the remainder; details show all muscles. Long card names and equipment lists use at most two lines, with full text available on hover; custom labels remain visible.
+- In the Filters panel, a compact dropdown without search controls sorting; in the desktop library panel it sits below Equipment and Muscle group. Sort built-in and custom exercises together by Name A–Z (default), Name Z–A, or Recently added. Recently added puts newest custom exercises first, then built-ins alphabetically; favouriting or hiding a built-in does not change its order. Sorting applies alongside filters, and Clear all preserves the chosen sort.
+- The library toolbar contains Search, Favourites, Hidden, then Filters. On very narrow phones, Search uses its own full-width row. Hidden is a quieter outlined icon-only button with a tooltip and green active state; Favourites also uses an icon on narrow screens. Hidden switches to hidden built-ins and archived custom exercises; one visibility filter covers both.
+- Filters slides open and closed below the toolbar; reduced-motion settings disable the animation. Equipment and Muscle group search fields share the panel width equally. A list of full-width option rows floats below the active field without enlarging the panel; click anywhere on a row to toggle it, and selected rows show a checkmark. Options hide when focus leaves the group, and only the option list scrolls. Arrow keys navigate options; Home/End move to the first/last option. Escape first closes options and returns to search, then closes Filters on a second press.
+- Results update immediately, matching any selected option within each group and combining equipment with muscles. Selected equipment and muscle filters appear as removable chips below the panel and remain below the toolbar when it closes; all tags share one horizontally scrollable row, so muscle tags never wrap below equipment. The scrollbar is hidden; an edge fade indicates more tags offscreen, and touch, trackpad and keyboard scrolling remain available. One Clear all button stays fixed at the right and vertically centered with the tags; it resets filters, visibility, favourites and exercise search. The Filters badge counts equipment and muscle choices; Favourites and Hidden show their own active states.
+- Filters stays open while browsing results. Click Filters again or press Escape from the panel to close it; Escape returns focus to the Filters button. Filtering works for built-in and custom exercises alike.
+- Favourite or unfavourite an exercise from its details or the star at the top-right of its card. Empty card stars appear on hover or keyboard focus and stay visible on touch screens; filled stars stay visible. Card stars are outlined until favourited; favourited stars stay filled even on hover. Hover or keyboard focus adds a subtle tinted button background and preserves the card outline. Pointer clicks do not leave a focus outline or keep an empty star visible after moving away; keyboard navigation retains visible focus. Clicking the star does not open details; starred exercises appear in the Favourites filter, including when choosing exercises for a workout. Favourites are private, persist across refreshes, and retain their status when hidden, shown, archived or restored.
+- Select an exercise to replace the right library with its name and favourite star, large illustration placeholder, bulleted equipment list, muscle tags, and instructions. Back to exercises returns to the library; the main workout remains intact.
+- Add an exercise to an existing workout or begin building a new workout from it.
+- Browsing does not create personal records. Favourites and built-in visibility are private account preferences, separate from exercise definitions.
+
+### Built-in and custom exercises
+
+- Built-ins are curated, read-only definitions. Favourite, Hide, or Duplicate them; their core names, instructions, equipment and muscles cannot be edited or permanently deleted.
+- Hide removes a built-in from the active library without affecting saved workouts, logging or history. Find it using Hidden and choose Show in library to restore visibility.
+- Create a private custom exercise with a name, optional instructions, equipment, muscles worked, and a Favourite star beside the Create/Edit heading. Search fields stay above removable selected chips; arrows/Enter select options, Escape/outside click closes them. Removing a chip keeps the dropdown closed instead of returning pointer focus to search. Keyboard removal focuses another chip, or the closed search field when none remain. Nearby blank-space clicks dismiss and release search focus in one click.
+- Create a custom exercise in the main area while preparing or recording a workout; it is added to the current workout. Custom cards and details have a small Custom label; there is no fixed library-count cap.
+- Duplicate either type into an independent custom exercise and open its editor. Copies retain the definition, but start active and unfavourited, with no copied workout history or progress. Built-in originals stay unchanged.
+- Edit custom definitions, or Archive/Restore them. Past sessions retain their recorded exercise names and results. Restore archived custom exercises before adding them to new workouts or reusing workouts that contain them; hidden built-ins remain usable.
+- Permanently delete a custom exercise only when no saved/scheduled workout or recorded workout references it. Used exercises offer Archive instead; built-ins never offer permanent deletion.
+- Both types use the same workout, set logging, exercise history and progress systems.
 
 ### Prepare and schedule
 
-- Create reusable strength workouts with ordered exercises, workout notes, and exercise notes.
-- Add, remove, and reorder sets. Set optional targets for reps, load, duration, and rest.
-- Start a reusable workout immediately, or start an empty one-off session.
+- Create reusable strength workouts with a title, ordered exercises and exercise notes. Optional workout notes start collapsed behind Add notes.
+- Creation/editing has a Cancel action instead of a My workouts back link. The exercise list scrolls while Save draft and Save workout stay at the bottom. Desktop uses the adjacent library directly; Add exercise switches to the library on narrow screens.
+- Save draft keeps an incomplete workout in My workouts with a Draft label and Continue editing. Drafts may have no exercises or sets; unnamed drafts use Untitled workout. Saved drafts survive refresh and can be edited or deleted.
+- Save workout requires a title, at least one exercise and at least one set per exercise. It makes a draft ready to start or schedule; drafts cannot do either. Saving an existing workout as a draft makes that reusable workout unavailable for starting/scheduling until ready again, without changing its scheduled copies or recorded sessions.
+- Cancel leaves unchanged forms immediately. Unsaved changes offer Save draft, Discard or Keep editing; discarding edits preserves the previously saved workout or draft.
+- Added exercises use compact cards with a six-dot handle, a name that opens exercise help, and a visible remove button. Add set and optional exercise notes sit beneath the set list.
+- Planned sets use compact numbered rows with reps and load together. Expand a row's chevron for optional duration and rest; collapsed rows still show any saved timing values. Each set has a visible remove button.
+- Drag six-dot handles to reorder exercises or sets with a mouse or touch. Focus a handle and use Up/Down arrow keys to move it. Escape cancels a drag; release applies the new order. Lists scroll near their edges while dragging. Reordering preserves all targets and set details.
+- The default main area shows Next workout first, saved My workouts below it, and History as a secondary disclosure. Empty sections use short, unboxed messages.
+- Create a workout beside the My workouts heading. Saved cards show the title, exercise/set counts and a compact exercise preview; Start workout is the main action, with quieter Edit and Schedule actions beneath it. Start empty workout is a secondary action below the saved list.
 - Schedule a workout as Calendar time. Each scheduled workout keeps its own copy of the exercises and targets.
 - Edit or delete a reusable workout without changing scheduled copies or recorded sessions.
 - Start a scheduled workout from its Fitness card or Calendar editor; starting it again opens the same session.
@@ -420,9 +456,9 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Train
 
-- Record actual reps, load, or duration alongside the planned targets, using the preferred kg/lb unit.
+- Record actual reps, load, or duration alongside compact planned-target summaries, using the preferred kg/lb unit. Expand targets, exercise details, and workout details when needed.
 - Mark sets Completed or Skipped; other sets remain Unfinished. Skipping remaining sets preserves already completed sets.
-- Add, remove, and reorder exercises and sets during the session without changing the reusable workout.
+- Add, remove, and reorder exercises and sets during the session without changing the reusable workout. Visible remove buttons and six-dot handles use the same mouse/touch and keyboard behavior as the builder, preserving actual results and completion state.
 - Show the latest recorded completed set from another session for each exercise when available.
 - Start an optional rest timer when completing a set with a rest target.
 - Session edits save automatically after a short pause; Save changes is also available.
@@ -433,7 +469,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Review and reuse
 
-- Search sessions and filter by In progress or Finished; load more history when needed.
+- See recent workouts in History; expand it to search and filter by In progress or Finished, and load more. Workout choice and History status use searchable custom dropdowns that float over content and dismiss with one outside click, including nearby blank space.
 - Review and correct titles, notes, exercise/set details, and actual start/end times.
 - Finished sessions appear on Calendar with one source of recorded time. Corrections and deletions update Calendar.
 - Repeat a previous session with fresh set completion and empty actual performance; reuse its targets, or actual values where targets were absent.
@@ -443,8 +479,11 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
+- History is accessible from the right-side disclosure; its final placement remains to be decided.
+
+- Exercise visuals are placeholders until the actual assets are ready.
+- Catalogue expansion toward 75–100 exercises, primary/secondary muscle roles and illustration highlighting are planned for later.
 - Training programs, progression recommendations, advanced analytics, supersets, drop sets, and cardio UI are deferred.
-- New workouts require active exercise definitions; restore archived exercises before starting a reusable workout or repeating a session that uses them.
 - Sessions support up to 50 exercises and 100 sets per exercise; recorded duration is limited to 31 days.
 - Recovery drafts and rest timers are local to the current tab; the timer is not restored on refresh. Unsaved session fields pause briefly while a save is in flight.
 - Fitness edits and scheduling are outside Calendar undo/redo; Calendar actions retain their existing history.
@@ -501,7 +540,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 ## Across the app
 
 - Responsive layouts support desktop, tablet, and phone screens.
-- Forms show validation feedback; failed reads offer retry controls.
+- Forms keep labels clear of visible keyboard-focus outlines and show validation feedback; failed reads offer retry controls.
 - Supported saves retain their request when a response is uncertain so retrying does not create duplicate records.
 - Conflicting edits are rejected instead of silently overwriting a newer saved version.
 - Dates and local-day summaries follow the account timezone, including daylight-saving changes.

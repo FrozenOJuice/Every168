@@ -1,0 +1,3 @@
+ALTER TABLE "exercises" ADD COLUMN "equipment" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "exercises" ADD COLUMN "muscles" text[] DEFAULT '{}'::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "exercises" ADD CONSTRAINT "exercise_metadata" CHECK (cardinality("exercises"."equipment")<=10 and "exercises"."equipment" <@ ARRAY['Barbell','Dumbbells','Cable','Machine','Bodyweight','Bench','Kettlebell','Resistance band','Pull-up bar','Other']::text[] and cardinality("exercises"."muscles")<=6 and "exercises"."muscles" <@ ARRAY['Chest','Back','Shoulders','Arms','Legs','Core']::text[]);

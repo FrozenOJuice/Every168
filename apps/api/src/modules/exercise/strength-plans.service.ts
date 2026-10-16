@@ -32,10 +32,43 @@ export function strengthPlansService(
         throw new AppError(422, "BUSINESS_RULE", "Choose an active exercise.");
       rows.push({ ...e, name: definition.name });
     }
-    return { ...v, exercises: rows };
+    return {
+      ...v,
+      title: v.title || "Untitled workout",
+      isDraft: v.isDraft ?? false,
+      exercises: rows,
+    };
   }
   return {
     list: repo.list,
+    async next(u: string, now = new Date()) {
+      let cursor: string | undefined;
+      let best: {
+        plan: Awaited<ReturnType<typeof repo.get>> & {};
+        block: Awaited<ReturnType<typeof planning.blocksByIds>>[number];
+      } | null = null;
+      do {
+        const page = await repo.unstartedScheduled(u, cursor);
+        const blocks = await planning.blocksByIds(
+          u,
+          page.items.map((plan) => plan.timeBlockId!),
+        );
+        const byId = new Map(blocks.map((block) => [block.id, block]));
+        for (const plan of page.items) {
+          const block = byId.get(plan.timeBlockId!);
+          if (!block || block.endsAt.getTime() <= now.getTime()) continue;
+          if (
+            !best ||
+            block.startsAt < best.block.startsAt ||
+            (block.startsAt.getTime() === best.block.startsAt.getTime() &&
+              block.id < best.block.id)
+          )
+            best = { plan, block };
+        }
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return best;
+    },
     forBlock: repo.forBlock,
     async get(u: string, id: string) {
       return found(await repo.get(u, id));
@@ -87,8 +120,12 @@ export function strengthPlansService(
       tx: TransactionContext,
     ) {
       const plan = assertRevision(await repo.get(u, id, tx), version);
-      if (plan.kind !== "workout")
-        throw new AppError(422, "BUSINESS_RULE", "Choose a reusable workout.");
+      if (plan.kind !== "workout" || plan.isDraft)
+        throw new AppError(
+          422,
+          "BUSINESS_RULE",
+          "Save this draft as a workout before scheduling it.",
+        );
       const schedule = strengthScheduleInput.parse(input);
       const block = await planning.createBlock(
         u,
@@ -122,6 +159,12 @@ export function strengthPlansService(
     ) {
       strengthBeginInput.parse({ startedAt });
       const plan = found(await repo.get(u, id, tx));
+      if (plan.isDraft)
+        throw new AppError(
+          422,
+          "BUSINESS_RULE",
+          "Save this draft as a workout before starting it.",
+        );
       // A scheduled workout is resumed rather than started twice, even from another tab.
       if (plan.sessionId) return strength.get(u, plan.sessionId);
       assertRevision(plan, version);

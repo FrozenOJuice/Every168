@@ -5,6 +5,7 @@ import {
   type StrengthPlan,
   type StrengthPlanInput,
   type SetInput,
+  type ExerciseLoggingType,
 } from "@168hours/contracts";
 export type SetDraft = SetInput & { id?: string; clientKey?: string };
 export type ExerciseDraft = {
@@ -12,6 +13,7 @@ export type ExerciseDraft = {
   clientKey?: string;
   exerciseId: string;
   name: string;
+  loggingType?: ExerciseLoggingType;
   notes: string | null;
   sets: SetDraft[];
 };
@@ -19,6 +21,16 @@ export const emptySet = (): SetDraft => ({
   ...setInput.parse({ completed: false }),
   clientKey: crypto.randomUUID(),
 });
+/** A new planned set reuses targets, never recorded results or identity. */
+export function nextPlannedSet(previous?: SetDraft): SetDraft {
+  return {
+    ...emptySet(),
+    targetReps: previous?.targetReps ?? null,
+    targetWeightKg: previous?.targetWeightKg ?? null,
+    targetDurationSeconds: previous?.targetDurationSeconds ?? null,
+    restSeconds: previous?.restSeconds ?? null,
+  };
+}
 export function sessionDraft(w: Workout): SessionDraft {
   return {
     title: w.title,
@@ -43,6 +55,7 @@ export function sessionInput(v: SessionDraft): WorkoutUpdateInput {
     exercises: v.exercises.map((e) => ({
       id: e.id,
       exerciseId: e.exerciseId,
+      loggingType: e.loggingType,
       notes: e.notes,
       sets: e.sets.map((s) => ({
         id: s.id,
@@ -79,6 +92,7 @@ export function planInput(
     notes,
     exercises: exercises.map((e) => ({
       exerciseId: e.exerciseId,
+      loggingType: e.loggingType,
       notes: e.notes,
       sets: e.sets.map((s) => ({
         targetReps: s.targetReps ?? (fromActual ? s.reps : null),

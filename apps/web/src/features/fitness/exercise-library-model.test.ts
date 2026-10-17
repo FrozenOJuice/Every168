@@ -6,6 +6,7 @@ import {
   sortLibrary,
 } from "./exercise-library-model";
 const row = exerciseSchema.parse({
+  loggingType: "reps_load",
   id: "00000000-0000-4000-8000-000000000001",
   version: 1,
   createdAt: "2026-10-14T15:00:00Z",

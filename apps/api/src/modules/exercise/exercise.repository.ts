@@ -17,7 +17,11 @@ import { AppError } from "../../shared/errors/app-error.js";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
-import type { ExerciseInput, ExerciseLibraryQuery } from "@168hours/contracts";
+import type {
+  ExerciseInput,
+  ExerciseLibraryQuery,
+  ExerciseLoggingType,
+} from "@168hours/contracts";
 import {
   cursorCondition,
   pageResult,
@@ -61,6 +65,13 @@ export function exerciseRepository(db: Database) {
       }),
       sql` `,
     )} else ${exercises[field]} end`;
+  const loggingType = sql<ExerciseLoggingType>`case ${exercises.catalogKey} ${sql.join(
+    exerciseCatalog.map(
+      (definition) =>
+        sql`when ${definition.key} then ${definition.loggingType}`,
+    ),
+    sql` `,
+  )} else ${exercises.loggingType} end`;
   const name = scalar("name").mapWith(String);
   const notes = scalar("notes");
   const equipment = metadata("equipment"),
@@ -75,6 +86,7 @@ export function exerciseRepository(db: Database) {
     notes,
     equipment,
     muscles,
+    loggingType,
     favourite,
     hidden,
     source: sql<

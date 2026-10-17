@@ -30,7 +30,11 @@ export function strengthPlansService(
       const definition = found(await exercises.get(u, e.exerciseId, tx));
       if (definition.archivedAt)
         throw new AppError(422, "BUSINESS_RULE", "Choose an active exercise.");
-      rows.push({ ...e, name: definition.name });
+      rows.push({
+        ...e,
+        name: definition.name,
+        loggingType: definition.loggingType,
+      });
     }
     return {
       ...v,
@@ -194,6 +198,7 @@ export function strengthPlansService(
           linkedTimeBlockId: plan.timeBlockId,
           exercises: plan.exercises.map((e) => ({
             exerciseId: e.exerciseId,
+            loggingType: e.loggingType,
             notes: e.notes,
             sets: e.sets.map((s) => ({
               ...s,

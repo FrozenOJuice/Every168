@@ -1,6 +1,8 @@
 "use client";
+import { useMe } from "@/features/identity/me";
+import { useWorkoutBuilderRecovery } from "./workout-builder-recovery";
 import { NotesField } from "./notes-field";
-import { useState } from "react";
+import { useState, useRef, useId } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/dialog";
@@ -18,6 +20,7 @@ export function WorkoutBuilderPage({
   id: string;
   exerciseId?: string;
 }) {
+  const { user } = useMe();
   const seed = useQuery({
     queryKey: ["fitness", "exercise", exerciseId],
     queryFn: () => api.getExercise(exerciseId!),
@@ -38,7 +41,7 @@ export function WorkoutBuilderPage({
     );
   return (
     <WorkoutBuilder
-      key={query.data ? `${id}:${query.data.version}` : id}
+      key={`${user.id}:${id}:${query.data?.version ?? "new"}`}
       plan={query.data}
       initialExercise={id === "new" ? seed.data : undefined}
     />
@@ -51,17 +54,19 @@ function WorkoutBuilder({
   plan?: StrengthPlan;
   initialExercise?: import("@168hours/contracts").Exercise;
 }) {
+  const { user } = useMe();
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const titleId = useId();
   const cache = useQueryClient();
-  const [title, setTitle] = useState(plan?.title ?? "");
-  const [notes, setNotes] = useState(plan?.notes ?? "");
-  const [exercises, setExercises] = useState(() =>
+  const [initialExercises] = useState(() =>
     initialExercise
       ? [
           {
             clientKey: crypto.randomUUID(),
             exerciseId: initialExercise.id,
             name: initialExercise.name,
+            loggingType: initialExercise.loggingType,
             notes: null,
             sets: [emptySet()],
           },
@@ -75,19 +80,44 @@ function WorkoutBuilder({
       planInput(plan?.title ?? "", plan?.notes ?? null, planExercises(plan)),
     ),
   );
+  const recovery = useWorkoutBuilderRecovery(
+    `168hours:workout-builder:${user.id}:${plan?.id ?? "new"}`,
+    {
+      title: plan?.title ?? "",
+      notes: plan?.notes ?? "",
+      exercises: initialExercises,
+    },
+    baseline,
+    plan?.version ?? null,
+  );
+  const { title, notes, exercises } = recovery.draft;
+  const [wasRecovered, setWasRecovered] = useState(false);
+  if (wasRecovered !== recovery.recovered) {
+    setWasRecovered(recovery.recovered);
+    if (recovery.recovered) setNotesOpen(!!notes);
+  }
   const input = planInput(title, notes || null, exercises);
   const dirty = JSON.stringify(input) !== baseline;
-  const [error, setError] = useState("");
+  const [validationMode, setValidationMode] = useState<boolean | null>(null);
+  const errors =
+    validationMode === null ? {} : workoutFieldErrors(input, validationMode);
+  const error = Object.values(errors).find(Boolean);
+  // Once all reported problems are resolved, wait for Save before validating new edits.
+  if (validationMode !== null && !error) setValidationMode(null);
   const leave = () => router.push("/fitness");
   const saved = () => {
+    recovery.clear();
     invalidateFitness(cache);
     leave();
   };
   const save = useCommand({
-    mutationFn: (v: ReturnType<typeof planInput>, key: string) =>
-      plan
-        ? api.updateStrengthPlan(plan.id, v, plan.version, key)
-        : api.createStrengthPlan(v, key),
+    mutationFn: (
+      v: { input: ReturnType<typeof planInput>; asCopy: boolean },
+      key: string,
+    ) =>
+      plan && !v.asCopy
+        ? api.updateStrengthPlan(plan.id, v.input, plan.version, key)
+        : api.createStrengthPlan(v.input, key),
     onSuccess: saved,
   });
   const remove = useCommand({
@@ -96,12 +126,25 @@ function WorkoutBuilder({
     onSuccess: saved,
   });
   const busy = save.isPending || remove.isPending;
-  const saveAs = (isDraft: boolean) => {
+  const saveAs = (isDraft: boolean, asCopy = false) => {
+    if (busy || (recovery.conflict && !asCopy)) return;
     const parsed = strengthPlanInput.safeParse({ ...input, isDraft });
     if (parsed.success) {
-      setError("");
-      save.mutate(parsed.data);
-    } else setError(parsed.error.issues[0]!.message);
+      setValidationMode(null);
+      save.mutate({ input: parsed.data, asCopy });
+    } else {
+      const next = workoutFieldErrors(input, isDraft);
+      setValidationMode(isDraft);
+      if (next.notes) setNotesOpen(true);
+      setCancelling(false);
+      requestAnimationFrame(() =>
+        formRef.current
+          ?.querySelector<HTMLElement>(
+            '[aria-invalid="true"], [data-validation-error="true"]',
+          )
+          ?.focus(),
+      );
+    }
   };
   return (
     <div className="fitness-workout-builder">
@@ -122,7 +165,40 @@ function WorkoutBuilder({
           Cancel
         </button>
       </header>
+      {recovery.storageError && (
+        <p role="alert" className="error">
+          Recovery storage is unavailable. Save draft before leaving.
+        </p>
+      )}
+      {recovery.recovered && (
+        <div className="fitness-builder-recovery" role="status">
+          <p>
+            {recovery.conflict
+              ? "This workout changed since these edits. Save a new draft or discard the recovered changes."
+              : "Unsaved changes restored."}
+          </p>
+          {recovery.conflict && (
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => saveAs(true, true)}
+            >
+              Save as new draft
+            </button>
+          )}
+          <button
+            type="button"
+            className="fitness-text-action"
+            disabled={busy}
+            onClick={recovery.discard}
+          >
+            Discard recovered changes
+          </button>
+        </div>
+      )}
       <form
+        ref={formRef}
         className="fitness-builder-form"
         noValidate
         onSubmit={(event) => {
@@ -131,15 +207,25 @@ function WorkoutBuilder({
         }}
       >
         <div className="fitness-builder-setup form-stack">
-          <label className="field">
-            Workout title
+          <div className="field">
+            <label htmlFor={titleId}>Workout title</label>
             <input
+              id={titleId}
+              aria-invalid={!!errors.title}
+              aria-describedby={errors.title ? `${titleId}-error` : undefined}
               maxLength={160}
               value={title}
               disabled={busy}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) =>
+                recovery.change({ title: event.target.value })
+              }
             />
-          </label>
+            {errors.title && (
+              <p id={`${titleId}-error`} className="error" role="alert">
+                {errors.title}
+              </p>
+            )}
+          </div>
           <details
             className="fitness-builder-notes"
             open={notesOpen}
@@ -151,7 +237,8 @@ function WorkoutBuilder({
               hideLabel
               value={notes}
               disabled={busy}
-              onChange={(value) => setNotes(value ?? "")}
+              error={errors.notes}
+              onChange={(value) => recovery.change({ notes: value ?? "" })}
             />
           </details>
         </div>
@@ -163,7 +250,8 @@ function WorkoutBuilder({
         >
           <StrengthExercises
             value={exercises}
-            onChange={setExercises}
+            onChange={(exercises) => recovery.change({ exercises })}
+            errors={errors}
             disabled={busy}
             building
           />
@@ -189,22 +277,21 @@ function WorkoutBuilder({
           )}
         </div>
         <footer className="fitness-builder-footer">
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
           {!cancelling && <CommandError command={save} />}
           <div className="fitness-builder-save-actions">
             <button
               type="button"
               className="button"
-              disabled={busy}
+              disabled={busy || recovery.conflict}
               onClick={() => saveAs(true)}
             >
               Save draft
             </button>
-            <button type="submit" className="button primary" disabled={busy}>
+            <button
+              type="submit"
+              className="button primary"
+              disabled={busy || recovery.conflict}
+            >
               Save workout
             </button>
           </div>
@@ -224,12 +311,19 @@ function WorkoutBuilder({
           <div className="form-stack">
             <button
               className="button primary"
-              disabled={busy}
+              disabled={busy || recovery.conflict}
               onClick={() => saveAs(true)}
             >
               Save draft
             </button>
-            <button className="button danger" disabled={busy} onClick={leave}>
+            <button
+              className="button danger"
+              disabled={busy}
+              onClick={() => {
+                recovery.clear();
+                leave();
+              }}
+            >
               Discard
             </button>
             <button
@@ -250,4 +344,28 @@ function WorkoutBuilder({
       )}
     </div>
   );
+}
+
+/** Map canonical validation to the current draft positions, including after reordering. */
+function workoutFieldErrors(
+  input: ReturnType<typeof planInput>,
+  isDraft: boolean,
+): Record<string, string> {
+  const parsed = strengthPlanInput.safeParse({ ...input, isDraft });
+  if (parsed.success) return {};
+  const errors: Record<string, string> = {};
+  for (const issue of parsed.error.issues)
+    errors[issue.path.join(".")] ??= issue.message;
+  if (
+    !isDraft &&
+    input.exercises.length &&
+    input.exercises.some((exercise) => !exercise.sets.length)
+  ) {
+    delete errors.exercises;
+    input.exercises.forEach((exercise, index) => {
+      if (!exercise.sets.length)
+        errors[`exercises.${index}.sets`] = "Add at least one set.";
+    });
+  }
+  return errors;
 }

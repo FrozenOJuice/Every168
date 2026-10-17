@@ -34,7 +34,9 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   await right
     .getByRole("button", { name: "Save workout", exact: true })
     .click();
-  await expect(right.getByRole("alert")).toContainText("Enter a workout title");
+  await expect(
+    right.getByText("Enter a workout title.", { exact: true }),
+  ).toBeVisible();
   await right.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page).toHaveURL(/\/fitness$/);
   const cards = right.locator(".fitness-workout-card");
@@ -66,7 +68,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   else
     await expect(
       right.getByRole("button", { name: "Add exercise", exact: true }),
-    ).toBeHidden();
+    ).toHaveClass("fitness-builder-empty");
   const left = page.locator(".fitness-exercise-panel");
   const bench = left.getByRole("button", { name: "Bench press", exact: true });
   if (testInfo.project.name === "desktop") await bench.hover();

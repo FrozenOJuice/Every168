@@ -1,5 +1,6 @@
 "use client";
-import { useRef, useLayoutEffect, useCallback } from "react";
+import { useRef, useLayoutEffect, useCallback, useId } from "react";
+import { Plus } from "lucide-react";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { emptySet, type ExerciseDraft } from "./strength-draft";
 import { WorkoutExerciseCard } from "./workout-exercise-card";
@@ -11,6 +12,7 @@ export function StrengthExercises({
   session,
   sessionId,
   building = false,
+  errors = {},
   onRest,
   disabled = false,
 }: {
@@ -19,9 +21,11 @@ export function StrengthExercises({
   session?: boolean;
   sessionId?: string;
   building?: boolean;
+  errors?: Record<string, string>;
   onRest?: (seconds: number) => void;
   disabled?: boolean;
 }) {
+  const errorId = useId();
   const { register, pick } = useFitnessExercisePanel();
   const current = useRef({ value, onChange, disabled });
   useLayoutEffect(() => {
@@ -37,6 +41,7 @@ export function StrengthExercises({
           clientKey: crypto.randomUUID(),
           exerciseId: exercise.id,
           name: exercise.name,
+          loggingType: exercise.loggingType,
           notes: null,
           sets: [emptySet()],
         },
@@ -57,7 +62,23 @@ export function StrengthExercises({
   return (
     <div className="fitness-workout-exercises">
       {building && !value.length && (
-        <p className="fitness-builder-empty">Add exercises from the library.</p>
+        <button
+          type="button"
+          className="fitness-builder-empty"
+          data-validation-error={!!errors.exercises}
+          aria-describedby={errors.exercises ? errorId : undefined}
+          data-add-exercise
+          disabled={disabled}
+          onClick={() => pick()}
+        >
+          <Plus size={24} aria-hidden="true" />
+          Add exercise
+        </button>
+      )}
+      {errors.exercises && (
+        <p id={errorId} className="error" role="alert">
+          {errors.exercises}
+        </p>
       )}
       <div ref={exerciseListRef} className="fitness-workout-exercise-list">
         {value.map((exercise, index) => (
@@ -73,6 +94,9 @@ export function StrengthExercises({
           >
             <WorkoutExerciseCard
               exercise={exercise}
+              collapsible={building}
+              errors={errors}
+              errorPrefix={`exercises.${index}`}
               session={session}
               sessionId={sessionId}
               disabled={disabled}
@@ -107,15 +131,17 @@ export function StrengthExercises({
         ))}
       </div>
       {feedback}
-      <button
-        type="button"
-        className={`button${building ? " fitness-builder-add-exercise" : ""}`}
-        disabled={disabled || value.length >= 50}
-        data-add-exercise
-        onClick={() => pick()}
-      >
-        Add exercise
-      </button>
+      {(!building || value.length > 0) && (
+        <button
+          type="button"
+          className={`button${building ? " fitness-builder-add-exercise" : ""}`}
+          disabled={disabled || value.length >= 50}
+          data-add-exercise
+          onClick={() => pick()}
+        >
+          Add exercise
+        </button>
+      )}
     </div>
   );
 }

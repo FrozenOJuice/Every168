@@ -137,9 +137,7 @@ test("the right library supports workouts and exercise editing in the main area"
   } else await addBench.tap();
   await expect(page.locator(".fitness-picker-add")).toHaveCount(0);
   await expect(page.locator(".fitness-card-details")).toHaveCount(0);
-  await expect(page.locator(".fitness-panel-notice")).toHaveText(
-    "Added Bench press",
-  );
+  await expect(page.locator(".fitness-panel-notice")).toHaveCount(0);
   if (testInfo.project.name === "desktop") {
     await benchCard.focus();
     await page.keyboard.press("Enter");
@@ -163,7 +161,7 @@ test("the right library supports workouts and exercise editing in the main area"
   if (testInfo.project.name === "desktop")
     await left.getByRole("button", { name: "Squat", exact: true }).hover();
   await left.getByRole("button", { name: "Add Squat", exact: true }).click();
-  await expect(page.locator(".fitness-panel-notice")).toHaveText("Added Squat");
+  await expect(page.locator(".fitness-panel-notice")).toHaveCount(0);
   await expect(right.locator(".fitness-exercise")).toHaveCount(2);
   if (testInfo.project.name === "desktop") {
     const squat = left.getByRole("button", {

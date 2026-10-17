@@ -7,11 +7,15 @@ export function ExerciseMultiSelect<T extends string>({
   options,
   value,
   onChange,
+  error,
+  disabled = false,
 }: {
   label: string;
   options: readonly T[];
   value: T[];
   onChange: (value: T[]) => void;
+  error?: string;
+  disabled?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -44,7 +48,7 @@ export function ExerciseMultiSelect<T extends string>({
     setOpen(false);
     focusSearchClosed();
   };
-  const dropdown = open && (
+  const dropdown = open && !disabled && (
     <div ref={popup} className="fitness-multi-select-dropdown">
       <ul id={`${id}-options`} role="listbox" aria-label={label}>
         {matches.map((option, index) => (
@@ -94,6 +98,9 @@ export function ExerciseMultiSelect<T extends string>({
         <input
           ref={input}
           id={id}
+          disabled={disabled}
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-error` : undefined}
           role="combobox"
           autoComplete="off"
           aria-autocomplete="list"
@@ -164,6 +171,7 @@ export function ExerciseMultiSelect<T extends string>({
               <span>{option}</span>
               <button
                 type="button"
+                disabled={disabled}
                 aria-label={`Remove ${option}`}
                 onClick={(event) => {
                   const buttons = Array.from(
@@ -186,6 +194,11 @@ export function ExerciseMultiSelect<T extends string>({
             </li>
           ))}
         </ul>
+      )}
+      {error && (
+        <p id={`${id}-error`} className="error" role="alert">
+          {error}
+        </p>
       )}
     </div>
   );

@@ -190,6 +190,7 @@ export function strengthRepository(db: Database) {
       id: string,
       v: WorkoutUpdateInput,
       names: string[],
+      loggingTypes: import("@168hours/contracts").ExerciseLoggingType[],
       previous: NonNullable<Awaited<ReturnType<typeof get>>>,
     ) {
       const tx = databaseFor(db, context);
@@ -225,6 +226,7 @@ export function strengthRepository(db: Database) {
               workoutId: id,
               exerciseId: e.exerciseId,
               exerciseNameSnapshot: names[position]!,
+              loggingType: loggingTypes[position]!,
               position,
               notes: e.notes,
             })

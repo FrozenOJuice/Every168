@@ -1,4 +1,4 @@
-import type { StrengthPlan } from "@168hours/contracts";
+import type { StrengthPlan, ExerciseLoggingType } from "@168hours/contracts";
 import {
   pgTable,
   uuid,
@@ -24,6 +24,10 @@ export const exercises = pgTable(
     ...ownedColumns(),
     name: text("name").notNull(),
     catalogKey: text("catalog_key"),
+    loggingType: text("logging_type")
+      .$type<ExerciseLoggingType>()
+      .notNull()
+      .default("reps_load"),
     equipment: text("equipment")
       .array()
       .notNull()
@@ -47,6 +51,10 @@ export const exercises = pgTable(
     check(
       "exercise_metadata",
       sql`cardinality(${t.equipment})<=10 and ${t.equipment} <@ ARRAY['Barbell','Dumbbells','Cable','Machine','Bodyweight','Bench','Kettlebell','Resistance band','Pull-up bar','Other']::text[] and cardinality(${t.muscles})<=6 and ${t.muscles} <@ ARRAY['Chest','Back','Shoulders','Arms','Legs','Core']::text[]`,
+    ),
+    check(
+      "exercise_logging_type",
+      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load')`,
     ),
     unique("exercise_owner_id").on(t.userId, t.id),
     unique("exercise_owner_catalog_key").on(t.userId, t.catalogKey),
@@ -112,6 +120,10 @@ export const workoutExercises = pgTable(
     workoutId: uuid("workout_id").notNull(),
     exerciseId: uuid("exercise_id").notNull(),
     exerciseNameSnapshot: text("exercise_name_snapshot").notNull(),
+    loggingType: text("logging_type")
+      .$type<ExerciseLoggingType>()
+      .notNull()
+      .default("reps_load"),
     position: integer("position").notNull(),
     notes: text("notes"),
   },
@@ -123,6 +135,10 @@ export const workoutExercises = pgTable(
     check(
       "workout_exercise_fields",
       sql`${t.position} between 0 and 49 and char_length(btrim(${t.exerciseNameSnapshot})) between 1 and 160 and char_length(${t.notes})<=4000`,
+    ),
+    check(
+      "workout_exercise_logging_type",
+      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load')`,
     ),
     unique("workout_exercise_position").on(t.userId, t.workoutId, t.position),
     unique("workout_exercise_owner_id").on(t.userId, t.id),

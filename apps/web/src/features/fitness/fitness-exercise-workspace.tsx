@@ -140,7 +140,7 @@ export function FitnessExerciseWorkspace({
                     setNotice(
                       accepted === false
                         ? "Cannot add another exercise right now."
-                        : `Added ${exercise.name}`,
+                        : "",
                     );
                   }
                 : undefined

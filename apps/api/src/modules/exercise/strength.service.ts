@@ -77,6 +77,8 @@ export function strengthService(
           : null;
         const seen = new Set<string>();
         const names: string[] = [];
+        const loggingTypes: import("@168hours/contracts").ExerciseLoggingType[] =
+          [];
         for (const e of v.exercises) {
           if (e.id) {
             if (seen.has(e.id))
@@ -109,13 +111,20 @@ export function strengthService(
               "BUSINESS_RULE",
               "Choose an active exercise.",
             );
+          loggingTypes.push(
+            existing?.exerciseId === e.exerciseId
+              ? existing.loggingType
+              : (e.loggingType ?? definition.loggingType),
+          );
           names.push(
             existing?.exerciseId === e.exerciseId
               ? existing.exerciseNameSnapshot
               : definition.name,
           );
         }
-        const result = found(await repo.replace(tx, u, id, v, names, old));
+        const result = found(
+          await repo.replace(tx, u, id, v, names, loggingTypes, old),
+        );
         if (v.endedAt)
           await planning.recordSource(tx, u, {
             title: v.title,
@@ -158,6 +167,7 @@ export function strengthService(
           linkedTimeBlockId: null,
           exercises: old.exercises.map((e) => ({
             exerciseId: e.exerciseId,
+            loggingType: e.loggingType,
             notes: e.notes,
             sets: e.sets.map((s) => ({
               reps: null,

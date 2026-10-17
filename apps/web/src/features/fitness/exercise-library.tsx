@@ -16,7 +16,8 @@ import { ErrorState, Loading } from "@/components/ui/feedback";
 import { ExerciseMuscleTags } from "./exercise-muscle-tags";
 import { ExerciseLibraryControls } from "./exercise-library-controls";
 import { ExerciseLibraryCard } from "./exercise-library-card";
-import { ExerciseDetails, ExerciseEditor } from "./exercise-details";
+import { ExerciseDetails } from "./exercise-details";
+import { ExerciseEditor } from "./exercise-editor";
 import {
   libraryExercises,
   filterLibrary,
@@ -175,6 +176,7 @@ export function ExerciseLibrary({
         <ExerciseEditor
           key={editingExercise?.id ?? "new"}
           item={editingExercise ?? undefined}
+          addToWorkout={creating && !!onChoose}
           onCancel={closeEditor}
           onSaved={(exercise) => {
             void cache.invalidateQueries({
@@ -271,6 +273,7 @@ export function ExerciseLibrary({
               <button
                 type="button"
                 className="fitness-text-action"
+                disabled={!!editor}
                 onClick={(e) => {
                   opener.current = e.currentTarget;
                   captureScroll();

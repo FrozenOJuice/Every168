@@ -62,12 +62,10 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   });
   await create.getByLabel("Exercise name", { exact: true }).fill("Squat");
   await create
-    .getByRole("button", { name: "Save exercise", exact: true })
+    .getByRole("button", { name: "Create and add to workout", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.locator(".fitness-panel-notice")).toContainText(
-    "Added Squat",
-  );
+  await expect(page.locator(".fitness-panel-notice")).toHaveCount(0);
   if (testInfo.project.name === "phone") {
     await page
       .getByRole("button", { name: "Back to workout", exact: true })

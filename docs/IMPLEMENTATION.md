@@ -2,6 +2,107 @@
 
 Core C0–C6 and the owner-authorized foundation, authentication, data-integrity, UI, Calendar, Food, Exercise, Admin and first Fitness Strength passes are complete. The owner-authorized Admin pass adds permanent account types, account management, aggregate statistics, operational health and an immutable action log. Remaining work in this authorized scope: none. Genuine blockers: none. CI remains removed; checks run locally. No AI, external integrations, native app, social features, notification delivery or background jobs were added.
 
+## Consistent visibility/favourite filter indicators, complete
+
+- Removed the Hidden tag from the active-filter row. Hidden and Favourites now both indicate selection only through their toolbar buttons; equipment/muscle tags and Clear all retain their behavior. Updated FEATURES.
+- Verification: changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. Presentation-only change; browser suites were not rerun. No backend/schema changes, commits or deployment.
+
+## Workout builder draft recovery, complete
+
+- Added a focused, schema-checked recovery hook that writes edits synchronously to account/workout-scoped session storage. Workout title, notes, exercise/set order and all measurements survive navigation/refresh, including incomplete or invalid fields. Restore happens after hydration; existing explicit Save draft/Save workout remain canonical.
+- Successful saves/deletion and deliberate Discard clear recovery. Recovered changes can also be discarded in place. Saved-version conflicts disable overwriting and offer Save as new draft, using existing owner-scoped canonical creation; existing revision/idempotency/retry protections remain. Storage failures show a save-before-leaving message. No schema/backend/dependency changes.
+- Updated FEATURES, UI standards and authorized scope. Verification: final web typecheck, changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. Existing Save draft/Cancel flows passed on desktop/phone (4/4). The initial recovery test used an incorrect Calendar URL expectation; after correction both recovery flows passed, and the final rerun with storage-failure feedback passed again (2/2). Coverage includes real sidebar navigation/back, refresh, title/notes/exercises and invalid set values, explicit-save cleanup, stale-version refusal, safe recovered-copy creation, in-place/Cancel discard, unavailable storage and accessibility. No commits or deployment.
+
+## Rest underline baseline alignment, complete
+
+- Moved the fixed rest-editing underline from the bottom of the 44px touch target to just beneath the numeric text. Its position remains independent of whether a value is entered; retained the full touch target. Updated UI standards.
+- Verification: relevant formatting and diff whitespace checks passed. CSS-only adjustment; browser suites were not rerun. No backend/schema changes, commits or deployment.
+
+## Stable rest underline, complete
+
+- Replaced the rest editor’s text underline with a fixed bottom border and removed the dash placeholder, so the indicator stays at the bottom for empty and entered values. Existing editing behavior is unchanged. Updated UI standards.
+- Verification: changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. CSS/placeholder-only adjustment; browser suites were not rerun. No backend/schema changes, commits or deployment.
+
+## Silent exercise additions, complete
+
+- Removed the shared Added [exercise] success notice from workout/session additions. Successful additions clear any previous add-error notice; rejected additions retain their existing feedback. Updated FEATURES and existing browser expectations.
+- Verification: changed-file zero-warning ESLint, formatting and diff whitespace checks passed. Existing desktop/phone workout-workspace flows passed (2/2), including additions without the notice, details, editing and accessibility. No backend/schema changes, commits or deployment.
+
+## Text-style rest editing, complete
+
+- Rest seconds now edit directly within the divider text, with no visible input box or number spinners. The number sizes to its contents and uses a focus underline; the existing labelled numeric control, blank/zero semantics and Enter/blur behavior remain. Updated FEATURES, UI standards and scope.
+- Verification: web typecheck, changed-file zero-warning ESLint, formatting and diff whitespace checks passed. Existing desktop/phone tracking flows passed (2/2), covering inline editing, focus, saved values, no final-set rest, rest timers and accessibility. Desktop screenshot inspected. No backend/schema changes, commits or deployment.
+
+## Compact between-set rest editing, complete
+
+- Removed rest fields from advanced set controls and the final set in both workout building and training. Between-set rest remains owned by the preceding set; no rest-between-exercises behavior was added.
+- Replaced the labelled full-size field/Done row with a compact inline Rest / seconds input / sec control. Opening focuses/selects the value; Enter closes and restores trigger focus, clicking away closes without taking focus back. Blank and zero remain distinct; existing validation and saved measurements remain intact. Updated FEATURES, UI standards and scope.
+- Verification: web typecheck, changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. All four desktop/phone tracking and card flows passed, including compact field width, no Done button, Enter/blur behavior, zero rest, no final-set rest even with advanced controls open, saved rest/timers, reordering and accessibility. Desktop/phone screenshots inspected. No backend/schema changes, commits or deployment.
+
+## Exercise tracking types and between-set rest, complete
+
+- Added four shared tracking types: reps/load, reps, duration and duration/load. Custom definitions choose a type; immutable built-ins use catalogue defaults, including timed Plank and reps-only Push-up. Canonical owner-scoped Exercise reads/creation/duplication and reusable workout snapshots carry the type. Scheduled copies and sessions retain captured modes across definition edits; resaving a reusable workout refreshes current definition metadata without discarding measurements.
+- Migration 0027 adds constrained definition/session-mode columns and extends the built-in definition guard. Local development migration applied; isolated test migration applies through existing test setup. No reset, backfill, production writes or dependency changes. Session identity/measurements, revision-safe writes, unit conversion and unique activity time sources remain intact.
+- Building/training now shows each exercise’s primary fields; other targets/actuals remain editable in advanced controls. Extracted the shared numeric field and rest divider into focused components. Rest dividers between sets edit the preceding set’s existing rest value; zero/unknown remain distinct. Last sets can preset rest through advanced controls; rest timers start only when another set follows.
+- Updated FEATURES, UI standards, architecture and authorized scope. Workspace typecheck, zero-warning lint/boundaries, 93 unit tests, 6 architecture tests, API/web production builds, migration generation (no pending schema changes), relevant formatting and diff whitespace checks passed. Local migration 0027 applied successfully.
+- API integration: the full run passed 106/107; after correcting the new test’s strict-write fixture, all 14 focused Strength/catalogue/Exercise tests passed. Coverage includes owner isolation, immutable built-ins, definition edits, scheduled/session snapshots, retained mixed measurements and current reusable-workout metadata.
+- Browser verification: the initial desktop/phone Fitness run passed 20/22; its two training failures exposed rest-button contrast on completed sets. Corrected the semantic text color; the final training/tracking run passed 6/6, completing coverage of all 22 distinct flows across the runs. Checks cover all four tracking modes, advanced values, repeated targets, rest editing/focus/timers, persistence, draft/cancel and recovery behavior, responsive horizontal fit and automated accessibility. Desktop/phone builder screenshots inspected. Temporary build output/configuration cleaned up; no commits or deployment.
+
+## Workout builder validation, repeated targets and collapsible cards, complete
+
+- Replaced footer-only builder validation with field-associated title/notes/list/card/set errors. Save focuses the first problem and opens invalid collapsed exercises/timing inputs. Empty exercises and zero-set cards point directly to their Add controls; incomplete drafts retain existing canonical rules. Pending mutations remain guarded.
+- Builder Add set reuses the preceding reps/load/duration/rest targets with a fresh client key and unknown actual performance/completion. Training retains its existing blank-add behavior. Added a focused regression for zero/null preservation, independent identity and exclusion of recorded results.
+- Builder exercise cards can collapse to a name/set-count summary, retaining help, removal and reordering. Contents stay mounted so values, optional notes and timing state survive expansion; collapse itself changes no saved data. Added reduced-motion-aware chevrons. Updated FEATURES, UI standards and authorized scope; no backend/schema/dependency changes.
+- Verification: final web typecheck, changed-file zero-warning ESLint, relevant formatting/diff whitespace and all five Strength draft unit tests passed. Twelve distinct desktop/phone builder/card/draft/Strength flows passed across combined and final focused runs; the final builder/draft rerun passed 6/6. Coverage includes first-error focus, all numeric fields, missing exercises/sets, reopening invalid collapsed content, independent repeated targets, retained hidden values, save persistence, draft/cancel rules, pointer/touch/keyboard reordering, autosave/recovery and accessibility. Desktop/phone collapsed-card screenshots inspected. The checks caught sticky validation after all errors were fixed; validation now waits for the next Save afterward while retaining other errors until corrected. Updated obsolete exercise-save and singular-alert fixture expectations. The interrupted run’s owned test servers were cleaned up; no development servers, backend/schema, commit or deployment changes.
+
+## Empty-workout placeholder and aligned set timing, complete
+
+- Replaced the empty builder sentence with a dotted Add exercise placeholder that opens/focuses the existing library. It replaces the redundant narrow-screen Add button while empty. Existing populated-workout additions remain unchanged.
+- Planned duration/rest now share the Reps/Load grid columns, preserving narrow number/action columns and equal field widths. Updated FEATURES and UI standards; no backend/data changes.
+- Verification: web typecheck, changed-file zero-warning ESLint, formatting and diff whitespace checks passed. Both desktop/phone card flows passed with exact duration/rest x-position and width checks against Reps/Load, plus placeholder styling, set controls, persistence and accessibility. Draft/cancel flows passed on both profiles across the combined run and focused desktop rerun (six distinct flows total). The draft regression’s former hidden desktop Add expectation was updated for the intentionally visible placeholder. No commits or deployment.
+
+## Visible exercise instructions, complete
+
+- Removed the Instructions disclosure from Create/Edit exercise. Instructions (optional) is now a visible compact textarea with vertical resizing; fixed footer, validation and saves remain unchanged. Updated FEATURES, UI standards and scope.
+- Verification: desktop/phone exercise-editor flows passed (2/2), including visible instructions, saved content, stable footer, validation, discard protection, direct workout additions and accessibility. Changed-file zero-warning ESLint, formatting and diff whitespace checks passed. No backend/schema changes or commits.
+
+## Focused exercise creation/editing, complete
+
+- Extracted the exercise form into its own component. Name leads the form; Equipment/Muscles worked share a row when space allows, otherwise stack. Instructions start collapsed, Favourite stays beside the heading, and Cancel/Create exercise/Save changes stay fixed beneath a scrolling field area. Creation in a current workout says Create and add to workout and retains canonical addition/limit guards.
+- Added field-associated validation/focus, unchanged cancellation, a Keep editing/Discard changes dialog for dirty cancellation and browser-unload protection while dirty or saving. Pending/uncertain commands disable competing edits and retain original-key retries. Creating another exercise is disabled while its editor is open. Existing main-workout state and library selectors remain mounted; no backend/schema/dependency changes.
+- Updated FEATURES, UI standards and scope. Verification: web typecheck, changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. All eight desktop/phone exercise-editor, shared-workspace and library regression flows passed, covering invalid-field focus, responsive selectors, collapsed instructions, stable footer placement, Keep editing/Discard, saved preferences/metadata/instructions, direct workout additions with retained draft, custom editing/archive/duplicates, crowded cards and automated accessibility. Desktop/phone creation screenshots inspected. No backend suite or production build was needed for this frontend-only pass; no commits or deployment.
+
+## Set-handle feedback and exercise note layout, complete
+
+- Set-number handles now show a subtle input border, muted fill and foreground text on hover/keyboard focus; touch keeps a visible border. Existing grab cursor, tooltip and keyboard/pointer behavior remain.
+- Replaced the notes disclosure that moved to a new footer row with a dedicated editor beneath the footer. Add notes/Exercise notes disappears while open; a plain Exercise note label and one × Remove note action remain. Opening focuses the textarea; removing clears the value, closes the field and restores Add notes focus. Existing save/autosave and disabled guards remain. Updated FEATURES.
+- Verification: web typecheck, changed-file zero-warning ESLint, formatting and diff whitespace checks passed. Both desktop/phone card flows passed (2/2), including one note removal control, textarea focus, clearing/closing/focus return, persisted null values, numbered-handle dragging/keyboard movement and accessibility. No backend, schema, dependency, commit or deployment changes.
+
+## Exercise note removal, complete
+
+- Added Remove note inside each workout exercise's notes field. It clears the note, collapses the field and restores focus to Add notes. Uses existing workout saves/session autosave and disabled-write guards. Updated FEATURES; no backend/schema changes.
+- Verification: web typecheck, changed-file zero-warning ESLint, formatting and diff whitespace checks passed. Desktop/phone card flows passed (2/2), including clearing/collapsing notes, focus restoration, persisted null notes, existing set controls and accessibility. No commits or deployment.
+
+## Numbered set-row layout correction, complete
+
+- Isolated the five-cell numbered row/header styling from the preceding six-cell grip/number layout. Explicitly assigned the number, reps, load, details and removal to one row: fixed 44px number/action columns and equal flexible reps/load fields. The reported six dots, oversized number and wrapped trash match stale six-cell markup receiving the five-column stylesheet; that combination now retains its preceding column layout until updated components load.
+- Browser verification now checks the actual five child bounds, narrow number, equal wider fields, same-row controls and containment, alongside existing drag/removal behavior. Both desktop/phone flows passed (2/2), as did web typecheck, changed-file zero-warning ESLint, formatting and diff whitespace checks. Updated FEATURES. No backend/data changes or commits.
+
+## Distinct exercise and set controls, complete
+
+- Kept exercise six-dot drag handles and trash controls. Sets now use their number (Set N while training) as the drag handle and × for removal, with the same accessible labels, tooltip, 44px targets, pointer/touch dragging and Up/Down keyboard behavior. Removed the redundant set-number column; layouts remain single-column. Completed-set labels retain foreground contrast.
+- Updated FEATURES, UI standards and the compact-card scope. No backend/schema/dependency changes. Verification: web typecheck, changed-file zero-warning ESLint, relevant formatting and diff whitespace checks passed. All six desktop/phone card and Strength flows passed, including numbered-handle mouse/touch dragging, cancellation, keyboard movement/focus, × removal, persistence, autosave/recovery, completion and accessibility. Desktop card screenshot inspected. No commits or deployment.
+
+## Smaller exercise-card add label, complete
+
+- Reduced Add to workout text from 16px to 14px and its + from 20px to 18px. Kept button dimensions, placement and interactions. Updated UI standards. CSS-only change.
+- Verification: relevant formatting and diff whitespace checks passed. Browser suites were not rerun for this typography adjustment. No commits or deployment.
+
+## Two-column My workouts, complete
+
+- Saved workout cards now use two columns when the My workouts area has at least 540px available, stacking on narrower layouts. Card actions align at the bottom; Next workout remains full-width. Updated FEATURES and UI standards. CSS-only change; exercise builders, training and data operations are unchanged.
+- Verification: formatting and diff whitespace checks passed; desktop/phone workspace regression checks passed (2/2), covering saved-workout use, building, scheduling, exercise management, responsive fit and accessibility. No commits or deployment.
+
 ## Workout card density trial reverted
 
 - At the owner's request, removed the two-column builder, tighter planned-set fields, numbered set drag handles and grid-specific reordering. Restored the preceding single-column compact cards, separate set numbers and six-dot exercise/set handles. Earlier main-workspace/right-library changes remain intact. Updated FEATURES and UI standards to match.
@@ -998,7 +1099,7 @@ Focused planning services/repositories and four normalized tables extend the exi
 
 ## Database status
 
-The tracked schema now has 32 application tables and twenty-seven migrations. Migration 0026 adds the reusable-workout draft state and permits incomplete draft exercise lists. Migration 0025 separates private exercise preferences and guards built-in definitions. Migration 0024 adds exercise equipment and muscle arrays. Migration 0023 adds exercise favourites. Migration 0022 adds private catalogue identities. Migration 0021 adds Strength plans, set targets and skipped state. Migration 0020 adds atomic group-movement undo receipts. Migrations 0018–0019 extend repeating plans to all-day items, scoped series changes and reversible snapshots; migration 0017 adds series undo receipts. Migration 0016 adds group-delete undo receipts; migration 0015 adds Routines and extended template ranges; Calendar undo added `deleted_time_blocks` through migrations 0012–0013 and `edited_time_blocks` with series-definition guards in migration 0014. Local development and test migration application succeeded. Admin previously added one table and migrations 0010–0011. Earlier Exercise inspection found 23 tables and ten migrations with zero invalid constraints/indexes and the expected restricted runtime CRUD permissions.
+The tracked schema now has 32 application tables and twenty-eight migrations. Migration 0027 adds exercise/session tracking types and built-in immutability protection. Migration 0026 adds the reusable-workout draft state and permits incomplete draft exercise lists. Migration 0025 separates private exercise preferences and guards built-in definitions. Migration 0024 adds exercise equipment and muscle arrays. Migration 0023 adds exercise favourites. Migration 0022 adds private catalogue identities. Migration 0021 adds Strength plans, set targets and skipped state. Migration 0020 adds atomic group-movement undo receipts. Migrations 0018–0019 extend repeating plans to all-day items, scoped series changes and reversible snapshots; migration 0017 adds series undo receipts. Migration 0016 adds group-delete undo receipts; migration 0015 adds Routines and extended template ranges; Calendar undo added `deleted_time_blocks` through migrations 0012–0013 and `edited_time_blocks` with series-definition guards in migration 0014. Local development and test migration application succeeded. Admin previously added one table and migrations 0010–0011. Earlier Exercise inspection found 23 tables and ten migrations with zero invalid constraints/indexes and the expected restricted runtime CRUD permissions.
 
 - Development and test databases have migrations 0000–0020 applied. Food adds `0009_exotic_the_hunter.sql`, an index on food-entry history's `(user_id, created_at, id)` columns.
 - Development inspection: 23 application tables, ten migrations, zero invalid constraints and zero invalid indexes. The Food history index is present; runtime `hours_app` has required CRUD permissions and cannot create schema objects. Calendar's prior inspection verified its 23 integrity triggers and runtime grants.

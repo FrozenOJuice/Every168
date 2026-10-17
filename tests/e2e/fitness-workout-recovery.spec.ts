@@ -1,0 +1,165 @@
+import { randomUUID } from "node:crypto";
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test("unsaved workout edits recover across navigation and refresh without overwriting newer saves", async ({
+  page,
+}, testInfo) => {
+  const headers = () => ({
+    Origin: "http://localhost:3100",
+    "Idempotency-Key": randomUUID(),
+  });
+  expect(
+    (
+      await page.request.post("/api/auth/sign-up/email", {
+        headers: headers(),
+        data: {
+          name: "Recovery member",
+          email: `recovery-${randomUUID()}@example.com`,
+          password: "Synthetic-recovery-password-123",
+        },
+      })
+    ).status(),
+  ).toBe(200);
+  await page.goto("/fitness/workout/new");
+  const workspace = page.getByRole("region", {
+    name: "Workout workspace",
+    includeHidden: true,
+  });
+  const title = workspace.getByLabel("Workout title", { exact: true });
+  await title.fill("Unfinished workout");
+  await workspace.locator(".fitness-builder-notes > summary").click();
+  await workspace
+    .getByLabel("Workout notes", { exact: true })
+    .fill("Keep these unsaved notes");
+  if (testInfo.project.name === "phone")
+    await workspace
+      .getByRole("button", { name: "Add exercise", exact: true })
+      .click();
+  const library = page.getByRole("complementary", {
+    name: "Exercise library panel",
+  });
+  const bench = library.getByRole("button", {
+    name: "Bench press",
+    exact: true,
+  });
+  if (testInfo.project.name === "desktop") await bench.hover();
+  await library
+    .getByRole("button", { name: "Add Bench press", exact: true })
+    .click();
+  if (testInfo.project.name === "phone")
+    await page
+      .getByRole("button", { name: "Back to workout", exact: true })
+      .click();
+  const reps = workspace.getByLabel("Target reps", { exact: true }).first();
+  await reps.fill("0"); // Invalid entries must also survive recovery.
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Calendar", exact: true })
+    .click();
+  await expect(page).toHaveURL("http://localhost:3100/");
+  await page.goBack();
+  await expect(title).toHaveValue("Unfinished workout");
+  await expect(reps).toHaveValue("0");
+  await expect(
+    workspace.getByText("Unsaved changes restored.", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(title).toHaveValue("Unfinished workout");
+  await expect(reps).toHaveValue("0");
+  await expect(
+    workspace.getByLabel("Workout notes", { exact: true }),
+  ).toHaveValue("Keep these unsaved notes");
+  expect(
+    (await (await page.request.get("/api/v1/strength-plans")).json()).items,
+  ).toHaveLength(0);
+  await reps.fill("8");
+  await workspace
+    .getByRole("button", { name: "Save draft", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  await page.goto("/fitness/workout/new");
+  await expect(title).toHaveValue(""); // Successful save clears the new-workout recovery.
+  const plans = (
+    await (await page.request.get("/api/v1/strength-plans")).json()
+  ).items;
+  const original = plans[0];
+  await page.goto(`/fitness/workout/${original.id}`);
+  await title.fill("Recovered edits");
+  const update = await page.request.put(
+    `/api/v1/strength-plans/${original.id}`,
+    {
+      headers: { ...headers(), "If-Match": `"${original.version}"` },
+      data: {
+        title: "Newer saved workout",
+        notes: null,
+        exercises: original.exercises.map(
+          (e: {
+            exerciseId: string;
+            loggingType: string;
+            notes: string | null;
+            sets: unknown[];
+          }) => ({
+            exerciseId: e.exerciseId,
+            loggingType: e.loggingType,
+            notes: e.notes,
+            sets: e.sets,
+          }),
+        ),
+        isDraft: true,
+      },
+    },
+  );
+  expect(update.status()).toBe(200);
+  await page.reload();
+  await expect(title).toHaveValue("Recovered edits");
+  await expect(
+    workspace.getByRole("button", { name: "Save draft", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    workspace.getByRole("button", { name: "Save workout", exact: true }),
+  ).toBeDisabled();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await workspace
+    .getByRole("button", { name: "Save as new draft", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  const after = (
+    await (await page.request.get("/api/v1/strength-plans")).json()
+  ).items;
+  expect(after).toHaveLength(2);
+  expect(after.find((p: { id: string }) => p.id === original.id).title).toBe(
+    "Newer saved workout",
+  );
+  expect(after.find((p: { id: string }) => p.id !== original.id).title).toBe(
+    "Recovered edits",
+  );
+  await page.goto(`/fitness/workout/${original.id}`);
+  await title.fill("Discard this");
+  await page.reload();
+  await workspace
+    .getByRole("button", { name: "Discard recovered changes", exact: true })
+    .click();
+  await expect(title).toHaveValue("Newer saved workout");
+  await title.fill("Deliberate discard");
+  await workspace.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Discard", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  await page.goto(`/fitness/workout/${original.id}`);
+  await expect(title).toHaveValue("Newer saved workout");
+  await expect(
+    workspace.getByText("Unsaved changes restored.", { exact: true }),
+  ).toHaveCount(0);
+  await page.evaluate(() => {
+    Storage.prototype.setItem = () => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    };
+  });
+  await title.fill("Storage unavailable");
+  await expect(workspace.getByRole("alert")).toHaveText(
+    "Recovery storage is unavailable. Save draft before leaving.",
+  );
+});

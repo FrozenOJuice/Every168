@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type PointerEvent,
+  type ReactNode,
 } from "react";
 import { moveTo } from "./strength-draft";
 
@@ -171,10 +172,10 @@ export function useReorderList<T>(
           ? { transform: `translateY(${drag.delta}px)` }
           : undefined,
     }),
-    handle: (index: number, label: string) => (
+    handle: (index: number, label: string, content?: ReactNode) => (
       <button
         type="button"
-        className="icon-button fitness-reorder-handle"
+        className={`icon-button fitness-reorder-handle${content !== undefined ? " fitness-set-number" : ""}`}
         aria-label={`Reorder ${label}`}
         aria-describedby={instructions}
         title="Drag to reorder · Up/Down keys"
@@ -204,7 +205,7 @@ export function useReorderList<T>(
           });
         }}
       >
-        <GripVertical size={18} aria-hidden="true" />
+        {content ?? <GripVertical size={18} aria-hidden="true" />}
       </button>
     ),
   };

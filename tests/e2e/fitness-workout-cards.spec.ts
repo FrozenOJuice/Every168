@@ -71,6 +71,12 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     .getByLabel("Workout title", { exact: true })
     .fill("Compact workout");
   const touch = testInfo.project.name === "phone";
+  const empty = right.getByRole("button", {
+    name: "Add exercise",
+    exact: true,
+  });
+  await expect(empty).toHaveClass("fitness-builder-empty");
+  await expect(empty).toHaveCSS("border-top-style", "dotted");
   if (touch)
     await right
       .getByRole("button", { name: "Add exercise", exact: true })
@@ -102,6 +108,32 @@ test("compact workout cards expose removal and reorder exercises and sets by han
   await expect(titles()).toHaveText(["Bench press", "Squat"]);
   await expect(handles.first()).toBeFocused();
   const bench = exercises.first();
+  const addNote = bench.getByRole("button", { name: "Add notes", exact: true });
+  await addNote.click();
+  const notes = bench.getByRole("group", {
+    name: "Exercise note for Bench press",
+    exact: true,
+  });
+  await expect(addNote).toHaveCount(0);
+  await expect(
+    notes.getByLabel("Exercise notes", { exact: true }),
+  ).toBeFocused();
+  await notes
+    .getByLabel("Exercise notes", { exact: true })
+    .fill("Use a comfortable grip.");
+  await expect(notes.getByRole("button")).toHaveCount(1);
+  await notes
+    .getByRole("button", { name: "Remove note from Bench press", exact: true })
+    .click();
+  await expect(notes).toHaveCount(0);
+  await expect(addNote).toBeFocused();
+  await addNote.click();
+  await expect(notes.getByLabel("Exercise notes", { exact: true })).toHaveValue(
+    "",
+  );
+  await notes
+    .getByRole("button", { name: "Remove note from Bench press", exact: true })
+    .click();
   await bench.getByLabel("Target reps", { exact: true }).fill("5");
   await bench.getByRole("button", { name: "Add set", exact: true }).click();
   await bench.getByRole("button", { name: "Add set", exact: true }).click();
@@ -110,6 +142,33 @@ test("compact workout cards expose removal and reorder exercises and sets by han
   await rows.nth(2).getByLabel("Target reps", { exact: true }).fill("12");
   const reps = () => bench.getByLabel("Target reps", { exact: true });
   const setHandles = rows.locator(".fitness-reorder-handle");
+  await expect(setHandles).toHaveText(["1", "2", "3"]);
+  await expect(setHandles.locator("svg")).toHaveCount(0);
+  const setRow = rows.first().locator(".fitness-numbered-set-row");
+  const boxes = await setRow.locator(":scope > *").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, right: box.right };
+    }),
+  );
+  expect(boxes).toHaveLength(5);
+  expect(boxes[0]!.width).toBe(44);
+  expect(boxes[1]!.width).toBeGreaterThan(boxes[0]!.width);
+  expect(boxes[2]!.width).toBeCloseTo(boxes[1]!.width, 0);
+  for (let index = 1; index < boxes.length; index++) {
+    expect(boxes[index]!.y).toBeCloseTo(boxes[0]!.y, 0);
+    expect(boxes[index]!.x).toBeGreaterThanOrEqual(boxes[index - 1]!.right);
+  }
+  expect(boxes.at(-1)!.right).toBeLessThanOrEqual(
+    (await setRow.boundingBox())!.x + (await setRow.boundingBox())!.width,
+  );
+
+  await expect(
+    rows
+      .first()
+      .getByRole("button", { name: "Remove set 1", exact: true })
+      .locator(".lucide-x"),
+  ).toHaveCount(1);
   await drag(page, setHandles.first(), setHandles.nth(2), touch);
   await expect
     .poll(() =>
@@ -141,11 +200,37 @@ test("compact workout cards expose removal and reorder exercises and sets by han
   await bench
     .getByRole("button", { name: "More details for set 1", exact: true })
     .click();
+  await rows
+    .first()
+    .getByRole("button", { name: /Edit rest after set 1:/ })
+    .click();
   await rows.first().getByLabel("Rest (seconds)", { exact: true }).fill("90");
+  await rows
+    .first()
+    .getByLabel("Rest (seconds)", { exact: true })
+    .press("Enter");
+  const firstRow = rows.first();
+  const repsBox = (await firstRow
+    .getByLabel("Target reps", { exact: true })
+    .boundingBox())!;
+  const loadBox = (await firstRow
+    .getByLabel("Target load (kg)", { exact: true })
+    .boundingBox())!;
+  const durationBox = (await firstRow
+    .getByLabel("Target duration (seconds)", { exact: true })
+    .boundingBox())!;
+  expect(durationBox.x).toBeCloseTo(repsBox.x, 0);
+  expect(durationBox.width).toBeCloseTo(repsBox.width, 0);
+  expect(loadBox.width).toBeCloseTo(repsBox.width, 0);
   await bench
     .getByRole("button", { name: "More details for set 1", exact: true })
     .click();
-  await expect(rows.first()).toContainText("90s rest");
+  await expect(
+    rows.first().getByRole("button", {
+      name: "Edit rest after set 1: Rest 90 sec",
+      exact: true,
+    }),
+  ).toBeVisible();
   await right
     .getByRole("button", { name: "Remove Squat exercise", exact: true })
     .click();
@@ -170,4 +255,5 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     ),
   ).toEqual([8, 12]);
   expect(plans.items[0].exercises[0].sets[0].restSeconds).toBe(90);
+  expect(plans.items[0].exercises[0].notes).toBeNull();
 });

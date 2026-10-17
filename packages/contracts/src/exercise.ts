@@ -45,10 +45,18 @@ const muscleList = z
     (values) => new Set(values).size === values.length,
     "Choose each muscle once.",
   );
+export const exerciseLoggingTypeSchema = z.enum([
+  "reps_load",
+  "reps",
+  "duration",
+  "duration_load",
+]);
+export type ExerciseLoggingType = z.infer<typeof exerciseLoggingTypeSchema>;
 export const exerciseInput = z
   .object({
     name: titleSchema,
     notes: notesSchema,
+    loggingType: exerciseLoggingTypeSchema.optional(),
     equipment: equipmentList.optional(),
     muscles: muscleList.optional(),
     favourite: z.boolean().optional(),
@@ -56,6 +64,7 @@ export const exerciseInput = z
   .strict();
 export const exerciseSchema = recordSchema.extend({
   ...exerciseInput.shape,
+  loggingType: exerciseLoggingTypeSchema,
   equipment: equipmentList,
   muscles: muscleList,
   archivedAt: instantSchema.nullable(),
@@ -111,7 +120,7 @@ export const exerciseCatalogDefinitionSchema = z.object({
   notes: notesSchema,
   equipment: exerciseEquipmentSchema,
   muscles: muscleList,
-  loggingType: z.enum(["reps_load", "reps", "duration"]),
+  loggingType: exerciseLoggingTypeSchema,
 });
 export const exerciseCatalogSchema = z.array(
   exerciseCatalogDefinitionSchema.extend({
@@ -205,6 +214,7 @@ export const strengthPlanInput = z
         z
           .object({
             exerciseId: idSchema,
+            loggingType: exerciseLoggingTypeSchema.optional(),
             notes: notesSchema,
             sets: z.array(plannedSetInput).max(100),
           })
@@ -242,7 +252,10 @@ export const strengthPlanSchema = recordSchema.extend({
   timeBlockId: idSchema.nullable(),
   sessionId: idSchema.nullable(),
   exercises: z.array(
-    strengthPlanInput.shape.exercises.element.extend({ name: titleSchema }),
+    strengthPlanInput.shape.exercises.element.extend({
+      name: titleSchema,
+      loggingType: exerciseLoggingTypeSchema.default("reps_load"),
+    }),
   ),
 });
 export const strengthPlanForBlockSchema = z.object({
@@ -283,6 +296,7 @@ export const workoutExerciseInput = z
   .object({
     id: idSchema.optional(),
     exerciseId: idSchema,
+    loggingType: exerciseLoggingTypeSchema.optional(),
     notes: notesSchema,
     sets: z.array(setInput.safeExtend({ id: idSchema.optional() })).max(100),
   })
@@ -333,6 +347,7 @@ export const workoutSchema = workoutSummarySchema.extend({
       id: idSchema,
       exerciseId: idSchema,
       exerciseNameSnapshot: z.string(),
+      loggingType: exerciseLoggingTypeSchema,
       position: z.number(),
       notes: z.string().nullable(),
       sets: z.array(setSchema),

@@ -693,7 +693,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     .getByLabel("Exercise name", { exact: true })
     .fill("Bench press (my setup)");
   await copyEditor
-    .getByRole("button", { name: "Save exercise", exact: true })
+    .getByRole("button", { name: "Save changes", exact: true })
     .click();
   const personal = page.getByRole("region", {
     name: "Bench press (my setup) details",
@@ -859,7 +859,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await createExercise
-    .getByRole("button", { name: "Save exercise", exact: true })
+    .getByRole("button", { name: "Create exercise", exact: true })
     .click();
   const customDetail = page.getByRole("region", {
     name: "Supported custom row details",
@@ -919,7 +919,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     customEditor.getByRole("button", { name: "Favourite", exact: true }),
   ).toHaveAttribute("aria-pressed", "false");
   await customEditor
-    .getByRole("button", { name: "Save exercise", exact: true })
+    .getByRole("button", { name: "Save changes", exact: true })
     .click();
   await expect(customEditor).toHaveCount(0);
   await expect(customDetail).toHaveCount(0);

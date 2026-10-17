@@ -81,6 +81,7 @@ export function exerciseService(
           catalogKey: key,
           equipment: [definition.equipment],
           muscles: definition.muscles,
+          loggingType: definition.loggingType,
         },
         context,
       );
@@ -173,6 +174,7 @@ export function exerciseService(
               ? [source.equipment]
               : source.equipment,
           muscles: source.muscles,
+          loggingType: source.loggingType,
           favourite: false,
         }),
         context,

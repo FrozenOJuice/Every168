@@ -1,19 +1,11 @@
 "use client";
-import { useState, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Star } from "lucide-react";
-import {
-  exerciseInput,
-  exerciseEquipmentOptions,
-  exerciseMuscleOptions,
-  type Exercise,
-  type ExerciseInput,
-} from "@168hours/contracts";
+import { ArrowLeft } from "lucide-react";
+import { type Exercise } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
-import { NotesField } from "./notes-field";
 import { ExerciseFavourite } from "./exercise-favourite";
-import { ExerciseMultiSelect } from "./exercise-multi-select";
 import { ExerciseVisual } from "./exercise-visual";
 import { type LibraryExercise } from "./exercise-library-model";
 import { ExerciseHistory } from "./exercise-history";
@@ -247,115 +239,5 @@ export function ExerciseDetails({
         )}
       </>
     </section>
-  );
-}
-export function ExerciseEditor({
-  item,
-  onSaved,
-  onCancel,
-}: {
-  item?: Exercise;
-  onSaved: (item: Exercise) => void;
-  onCancel: () => void;
-}) {
-  const nameInput = useRef<HTMLInputElement>(null);
-  useLayoutEffect(() => nameInput.current?.focus(), []);
-  const [name, setName] = useState(item?.name ?? "");
-  const [notes, setNotes] = useState(item?.notes ?? "");
-  const [equipment, setEquipment] = useState<Exercise["equipment"]>(
-    item?.equipment ?? [],
-  );
-  const [muscles, setMuscles] = useState<Exercise["muscles"]>(
-    item?.muscles ?? [],
-  );
-  const [favourite, setFavourite] = useState(item?.favourite ?? false);
-  const [error, setError] = useState("");
-  const save = useCommand({
-    mutationFn: (v: ExerciseInput, key: string) =>
-      item
-        ? api.updateExercise(item.id, v, item.version, key)
-        : api.createExercise(v, key),
-    onSuccess: onSaved,
-  });
-  return (
-    <form
-      className="form-stack"
-      onSubmit={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const parsed = exerciseInput.safeParse({
-          name,
-          notes: notes || null,
-          equipment,
-          muscles,
-          favourite,
-        });
-        if (parsed.success) {
-          setError("");
-          save.mutate(parsed.data);
-        } else setError(parsed.error.issues[0]!.message);
-      }}
-    >
-      <fieldset className="form-stack" disabled={save.isPending}>
-        <div className="fitness-exercise-detail-heading fitness-exercise-form-heading">
-          <h2>{item ? "Edit exercise" : "Create exercise"}</h2>
-          <button
-            type="button"
-            className="icon-button fitness-draft-favourite"
-            aria-label="Favourite"
-            aria-pressed={favourite}
-            title={favourite ? "Remove from favourites" : "Add to favourites"}
-            onClick={() => setFavourite(!favourite)}
-          >
-            <Star
-              size={18}
-              fill={favourite ? "currentColor" : "none"}
-              aria-hidden="true"
-            />
-          </button>
-        </div>
-        <label className="field">
-          Exercise name
-          <input
-            ref={nameInput}
-            required
-            maxLength={160}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <ExerciseMultiSelect
-          label="Equipment"
-          options={exerciseEquipmentOptions}
-          value={equipment}
-          onChange={setEquipment}
-        />
-        <ExerciseMultiSelect
-          label="Muscles worked"
-          options={exerciseMuscleOptions}
-          value={muscles}
-          onChange={setMuscles}
-        />
-        <NotesField
-          label="Instructions (optional)"
-          value={notes}
-          onChange={(notes) => setNotes(notes ?? "")}
-        />
-        <button className="button primary">Save exercise</button>
-        <button
-          className="fitness-text-action"
-          type="button"
-          onClick={onCancel}
-        >
-          Cancel
-        </button>
-      </fieldset>
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <CommandError command={save} />
-    </form>
   );
 }

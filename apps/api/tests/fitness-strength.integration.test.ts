@@ -562,3 +562,161 @@ it("saves incomplete private drafts, rejects starting/scheduling, and publishes 
     .expect(200);
   await a.get(`strength-plans/${disposable.id}`).expect(404);
 });
+
+it("persists tracking types, protects built-ins and snapshots modes without dropping measurements", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const plank = (
+    await a
+      .write("post", "exercises/from-catalog", { key: "plank" })
+      .expect(201)
+  ).body;
+  expect(plank.loggingType).toBe("duration");
+  await a
+    .write(
+      "put",
+      `exercises/${plank.id}`,
+      { name: plank.name, loggingType: "reps_load" },
+      plank.version,
+    )
+    .expect(403);
+  const custom = (
+    await a
+      .write("post", "exercises", {
+        name: "Weighted hold",
+        loggingType: "duration_load",
+      })
+      .expect(201)
+  ).body;
+  expect(custom.loggingType).toBe("duration_load");
+  await b.get(`exercises/${custom.id}`).expect(404);
+  await a
+    .write("post", "exercises", {
+      name: "Invalid type",
+      loggingType: "distance",
+    })
+    .expect(422);
+  const plan = (
+    await a
+      .write("post", "strength-plans", {
+        title: "Timed workout",
+        exercises: [
+          {
+            exerciseId: custom.id,
+            sets: [
+              {
+                targetReps: 4,
+                targetDurationSeconds: 30,
+                targetWeightKg: 10,
+                restSeconds: 90,
+              },
+            ],
+          },
+        ],
+      })
+      .expect(201)
+  ).body;
+  expect(plan.exercises[0].loggingType).toBe("duration_load");
+  const schedule = (
+    await a
+      .write("post", `strength-plans/${plan.id}/schedule`, times, plan.version)
+      .expect(201)
+  ).body;
+  const changed = (
+    await a
+      .write(
+        "put",
+        `exercises/${custom.id}`,
+        { name: custom.name, loggingType: "reps" },
+        custom.version,
+      )
+      .expect(200)
+  ).body;
+  expect(changed.loggingType).toBe("reps");
+  const session = (
+    await a
+      .write(
+        "post",
+        `strength-plans/${schedule.id}/begin`,
+        { startedAt: times.startsAt },
+        schedule.version,
+      )
+      .expect(201)
+  ).body;
+  expect(session.exercises[0].loggingType).toBe("duration_load");
+  expect(session.exercises[0].sets[0]).toMatchObject({
+    targetReps: 4,
+    targetDurationSeconds: 30,
+    targetWeightKg: 10,
+    restSeconds: 90,
+    reps: null,
+    durationSeconds: null,
+    completed: false,
+  });
+  const typed = workoutSchema.parse(session);
+  const input = workoutUpdateInput.parse({
+    title: typed.title,
+    notes: typed.notes,
+    startedAt: typed.startedAt,
+    endedAt: null,
+    linkedTimeBlockId: typed.linkedTimeBlockId,
+    exercises: typed.exercises.map((e) => ({
+      id: e.id,
+      exerciseId: e.exerciseId,
+      notes: e.notes,
+      loggingType: "reps_load",
+      sets: e.sets.map((s) => ({
+        id: s.id,
+        reps: null,
+        durationSeconds: 30,
+        weightKg: 10,
+        completed: true,
+        skipped: false,
+        targetReps: s.targetReps,
+        targetWeightKg: s.targetWeightKg,
+        targetDurationSeconds: s.targetDurationSeconds,
+        restSeconds: s.restSeconds,
+      })),
+    })),
+  });
+  const saved = (
+    await a
+      .write("put", `strength-workouts/${session.id}`, input, session.version)
+      .expect(200)
+  ).body;
+  expect(saved.exercises[0].loggingType).toBe("duration_load");
+  expect(saved.exercises[0].sets[0]).toMatchObject({
+    targetReps: 4,
+    durationSeconds: 30,
+    weightKg: 10,
+    completed: true,
+  });
+  const updatedPlan = (
+    await a
+      .write(
+        "put",
+        `strength-plans/${plan.id}`,
+        {
+          title: plan.title,
+          exercises: plan.exercises.map(
+            (e: { exerciseId: string; sets: object[] }) => ({
+              exerciseId: e.exerciseId,
+              sets: e.sets,
+            }),
+          ),
+        },
+        plan.version,
+      )
+      .expect(200)
+  ).body;
+  expect(updatedPlan.exercises[0].loggingType).toBe("reps");
+  expect(updatedPlan.exercises[0].sets[0]).toMatchObject({
+    targetDurationSeconds: 30,
+    targetReps: 4,
+    targetWeightKg: 10,
+  });
+  expect(
+    (await a.get(`strength-plans/${schedule.id}`)).body.exercises[0]
+      .loggingType,
+  ).toBe("duration_load");
+});

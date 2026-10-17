@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { setInput, workoutUpdateInput } from "@168hours/contracts";
 import {
   emptySet,
+  nextPlannedSet,
   planInput,
   sessionInput,
   type SessionDraft,
@@ -117,5 +118,45 @@ describe("workout ordering", () => {
     expect(sessionInput(input).exercises[0]!.sets[0]).not.toHaveProperty(
       "clientKey",
     );
+  });
+});
+
+describe("new planned set targets", () => {
+  it("copies targets but gives a set independent identity and no actual performance", () => {
+    const source = {
+      ...emptySet(),
+      id,
+      targetReps: 8,
+      targetWeightKg: 0,
+      targetDurationSeconds: 30,
+      restSeconds: 0,
+      reps: 8,
+      weightKg: 40,
+      durationSeconds: 29,
+      completed: true,
+    };
+    const next = nextPlannedSet(source);
+    expect(next).toMatchObject({
+      targetReps: 8,
+      targetWeightKg: 0,
+      targetDurationSeconds: 30,
+      restSeconds: 0,
+      reps: null,
+      weightKg: null,
+      durationSeconds: null,
+      completed: false,
+      skipped: false,
+    });
+    expect(next).not.toHaveProperty("id");
+    expect(next.clientKey).not.toBe(source.clientKey);
+    expect(nextPlannedSet()).toMatchObject({
+      targetReps: null,
+      targetWeightKg: null,
+      targetDurationSeconds: null,
+      restSeconds: null,
+    });
+    expect(
+      nextPlannedSet({ ...source, targetWeightKg: null, restSeconds: null }),
+    ).toMatchObject({ targetWeightKg: null, restSeconds: null });
   });
 });

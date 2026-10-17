@@ -189,20 +189,6 @@ export function ExerciseLibraryControls({
                   </ul>
                 ),
             )}
-            {archived && (
-              <button
-                type="button"
-                className="fitness-inactive-chip"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  onArchived(false);
-                  trigger.current?.focus();
-                }}
-                aria-label="Remove Hidden"
-              >
-                Hidden <X size={14} aria-hidden="true" />
-              </button>
-            )}
           </FilterTagRow>
           <div className="fitness-filter-summary">
             <span className="fitness-library-count">

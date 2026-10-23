@@ -2231,3 +2231,185 @@
   flex-basis: 100%;
   text-align: center;
 }
+
+/* Progress uses saved results and the shared semantic palette. */
+.fitness-progress-page {
+  width: 100%;
+  min-width: 0;
+  padding-bottom: 24px;
+}
+.fitness-progress-page h2,
+.fitness-progress-page h3 {
+  margin-bottom: 0;
+}
+.fitness-progress-link {
+  align-self: flex-start;
+}
+.fitness-progress-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.fitness-progress-navigation .field {
+  flex: 1;
+  min-width: 140px;
+}
+.fitness-progress-metrics,
+.fitness-progress-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fitness-progress-metrics > div,
+.fitness-progress-records > li {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.fitness-progress-metrics dt,
+.fitness-comparison-columns dt {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.fitness-progress-metrics dd {
+  margin: 6px 0 0;
+  font-weight: 650;
+  font-size: 1.2rem;
+}
+.fitness-progress-records > li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fitness-progress-records strong {
+  font-size: 1.4rem;
+}
+.fitness-progress-records a {
+  font-size: 0.875rem;
+}
+.fitness-progress-chart {
+  margin: 0;
+  min-width: 0;
+}
+.fitness-progress-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+.fitness-progress-chart text {
+  fill: var(--muted-foreground);
+  font-size: 12px;
+}
+.fitness-chart-axis {
+  stroke: var(--border);
+}
+.fitness-chart-line {
+  stroke: var(--primary);
+  fill: none;
+  stroke-width: 2.5;
+}
+.fitness-progress-chart circle {
+  fill: var(--primary);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.fitness-progress-chart a:focus circle {
+  stroke: var(--foreground);
+  stroke-width: 4;
+}
+.fitness-progress-change {
+  padding: 12px;
+  background: var(--muted);
+  border-radius: 8px;
+}
+.fitness-progress-sessions li {
+  align-items: start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fitness-progress-sessions p {
+  margin: 4px 0;
+}
+.fitness-comparison-exercise {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.fitness-comparison-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.fitness-comparison-columns dd {
+  margin: 2px 0 10px;
+  overflow-wrap: anywhere;
+}
+.fitness-previous-set p {
+  margin: 4px 0;
+}
+@media (max-width: 400px) {
+  .fitness-progress-metrics,
+  .fitness-progress-records {
+    gap: 8px;
+  }
+  .fitness-progress-metrics > div,
+  .fitness-progress-records > li {
+    padding: 12px;
+  }
+}
+
+.fitness-program-page {
+  min-width: 0;
+}
+.fitness-program-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.fitness-program-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+.fitness-program-days label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.fitness-program-days input {
+  width: auto;
+}
+.fitness-program-steps {
+  list-style: decimal;
+  padding-left: 28px;
+  margin: 0;
+}
+.fitness-program-steps li {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.fitness-program-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.fitness-program-notes {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fitness-program-next {
+  overflow-wrap: anywhere;
+}

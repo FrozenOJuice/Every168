@@ -1,8 +1,8 @@
 "use client";
 import { useId, useState, type ReactNode } from "react";
 import { ChevronDown, X } from "lucide-react";
-import { fromKilograms } from "@168hours/domain-utils";
-import type { ExerciseLoggingType } from "@168hours/contracts";
+import { fromKilograms, fromMeters } from "@168hours/domain-utils";
+import { plannedSetInput, type ExerciseLoggingType } from "@168hours/contracts";
 import { useMe } from "@/features/identity/me";
 import { number } from "@/lib/format";
 import type { SetDraft } from "./strength-draft";
@@ -40,32 +40,44 @@ export function WorkoutSetRow({
   onRemove: () => void;
   onRest?: (seconds: number) => void;
 }) {
-  const unit = useMe().preferences.weightUnit;
+  const { weightUnit: unit, distanceUnit } = useMe().preferences;
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
+  const hiddenRestErrorId = useId();
+  const invalidFinalRest =
+    !hasNextSet &&
+    !plannedSetInput.shape.restSeconds.safeParse(set.restSeconds).success;
   const main = exerciseTrackingFields[loggingType];
-  const secondary = (["reps", "load", "duration"] as const).filter(
-    (field) => !main.includes(field),
-  );
+  const secondary = (
+    ["reps", "load", "duration", "distance", "laps"] as const
+  ).filter((field) => !main.includes(field));
   const keys = {
     reps: "targetReps",
     load: "targetWeightKg",
     duration: "targetDurationSeconds",
+    distance: "targetDistanceMeters",
+    laps: "targetLaps",
   } as const;
   const actualKeys = {
     reps: "reps",
     load: "weightKg",
     duration: "durationSeconds",
+    distance: "distanceMeters",
+    laps: "laps",
   } as const;
   const labels = {
     reps: "reps",
     load: `load (${unit})`,
     duration: "duration (seconds)",
+    distance: `distance (${distanceUnit})`,
+    laps: "laps",
   };
   const messages = {
     reps: "Use whole reps from 1 to 10,000, or leave blank.",
     load: `Use a load from 0 to ${number(fromKilograms(2000, unit))} ${unit}, or leave blank.`,
     duration: "Use whole seconds from 1 to 86,400, or leave blank.",
+    distance: "Use a positive distance up to 10,000 km, or leave blank.",
+    laps: "Use whole laps from 1 to 10,000, or leave blank.",
   };
   const restError = errors[`${errorPrefix}.restSeconds`]
     ? "Use whole seconds from 0 to 3,600, or leave blank."
@@ -88,6 +100,7 @@ export function WorkoutSetRow({
         hideLabel={hideLabel}
         value={set[key]}
         weight={field === "load"}
+        distance={field === "distance"}
         disabled={disabled}
         error={
           !actual && errors[`${errorPrefix}.${key}`]
@@ -119,10 +132,12 @@ export function WorkoutSetRow({
             {remove}
           </div>
           <details className="fitness-set-targets">
-            <summary>Advanced · {targetSummary(set, unit)}</summary>
+            <summary>
+              Advanced · {targetSummary(set, unit, distanceUnit)}
+            </summary>
             <div className="fitness-set-fields">
-              {(["reps", "load", "duration"] as const).map((field) =>
-                measurement(field),
+              {(["reps", "load", "duration", "distance", "laps"] as const).map(
+                (field) => measurement(field),
               )}
             </div>
             <div className="fitness-set-fields">
@@ -139,7 +154,10 @@ export function WorkoutSetRow({
                 disabled={
                   disabled ||
                   set.skipped ||
-                  (set.reps === null && set.durationSeconds === null)
+                  (set.reps === null &&
+                    set.durationSeconds === null &&
+                    set.distanceMeters === null &&
+                    set.laps === null)
                 }
                 checked={set.completed}
                 onChange={(event) => {
@@ -208,16 +226,42 @@ export function WorkoutSetRow({
           onChange={(value) => onChange({ ...set, restSeconds: value })}
         />
       )}
+      {invalidFinalRest && (
+        <div>
+          <p id={hiddenRestErrorId} className="error" role="alert">
+            The last set has an invalid rest value. Clear it to save, or add a
+            following set to edit it.
+          </p>
+          <button
+            type="button"
+            className="fitness-text-action"
+            disabled={disabled}
+            data-validation-error="true"
+            aria-describedby={hiddenRestErrorId}
+            onClick={() => onChange({ ...set, restSeconds: null })}
+          >
+            Clear invalid rest
+          </button>
+        </div>
+      )}
     </>
   );
 }
-function targetSummary(set: SetDraft, unit: "kg" | "lb") {
+function targetSummary(
+  set: SetDraft,
+  unit: "kg" | "lb",
+  distanceUnit: "km" | "mi",
+) {
   const parts = [
     set.targetReps !== null ? `${set.targetReps} reps` : null,
     set.targetWeightKg !== null
       ? `${number(fromKilograms(set.targetWeightKg, unit))} ${unit}`
       : null,
     set.targetDurationSeconds !== null ? `${set.targetDurationSeconds}s` : null,
+    set.targetDistanceMeters !== null
+      ? `${number(fromMeters(set.targetDistanceMeters, distanceUnit))} ${distanceUnit}`
+      : null,
+    set.targetLaps !== null ? `${set.targetLaps} laps` : null,
   ].filter(Boolean);
   return parts.length ? `Target: ${parts.join(" / ")}` : "No targets";
 }

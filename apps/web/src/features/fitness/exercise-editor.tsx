@@ -14,6 +14,8 @@ import { useCommand, CommandError } from "@/lib/use-command";
 import { Dialog } from "@/components/ui/dialog";
 import { NotesField } from "./notes-field";
 import { FitnessSelect } from "./fitness-select";
+import { IntentTagsField } from "./intent-tags-field";
+import { trackingLabels } from "./progress-shared";
 import { ExerciseMultiSelect } from "./exercise-multi-select";
 
 export function ExerciseEditor({
@@ -34,6 +36,7 @@ export function ExerciseEditor({
   const [loggingType, setLoggingType] = useState(
     item?.loggingType ?? "reps_load",
   );
+  const [intentTags, setIntentTags] = useState(item?.intentTags ?? []);
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [equipment, setEquipment] = useState<Exercise["equipment"]>(
     item?.equipment ?? [],
@@ -44,7 +47,15 @@ export function ExerciseEditor({
   const [favourite, setFavourite] = useState(item?.favourite ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [discarding, setDiscarding] = useState(false);
-  const value = { name, notes, equipment, muscles, favourite, loggingType };
+  const value = {
+    name,
+    notes,
+    equipment,
+    muscles,
+    favourite,
+    loggingType,
+    intentTags,
+  };
   const dirty =
     JSON.stringify(value) !==
     JSON.stringify({
@@ -54,6 +65,7 @@ export function ExerciseEditor({
       muscles: item?.muscles ?? [],
       favourite: item?.favourite ?? false,
       loggingType: item?.loggingType ?? "reps_load",
+      intentTags: item?.intentTags ?? [],
     });
   const save = useCommand({
     mutationFn: (v: ExerciseInput, key: string) =>
@@ -165,15 +177,18 @@ export function ExerciseEditor({
               value={loggingType}
               searchable={false}
               disabled={save.isPending}
-              options={[
-                { value: "reps_load", label: "Reps + load" },
-                { value: "reps", label: "Reps" },
-                { value: "duration", label: "Duration" },
-                { value: "duration_load", label: "Duration + load" },
-              ]}
+              options={Object.entries(trackingLabels).map(([value, label]) => ({
+                value,
+                label,
+              }))}
               onChange={(value) =>
                 setLoggingType(exerciseLoggingTypeSchema.parse(value))
               }
+            />
+            <IntentTagsField
+              value={intentTags}
+              onChange={setIntentTags}
+              disabled={save.isPending}
             />
             <div className="fitness-exercise-metadata">
               <ExerciseMultiSelect

@@ -67,6 +67,7 @@ function WorkoutBuilder({
             exerciseId: initialExercise.id,
             name: initialExercise.name,
             loggingType: initialExercise.loggingType,
+            intentTags: initialExercise.intentTags,
             notes: null,
             sets: [emptySet()],
           },

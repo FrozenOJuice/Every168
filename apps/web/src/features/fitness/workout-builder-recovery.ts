@@ -1,7 +1,7 @@
 "use client";
 import { useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { exerciseLoggingTypeSchema } from "@168hours/contracts";
+import { exerciseDraftSchema } from "./strength-draft-schema";
 import { planInput, type ExerciseDraft } from "./strength-draft";
 
 export type BuilderDraft = {
@@ -9,39 +9,13 @@ export type BuilderDraft = {
   notes: string;
   exercises: ExerciseDraft[];
 };
-// Recovery accepts incomplete/invalid measurements; canonical validation still runs on Save.
-const measurement = z.number().nullable();
 const storedDraft = z.object({
   format: z.literal(1),
   version: z.number().int().positive().nullable(),
   draft: z.object({
     title: z.string(),
     notes: z.string(),
-    exercises: z.array(
-      z.object({
-        exerciseId: z.string(),
-        name: z.string(),
-        clientKey: z.string().optional(),
-        id: z.string().optional(),
-        loggingType: exerciseLoggingTypeSchema.optional(),
-        notes: z.string().nullable(),
-        sets: z.array(
-          z.object({
-            id: z.string().optional(),
-            clientKey: z.string().optional(),
-            reps: measurement,
-            weightKg: measurement,
-            durationSeconds: measurement,
-            targetReps: measurement,
-            targetWeightKg: measurement,
-            targetDurationSeconds: measurement,
-            restSeconds: measurement,
-            completed: z.boolean(),
-            skipped: z.boolean(),
-          }),
-        ),
-      }),
-    ),
+    exercises: z.array(exerciseDraftSchema),
   }),
 });
 export function useWorkoutBuilderRecovery(

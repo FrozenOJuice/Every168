@@ -197,8 +197,8 @@ export function AdminPage() {
                     "Active accounts · 30 days": stats.users.active30Days,
                     "Planned blocks": stats.usage.plannedBlocks,
                     "Food logs": stats.usage.foodEntries,
-                    "Strength workouts": stats.usage.strengthWorkouts,
-                    "Cardio activities": stats.usage.cardioActivities,
+                    Workouts: stats.usage.strengthWorkouts,
+                    "Legacy cardio activities": stats.usage.cardioActivities,
                     Goals: stats.usage.goals,
                   }).map(([label, count]) => (
                     <div key={label}>

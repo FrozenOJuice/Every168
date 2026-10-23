@@ -1,3 +1,7 @@
+import { trainingProgramsRepository } from "./modules/exercise/training-programs.repository.js";
+import { trainingProgramsService } from "./modules/exercise/training-programs.service.js";
+import { strengthProgressRepository } from "./modules/exercise/strength-progress.repository.js";
+import { strengthProgressService } from "./modules/exercise/strength-progress.service.js";
 import { strengthPlansService } from "./modules/exercise/strength-plans.service.js";
 import { strengthPlansRepository } from "./modules/exercise/strength-plans.repository.js";
 import { calendarActivityService } from "./modules/planning/calendar-activity.service.js";
@@ -124,11 +128,24 @@ export function compose(input: ConfigInput) {
     exerciseRepo,
     planning,
   );
+  const fitnessProgress = strengthProgressService(
+    strengthProgressRepository(db),
+    identity,
+    exercises,
+    strength,
+  );
   const strengthPlans = strengthPlansService(
     strengthPlansRepo,
     exerciseRepo,
     strength,
     planning,
+  );
+  const trainingPrograms = trainingProgramsService(
+    trainingProgramsRepository(db),
+    strengthPlans,
+    strength,
+    planning,
+    identity,
   );
   const cardio = cardioService(runInTransaction, cardioRepo, planning);
   const calendarActivity = calendarActivityService(identity, [
@@ -213,6 +230,8 @@ export function compose(input: ConfigInput) {
     exercises,
     strength,
     strengthPlans,
+    fitnessProgress,
+    trainingPrograms,
     cardio,
     nutrition,
     hydration,

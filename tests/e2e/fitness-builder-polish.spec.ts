@@ -61,6 +61,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   });
   const rows = card.locator(".fitness-workout-set-list > [data-reorder-item]");
   const first = rows.first();
+  await card.getByRole("button", { name: "Add set", exact: true }).click();
   await first.getByLabel("Target reps", { exact: true }).fill("0");
   await first.getByLabel("Target load (kg)", { exact: true }).fill("-1");
   await first
@@ -69,14 +70,21 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   await first
     .getByLabel("Target duration (seconds)", { exact: true })
     .fill("0");
+  await first
+    .getByRole("button", {
+      name: "Edit rest after set 1: Add rest",
+      exact: true,
+    })
+    .click();
   await first.getByLabel("Rest (seconds)", { exact: true }).fill("4000");
+  await first.getByLabel("Rest (seconds)", { exact: true }).press("Enter");
   await first
     .getByRole("button", { name: "More details for set 1", exact: true })
     .click();
   await card
     .getByRole("button", { name: "Collapse Bench press exercise", exact: true })
     .click();
-  await expect(card.getByText("1 set", { exact: true })).toBeVisible();
+  await expect(card.getByText("2 sets", { exact: true })).toBeVisible();
   await expect(first.getByLabel("Target reps", { exact: true })).toBeHidden();
   await save.click();
   await expect(first.getByLabel("Target reps", { exact: true })).toBeFocused();
@@ -104,6 +112,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
     .getByLabel("Target duration (seconds)", { exact: true })
     .fill("30");
   await first.getByLabel("Rest (seconds)", { exact: true }).fill("90");
+  await card.getByRole("button", { name: "Remove set 2", exact: true }).click();
   await card.getByRole("button", { name: "Add set", exact: true }).click();
   const second = rows.nth(1);
   await expect(second.getByLabel("Target reps", { exact: true })).toHaveValue(
@@ -120,7 +129,20 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   ).toHaveValue("30");
   await expect(
     second.getByLabel("Rest (seconds)", { exact: true }),
+  ).toHaveCount(0);
+  // Adding a following set reveals the copied rest without exposing final-set rest controls.
+  await card.getByRole("button", { name: "Add set", exact: true }).click();
+  await second
+    .getByRole("button", {
+      name: "Edit rest after set 2: Rest 90 sec",
+      exact: true,
+    })
+    .click();
+  await expect(
+    second.getByLabel("Rest (seconds)", { exact: true }),
   ).toHaveValue("90");
+  await second.getByLabel("Rest (seconds)", { exact: true }).press("Enter");
+  await card.getByRole("button", { name: "Remove set 3", exact: true }).click();
   await second.getByLabel("Target reps", { exact: true }).fill("10");
   await expect(first.getByLabel("Target reps", { exact: true })).toHaveValue(
     "8",
@@ -162,6 +184,8 @@ test("builder validates fields, copies set targets and preserves collapsed cards
       targetReps: null,
       targetWeightKg: null,
       targetDurationSeconds: null,
+      targetDistanceMeters: null,
+      targetLaps: null,
       restSeconds: null,
     },
   ]);

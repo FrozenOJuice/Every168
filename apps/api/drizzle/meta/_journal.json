@@ -197,6 +197,20 @@
       "when": 1792191712119,
       "tag": "0027_common_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792776493665,
+      "tag": "0028_nasty_black_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792788775394,
+      "tag": "0029_wonderful_mephistopheles",
+      "breakpoints": true
     }
   ]
 }

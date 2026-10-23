@@ -42,6 +42,7 @@ export function StrengthExercises({
           exerciseId: exercise.id,
           name: exercise.name,
           loggingType: exercise.loggingType,
+          intentTags: exercise.intentTags,
           notes: null,
           sets: [emptySet()],
         },

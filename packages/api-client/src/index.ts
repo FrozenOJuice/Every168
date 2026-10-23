@@ -1,3 +1,4 @@
+import { trainingProgramsClient } from "./training-programs";
 import { adminClient } from "./admin";
 import { exerciseClient } from "./exercise";
 import { nutritionClient } from "./nutrition";
@@ -16,6 +17,7 @@ export function createClient(options: ClientOptions = {}) {
     ...calendarClient(http),
     ...routinesClient(http),
     ...exerciseClient(http),
+    ...trainingProgramsClient(http),
     ...nutritionClient(http),
     ...measurementsClient(http),
     ...goalsClient(http),

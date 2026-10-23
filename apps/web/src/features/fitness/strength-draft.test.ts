@@ -49,6 +49,8 @@ describe("Strength target and actual boundaries", () => {
       targetReps: 8,
       targetWeightKg: 50,
       targetDurationSeconds: null,
+      targetDistanceMeters: null,
+      targetLaps: null,
       restSeconds: null,
     });
     expect(plan.exercises[0]).not.toHaveProperty("id");
@@ -153,6 +155,8 @@ describe("new planned set targets", () => {
       targetReps: null,
       targetWeightKg: null,
       targetDurationSeconds: null,
+      targetDistanceMeters: null,
+      targetLaps: null,
       restSeconds: null,
     });
     expect(

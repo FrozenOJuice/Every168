@@ -28,6 +28,10 @@ export const exercises = pgTable(
       .$type<ExerciseLoggingType>()
       .notNull()
       .default("reps_load"),
+    intentTags: text("intent_tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     equipment: text("equipment")
       .array()
       .notNull()
@@ -54,7 +58,7 @@ export const exercises = pgTable(
     ),
     check(
       "exercise_logging_type",
-      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load')`,
+      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load','distance_duration','laps_duration')`,
     ),
     unique("exercise_owner_id").on(t.userId, t.id),
     unique("exercise_owner_catalog_key").on(t.userId, t.catalogKey),
@@ -124,6 +128,10 @@ export const workoutExercises = pgTable(
       .$type<ExerciseLoggingType>()
       .notNull()
       .default("reps_load"),
+    intentTags: text("intent_tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     position: integer("position").notNull(),
     notes: text("notes"),
   },
@@ -138,7 +146,7 @@ export const workoutExercises = pgTable(
     ),
     check(
       "workout_exercise_logging_type",
-      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load')`,
+      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load','distance_duration','laps_duration')`,
     ),
     unique("workout_exercise_position").on(t.userId, t.workoutId, t.position),
     unique("workout_exercise_owner_id").on(t.userId, t.id),
@@ -163,6 +171,10 @@ export const strengthSets = pgTable(
     reps: integer("reps"),
     weightKg: doublePrecision("weight_kg"),
     durationSeconds: integer("duration_seconds"),
+    distanceMeters: doublePrecision("distance_meters"),
+    laps: integer("laps"),
+    targetDistanceMeters: doublePrecision("target_distance_meters"),
+    targetLaps: integer("target_laps"),
     completed: boolean("completed").notNull(),
     skipped: boolean("skipped").notNull().default(false),
     targetReps: integer("target_reps"),
@@ -187,7 +199,7 @@ export const strengthSets = pgTable(
     index("set_parent_idx").on(t.userId, t.workoutExerciseId),
     check(
       "set_positive_values",
-      sql`(not ${t.completed} or ${t.reps} is not null or ${t.durationSeconds} is not null) and not (${t.completed} and ${t.skipped}) and (${t.targetReps} is null or ${t.targetReps} between 1 and 10000) and (${t.targetWeightKg} is null or ${t.targetWeightKg} between 0 and 2000) and (${t.targetDurationSeconds} is null or ${t.targetDurationSeconds} between 1 and 86400) and (${t.restSeconds} is null or ${t.restSeconds} between 0 and 3600) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
+      sql`(not ${t.completed} or ${t.reps} is not null or ${t.durationSeconds} is not null or ${t.distanceMeters} is not null or ${t.laps} is not null) and (${t.distanceMeters} is null or (${t.distanceMeters} > 0 and ${t.distanceMeters} <= 10000000)) and (${t.targetDistanceMeters} is null or (${t.targetDistanceMeters} > 0 and ${t.targetDistanceMeters} <= 10000000)) and (${t.laps} is null or ${t.laps} between 1 and 10000) and (${t.targetLaps} is null or ${t.targetLaps} between 1 and 10000) and not (${t.completed} and ${t.skipped}) and (${t.targetReps} is null or ${t.targetReps} between 1 and 10000) and (${t.targetWeightKg} is null or ${t.targetWeightKg} between 0 and 2000) and (${t.targetDurationSeconds} is null or ${t.targetDurationSeconds} between 1 and 86400) and (${t.restSeconds} is null or ${t.restSeconds} between 0 and 3600) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
     ),
   ],
 );
@@ -257,6 +269,7 @@ export const strengthPlans = pgTable(
     }),
     index("strength_plans_owner_created").on(t.userId, t.createdAt, t.id),
     unique("strength_plans_block").on(t.timeBlockId),
+    unique("strength_plans_owner_id").on(t.userId, t.id),
     check(
       "strength_plans_fields",
       sql`${t.version}>0 and char_length(btrim(${t.title})) between 1 and 160 and char_length(${t.notes})<=4000 and ${t.kind} in ('workout','scheduled') and jsonb_typeof(${t.exercises})='array' and jsonb_array_length(${t.exercises}) between (case when ${t.isDraft} then 0 else 1 end) and 50 and (not ${t.isDraft} or ${t.kind}='workout') and (${t.kind}='scheduled' or (${t.timeBlockId} is null and ${t.sessionId} is null))`,

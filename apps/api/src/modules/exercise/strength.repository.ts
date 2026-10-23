@@ -191,6 +191,7 @@ export function strengthRepository(db: Database) {
       v: WorkoutUpdateInput,
       names: string[],
       loggingTypes: import("@168hours/contracts").ExerciseLoggingType[],
+      intents: string[][],
       previous: NonNullable<Awaited<ReturnType<typeof get>>>,
     ) {
       const tx = databaseFor(db, context);
@@ -227,6 +228,7 @@ export function strengthRepository(db: Database) {
               exerciseId: e.exerciseId,
               exerciseNameSnapshot: names[position]!,
               loggingType: loggingTypes[position]!,
+              intentTags: intents[position]!,
               position,
               notes: e.notes,
             })
@@ -289,6 +291,8 @@ export function strengthRepository(db: Database) {
               reps: strengthSets.reps,
               weightKg: strengthSets.weightKg,
               durationSeconds: strengthSets.durationSeconds,
+              distanceMeters: strengthSets.distanceMeters,
+              laps: strengthSets.laps,
             })
             .from(strengthSets)
             .innerJoin(

@@ -114,7 +114,15 @@ export function strengthPlansRepository(db: Database) {
       u: string,
       id: string,
       v: Partial<
-        Pick<Values, "title" | "notes" | "exercises" | "sessionId" | "isDraft">
+        Pick<
+          Values,
+          | "title"
+          | "notes"
+          | "exercises"
+          | "sessionId"
+          | "isDraft"
+          | "timeBlockId"
+        >
       >,
       context: TransactionContext,
     ) {

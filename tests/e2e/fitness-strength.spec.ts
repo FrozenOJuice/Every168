@@ -76,8 +76,15 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   await page
     .getByRole("button", { name: "More details for set 1", exact: true })
     .click();
-  await page.getByLabel("Rest (seconds)", { exact: true }).fill("30");
   await page.getByRole("button", { name: "Add set", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Edit rest after set 1: Add rest",
+      exact: true,
+    })
+    .click();
+  await page.getByLabel("Rest (seconds)", { exact: true }).fill("30");
+  await page.getByLabel("Rest (seconds)", { exact: true }).press("Enter");
   await page
     .getByRole("button", { name: "More details for set 2", exact: true })
     .click();

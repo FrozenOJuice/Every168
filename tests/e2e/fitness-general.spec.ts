@@ -1,0 +1,207 @@
+import { randomUUID } from "node:crypto";
+import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+
+test("mixed activities retain independent intent, measurements, recovery and progress", async ({
+  page,
+}, info) => {
+  const write = async (
+    path: string,
+    data: object,
+    version?: number,
+    method: "post" | "put" = "post",
+  ) => {
+    const result = await page.request[method](path, {
+      headers: {
+        Origin: "http://localhost:3100",
+        "Idempotency-Key": randomUUID(),
+        ...(version ? { "If-Match": `"${version}"` } : {}),
+      },
+      data,
+    });
+    expect(result.ok()).toBe(true);
+    return result.json();
+  };
+  await write("/api/auth/sign-up/email", {
+    name: "Mixed training",
+    email: `mixed-${randomUUID()}@example.com`,
+    password: "Synthetic-fitness-password-123",
+  });
+  const me = await (await page.request.get("/api/v1/me")).json();
+  await write(
+    "/api/v1/preferences",
+    { timezone: "UTC", weekStartsOn: 1, weightUnit: "kg", distanceUnit: "mi" },
+    me.preferences.version,
+    "put",
+  );
+  const swim = await write("/api/v1/exercises", {
+    name: "Swimming",
+    loggingType: "distance_duration",
+    intentTags: ["technique"],
+  });
+  const squat = await write("/api/v1/exercises", {
+    name: "Squat",
+    loggingType: "reps_load",
+  });
+  const plan = await write("/api/v1/strength-plans", {
+    title: "Mixed practice",
+    exercises: [
+      { exerciseId: swim.id, sets: [{ targetDistanceMeters: 1609.344 }] },
+      { exerciseId: squat.id, sets: [{ targetReps: 5 }] },
+    ],
+  });
+  await page.goto(`/fitness/workout/${plan.id}`);
+  await expect(
+    page.getByLabel("Intent for Swimming", { exact: true }),
+  ).toHaveValue("technique");
+  await page
+    .getByLabel("Intent for Swimming", { exact: true })
+    .fill("recovery, fun");
+  await expect(
+    page.getByLabel("Target distance (mi)", { exact: true }).first(),
+  ).toHaveValue("1");
+  await page
+    .getByRole("button", { name: "Measurements for Swimming", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: "Laps + duration", exact: true })
+    .click();
+  await page.getByLabel("Target laps", { exact: true }).first().fill("8");
+  await page.getByRole("button", { name: "Save workout", exact: true }).click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  const savedPlan = await (
+    await page.request.get(`/api/v1/strength-plans/${plan.id}`)
+  ).json();
+  expect(savedPlan.exercises[0]).toMatchObject({
+    loggingType: "laps_duration",
+    intentTags: ["recovery", "fun"],
+  });
+  expect(savedPlan.exercises[0].sets[0]).toMatchObject({
+    targetDistanceMeters: 1609.344,
+    targetLaps: 8,
+  });
+  const w = await write(
+    `/api/v1/strength-plans/${plan.id}/begin`,
+    { startedAt: new Date(Date.now() - 3600000).toISOString() },
+    savedPlan.version,
+  );
+  await page.goto(`/fitness/session/${w.id}`);
+  await page
+    .getByLabel("Intent for Swimming", { exact: true })
+    .fill("technique");
+  await page
+    .getByRole("button", { name: "Measurements for Swimming", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: "Distance + duration", exact: true })
+    .click();
+  await page
+    .getByLabel("Actual distance (mi)", { exact: true })
+    .first()
+    .fill("-1");
+  await expect(page.locator(".fitness-save-state")).not.toHaveText("Saved");
+  await page.reload();
+  await expect(
+    page.getByLabel("Actual distance (mi)", { exact: true }).first(),
+  ).toHaveValue("-1");
+  await page
+    .getByLabel("Actual distance (mi)", { exact: true })
+    .first()
+    .fill("0.5");
+  await page
+    .getByLabel("Actual duration (seconds)", { exact: true })
+    .first()
+    .fill("900");
+  await page.getByLabel("Completed", { exact: true }).first().check();
+  await page.getByLabel("Actual reps", { exact: true }).last().fill("5");
+  await page.getByLabel("Actual load (kg)", { exact: true }).last().fill("20");
+  await page.getByLabel("Completed", { exact: true }).nth(1).check();
+  await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("mixed-workout.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Finish workout", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Finish workout", exact: true }),
+  ).not.toBeVisible();
+  await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
+  const finished = await (
+    await page.request.get(`/api/v1/strength-workouts/${w.id}`)
+  ).json();
+  expect(finished.exercises[0]).toMatchObject({
+    intentTags: ["technique"],
+    loggingType: "distance_duration",
+  });
+  expect(finished.exercises[0].sets[0].distanceMeters).toBeCloseTo(804.672);
+  await page.goto(`/fitness/progress/${swim.id}`);
+  await expect(page.locator(".fitness-progress-records")).toContainText(
+    "0.5 mi",
+  );
+  await expect(page.locator(".fitness-progress-records")).toContainText(
+    "900 sec",
+  );
+  const repeated = await write(
+    `/api/v1/strength-workouts/${w.id}/repeat`,
+    {},
+    finished.version,
+  );
+  await page.goto(`/fitness/session/${repeated.id}`);
+  await expect(
+    page.getByLabel("Actual distance (mi)", { exact: true }).first(),
+  ).toBeEmpty();
+  await expect(
+    page.getByLabel("Intent for Swimming", { exact: true }),
+  ).toHaveValue("technique");
+});
+
+test("custom activity defaults accept optional intent tags and distance measurements", async ({
+  page,
+}) => {
+  const response = await page.request.post("/api/auth/sign-up/email", {
+    headers: { Origin: "http://localhost:3100" },
+    data: {
+      name: "Activity creator",
+      email: `activity-${randomUUID()}@example.com`,
+      password: "Synthetic-fitness-password-123",
+    },
+  });
+  expect(response.ok()).toBe(true);
+  await page.goto("/fitness");
+  await page
+    .getByRole("button", { name: "Create exercise", exact: true })
+    .click();
+  await page
+    .getByLabel("Exercise name", { exact: true })
+    .fill("Cycling practice");
+  await page.getByRole("button", { name: "Tracking", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Distance + duration", exact: true })
+    .click();
+  await page
+    .getByLabel("Intent tags (optional)", { exact: true })
+    .fill("Technique, recreation");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page
+    .getByRole("region", { name: "Create exercise", exact: true })
+    .getByRole("button", { name: "Create exercise", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Cycling practice", exact: true }),
+  ).toBeVisible();
+  const result = await (
+    await page.request.get("/api/v1/exercises?search=Cycling")
+  ).json();
+  expect(result.items[0]).toMatchObject({
+    loggingType: "distance_duration",
+    intentTags: ["technique", "recreation"],
+  });
+});

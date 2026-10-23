@@ -1,3 +1,9 @@
+import {
+  fitnessProgressQuery,
+  exerciseReportQuery,
+  progressExerciseQuery,
+} from "@168hours/contracts";
+import type { StrengthProgressService } from "./strength-progress.service.js";
 import { useCatalogExerciseInput } from "@168hours/contracts";
 import type { StrengthPlansService } from "./strength-plans.service.js";
 import {
@@ -33,8 +39,42 @@ export function exerciseRoutes(
   cardio: CardioService,
   plans: StrengthPlansService,
   writes: WritesService,
+  progress: StrengthProgressService,
 ) {
   const r = Router();
+  r.get("/fitness-progress", async (req, res) =>
+    res.json(
+      await progress.overview(
+        currentUser(res).id,
+        fitnessProgressQuery.parse(req.query).date,
+      ),
+    ),
+  );
+  r.get("/fitness-progress/exercises", async (req, res) =>
+    res.json(
+      await progress.exercises(
+        currentUser(res).id,
+        progressExerciseQuery.parse(req.query),
+      ),
+    ),
+  );
+  r.get("/fitness-progress/exercises/:id", async (req, res) =>
+    res.json(
+      await progress.exercise(
+        currentUser(res).id,
+        idSchema.parse(req.params.id),
+        exerciseReportQuery.parse(req.query),
+      ),
+    ),
+  );
+  r.get("/fitness-progress/workouts/:id", async (req, res) =>
+    res.json(
+      await progress.comparison(
+        currentUser(res).id,
+        idSchema.parse(req.params.id),
+      ),
+    ),
+  );
   r.get("/strength-plans", async (req, res) =>
     res.json(
       await plans.list(currentUser(res).id, strengthPlanQuery.parse(req.query)),

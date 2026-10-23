@@ -1,4 +1,10 @@
 import type {
+  FitnessOverview,
+  ExerciseReport,
+  ExerciseReportQuery,
+  ProgressExercise,
+  ProgressExerciseQuery,
+  WorkoutComparison,
   StrengthPlan,
   NextStrengthWorkout,
   StrengthPlanInput,
@@ -24,6 +30,18 @@ import type {
 import { writeHeaders, body, query, type Http } from "./http";
 export function exerciseClient(http: Http) {
   return {
+    getFitnessOverview: (date?: string) =>
+      http<FitnessOverview>("/api/v1/fitness-progress" + query({ date })),
+    getProgressExercises: (q: Partial<ProgressExerciseQuery> = {}) =>
+      http<Page<ProgressExercise>>(
+        "/api/v1/fitness-progress/exercises" + query(q),
+      ),
+    getExerciseReport: (id: string, q: Partial<ExerciseReportQuery> = {}) =>
+      http<ExerciseReport>(
+        "/api/v1/fitness-progress/exercises/" + id + query(q),
+      ),
+    getWorkoutComparison: (id: string) =>
+      http<WorkoutComparison>("/api/v1/fitness-progress/workouts/" + id),
     getExerciseCatalog: () =>
       http<ExerciseCatalogEntry[]>("/api/v1/exercise-catalog"),
     useCatalogExercise: (key: string, requestKey?: string) =>

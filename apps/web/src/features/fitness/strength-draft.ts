@@ -14,6 +14,7 @@ export type ExerciseDraft = {
   exerciseId: string;
   name: string;
   loggingType?: ExerciseLoggingType;
+  intentTags?: string[];
   notes: string | null;
   sets: SetDraft[];
 };
@@ -28,6 +29,8 @@ export function nextPlannedSet(previous?: SetDraft): SetDraft {
     targetReps: previous?.targetReps ?? null,
     targetWeightKg: previous?.targetWeightKg ?? null,
     targetDurationSeconds: previous?.targetDurationSeconds ?? null,
+    targetDistanceMeters: previous?.targetDistanceMeters ?? null,
+    targetLaps: previous?.targetLaps ?? null,
     restSeconds: previous?.restSeconds ?? null,
   };
 }
@@ -56,17 +59,22 @@ export function sessionInput(v: SessionDraft): WorkoutUpdateInput {
       id: e.id,
       exerciseId: e.exerciseId,
       loggingType: e.loggingType,
+      intentTags: e.intentTags,
       notes: e.notes,
       sets: e.sets.map((s) => ({
         id: s.id,
         reps: s.reps,
         weightKg: s.weightKg,
         durationSeconds: s.durationSeconds,
+        distanceMeters: s.distanceMeters,
+        laps: s.laps,
         completed: s.completed,
         skipped: s.skipped,
         targetReps: s.targetReps,
         targetWeightKg: s.targetWeightKg,
         targetDurationSeconds: s.targetDurationSeconds,
+        targetDistanceMeters: s.targetDistanceMeters,
+        targetLaps: s.targetLaps,
         restSeconds: s.restSeconds,
       })),
     })),
@@ -93,12 +101,16 @@ export function planInput(
     exercises: exercises.map((e) => ({
       exerciseId: e.exerciseId,
       loggingType: e.loggingType,
+      intentTags: e.intentTags,
       notes: e.notes,
       sets: e.sets.map((s) => ({
         targetReps: s.targetReps ?? (fromActual ? s.reps : null),
         targetWeightKg: s.targetWeightKg ?? (fromActual ? s.weightKg : null),
         targetDurationSeconds:
           s.targetDurationSeconds ?? (fromActual ? s.durationSeconds : null),
+        targetDistanceMeters:
+          s.targetDistanceMeters ?? (fromActual ? s.distanceMeters : null),
+        targetLaps: s.targetLaps ?? (fromActual ? s.laps : null),
         restSeconds: s.restSeconds,
       })),
     })),

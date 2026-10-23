@@ -1,6 +1,9 @@
 "use client";
 import { useEffect } from "react";
-export function useUnsavedChanges(dirty: boolean) {
+export function useUnsavedChanges(
+  dirty: boolean,
+  message = "Leave this workout without saving your changes?",
+) {
   useEffect(() => {
     if (!dirty) return;
     const unload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -13,7 +16,7 @@ export function useUnsavedChanges(dirty: boolean) {
         anchor instanceof HTMLAnchorElement &&
         anchor.href !== window.location.href &&
         !anchor.hash &&
-        !confirm("Leave this workout without saving your changes?")
+        !confirm(message)
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -25,5 +28,5 @@ export function useUnsavedChanges(dirty: boolean) {
       window.removeEventListener("beforeunload", unload);
       document.removeEventListener("click", navigate, true);
     };
-  }, [dirty]);
+  }, [dirty, message]);
 }

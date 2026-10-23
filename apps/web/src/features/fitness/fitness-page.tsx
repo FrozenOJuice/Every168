@@ -1,4 +1,5 @@
 "use client";
+import { ProgramsOverview } from "./programs-page";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -24,6 +25,12 @@ export function FitnessPage() {
   const current = active.data?.items[0];
   return (
     <div className="fitness-training-overview">
+      <Link
+        className="fitness-text-action fitness-progress-link"
+        href="/fitness/progress"
+      >
+        View progress →
+      </Link>
       <NextWorkout />
       {current && (
         <section className="fitness-current" aria-label="Workout in progress">
@@ -44,6 +51,7 @@ export function FitnessPage() {
       {active.error && (
         <ErrorState error={active.error} retry={() => void active.refetch()} />
       )}
+      <ProgramsOverview />
       <WorkoutsOverview />
       <FitnessActivityOverview />
     </div>
@@ -56,7 +64,7 @@ function WorkoutsOverview() {
     mutationFn: (startedAt: string, key: string) =>
       api.startWorkout(
         {
-          title: "Strength workout",
+          title: "Workout",
           startedAt,
           notes: null,
           linkedTimeBlockId: null,

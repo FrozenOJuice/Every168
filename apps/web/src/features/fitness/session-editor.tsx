@@ -1,4 +1,6 @@
 "use client";
+import { ProgramSessionLink } from "./program-detail";
+import { WorkoutComparison } from "./workout-comparison";
 import { NotesField } from "./notes-field";
 import Link from "next/link";
 import {
@@ -32,38 +34,17 @@ import {
 } from "./strength-draft";
 import { invalidateFitness } from "./fitness-cache";
 import { RestTimer } from "./rest-timer";
+import {
+  recoverSession,
+  type SessionDraftState,
+  type InvalidSessionTimes,
+} from "./session-recovery";
 
-type DraftState = {
-  input: SessionDraft;
-  version: number;
-  dirty: boolean;
-  conflict: boolean;
-};
-function recover(key: string, session: Workout): DraftState {
-  const fresh = {
-    input: sessionDraft(session),
-    version: session.version,
-    dirty: false,
-    conflict: false,
-  };
+function recover(key: string, session: Workout): SessionDraftState {
   try {
-    const stored = JSON.parse(
-      sessionStorage.getItem(key) ?? "null",
-    ) as DraftState | null;
-    if (!stored) return fresh;
-    workoutUpdateInput.parse(sessionInput(stored.input));
-    if (
-      JSON.stringify(sessionInput(stored.input)) ===
-      JSON.stringify(sessionInput(fresh.input))
-    )
-      return fresh;
-    return {
-      ...stored,
-      dirty: true,
-      conflict: stored.version !== session.version,
-    };
+    return recoverSession(sessionStorage.getItem(key), session);
   } catch {
-    return fresh;
+    return recoverSession(null, session);
   }
 }
 export function SessionPage({ id }: { id: string }) {
@@ -105,19 +86,11 @@ function SessionEditor({ session }: { session: Workout }) {
   const router = useRouter();
   const [draft, setDraft] = useState(() => recover(storageKey, session));
   const [error, setError] = useState("");
-  const [timeError, setTimeError] = useState(false);
+  const timeError = Object.keys(draft.invalidTimes ?? {}).length > 0;
   const [storageError, setStorageError] = useState("");
   const [restUntil, setRestUntil] = useState<number | null>(null);
-  const [startText, setStartText] = useState(() =>
-    instantToLocalInput(draft.input.startedAt, timezone),
-  );
-  const [endText, setEndText] = useState(() =>
-    draft.input.endedAt
-      ? instantToLocalInput(draft.input.endedAt, timezone)
-      : "",
-  );
   const save = useCommand({
-    mutationFn: (attempt: DraftState, key: string) =>
+    mutationFn: (attempt: SessionDraftState, key: string) =>
       api.saveWorkout(
         session.id,
         workoutUpdateInput.parse(sessionInput(attempt.input)),
@@ -185,8 +158,11 @@ function SessionEditor({ session }: { session: Workout }) {
     remove.isPending ||
     reusable.isPending ||
     repeat.isPending;
-  function change(input: SessionDraft) {
-    const next = { ...draft, input, dirty: true };
+  function change(
+    input: SessionDraft,
+    invalidTimes: InvalidSessionTimes = draft.invalidTimes ?? {},
+  ) {
+    const next = { ...draft, input, invalidTimes, dirty: true };
     setDraft(next);
     setError("");
     try {
@@ -238,27 +214,24 @@ function SessionEditor({ session }: { session: Workout }) {
     save.mutate(next);
   }
   function updateTime(value: string, kind: "startedAt" | "endedAt") {
-    if (kind === "startedAt") setStartText(value);
-    else setEndText(value);
     try {
       const old = draft.input[kind];
       const instant =
         old && instantToLocalInput(old, timezone) === value
           ? old
           : localInputToInstant(value, timezone);
-      setTimeError(false);
-      change({ ...draft.input, [kind]: instant });
+      const invalidTimes = { ...draft.invalidTimes };
+      delete invalidTimes[kind];
+      change({ ...draft.input, [kind]: instant }, invalidTimes);
     } catch {
-      setTimeError(true);
-      setError(
-        "Choose an unambiguous date and time that exists in your timezone.",
-      );
+      change(draft.input, { ...draft.invalidTimes, [kind]: value });
     }
   }
   const finished = !!draft.input.endedAt;
   return (
     <div className="fitness-session-workspace" ref={editorRef}>
       <Link href="/fitness#history">← Fitness</Link>
+      <ProgramSessionLink id={session.id} />
       <PageHeading
         title={finished ? "Workout review" : "Workout in progress"}
         description={
@@ -304,6 +277,9 @@ function SessionEditor({ session }: { session: Workout }) {
           {storageError}
         </p>
       )}
+      {finished && (
+        <WorkoutComparison id={session.id} version={draft.version} />
+      )}
       <div className="form-stack">
         <fieldset className="form-stack" disabled={busy || draft.conflict}>
           <details className="fitness-workout-details">
@@ -322,26 +298,63 @@ function SessionEditor({ session }: { session: Workout }) {
               </label>
               <p className="muted text-small">Times in {timezone}</p>
               <div className="form-grid">
-                <label className="field">
-                  Started at
+                <div className="field">
+                  <label htmlFor="session-start">Started at</label>
                   <input
+                    id="session-start"
                     type="datetime-local"
-                    value={startText}
+                    value={
+                      draft.invalidTimes?.startedAt ??
+                      instantToLocalInput(draft.input.startedAt, timezone)
+                    }
+                    aria-invalid={draft.invalidTimes?.startedAt !== undefined}
+                    aria-describedby={
+                      draft.invalidTimes?.startedAt !== undefined
+                        ? "session-start-error"
+                        : undefined
+                    }
                     onChange={(e) => updateTime(e.target.value, "startedAt")}
                   />
-                </label>
+                  {draft.invalidTimes?.startedAt !== undefined && (
+                    <span
+                      id="session-start-error"
+                      className="error"
+                      role="alert"
+                    >
+                      Choose an unambiguous start time that exists in your
+                      timezone.
+                    </span>
+                  )}
+                </div>
                 {finished && (
-                  <label className="field">
-                    Finished at
+                  <div className="field">
+                    <label htmlFor="session-end">Finished at</label>
                     <input
+                      id="session-end"
                       type="datetime-local"
                       value={
-                        endText ||
+                        draft.invalidTimes?.endedAt ??
                         instantToLocalInput(draft.input.endedAt!, timezone)
+                      }
+                      aria-invalid={draft.invalidTimes?.endedAt !== undefined}
+                      aria-describedby={
+                        draft.invalidTimes?.endedAt !== undefined
+                          ? "session-end-error"
+                          : undefined
                       }
                       onChange={(e) => updateTime(e.target.value, "endedAt")}
                     />
-                  </label>
+                    {draft.invalidTimes?.endedAt !== undefined && (
+                      <span
+                        id="session-end-error"
+                        className="error"
+                        role="alert"
+                      >
+                        Choose an unambiguous finish time that exists in your
+                        timezone.
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <NotesField

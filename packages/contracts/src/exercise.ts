@@ -45,11 +45,18 @@ const muscleList = z
     (values) => new Set(values).size === values.length,
     "Choose each muscle once.",
   );
+// Intent is optional user metadata, independent of measurements or activity identity.
+export const intentTagsSchema = z
+  .array(z.string().trim().min(1).max(32))
+  .max(8)
+  .transform((tags) => [...new Set(tags.map((tag) => tag.toLowerCase()))]);
 export const exerciseLoggingTypeSchema = z.enum([
   "reps_load",
   "reps",
   "duration",
   "duration_load",
+  "distance_duration",
+  "laps_duration",
 ]);
 export type ExerciseLoggingType = z.infer<typeof exerciseLoggingTypeSchema>;
 export const exerciseInput = z
@@ -57,6 +64,7 @@ export const exerciseInput = z
     name: titleSchema,
     notes: notesSchema,
     loggingType: exerciseLoggingTypeSchema.optional(),
+    intentTags: intentTagsSchema.optional(),
     equipment: equipmentList.optional(),
     muscles: muscleList.optional(),
     favourite: z.boolean().optional(),
@@ -65,6 +73,7 @@ export const exerciseInput = z
 export const exerciseSchema = recordSchema.extend({
   ...exerciseInput.shape,
   loggingType: exerciseLoggingTypeSchema,
+  intentTags: intentTagsSchema,
   equipment: equipmentList,
   muscles: muscleList,
   archivedAt: instantSchema.nullable(),
@@ -153,6 +162,14 @@ export const setInput = z
       .max(86400)
       .nullable()
       .default(null),
+    distanceMeters: z
+      .number()
+      .finite()
+      .positive()
+      .max(10000000)
+      .nullable()
+      .default(null),
+    laps: z.number().int().positive().max(10000).nullable().default(null),
     completed: z.boolean().default(true),
     skipped: z.boolean().default(false),
     targetReps: z.number().int().positive().max(10000).nullable().default(null),
@@ -170,14 +187,28 @@ export const setInput = z
       .max(86400)
       .nullable()
       .default(null),
+    targetDistanceMeters: z
+      .number()
+      .finite()
+      .positive()
+      .max(10000000)
+      .nullable()
+      .default(null),
+    targetLaps: z.number().int().positive().max(10000).nullable().default(null),
     restSeconds: z.number().int().min(0).max(3600).nullable().default(null),
   })
   .strict()
   .refine(
-    (v) => !v.completed || v.reps !== null || v.durationSeconds !== null,
+    (v) =>
+      !v.completed ||
+      v.reps !== null ||
+      v.durationSeconds !== null ||
+      v.distanceMeters !== null ||
+      v.laps !== null,
     {
       path: ["reps"],
-      message: "Enter actual reps or duration before completing a set.",
+      message:
+        "Enter actual reps, duration, distance or laps before completing a set.",
     },
   )
   .refine((v) => !(v.completed && v.skipped), {
@@ -201,6 +232,14 @@ export const plannedSetInput = z
       .max(86400)
       .nullable()
       .default(null),
+    targetDistanceMeters: z
+      .number()
+      .finite()
+      .positive()
+      .max(10000000)
+      .nullable()
+      .default(null),
+    targetLaps: z.number().int().positive().max(10000).nullable().default(null),
     restSeconds: z.number().int().min(0).max(3600).nullable().default(null),
   })
   .strict();
@@ -215,6 +254,7 @@ export const strengthPlanInput = z
           .object({
             exerciseId: idSchema,
             loggingType: exerciseLoggingTypeSchema.optional(),
+            intentTags: intentTagsSchema.optional(),
             notes: notesSchema,
             sets: z.array(plannedSetInput).max(100),
           })
@@ -255,6 +295,7 @@ export const strengthPlanSchema = recordSchema.extend({
     strengthPlanInput.shape.exercises.element.extend({
       name: titleSchema,
       loggingType: exerciseLoggingTypeSchema.default("reps_load"),
+      intentTags: intentTagsSchema,
     }),
   ),
 });
@@ -297,13 +338,14 @@ export const workoutExerciseInput = z
     id: idSchema.optional(),
     exerciseId: idSchema,
     loggingType: exerciseLoggingTypeSchema.optional(),
+    intentTags: intentTagsSchema.optional(),
     notes: notesSchema,
     sets: z.array(setInput.safeExtend({ id: idSchema.optional() })).max(100),
   })
   .strict();
 export const workoutStartInput = z
   .object({
-    title: titleSchema.default("Strength workout"),
+    title: titleSchema.default("Workout"),
     startedAt: instantSchema,
     notes: notesSchema,
     linkedTimeBlockId: idSchema.nullable().default(null),
@@ -348,6 +390,7 @@ export const workoutSchema = workoutSummarySchema.extend({
       exerciseId: idSchema,
       exerciseNameSnapshot: z.string(),
       loggingType: exerciseLoggingTypeSchema,
+      intentTags: intentTagsSchema,
       position: z.number(),
       notes: z.string().nullable(),
       sets: z.array(setSchema),
@@ -402,6 +445,8 @@ export const progressSetSchema = z.object({
   reps: z.number().nullable(),
   weightKg: z.number().nullable(),
   durationSeconds: z.number().nullable(),
+  distanceMeters: z.number().nullable(),
+  laps: z.number().nullable(),
 });
 export const strengthProgressSchema = z.object({
   exercise: exerciseSchema,

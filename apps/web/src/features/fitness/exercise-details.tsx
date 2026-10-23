@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -135,6 +136,11 @@ export function ExerciseDetails({
           <ExerciseFavourite item={item} iconOnly />
         </div>
         <ExerciseVisual large />
+        {!!item.exercise?.intentTags.length && (
+          <p className="muted text-small">
+            Default intent: {item.exercise.intentTags.join(", ")}
+          </p>
+        )}
         <div className="fitness-exercise-equipment">
           <h3>Equipment</h3>
           <ul>
@@ -234,6 +240,12 @@ export function ExerciseDetails({
         {item.exercise && (
           <details className="fitness-secondary">
             <summary>Exercise history</summary>
+            <Link
+              className="fitness-text-action"
+              href={`/fitness/progress/${item.exercise.id}`}
+            >
+              View progress and records →
+            </Link>
             <ExerciseHistory id={item.exercise.id} />
           </details>
         )}

@@ -68,6 +68,8 @@ export function strengthService(
       input: WorkoutUpdateInput,
       version: number,
       context?: TransactionContext,
+      // Trusted names from an owner-scoped plan; never part of the wire input.
+      exerciseNameSnapshots?: readonly string[],
     ) {
       const v = workoutUpdateInput.parse(input);
       return runInTransaction(async (tx) => {
@@ -79,6 +81,7 @@ export function strengthService(
         const names: string[] = [];
         const loggingTypes: import("@168hours/contracts").ExerciseLoggingType[] =
           [];
+        const intents: string[][] = [];
         for (const e of v.exercises) {
           if (e.id) {
             if (seen.has(e.id))
@@ -112,18 +115,25 @@ export function strengthService(
               "Choose an active exercise.",
             );
           loggingTypes.push(
-            existing?.exerciseId === e.exerciseId
-              ? existing.loggingType
-              : (e.loggingType ?? definition.loggingType),
+            e.loggingType ??
+              (existing?.exerciseId === e.exerciseId
+                ? existing.loggingType
+                : definition.loggingType),
+          );
+          intents.push(
+            e.intentTags ??
+              (existing?.exerciseId === e.exerciseId
+                ? existing.intentTags
+                : definition.intentTags),
           );
           names.push(
             existing?.exerciseId === e.exerciseId
               ? existing.exerciseNameSnapshot
-              : definition.name,
+              : (exerciseNameSnapshots?.[names.length] ?? definition.name),
           );
         }
         const result = found(
-          await repo.replace(tx, u, id, v, names, loggingTypes, old),
+          await repo.replace(tx, u, id, v, names, loggingTypes, intents, old),
         );
         if (v.endedAt)
           await planning.recordSource(tx, u, {
@@ -168,17 +178,22 @@ export function strengthService(
           exercises: old.exercises.map((e) => ({
             exerciseId: e.exerciseId,
             loggingType: e.loggingType,
+            intentTags: e.intentTags,
             notes: e.notes,
             sets: e.sets.map((s) => ({
               reps: null,
               weightKg: null,
               durationSeconds: null,
+              distanceMeters: null,
+              laps: null,
               completed: false,
               skipped: false,
               targetReps: s.targetReps ?? s.reps,
               targetWeightKg: s.targetWeightKg ?? s.weightKg,
               targetDurationSeconds:
                 s.targetDurationSeconds ?? s.durationSeconds,
+              targetDistanceMeters: s.targetDistanceMeters ?? s.distanceMeters,
+              targetLaps: s.targetLaps ?? s.laps,
               restSeconds: s.restSeconds,
             })),
           })),

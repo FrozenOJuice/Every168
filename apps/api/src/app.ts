@@ -1,3 +1,4 @@
+import { trainingProgramsRoutes } from "./modules/exercise/training-programs.routes.js";
 import { adminRoutes } from "./modules/identity/admin.routes.js";
 import { calendarRoutes } from "./modules/planning/calendar.routes.js";
 import { routinesRoutes } from "./modules/routines/routines.routes.js";
@@ -46,6 +47,8 @@ export function createApp({
   exercises,
   strength,
   strengthPlans,
+  fitnessProgress,
+  trainingPrograms,
   cardio,
 }: Omit<Dependencies, "db" | "pool">) {
   const app = express();
@@ -106,7 +109,15 @@ export function createApp({
     nutritionRoutes(nutrition, writes),
     hydrationRoutes(hydration, writes),
     bodyRoutes(body, writes),
-    exerciseRoutes(exercises, strength, cardio, strengthPlans, writes),
+    trainingProgramsRoutes(trainingPrograms, writes),
+    exerciseRoutes(
+      exercises,
+      strength,
+      cardio,
+      strengthPlans,
+      writes,
+      fitnessProgress,
+    ),
   );
   app.use((_req, _res, next) =>
     next(new AppError(404, "NOT_FOUND", "Route not found.")),

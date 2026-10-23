@@ -1,7 +1,14 @@
 "use client";
 import { Trash2, Plus, X, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fromKilograms } from "@168hours/domain-utils";
+import Link from "next/link";
+import {
+  load,
+  distance,
+  sessionDate,
+  volumeText,
+  trackingLabels,
+} from "./progress-shared";
 import {
   useRef,
   useState,
@@ -10,13 +17,15 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "@/lib/api";
-import { number } from "@/lib/format";
 import { useMe } from "@/features/identity/me";
 import { NotesField } from "./notes-field";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { emptySet, nextPlannedSet, type ExerciseDraft } from "./strength-draft";
 import { useReorderList } from "./reorder-list";
 import { exerciseTrackingFields } from "./exercise-tracking";
+import { exerciseLoggingTypeSchema } from "@168hours/contracts";
+import { FitnessSelect } from "./fitness-select";
+import { IntentTagsField } from "./intent-tags-field";
 import { WorkoutSetRow } from "./workout-set-row";
 
 export function WorkoutExerciseCard({
@@ -59,7 +68,7 @@ export function WorkoutExerciseCard({
   useLayoutEffect(() => {
     if (notesOpen) notesRef.current?.querySelector("textarea")?.focus();
   }, [notesOpen]);
-  const unit = useMe().preferences.weightUnit;
+  const { weightUnit: unit, distanceUnit, timezone } = useMe().preferences;
   const loggingType = exercise.loggingType ?? "reps_load";
   const mainFields = exerciseTrackingFields[loggingType];
   const {
@@ -73,15 +82,22 @@ export function WorkoutExerciseCard({
     disabled,
   );
   const previous = useQuery({
-    queryKey: ["fitness", "previous", exercise.exerciseId, sessionId],
+    queryKey: [
+      "fitness",
+      "previous-session",
+      exercise.exerciseId,
+      sessionId,
+      loggingType,
+    ],
     queryFn: () =>
-      api.getStrengthProgress(exercise.exerciseId, {
+      api.getExerciseReport(exercise.exerciseId, {
+        loggingType,
         limit: 1,
         excludeWorkoutId: sessionId,
       }),
     enabled: !!session,
   });
-  const last = previous.data?.history.items[0];
+  const last = previous.data?.sessions.items[0];
   return (
     <>
       <div className="fitness-workout-exercise-heading">
@@ -133,15 +149,56 @@ export function WorkoutExerciseCard({
         data-logging-type={loggingType}
         hidden={collapsed}
       >
+        <div className="fitness-exercise-metadata">
+          <FitnessSelect
+            label={`Measurements for ${exercise.name}`}
+            value={loggingType}
+            searchable={false}
+            disabled={disabled}
+            options={Object.entries(trackingLabels).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            onChange={(value) =>
+              onChange({
+                ...exercise,
+                loggingType: exerciseLoggingTypeSchema.parse(value),
+              })
+            }
+          />
+          <IntentTagsField
+            label={`Intent for ${exercise.name}`}
+            value={exercise.intentTags ?? []}
+            disabled={disabled}
+            onChange={(intentTags) => onChange({ ...exercise, intentTags })}
+          />
+        </div>
         {session && last && (
-          <p className="fitness-previous-set">
-            Previous completed set:{" "}
-            {last.reps !== null ? `${last.reps} reps` : ""}
-            {last.weightKg !== null
-              ? ` · ${number(fromKilograms(last.weightKg, unit))} ${unit}`
-              : ""}
-            {last.durationSeconds !== null ? ` · ${last.durationSeconds}s` : ""}
-          </p>
+          <div className="fitness-previous-set">
+            <Link href={`/fitness/session/${last.id}`}>
+              Latest finished session · {sessionDate(last.startedAt, timezone)}
+            </Link>
+            <p>
+              {last.completedSets} completed sets
+              {last.maxReps !== null ? ` · Best reps: ${last.maxReps}` : ""}
+              {last.maxWeightKg !== null
+                ? ` · Highest load: ${load(last.maxWeightKg, unit)}`
+                : ""}
+              {last.maxDistanceMeters !== null
+                ? ` · Distance: ${distance(last.maxDistanceMeters, distanceUnit)}`
+                : ""}
+              {last.maxLaps !== null ? ` · Laps: ${last.maxLaps}` : ""}
+              {last.maxDurationSeconds !== null
+                ? ` · Longest set: ${last.maxDurationSeconds} sec`
+                : ""}
+            </p>
+            {loggingType === "reps_load" && (
+              <p>Volume: {volumeText(last, unit)}</p>
+            )}
+            <Link href={`/fitness/progress/${exercise.exerciseId}`}>
+              Progress and records →
+            </Link>
+          </div>
         )}
         {previous.error && (
           <p className="error" role="alert">
@@ -167,7 +224,11 @@ export function WorkoutExerciseCard({
                   ? "Reps"
                   : field === "load"
                     ? `Load (${unit})`
-                    : "Time (sec)"}
+                    : field === "distance"
+                      ? `Distance (${distanceUnit})`
+                      : field === "laps"
+                        ? "Laps"
+                        : "Time (sec)"}
               </span>
             ))}
             <span />

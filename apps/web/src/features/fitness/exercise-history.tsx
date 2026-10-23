@@ -1,12 +1,12 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { fromKilograms } from "@168hours/domain-utils";
+import { fromKilograms, fromMeters } from "@168hours/domain-utils";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { number } from "@/lib/format";
 import { Loading, ErrorState, Empty } from "@/components/ui/feedback";
 export function ExerciseHistory({ id }: { id: string }) {
-  const { weightUnit: unit, timezone } = useMe().preferences;
+  const { weightUnit: unit, distanceUnit, timezone } = useMe().preferences;
   const query = useInfiniteQuery({
     queryKey: ["fitness", "exercise-history", id],
     initialPageParam: undefined as string | undefined,
@@ -43,6 +43,10 @@ export function ExerciseHistory({ id }: { id: string }) {
                   ? ` · ${number(fromKilograms(s.weightKg, unit))} ${unit}`
                   : ""}
                 {s.durationSeconds !== null ? ` · ${s.durationSeconds}s` : ""}
+                {s.distanceMeters !== null
+                  ? ` · ${number(fromMeters(s.distanceMeters, distanceUnit))} ${distanceUnit}`
+                  : ""}
+                {s.laps !== null ? ` · ${s.laps} laps` : ""}
               </span>
             </li>
           ))}

@@ -627,7 +627,7 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
       .write(
         "put",
         `exercises/${custom.id}`,
-        { name: custom.name, loggingType: "reps" },
+        { name: "Renamed hold", loggingType: "reps" },
         custom.version,
       )
       .expect(200)
@@ -644,6 +644,7 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
       .expect(201)
   ).body;
   expect(session.exercises[0].loggingType).toBe("duration_load");
+  expect(session.exercises[0].exerciseNameSnapshot).toBe("Weighted hold");
   expect(session.exercises[0].sets[0]).toMatchObject({
     targetReps: 4,
     targetDurationSeconds: 30,
@@ -684,7 +685,23 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
       .write("put", `strength-workouts/${session.id}`, input, session.version)
       .expect(200)
   ).body;
-  expect(saved.exercises[0].loggingType).toBe("duration_load");
+  expect(saved.exercises[0].loggingType).toBe("reps_load");
+  expect(saved.exercises[0].exerciseNameSnapshot).toBe("Weighted hold");
+  // Wire updates cannot supply trusted plan snapshots or replace a historical name.
+  await a
+    .write(
+      "put",
+      `strength-workouts/${session.id}`,
+      {
+        ...input,
+        exercises: input.exercises.map((e) => ({
+          ...e,
+          exerciseNameSnapshot: "Spoofed name",
+        })),
+      },
+      saved.version,
+    )
+    .expect(422);
   expect(saved.exercises[0].sets[0]).toMatchObject({
     targetReps: 4,
     durationSeconds: 30,
@@ -710,6 +727,10 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
       .expect(200)
   ).body;
   expect(updatedPlan.exercises[0].loggingType).toBe("reps");
+  expect(updatedPlan.exercises[0].name).toBe("Renamed hold");
+  expect(
+    (await a.get(`strength-plans/${schedule.id}`)).body.exercises[0].name,
+  ).toBe("Weighted hold");
   expect(updatedPlan.exercises[0].sets[0]).toMatchObject({
     targetDurationSeconds: 30,
     targetReps: 4,

@@ -1,6 +1,11 @@
 "use client";
 import { useId } from "react";
-import { fromKilograms, toKilograms } from "@168hours/domain-utils";
+import {
+  fromKilograms,
+  toKilograms,
+  fromMeters,
+  toMeters,
+} from "@168hours/domain-utils";
 import { useMe } from "@/features/identity/me";
 export function WorkoutNumberField({
   label,
@@ -8,6 +13,7 @@ export function WorkoutNumberField({
   onChange,
   disabled,
   weight = false,
+  distance = false,
   min = 1,
   hideLabel = false,
   error,
@@ -17,18 +23,21 @@ export function WorkoutNumberField({
   onChange: (v: number | null) => void;
   disabled: boolean;
   weight?: boolean;
+  distance?: boolean;
   min?: number;
   hideLabel?: boolean;
   error?: string;
 }) {
   const id = useId();
-  const unit = useMe().preferences.weightUnit;
+  const { weightUnit: unit, distanceUnit } = useMe().preferences;
   const display =
     value === null
       ? ""
       : weight
         ? Number(fromKilograms(value, unit).toFixed(6))
-        : value;
+        : distance
+          ? Number(fromMeters(value, distanceUnit).toFixed(6))
+          : value;
   return (
     <div className="field">
       <label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
@@ -40,8 +49,8 @@ export function WorkoutNumberField({
         aria-describedby={error ? `${id}-error` : undefined}
         type="number"
         inputMode="decimal"
-        step={weight ? "any" : 1}
-        min={weight ? 0 : min}
+        step={weight || distance ? "any" : 1}
+        min={weight || distance ? 0 : min}
         disabled={disabled}
         value={display}
         onChange={(event) =>
@@ -50,7 +59,9 @@ export function WorkoutNumberField({
               ? null
               : weight
                 ? toKilograms(Number(event.target.value), unit)
-                : Number(event.target.value),
+                : distance
+                  ? toMeters(Number(event.target.value), distanceUnit)
+                  : Number(event.target.value),
           )
         }
       />

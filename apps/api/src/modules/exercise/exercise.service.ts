@@ -175,6 +175,7 @@ export function exerciseService(
               : source.equipment,
           muscles: source.muscles,
           loggingType: source.loggingType,
+          intentTags: "intentTags" in source ? source.intentTags : [],
           favourite: false,
         }),
         context,

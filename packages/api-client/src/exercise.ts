@@ -1,4 +1,5 @@
 import type {
+  FitnessDayLinks,
   FitnessOverview,
   ExerciseReport,
   ExerciseReportQuery,
@@ -56,6 +57,10 @@ export function exerciseClient(http: Http) {
       ).then((result) => result.workout),
     getStrengthPlans: (q: Partial<StrengthPlanQuery> = {}) =>
       http<Page<StrengthPlan>>("/api/v1/strength-plans" + query(q)),
+    getFitnessDayLinks: (date: string) =>
+      http<FitnessDayLinks>(
+        "/api/v1/strength-plans/day-links" + query({ date }),
+      ),
     getStrengthPlanForBlock: (id: string) =>
       http<{ plan: StrengthPlan | null }>(
         "/api/v1/strength-plan-for-block/" + id,

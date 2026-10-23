@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import {
   exerciseInput,
@@ -11,6 +11,7 @@ import {
 } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Dialog } from "@/components/ui/dialog";
 import { NotesField } from "./notes-field";
 import { FitnessSelect } from "./fitness-select";
@@ -75,15 +76,10 @@ export function ExerciseEditor({
     onSuccess: onSaved,
   });
   useLayoutEffect(() => nameInput.current?.focus(), []);
-  useEffect(() => {
-    if (!dirty && !save.isPending) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty, save.isPending]);
+  useUnsavedChanges(
+    dirty || save.isPending,
+    "Leave this exercise without saving your changes?",
+  );
   const cancel = () => {
     if (save.isPending) return;
     if (dirty) setDiscarding(true);

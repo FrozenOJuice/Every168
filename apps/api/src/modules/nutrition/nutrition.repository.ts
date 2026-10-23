@@ -16,7 +16,6 @@ import {
 } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import type {
-  FoodInput,
   FoodEntryUpdate,
   LibraryQuery,
   FoodHistoryQuery,
@@ -58,6 +57,10 @@ export function nutritionRepository(db: Database) {
         .where(
           and(
             eq(foods.userId, u),
+            q.kind ? eq(foods.kind, q.kind) : undefined,
+            q.favourite
+              ? eq(foods.favourite, q.favourite === "true")
+              : undefined,
             q.archived === "true"
               ? isNotNull(foods.archivedAt)
               : isNull(foods.archivedAt),
@@ -81,7 +84,11 @@ export function nutritionRepository(db: Database) {
         .where(foodOwner(u, id));
       return (await (context ? query.for("share") : query))[0];
     },
-    async createFood(u: string, v: FoodInput, context?: TransactionContext) {
+    async createFood(
+      u: string,
+      v: Omit<typeof foods.$inferInsert, "userId">,
+      context?: TransactionContext,
+    ) {
       return (
         await databaseFor(db, context)
           .insert(foods)
@@ -92,7 +99,7 @@ export function nutritionRepository(db: Database) {
     async updateFood(
       u: string,
       id: string,
-      v: Partial<FoodInput> & { archivedAt?: Date | null },
+      v: Partial<Omit<typeof foods.$inferInsert, "userId">>,
       version: number,
       context?: TransactionContext,
     ) {

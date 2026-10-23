@@ -323,6 +323,8 @@ export const strengthPlanQuery = pageQuerySchema.extend({
 export type StrengthPlanInput = z.infer<typeof strengthPlanInput>;
 export type StrengthPlan = z.infer<typeof strengthPlanSchema>;
 export type StrengthPlanQuery = z.infer<typeof strengthPlanQuery>;
+export const fitnessDayLinksSchema = z.object({ blockIds: z.array(idSchema) });
+export type FitnessDayLinks = z.infer<typeof fitnessDayLinksSchema>;
 export const nextStrengthWorkoutSchema = z.object({
   workout: z
     .object({ plan: strengthPlanSchema, block: blockSchema })

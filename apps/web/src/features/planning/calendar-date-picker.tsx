@@ -20,6 +20,7 @@ export function CalendarDatePicker({
   anchor,
   onSelect,
   onClose,
+  portalContainer,
 }: {
   date: string;
   weekStart: string;
@@ -28,6 +29,7 @@ export function CalendarDatePicker({
   anchor: RefObject<HTMLButtonElement | null>;
   onSelect: (date: string) => void;
   onClose: () => void;
+  portalContainer?: HTMLElement | null;
 }) {
   const [month, setMonth] = useState(date.slice(0, 7) + "-01");
   const [position, setPosition] = useState({ top: 0, left: 0, width: 280 });
@@ -248,6 +250,6 @@ export function CalendarDatePicker({
         </>
       )}
     </div>,
-    document.body,
+    portalContainer ?? document.body,
   );
 }

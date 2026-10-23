@@ -37,15 +37,21 @@ export function ActivityIcon({ name }: { name: string }) {
 export function ActivityLink({
   entry,
   timezone,
+  onOpen,
+  next = false,
 }: {
   entry: CalendarActivity;
   timezone: string;
+  onOpen?: (entry: CalendarActivity) => void;
+  next?: boolean;
 }) {
-  return (
-    <CalendarSourceLink
-      className="calendar-record activity-record"
-      href={entry.href}
-    >
+  const content = next ? (
+    <>
+      <strong>Next · {formatTime(entry.occurredAt, timezone)}</strong>
+      <span>Recorded: {entry.title}</span>
+    </>
+  ) : (
+    <>
       <span className="activity-record-heading">
         <ActivityIcon name={entry.icon} />
         <strong>{entry.title}</strong>
@@ -65,6 +71,18 @@ export function ActivityLink({
               : "Draft session"
             : "Recorded session"}
       </small>
+    </>
+  );
+  const className = next
+    ? "day-at-a-glance-next"
+    : "calendar-record activity-record";
+  return onOpen && !/^\/exercise(?:[/?#]|$)/.test(entry.href) ? (
+    <button className={className} onClick={() => onOpen(entry)}>
+      {content}
+    </button>
+  ) : (
+    <CalendarSourceLink className={className} href={entry.href}>
+      {content}
     </CalendarSourceLink>
   );
 }
@@ -76,6 +94,7 @@ export function CalendarDayFeed({
   filter,
   now,
   onOpen,
+  onOpenActivity,
 }: {
   date: string;
   week: Week;
@@ -84,6 +103,7 @@ export function CalendarDayFeed({
   filter: CalendarFilter;
   now: string;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
+  onOpenActivity?: (entry: CalendarActivity) => void;
 }) {
   const domain = activityOnDate(activity.entries, date, week.timezone, filter);
   // A domain session and its accounting ledger are one activity, even when linked to a plan.
@@ -153,14 +173,13 @@ export function CalendarDayFeed({
           ))}
           {next &&
             (next.activity ? (
-              <CalendarSourceLink
-                className="day-at-a-glance-next"
-                href={next.activity.href}
+              <ActivityLink
+                next
+                entry={next.activity}
+                timezone={week.timezone}
+                onOpen={onOpenActivity}
                 key={next.key}
-              >
-                <strong>Next · {formatTime(next.at, week.timezone)}</strong>
-                <span>Recorded: {next.activity.title}</span>
-              </CalendarSourceLink>
+              />
             ) : (
               next.record && (
                 <CalendarRecord
@@ -222,6 +241,7 @@ export function CalendarDayFeed({
                             <ActivityLink
                               key={child.key}
                               entry={child.activity!}
+                              onOpen={onOpenActivity}
                               timezone={week.timezone}
                             />
                           ))}
@@ -229,6 +249,7 @@ export function CalendarDayFeed({
                       ) : entry.activity ? (
                         <ActivityLink
                           entry={entry.activity}
+                          onOpen={onOpenActivity}
                           timezone={week.timezone}
                         />
                       ) : (

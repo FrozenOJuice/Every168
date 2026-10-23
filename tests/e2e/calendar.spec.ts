@@ -727,7 +727,11 @@ test("day, week and month calendars keep planning focused", async ({
       fullPage: true,
     });
   }
-  await expect(nav.getByRole("link")).toHaveText(["Calendar", "Fitness"]);
+  await expect(nav.getByRole("link")).toHaveText([
+    "Calendar",
+    "Fitness",
+    "Food",
+  ]);
   await expect(views.getByRole("link")).toHaveText(["Day", "Week", "Month"]);
   await expect(
     views.getByRole("link", { name: "Week", exact: true }),

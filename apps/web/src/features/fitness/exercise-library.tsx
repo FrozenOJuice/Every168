@@ -30,6 +30,8 @@ export function ExerciseLibrary({
   resetKey,
   onEditorOpen,
   onEditorClose,
+  sidePanel,
+  showSidePanel = false,
 }: {
   onChoose?: (exercise: Exercise) => void;
   mainContent?: ReactNode;
@@ -37,6 +39,8 @@ export function ExerciseLibrary({
   resetKey?: string;
   onEditorOpen: () => void;
   onEditorClose: () => void;
+  sidePanel?: ReactNode;
+  showSidePanel?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -249,6 +253,7 @@ export function ExerciseLibrary({
         </div>
         <aside
           className="fitness-exercise-panel"
+          hidden={showSidePanel}
           aria-label="Exercise library panel"
         >
           <section
@@ -381,6 +386,15 @@ export function ExerciseLibrary({
             {details}
           </div>
         </aside>
+        {sidePanel && (
+          <aside
+            className="domain-calendar-rail"
+            aria-label="Fitness day panel"
+            hidden={!showSidePanel}
+          >
+            {sidePanel}
+          </aside>
+        )}
       </div>
     </div>
   );

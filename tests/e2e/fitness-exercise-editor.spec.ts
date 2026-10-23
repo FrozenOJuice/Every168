@@ -18,6 +18,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
     ).status(),
   ).toBe(200);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
   });
@@ -53,7 +54,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
   });
   const e = (await equipment.boundingBox())!,
     m = (await muscles.boundingBox())!;
-  if (testInfo.project.name === "desktop") expect(e.y).toBeCloseTo(m.y, 0);
+  if (testInfo.project.name !== "phone") expect(e.y).toBeCloseTo(m.y, 0);
   else expect(m.y).toBeGreaterThan(e.y);
   await equipment.fill("Cable");
   await equipment.press("Enter");
@@ -119,7 +120,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
   await workout
     .getByLabel("Workout title", { exact: true })
     .fill("Custom workout");
-  if (testInfo.project.name === "phone")
+  if (testInfo.project.name !== "desktop")
     await workout
       .getByRole("button", { name: "Add exercise", exact: true })
       .click();
@@ -131,7 +132,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
     .getByRole("button", { name: "Create and add to workout", exact: true })
     .click();
   await expect(editor).toHaveCount(0);
-  if (testInfo.project.name === "phone")
+  if (testInfo.project.name !== "desktop")
     await page
       .getByRole("button", { name: "Back to workout", exact: true })
       .click();

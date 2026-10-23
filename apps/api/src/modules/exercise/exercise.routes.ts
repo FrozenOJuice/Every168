@@ -21,6 +21,7 @@ import {
   workoutUpdateInput,
   cardioInput,
   idSchema,
+  dateSchema,
   strengthProgressQuery,
   exerciseLibraryQuery,
   exerciseFavouriteInput,
@@ -42,6 +43,14 @@ export function exerciseRoutes(
   progress: StrengthProgressService,
 ) {
   const r = Router();
+  r.get("/strength-plans/day-links", async (req, res) =>
+    res.json(
+      await plans.dayLinks(
+        currentUser(res).id,
+        dateSchema.parse(req.query.date),
+      ),
+    ),
+  );
   r.get("/fitness-progress", async (req, res) =>
     res.json(
       await progress.overview(

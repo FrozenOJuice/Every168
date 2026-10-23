@@ -23,6 +23,7 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     ).status(),
   ).toBe(200);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await page
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();

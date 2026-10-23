@@ -3,6 +3,9 @@ import type { WritesService } from "../../infrastructure/writes/writes.service.j
 import { Router } from "express";
 import {
   foodInput,
+  preparationInput,
+  quickFoodInput,
+  foodFavouriteInput,
   foodEntryInput,
   foodEntryUpdate,
   idSchema,
@@ -25,6 +28,45 @@ export function nutritionRoutes(s: NutritionService, writes: WritesService) {
       writes,
       foodInput,
       ({ userId, input, context }) => s.createFood(userId, input, context),
+      { status: 201 },
+    ),
+  );
+  r.post(
+    "/food-preparations",
+    mutation(
+      writes,
+      preparationInput,
+      ({ userId, input, context }) =>
+        s.savePreparation(userId, input, undefined, undefined, context),
+      { status: 201 },
+    ),
+  );
+  r.put(
+    "/food-preparations/:id",
+    mutation(
+      writes,
+      preparationInput,
+      ({ userId, id, input, version, context }) =>
+        s.savePreparation(userId, input, id, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/foods/:id/favourite",
+    mutation(
+      writes,
+      foodFavouriteInput,
+      ({ userId, id, input, version, context }) =>
+        s.favourite(userId, id, input.favourite, version, context),
+      { versioned: true },
+    ),
+  );
+  r.post(
+    "/food-entries/quick",
+    mutation(
+      writes,
+      quickFoodInput,
+      ({ userId, input, context }) => s.quickLog(userId, input, context),
       { status: 201 },
     ),
   );

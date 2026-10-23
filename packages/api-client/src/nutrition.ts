@@ -1,5 +1,7 @@
 import type {
   Food,
+  PreparationInput,
+  QuickFoodInput,
   FoodInput,
   FoodEntry,
   FoodEntryInput,
@@ -13,6 +15,36 @@ import type {
 import { writeHeaders, body, query, type Http } from "./http";
 export function nutritionClient(http: Http) {
   return {
+    getFoodEntry: (id: string) => http<FoodEntry>("/api/v1/food-entries/" + id),
+    getFood: (id: string) => http<Food>("/api/v1/foods/" + id),
+    savePreparation: (
+      v: PreparationInput,
+      id?: string,
+      version?: number,
+      key?: string,
+    ) =>
+      http<Food>("/api/v1/food-preparations" + (id ? "/" + id : ""), {
+        method: id ? "PUT" : "POST",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
+    favouriteFood: (
+      id: string,
+      favourite: boolean,
+      version: number,
+      key?: string,
+    ) =>
+      http<Food>(`/api/v1/foods/${id}/favourite`, {
+        method: "POST",
+        headers: writeHeaders(key, version),
+        body: body({ favourite }),
+      }),
+    quickLogFood: (v: QuickFoodInput, key?: string) =>
+      http<FoodEntry>("/api/v1/food-entries/quick", {
+        method: "POST",
+        headers: writeHeaders(key),
+        body: body(v),
+      }),
     getFoodHistory: (q: Partial<FoodHistoryQuery> = {}) =>
       http<Page<FoodEntryDetail>>("/api/v1/food-entries" + query(q)),
     restoreFood: (id: string, version: number, key?: string) =>

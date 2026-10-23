@@ -18,6 +18,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     ).status(),
   ).toBe(200);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Fitness", exact: true }),
   ).toBeVisible();
@@ -115,16 +116,18 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   if (testInfo.project.name === "desktop") {
     for (const height of [820, 680]) {
       await page.setViewportSize({ width: 1280, height });
-      const spacing = await page.locator(".main-content").evaluate((node) => {
-        const style = getComputedStyle(node);
-        return [
-          style.paddingTop,
-          style.paddingRight,
-          style.paddingBottom,
-          style.paddingLeft,
-        ];
-      });
-      expect(spacing).toEqual(["16px", "16px", "16px", "16px"]);
+      const spacing = await page
+        .locator(".fitness-library-host")
+        .evaluate((node) => {
+          const style = getComputedStyle(node);
+          return [
+            style.paddingTop,
+            style.paddingRight,
+            style.paddingBottom,
+            style.paddingLeft,
+          ];
+        });
+      expect(spacing).toEqual(["20px", "20px", "20px", "20px"]);
 
       await expect
         .poll(async () =>
@@ -134,7 +137,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
               Math.round(innerHeight - node.getBoundingClientRect().bottom),
             ),
         )
-        .toBe(16);
+        .toBe(20);
       expect(
         await page.evaluate(
           () => document.documentElement.scrollHeight <= innerHeight,
@@ -279,7 +282,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   await page.mouse.move(0, 0);
   await expect(cardStar).toHaveCSS(
     "opacity",
-    testInfo.project.name === "phone" ? "1" : "0",
+    testInfo.project.use.hasTouch ? "1" : "0",
   );
   await bench.focus();
   await expect(cardStar).toHaveCSS("opacity", "1");
@@ -328,6 +331,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   await page.getByRole("button", { name: "Favourites", exact: true }).click();
   await expect(page.locator(".fitness-library-card")).toHaveCount(1);
   await page.reload();
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await bench.click();
   await expect(
     detail.getByRole("button", {
@@ -630,6 +634,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     fullPage: true,
   });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await page.getByRole("button", { name: "Squat", exact: true }).click();
   const squat = page.getByRole("region", {
     name: "Squat details",
@@ -680,6 +685,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
   await expect(page).toHaveURL("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "My workouts", exact: true }),
   ).toBeVisible();
@@ -1031,6 +1037,7 @@ test("library cards handle long custom names and equipment without overflowing",
     ).status(),
   ).toBe(201);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await page
     .getByRole("searchbox", { name: "Find an exercise" })
     .fill("LongExerciseName");

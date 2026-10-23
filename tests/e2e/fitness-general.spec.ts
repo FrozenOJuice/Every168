@@ -176,6 +176,7 @@ test("custom activity defaults accept optional intent tags and distance measurem
   });
   expect(response.ok()).toBe(true);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await page
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();

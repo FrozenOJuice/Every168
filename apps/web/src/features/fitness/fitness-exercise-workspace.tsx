@@ -15,6 +15,9 @@ import { api } from "@/lib/api";
 import { Loading, ErrorState } from "@/components/ui/feedback";
 import { ExerciseLibrary } from "./exercise-library";
 import { ExerciseDetails } from "./exercise-details";
+import { CalendarDays, Dumbbell, Library } from "lucide-react";
+import { Dialog } from "@/components/ui/dialog";
+import { FitnessDayPanel } from "./fitness-day-panel";
 
 type Choose = (exercise: Exercise) => boolean | void;
 const WorkspaceContext = createContext<{
@@ -37,6 +40,8 @@ export function FitnessExerciseWorkspace({
   const [choose, setChoose] = useState<Choose | null>(null);
   const [helpId, setHelpId] = useState<string | null>(null);
   const [mobileLibrary, setMobileLibrary] = useState(false);
+  const [dayVisible, setDayVisible] = useState(!activeWorkout);
+  const [dayOpen, setDayOpen] = useState(false);
   const [browseRequest, setBrowseRequest] = useState(0);
   const [notice, setNotice] = useState("");
   const opener = useRef<HTMLElement | null>(null);
@@ -52,6 +57,7 @@ export function FitnessExerciseWorkspace({
     setHelpId(null);
     setMobileLibrary(false);
     setNotice("");
+    setDayVisible(!activeWorkout);
   }
   useLayoutEffect(() => {
     workout.current?.closest(".fitness-primary-pane")?.scrollTo({ top: 0 });
@@ -68,6 +74,7 @@ export function FitnessExerciseWorkspace({
       value={{
         register,
         pick: () => {
+          setDayVisible(false);
           opener.current =
             document.activeElement instanceof HTMLElement
               ? document.activeElement
@@ -84,6 +91,7 @@ export function FitnessExerciseWorkspace({
           );
         },
         help: (id) => {
+          setDayVisible(false);
           opener.current =
             document.activeElement instanceof HTMLElement
               ? document.activeElement
@@ -94,9 +102,45 @@ export function FitnessExerciseWorkspace({
       }}
     >
       <div
-        className={`fitness-workspace fitness-library-workspace${activeWorkout ? " has-active-workout" : ""}${mobileLibrary ? " shows-mobile-library" : ""}`}
+        className={`fitness-workspace fitness-library-workspace${activeWorkout ? " has-active-workout" : ""}${mobileLibrary ? " shows-mobile-library" : ""}${dayVisible ? " has-day-panel" : ""}`}
       >
-        <h1 className="sr-only">Fitness</h1>
+        <header className="domain-workspace-heading">
+          <div>
+            <Dumbbell size={20} aria-hidden="true" />
+            <h1>Fitness</h1>
+          </div>
+          <div role="group" aria-label="Fitness side panel">
+            <button
+              className="button"
+              aria-pressed={!dayVisible}
+              onClick={() => {
+                setDayVisible(false);
+                setMobileLibrary(true);
+                requestAnimationFrame(() =>
+                  library.current
+                    ?.querySelector<HTMLInputElement>('input[type="search"]')
+                    ?.focus(),
+                );
+              }}
+            >
+              <Library size={17} aria-hidden="true" />
+              Exercises
+            </button>
+            <button
+              className="button"
+              aria-pressed={dayVisible}
+              onClick={() => {
+                setDayVisible(true);
+                setMobileLibrary(false);
+                if (window.matchMedia("(max-width: 1150px)").matches)
+                  setDayOpen(true);
+              }}
+            >
+              <CalendarDays size={17} aria-hidden="true" />
+              Day
+            </button>
+          </div>
+        </header>
         <div ref={library} className="fitness-library-host">
           {activeWorkout && (
             <button
@@ -123,6 +167,8 @@ export function FitnessExerciseWorkspace({
             </p>
           )}
           <ExerciseLibrary
+            sidePanel={<FitnessDayPanel onNavigate={() => setDayOpen(false)} />}
+            showSidePanel={dayVisible}
             resetKey={`${pathname}:${browseRequest}`}
             onEditorOpen={() => setMobileLibrary(false)}
             onEditorClose={() =>
@@ -156,6 +202,11 @@ export function FitnessExerciseWorkspace({
             }
           />
         </div>
+        {dayOpen && (
+          <Dialog title="Your day" onClose={() => setDayOpen(false)}>
+            <FitnessDayPanel onNavigate={() => setDayOpen(false)} />
+          </Dialog>
+        )}
       </div>
     </WorkspaceContext.Provider>
   );

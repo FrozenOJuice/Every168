@@ -2,7 +2,7 @@
 
 The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows.
 
-Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness and the planned Food workspace, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
+Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness and Food, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
 - Put Account access first and Calendar immediately after it as the main product experience. Follow with settings, supporting planning features, daily logging, and review. Keep Admin and shared behavior at the end.
 - Within each section, introduce setup and creation before editing, reuse, deletion, and review. List current features and behavior in that order.
@@ -45,7 +45,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Ongoing activity appears as Now, and the next upcoming item appears as Next.
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up groups organize the remaining activity without repeating Next.
-- Workout activity opens its Fitness session for review or correction. Retained Food and cardio activity stays visible without links to the retired pages.
+- Workout activity opens its Fitness session for review or correction. Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
 
 #### Week
 
@@ -337,7 +337,8 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Navigation and settings
 
-- Main navigation contains Calendar and Fitness on desktop and mobile.
+- Main navigation contains Calendar, Fitness and Food on desktop and mobile.
+- Food and Fitness share a Calendar-style Day panel with date/week navigation, domain-only or All activities, next-plan emphasis and a same-date Calendar link. The selected day carries between these workspaces during navigation; explicit date URLs take precedence. At 1150px and below, Day opens the panel as a drawer. Calendar retains its full workspace.
 - Unscheduled, Routines, and Goals pages are retained for later scope decisions and accessible by URL; they are absent from main navigation.
 - Open Settings through the account menu.
 - Choose a timezone or use the device's timezone.
@@ -403,7 +404,8 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Workspace
 
-- The wider main area shows Next workout, saved My workouts, creation/start actions and secondary History access. A persistent exercise library sits on the right; no top-level tabs or separate Browse exercises screen.
+- The wider main area shows Next workout, saved My workouts, creation/start actions and secondary History access. The shared Day panel sits on the right by default. Exercises switches that space to the library; opening a workout builder or session shows Exercises automatically. Switching back to Day preserves the current workout draft and library filters; no separate Browse exercises screen.
+- Fitness-only Day activity includes genuinely linked scheduled workouts and recorded workout/exercise activity. All activities also shows Calendar plans and other domains. Planned activities open Calendar on the selected date; recorded workouts open their session, with unsaved-change protection before leaving.
 - Create/edit a reusable workout or start training in the main area, replacing its default content. Clicking an exercise card always opens details. While a workout is open, hovering or keyboard-focusing a card replaces its equipment/muscle preview with an inset button with a soft border and faint green tint, showing + beside Add to workout in the information area; clicking it adds without opening details. The name and illustration remain visible. Touch screens show the action without hovering. The independent favourite star stays top-right. There is no separate Info button or bottom Add row. Exercises can also be added from details, each with an unfinished set. Titles, notes, ordered exercises and targets remain in place.
 - Exercise help/details replace the right-side library while the main workout stays visible. Back to exercises restores the library filters and scroll position.
 - Exercise creation/editing uses the main area while retaining the current workout's draft. The right library remains available on desktop; saving or cancelling returns to the previous main view. Creating an exercise while building or training adds it to the current workout.
@@ -412,7 +414,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Exercise library
 
-- On desktop, the main workout area and right library/details use the remaining viewport height with equal 16px outer spacing and scroll independently. The right panel keeps its width while switching between browsing and building, with two card columns, a full-width search row and compact toolbar controls.
+- On desktop, the main workout area and right library/details use the remaining viewport height below the shared Fitness header and scroll independently. The right panel keeps its width while switching between browsing and building, with two card columns, a full-width search row and compact toolbar controls.
 - While search, equipment/muscle filters, Favourites or Hidden are active, the matching exercise count appears in muted text beside Clear all. It hides when no filters are active; the library heading and space above the cards stay clear.
 - Browse 16 built-in strength exercises with equipment, muscle groups, short instructions, and visual placeholders. Cards emphasize the exercise name, show equipment beneath it, and show as many muscle tags as fit on one line, with a +N count for the remainder; details show all muscles. Long card names and equipment lists use at most two lines, with full text available on hover; custom labels remain visible.
 - In the Filters panel, a compact dropdown without search controls sorting; in the desktop library panel it sits below Equipment and Muscle group. Sort built-in and custom exercises together by Name A–Z (default), Name Z–A, or Recently added. Recently added puts newest custom exercises first, then built-ins alphabetically; favouriting or hiding a built-in does not change its order. Sorting applies alongside filters, and Clear all preserves the chosen sort.
@@ -431,7 +433,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Hide removes a built-in from the active library without affecting saved workouts, logging or history. Find it using Hidden and choose Show in library to restore visibility.
 - Create a private custom exercise with a name, optional instructions, equipment, muscles worked, and a Favourite star beside the Create/Edit heading. Search fields stay above removable selected chips; arrows/Enter select options, Escape/outside click closes them. Removing a chip keeps the dropdown closed instead of returning pointer focus to search. Keyboard removal focuses another chip, or the closed search field when none remain. Nearby blank-space clicks dismiss and release search focus in one click.
 - Create/Edit exercise puts the name first, Equipment and Muscles worked side by side on wider screens, and a visible compact Instructions (optional) textarea that can be resized. Cancel and Create exercise/Save changes stay fixed below the scrolling fields.
-- Field validation explains problems beside the affected input and focuses it. Cancel leaves unchanged exercises directly; changed forms offer Keep editing or Discard changes. Refresh/closing the tab warns while changes are unsaved or a save is unresolved; pending/uncertain saves retain their retry controls.
+- Field validation explains problems beside the affected input and focuses it. Cancel leaves unchanged exercises directly; changed forms offer Keep editing or Discard changes. Leaving through navigation, the Day panel, refresh or closing the tab warns while exercise changes are unsaved or a save is unresolved; pending/uncertain saves retain their retry controls.
 - Each exercise has default measurements: Reps + load, Reps, Duration, Duration + load, Distance + duration, or Laps + duration. Custom exercises choose them in Create/Edit; built-ins have curated defaults. These are measurement presets, not mandatory strength/cardio categories.
 - Add optional custom intent tags such as strength, cardio, technique, recovery or recreation. Up to eight tags, 32 characters each, are trimmed, lowercased and deduplicated. Custom definitions provide defaults; each exercise in a workout can override or clear its tags independently of measurements.
 - Create a custom exercise in the main area while preparing or recording a workout; the action says Create and add to workout and uses the existing addition/limit checks. Custom cards and details have a small Custom label; there is no fixed library-count cap.
@@ -444,7 +446,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 - An empty workout shows a dotted Add exercise placeholder that focuses the library.
 - Create reusable workouts mixing activities such as lifting, running, swimming and cycling, with a title, ordered exercises and exercise notes. Optional workout notes start collapsed behind Add notes.
-- Creation/editing has a Cancel action instead of a My workouts back link. The exercise list scrolls while Save draft and Save workout stay at the bottom. Desktop uses the adjacent library directly; Add exercise switches to the library on narrow screens.
+- Creation/editing has a Cancel action instead of a My workouts back link. The exercise list scrolls while Save draft and Save workout stay at the bottom. Desktop uses the adjacent library directly; Add exercise switches to the library when Day is showing or on narrow screens.
 - Save draft keeps an incomplete workout in My workouts with a Draft label and Continue editing. Drafts may have no exercises or sets; unnamed drafts use Untitled workout. Saved drafts survive refresh and can be edited or deleted.
 - Save workout requires a title, at least one exercise and at least one set per exercise. It makes a draft ready to start or schedule; drafts cannot do either. Saving an existing workout as a draft makes that reusable workout unavailable for starting/scheduling until ready again, without changing its scheduled copies or recorded sessions.
 - Unsaved workout creation/editing recovers automatically after navigation or refresh in the same browser tab, separately for each account and workout. Incomplete and invalid entries are retained. Save or Discard clears recovery; Save draft/Save workout still saves to your account.
@@ -532,11 +534,45 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Food
 
+### Workspace and library
+
+- Open Food from main navigation. Daily log is the default; Food library, Saved meals, Recipes and History share compact navigation above the main workspace. Daily nutrition comes first, with up to four favourite shortcuts, the detailed log, and water/weight below.
+- The shared domain day panel sits on the right and uses Calendar’s date picker and activity cards. Choose a day using the week strip, date picker, previous/next or Today; the selected local date stays in the URL across Food views and carries into Fitness. Narrower screens open the same day view through the Day button.
+- Switch the panel between Food (food, water and weight records) and All activities (Calendar plans and recorded activity across domains). It highlights Calendar’s next activity and opens the full Calendar on the same date. Food records open their entry editor; water/weight records return to their daily section. Domain activity and its accounting record remain one activity.
+- Library Favourites and Archived use explicit toggle buttons with visible selected states.
+- Create private foods with a serving amount in grams, millilitres, items or servings. Calories, protein, carbs, fat and fibre are optional per-serving values; blank means unknown and zero remains zero.
+- Search foods, meals and recipes; favourite entries, filter favourites, and browse paginated results. Edit definitions or archive/restore them. Archived items remain in history and existing preparation snapshots, but cannot be newly selected for logging or ingredients.
+- Changes to library definitions never rewrite logged nutrition. Forms validate entered values, protect unsaved changes, retain uncertain-save payloads for same-key retry, and refuse stale writes.
+
+### Saved meals and recipes
+
+- Create a saved meal by combining foods and recipes for one meal. Set each component’s serving quantity, reorder/remove ingredients, and add optional notes. Preparations contain up to 50 ingredient rows.
+- Create a recipe from food ingredients with their quantities, optional instructions and a yield of 1–1,000 portions. Review ingredients and nutrition per portion in the library.
+- Nutrition is calculated by the backend from ingredient snapshots and recipe yield. A nutrient remains unknown for a preparation if any ingredient’s value is missing; known values are never presented as a complete recipe total.
+- Saving edits refreshes ingredients from their current owned active definitions. Existing preparations and logged portions stay independent of later ingredient changes.
+- Log a saved meal or recipe in one action. Adjust the number of portions and, optionally, individual ingredient quantities for that entry. Adjustments preserve the saved definition; recipe ingredient adjustments describe the full batch before portion scaling. A changed source revision requires reviewing the latest definition before logging.
+
+### Daily logging and review
+
+- Record a food, saved meal or recipe at a chosen date/time with a serving multiplier and optional Breakfast/Lunch/Dinner/Snack label. No label is also supported.
+- Quick entry records a name, portion and optional nutrition without adding a library food. Create a library food from the logging flow when it should be reusable.
+- Review the day’s entries and daily calories/macronutrients/fibre. Totals use the account timezone, including clock-change days. Missing nutrients remain unknown, and partial totals identify entries with missing values.
+- Expand an entry to see its recorded nutrition and component portions. Logging a preparation creates one recorded Calendar moment and no duration; Calendar links back to the Food log.
+- Correct an entry’s time, amount or meal label, or delete it with confirmation. The view follows a corrected entry to its saved date; nutrition and Calendar refresh after writes.
+- Copy an entry to another time or day using its original snapshot, even after the source definition changes or is archived. Search paginated history by recorded names; history lists recently added entries and displays when they were eaten.
+
+### Water and weight
+
+- Log water with 250/500 ml shortcuts or a custom amount/time, review the selected day’s total, and edit/delete or browse previous entries.
+- Log weight in the preferred kg/lb unit, review the latest measurement through the selected day and its 30-day trend, and edit/delete or browse paginated history. Missing days do not become zero measurements.
+- Water and weight use the existing shared services and Calendar activity. Backdated quick water logs use local noon; today’s use the current time.
+
 ### Needs work
 
-- A new Food workspace is planned. The old frontend is removed; backend APIs and stored records remain.
-- Retained food activity is visible on Calendar, but its editing/history UI is unavailable until replacement workflows are implemented.
-- Recipes, barcode scanning, external food lookup, and custom nutrition targets are not available.
+- Meal planning, shopping lists, custom nutrition targets and nutrition trends beyond daily totals belong to the next pass.
+- Barcode scanning, external food lookup, pantry inventory and AI are not available.
+- Recipes use foods; meals can use foods and recipes. Nested recipes and meals within meals are not supported; gram-to-millilitre conversion is not inferred.
+- Edits use explicit saves and discard protection; unsaved Food forms do not recover after refresh. Historical entry corrections change amount/time/label; replace an incorrect food by deleting and logging it again.
 
 ## Admin
 

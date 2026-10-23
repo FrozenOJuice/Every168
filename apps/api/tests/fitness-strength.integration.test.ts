@@ -741,3 +741,84 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
       .loggingType,
   ).toBe("duration_load");
 });
+
+it("projects only owned linked workouts on the local day across midnight, rescheduling and deletion", async () => {
+  const a = client((await signUp()).cookie),
+    b = client((await signUp()).cookie);
+  const me = (await a.get("me")).body;
+  await a
+    .write(
+      "put",
+      "preferences",
+      {
+        timezone: "America/Vancouver",
+        weekStartsOn: 1,
+        weightUnit: "kg",
+        distanceUnit: "km",
+      },
+      me.preferences.version,
+    )
+    .expect(200);
+  const e = (
+    await a.write("post", "exercises", { name: "Night walk" }).expect(201)
+  ).body;
+  const p = (
+    await a
+      .write("post", "strength-plans", {
+        title: "Night walk",
+        exercises: [
+          { exerciseId: e.id, sets: [{ targetDurationSeconds: 3600 }] },
+        ],
+      })
+      .expect(201)
+  ).body;
+  const timing = {
+    startsAt: "2026-11-02T07:30:00Z",
+    endsAt: "2026-11-02T08:30:00Z",
+  };
+  const scheduled = (
+    await a
+      .write("post", `strength-plans/${p.id}/schedule`, timing, p.version)
+      .expect(201)
+  ).body;
+  await a
+    .write("post", "time-blocks", { title: "Night walk", ...timing })
+    .expect(201);
+  for (const date of ["2026-11-01", "2026-11-02"]) {
+    expect(
+      (await a.get(`strength-plans/day-links?date=${date}`).expect(200)).body
+        .blockIds,
+    ).toEqual([scheduled.timeBlockId]);
+    expect(
+      (await b.get(`strength-plans/day-links?date=${date}`).expect(200)).body
+        .blockIds,
+    ).toEqual([]);
+  }
+  await a.get("strength-plans/day-links?date=invalid").expect(422);
+  const block = (await a.get(`time-blocks/${scheduled.timeBlockId}`)).body;
+  await a
+    .write(
+      "put",
+      `time-blocks/${block.id}`,
+      {
+        title: "Moved walk",
+        startsAt: "2026-11-03T18:00:00Z",
+        endsAt: "2026-11-03T19:00:00Z",
+      },
+      block.version,
+    )
+    .expect(200);
+  expect(
+    (await a.get("strength-plans/day-links?date=2026-11-01")).body.blockIds,
+  ).toEqual([]);
+  expect(
+    (await a.get("strength-plans/day-links?date=2026-11-03")).body.blockIds,
+  ).toEqual([block.id]);
+  const moved = (await a.get(`time-blocks/${block.id}`)).body;
+  await a
+    .write("delete", `time-blocks/${block.id}`, {}, moved.version)
+    .expect(200);
+  expect(
+    (await a.get("strength-plans/day-links?date=2026-11-03")).body.blockIds,
+  ).toEqual([]);
+});

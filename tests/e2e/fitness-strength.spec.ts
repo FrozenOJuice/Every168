@@ -45,7 +45,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   await start(page);
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
-  ).toHaveText(["Calendar", "Fitness"]);
+  ).toHaveText(["Calendar", "Fitness", "Food"]);
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
   await page.getByLabel("Workout title", { exact: true }).fill("Strength A");
   if (testInfo.project.name !== "desktop")

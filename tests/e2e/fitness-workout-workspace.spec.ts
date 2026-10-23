@@ -20,6 +20,7 @@ test("the right library supports workouts and exercise editing in the main area"
     ).status(),
   ).toBe(200);
   await page.goto("/fitness");
+  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   const right = page.getByRole("region", {
     name: "Workout workspace",
     exact: true,

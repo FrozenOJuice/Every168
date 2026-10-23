@@ -1,5 +1,5 @@
 import { AppError } from "../../shared/errors/app-error.js";
-import { and, eq, desc, isNull, isNotNull } from "drizzle-orm";
+import { and, eq, desc, isNull, isNotNull, inArray } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import {
@@ -15,6 +15,20 @@ export function strengthPlansRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(plans.userId, u), eq(plans.id, id));
   return {
+    async linkedBlockIds(u: string, ids: string[]) {
+      if (!ids.length) return [];
+      const rows = await db
+        .select({ id: plans.timeBlockId })
+        .from(plans)
+        .where(
+          and(
+            eq(plans.userId, u),
+            eq(plans.kind, "scheduled"),
+            inArray(plans.timeBlockId, ids),
+          ),
+        );
+      return rows.flatMap((row) => (row.id ? [row.id] : []));
+    },
     async capturePlanLinks(u: string, id: string, context: TransactionContext) {
       const rows = await databaseFor(db, context)
         .select()

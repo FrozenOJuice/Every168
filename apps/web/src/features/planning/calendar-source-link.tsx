@@ -11,7 +11,7 @@ export function CalendarSourceLink({
   className?: string;
   children: ReactNode;
 }) {
-  if (/^\/(food|exercise)(?:[/?#]|$)/.test(href)) {
+  if (/^\/exercise(?:[/?#]|$)/.test(href)) {
     return <span className={className}>{children}</span>;
   }
   return (

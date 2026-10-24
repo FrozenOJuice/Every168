@@ -28,11 +28,13 @@ export function Empty({ children }: { children: React.ReactNode }) {
 export function PageHeading({
   eyebrow,
   title,
+  level = 1,
   description,
   children,
 }: {
   eyebrow?: string;
   title: string;
+  level?: 1 | 2;
   description?: string;
   children?: React.ReactNode;
 }) {
@@ -40,7 +42,7 @@ export function PageHeading({
     <header className="page-heading">
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>{title}</h1>
+        {level === 2 ? <h2>{title}</h2> : <h1>{title}</h1>}
         {description && <p className="muted">{description}</p>}
       </div>
       {children}

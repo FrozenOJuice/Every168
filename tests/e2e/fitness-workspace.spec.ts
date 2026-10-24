@@ -18,13 +18,16 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     ).status(),
   ).toBe(200);
   await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Fitness", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "My workouts", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await expect(page.locator(".fitness-library-card")).toHaveCount(16);
   const cardNames = () =>
     page.locator(".fitness-library-card-name").allTextContents();
@@ -116,33 +119,12 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   if (testInfo.project.name === "desktop") {
     for (const height of [820, 680]) {
       await page.setViewportSize({ width: 1280, height });
-      const spacing = await page
-        .locator(".fitness-library-host")
-        .evaluate((node) => {
-          const style = getComputedStyle(node);
-          return [
-            style.paddingTop,
-            style.paddingRight,
-            style.paddingBottom,
-            style.paddingLeft,
-          ];
-        });
-      expect(spacing).toEqual(["20px", "20px", "20px", "20px"]);
-
-      await expect
-        .poll(async () =>
-          page
-            .locator(".fitness-exercise-grid")
-            .evaluate((node) =>
-              Math.round(innerHeight - node.getBoundingClientRect().bottom),
-            ),
-        )
-        .toBe(20);
-      expect(
-        await page.evaluate(
-          () => document.documentElement.scrollHeight <= innerHeight,
-        ),
-      ).toBe(true);
+      const rail = await page
+        .getByRole("complementary", { name: "Fitness day panel" })
+        .boundingBox();
+      expect(rail!.y).toBeCloseTo(0, 0);
+      expect(rail!.height).toBeCloseTo(height, 0);
+      await expect(page.locator(".fitness-primary-pane")).toBeHidden();
     }
     await page.setViewportSize({ width: 1280, height: 820 });
   }
@@ -331,7 +313,6 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   await page.getByRole("button", { name: "Favourites", exact: true }).click();
   await expect(page.locator(".fitness-library-card")).toHaveCount(1);
   await page.reload();
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await bench.click();
   await expect(
     detail.getByRole("button", {
@@ -634,7 +615,10 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     fullPage: true,
   });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await page.getByRole("button", { name: "Squat", exact: true }).click();
   const squat = page.getByRole("region", {
     name: "Squat details",
@@ -685,10 +669,13 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
     .getByRole("button", { name: "Cancel", exact: true })
     .click();
   await expect(page).toHaveURL("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "My workouts", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await bench.click();
   await detail.getByRole("button", { name: "Duplicate", exact: true }).click();
   const copyEditor = page.getByRole("region", {
@@ -1036,8 +1023,7 @@ test("library cards handle long custom names and equipment without overflowing",
       })
     ).status(),
   ).toBe(201);
-  await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page.goto("/fitness/exercises");
   await page
     .getByRole("searchbox", { name: "Find an exercise" })
     .fill("LongExerciseName");

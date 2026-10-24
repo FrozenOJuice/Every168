@@ -102,9 +102,7 @@ test("selected plans duplicate immediately at their copied dates and times", asy
       startsAt: original.startsAt,
       endsAt: original.endsAt,
     });
-    await expect(page.locator(".calendar-notice")).toContainText(
-      "Plans pasted",
-    );
+    await expect(page.locator(".app-toast")).toContainText("Plans pasted");
     await step(page, "Meta+z");
     await expect.poll(async () => (await blocks(page)).length).toBe(1);
     await step(page, "Meta+Shift+z");
@@ -242,7 +240,7 @@ test("all-day edits, group paste and group deletion redo exact saved plans despi
   );
   await expect(allDay(page, "Two")).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Control+c");
-  await expect(page.locator(".calendar-notice")).toContainText("copied");
+  await expect(page.locator(".app-toast")).toContainText("copied");
   await grid(page)
     .getByRole("button", { name: "Select 2026-09-07", exact: true })
     .click();

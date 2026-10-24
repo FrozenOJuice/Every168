@@ -58,7 +58,7 @@ export const exercises = pgTable(
     ),
     check(
       "exercise_logging_type",
-      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load','distance_duration','laps_duration')`,
+      sql`${t.loggingType} in ('reps','distance','laps','duration','load','reps_distance','reps_laps','reps_duration','reps_load','distance_laps','distance_duration','distance_load','laps_duration','laps_load','duration_load','reps_distance_laps','reps_distance_duration','reps_distance_load','reps_laps_duration','reps_laps_load','reps_duration_load','distance_laps_duration','distance_laps_load','distance_duration_load','laps_duration_load','reps_distance_laps_duration','reps_distance_laps_load','reps_distance_duration_load','reps_laps_duration_load','distance_laps_duration_load','reps_distance_laps_duration_load')`,
     ),
     unique("exercise_owner_id").on(t.userId, t.id),
     unique("exercise_owner_catalog_key").on(t.userId, t.catalogKey),
@@ -146,7 +146,7 @@ export const workoutExercises = pgTable(
     ),
     check(
       "workout_exercise_logging_type",
-      sql`${t.loggingType} in ('reps_load','reps','duration','duration_load','distance_duration','laps_duration')`,
+      sql`${t.loggingType} in ('reps','distance','laps','duration','load','reps_distance','reps_laps','reps_duration','reps_load','distance_laps','distance_duration','distance_load','laps_duration','laps_load','duration_load','reps_distance_laps','reps_distance_duration','reps_distance_load','reps_laps_duration','reps_laps_load','reps_duration_load','distance_laps_duration','distance_laps_load','distance_duration_load','laps_duration_load','reps_distance_laps_duration','reps_distance_laps_load','reps_distance_duration_load','reps_laps_duration_load','distance_laps_duration_load','reps_distance_laps_duration_load')`,
     ),
     unique("workout_exercise_position").on(t.userId, t.workoutId, t.position),
     unique("workout_exercise_owner_id").on(t.userId, t.id),
@@ -175,6 +175,9 @@ export const strengthSets = pgTable(
     laps: integer("laps"),
     targetDistanceMeters: doublePrecision("target_distance_meters"),
     targetLaps: integer("target_laps"),
+    measurementOverride: text(
+      "measurement_override",
+    ).$type<ExerciseLoggingType>(),
     completed: boolean("completed").notNull(),
     skipped: boolean("skipped").notNull().default(false),
     targetReps: integer("target_reps"),
@@ -183,6 +186,10 @@ export const strengthSets = pgTable(
     restSeconds: integer("rest_seconds"),
   },
   (t) => [
+    check(
+      "set_measurement_override",
+      sql`${t.measurementOverride} in ('reps','distance','laps','duration','load','reps_distance','reps_laps','reps_duration','reps_load','distance_laps','distance_duration','distance_load','laps_duration','laps_load','duration_load','reps_distance_laps','reps_distance_duration','reps_distance_load','reps_laps_duration','reps_laps_load','reps_duration_load','distance_laps_duration','distance_laps_load','distance_duration_load','laps_duration_load','reps_distance_laps_duration','reps_distance_laps_load','reps_distance_duration_load','reps_laps_duration_load','distance_laps_duration_load','reps_distance_laps_duration_load')`,
+    ),
     check(
       "strengthSets_revision",
       sql`${t.version}>0 and isfinite(${t.createdAt}) and isfinite(${t.updatedAt})`,
@@ -199,7 +206,7 @@ export const strengthSets = pgTable(
     index("set_parent_idx").on(t.userId, t.workoutExerciseId),
     check(
       "set_positive_values",
-      sql`(not ${t.completed} or ${t.reps} is not null or ${t.durationSeconds} is not null or ${t.distanceMeters} is not null or ${t.laps} is not null) and (${t.distanceMeters} is null or (${t.distanceMeters} > 0 and ${t.distanceMeters} <= 10000000)) and (${t.targetDistanceMeters} is null or (${t.targetDistanceMeters} > 0 and ${t.targetDistanceMeters} <= 10000000)) and (${t.laps} is null or ${t.laps} between 1 and 10000) and (${t.targetLaps} is null or ${t.targetLaps} between 1 and 10000) and not (${t.completed} and ${t.skipped}) and (${t.targetReps} is null or ${t.targetReps} between 1 and 10000) and (${t.targetWeightKg} is null or ${t.targetWeightKg} between 0 and 2000) and (${t.targetDurationSeconds} is null or ${t.targetDurationSeconds} between 1 and 86400) and (${t.restSeconds} is null or ${t.restSeconds} between 0 and 3600) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
+      sql`(not ${t.completed} or ${t.reps} is not null or ${t.weightKg} is not null or ${t.durationSeconds} is not null or ${t.distanceMeters} is not null or ${t.laps} is not null) and (${t.distanceMeters} is null or (${t.distanceMeters} > 0 and ${t.distanceMeters} <= 10000000)) and (${t.targetDistanceMeters} is null or (${t.targetDistanceMeters} > 0 and ${t.targetDistanceMeters} <= 10000000)) and (${t.laps} is null or ${t.laps} between 1 and 10000) and (${t.targetLaps} is null or ${t.targetLaps} between 1 and 10000) and not (${t.completed} and ${t.skipped}) and (${t.targetReps} is null or ${t.targetReps} between 1 and 10000) and (${t.targetWeightKg} is null or ${t.targetWeightKg} between 0 and 2000) and (${t.targetDurationSeconds} is null or ${t.targetDurationSeconds} between 1 and 86400) and (${t.restSeconds} is null or ${t.restSeconds} between 0 and 3600) and (${t.reps} is null or ${t.reps}>0) and (${t.durationSeconds} is null or ${t.durationSeconds}>0) and (${t.weightKg} is null or ${t.weightKg}>=0)`,
     ),
   ],
 );

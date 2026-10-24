@@ -1,15 +1,15 @@
 "use client";
-import Link from "next/link";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { type Exercise } from "@168hours/contracts";
+import { type Exercise, type ExerciseLoggingType } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { ExerciseFavourite } from "./exercise-favourite";
 import { ExerciseVisual } from "./exercise-visual";
 import { type LibraryExercise } from "./exercise-library-model";
-import { ExerciseHistory } from "./exercise-history";
+import { ExerciseProgressPage } from "./exercise-progress";
+import { ExerciseRecall } from "./exercise-recall";
 import { ExerciseAddToWorkout } from "./exercise-add-to-workout";
 export function ExerciseDetails({
   item,
@@ -20,6 +20,8 @@ export function ExerciseDetails({
   workoutContext = false,
   backLabel = "Back to exercises",
   hideBack = false,
+  initialHistory = false,
+  initialMode,
 }: {
   item: LibraryExercise;
   onChoose?: (exercise: Exercise) => void;
@@ -29,7 +31,10 @@ export function ExerciseDetails({
   workoutContext?: boolean;
   backLabel?: string;
   hideBack?: boolean;
+  initialHistory?: boolean;
+  initialMode?: ExerciseLoggingType;
 }) {
+  const [history, setHistory] = useState(initialHistory);
   const cache = useQueryClient();
   const panel = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -135,119 +140,153 @@ export function ExerciseDetails({
           </div>
           <ExerciseFavourite item={item} iconOnly />
         </div>
-        <ExerciseVisual large />
-        {!!item.exercise?.intentTags.length && (
-          <p className="muted text-small">
-            Default intent: {item.exercise.intentTags.join(", ")}
-          </p>
-        )}
-        <div className="fitness-exercise-equipment">
-          <h3>Equipment</h3>
-          <ul>
-            {(item.equipment.length ? item.equipment : ["Not specified"]).map(
-              (equipment) => (
-                <li key={equipment}>{equipment}</li>
-              ),
-            )}
-          </ul>
-        </div>
-        {item.muscles.length > 0 && (
-          <div className="fitness-muscle-tags" aria-label="Muscles worked">
-            {item.muscles.map((muscle) => (
-              <span key={muscle}>{muscle}</span>
-            ))}
-          </div>
-        )}
-        <div className="fitness-exercise-instructions">
-          <h3>How it works</h3>
-          <p>{item.notes || "No instructions added yet."}</p>
-        </div>
-        {item.definition && item.exercise?.hidden && (
-          <p className="text-small">
-            Hidden from your library. Existing workouts and history are
-            unchanged.
-          </p>
-        )}
-        {item.exercise?.archivedAt && (
-          <p className="text-small">
-            Archived. Restore it to use it in a workout.
-          </p>
-        )}
-        {onChoose ? (
+        <div
+          className="fitness-detail-tabs"
+          role="group"
+          aria-label="Exercise information"
+        >
           <button
-            className="button primary"
-            disabled={busy || !!item.exercise?.archivedAt}
-            onClick={() => choose.mutate()}
+            type="button"
+            aria-pressed={!history}
+            onClick={() => setHistory(false)}
           >
-            Add {item.name}
+            Details
           </button>
+          <button
+            type="button"
+            aria-pressed={history}
+            onClick={() => setHistory(true)}
+          >
+            History
+          </button>
+        </div>
+        {history ? (
+          item.exercise ? (
+            <ExerciseProgressPage
+              id={item.exercise.id}
+              initialMode={initialMode}
+              embedded
+            />
+          ) : (
+            <p>No finished sessions for this exercise yet.</p>
+          )
         ) : (
-          !workoutContext &&
-          !item.exercise?.archivedAt && <ExerciseAddToWorkout item={item} />
-        )}
-        {!workoutContext && (
-          <div className="row">
-            {!item.definition && (
-              <button
-                className="fitness-text-action"
-                disabled={busy}
-                onClick={() => edit.mutate()}
-              >
-                Edit exercise
-              </button>
+          <>
+            {item.exercise && (
+              <ExerciseRecall
+                id={item.exercise.id}
+                mode={initialMode ?? item.exercise.loggingType}
+                onHistory={() => setHistory(true)}
+              />
             )}
-            <button
-              className="fitness-text-action"
-              disabled={busy}
-              onClick={() => duplicate.mutate()}
-            >
-              Duplicate
-            </button>
-            <button
-              className="fitness-text-action"
-              disabled={busy}
-              onClick={() => archive.mutate({ importKey: crypto.randomUUID() })}
-            >
-              {item.definition
-                ? item.exercise?.hidden
-                  ? "Show in library"
-                  : "Hide"
-                : item.exercise?.archivedAt
-                  ? "Restore"
-                  : "Archive"}
-            </button>
-            {!item.definition && item.exercise?.canDelete && (
-              <button
-                className="fitness-text-action"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    confirm("Permanently delete this unused custom exercise?")
-                  )
-                    remove.mutate();
-                }}
-              >
-                Delete exercise
-              </button>
+            <ExerciseVisual large />
+            {!!item.exercise?.intentTags.length && (
+              <p className="muted text-small">
+                Default intent: {item.exercise.intentTags.join(", ")}
+              </p>
             )}
-          </div>
-        )}
-        <CommandError command={choose} />
-        <CommandError command={edit} />
-        <CommandError command={archive} />
-        <CommandError command={duplicate} />
-        <CommandError command={remove} />
-        {item.exercise && (
-          <details className="fitness-secondary">
-            <summary>Exercise history</summary>
-            <Link
-              className="fitness-text-action"
-              href={`/fitness/progress/${item.exercise.id}`}
-            >
-              View progress and records →
-            </Link>
-            <ExerciseHistory id={item.exercise.id} />
-          </details>
+            <div className="fitness-exercise-equipment">
+              <h3>Equipment</h3>
+              <ul>
+                {(item.equipment.length
+                  ? item.equipment
+                  : ["Not specified"]
+                ).map((equipment) => (
+                  <li key={equipment}>{equipment}</li>
+                ))}
+              </ul>
+            </div>
+            {item.muscles.length > 0 && (
+              <div className="fitness-muscle-tags" aria-label="Muscles worked">
+                {item.muscles.map((muscle) => (
+                  <span key={muscle}>{muscle}</span>
+                ))}
+              </div>
+            )}
+            <div className="fitness-exercise-instructions">
+              <h3>How it works</h3>
+              <p>{item.notes || "No instructions added yet."}</p>
+            </div>
+            {item.definition && item.exercise?.hidden && (
+              <p className="text-small">
+                Hidden from your library. Existing workouts and history are
+                unchanged.
+              </p>
+            )}
+            {item.exercise?.archivedAt && (
+              <p className="text-small">
+                Archived. Restore it to use it in a workout.
+              </p>
+            )}
+            {onChoose ? (
+              <button
+                className="button primary"
+                disabled={busy || !!item.exercise?.archivedAt}
+                onClick={() => choose.mutate()}
+              >
+                Add {item.name}
+              </button>
+            ) : (
+              !workoutContext &&
+              !item.exercise?.archivedAt && <ExerciseAddToWorkout item={item} />
+            )}
+            {!workoutContext && (
+              <div className="row">
+                {!item.definition && (
+                  <button
+                    className="fitness-text-action"
+                    disabled={busy}
+                    onClick={() => edit.mutate()}
+                  >
+                    Edit exercise
+                  </button>
+                )}
+                <button
+                  className="fitness-text-action"
+                  disabled={busy}
+                  onClick={() => duplicate.mutate()}
+                >
+                  Duplicate
+                </button>
+                <button
+                  className="fitness-text-action"
+                  disabled={busy}
+                  onClick={() =>
+                    archive.mutate({ importKey: crypto.randomUUID() })
+                  }
+                >
+                  {item.definition
+                    ? item.exercise?.hidden
+                      ? "Show in library"
+                      : "Hide"
+                    : item.exercise?.archivedAt
+                      ? "Restore"
+                      : "Archive"}
+                </button>
+                {!item.definition && item.exercise?.canDelete && (
+                  <button
+                    className="fitness-text-action"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "Permanently delete this unused custom exercise?",
+                        )
+                      )
+                        remove.mutate();
+                    }}
+                  >
+                    Delete exercise
+                  </button>
+                )}
+              </div>
+            )}
+            <CommandError command={choose} />
+            <CommandError command={edit} />
+            <CommandError command={archive} />
+            <CommandError command={duplicate} />
+            <CommandError command={remove} />
+          </>
         )}
       </>
     </section>

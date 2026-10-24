@@ -1,15 +1,19 @@
 "use client";
 import { useMe } from "@/features/identity/me";
 import { useWorkoutBuilderRecovery } from "./workout-builder-recovery";
-import { NotesField } from "./notes-field";
-import { useState, useRef, useId } from "react";
+import { NotesEditor } from "./notes-editor";
+import { useState, useRef, useId, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { MoreHorizontal } from "lucide-react";
+import { Toast, useToast } from "@/components/ui/toast";
+import { ContextMenu } from "@/components/ui/context-menu";
 import { Dialog } from "@/components/ui/dialog";
 import { strengthPlanInput, type StrengthPlan } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { Loading, ErrorState } from "@/components/ui/feedback";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { StrengthExercises } from "./strength-exercises";
 import { emptySet, planExercises, planInput } from "./strength-draft";
 import { invalidateFitness } from "./fitness-cache";
@@ -127,6 +131,34 @@ function WorkoutBuilder({
     onSuccess: saved,
   });
   const busy = save.isPending || remove.isPending;
+  // Ordinary edits already recover synchronously. Do not leave if they cannot
+  // be recovered, or while a write is still deciding which record to return to.
+  useUnsavedChanges(busy || (dirty && recovery.storageError), undefined, true);
+  const { notice, show, dismiss } = useToast();
+  const [actionsMenu, setActionsMenu] = useState<{
+    anchor: HTMLElement;
+    x: number;
+    y: number;
+  } | null>(null);
+  const closeActions = useCallback(() => setActionsMenu(null), []);
+  const resetRecovered = recovery.discard;
+  const discardRecovered = useCallback(() => {
+    resetRecovered();
+    setNotesOpen(!!plan?.notes);
+    setValidationMode(null);
+    requestAnimationFrame(() =>
+      formRef.current?.querySelector<HTMLInputElement>("input")?.focus(),
+    );
+  }, [resetRecovered, plan?.notes, setNotesOpen, setValidationMode]);
+  useEffect(() => {
+    if (!recovery.recovered || recovery.conflict) return;
+    const id = show({
+      message: "Draft restored",
+      kind: "info",
+      action: { label: "Discard", onClick: discardRecovered },
+    });
+    return () => dismiss(id);
+  }, [recovery.recovered, recovery.conflict, discardRecovered, show, dismiss]);
   const saveAs = (isDraft: boolean, asCopy = false) => {
     if (busy || (recovery.conflict && !asCopy)) return;
     const parsed = strengthPlanInput.safeParse({ ...input, isDraft });
@@ -149,55 +181,6 @@ function WorkoutBuilder({
   };
   return (
     <div className="fitness-workout-builder">
-      <header className="fitness-builder-heading">
-        <h1 className="fitness-builder-title">
-          {plan
-            ? plan.isDraft
-              ? "Edit draft"
-              : "Edit workout"
-            : "Create workout"}
-        </h1>
-        <button
-          type="button"
-          className="fitness-text-action"
-          disabled={busy}
-          onClick={() => (dirty ? setCancelling(true) : leave())}
-        >
-          Cancel
-        </button>
-      </header>
-      {recovery.storageError && (
-        <p role="alert" className="error">
-          Recovery storage is unavailable. Save draft before leaving.
-        </p>
-      )}
-      {recovery.recovered && (
-        <div className="fitness-builder-recovery" role="status">
-          <p>
-            {recovery.conflict
-              ? "This workout changed since these edits. Save a new draft or discard the recovered changes."
-              : "Unsaved changes restored."}
-          </p>
-          {recovery.conflict && (
-            <button
-              type="button"
-              className="button"
-              disabled={busy}
-              onClick={() => saveAs(true, true)}
-            >
-              Save as new draft
-            </button>
-          )}
-          <button
-            type="button"
-            className="fitness-text-action"
-            disabled={busy}
-            onClick={recovery.discard}
-          >
-            Discard recovered changes
-          </button>
-        </div>
-      )}
       <form
         ref={formRef}
         className="fitness-builder-form"
@@ -207,75 +190,143 @@ function WorkoutBuilder({
           saveAs(false);
         }}
       >
-        <div className="fitness-builder-setup form-stack">
-          <div className="field">
-            <label htmlFor={titleId}>Workout title</label>
-            <input
-              id={titleId}
-              aria-invalid={!!errors.title}
-              aria-describedby={errors.title ? `${titleId}-error` : undefined}
-              maxLength={160}
-              value={title}
-              disabled={busy}
-              onChange={(event) =>
-                recovery.change({ title: event.target.value })
-              }
-            />
-            {errors.title && (
-              <p id={`${titleId}-error`} className="error" role="alert">
-                {errors.title}
+        <div className="fitness-builder-scroll">
+          <header className="fitness-builder-heading">
+            <h1 className="fitness-builder-title">
+              {plan
+                ? plan.isDraft
+                  ? "Edit draft"
+                  : "Edit workout"
+                : "Create workout"}
+            </h1>
+            <div className="fitness-builder-heading-actions">
+              {recovery.recovered && !recovery.conflict && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Workout actions"
+                  aria-haspopup="menu"
+                  aria-expanded={!!actionsMenu}
+                  disabled={busy}
+                  onClick={(event) => {
+                    const anchor = event.currentTarget;
+                    const rect = anchor.getBoundingClientRect();
+                    setActionsMenu({
+                      anchor,
+                      x: rect.right,
+                      y: rect.bottom + 4,
+                    });
+                  }}
+                >
+                  <MoreHorizontal size={18} aria-hidden="true" />
+                </button>
+              )}
+              <button
+                type="button"
+                className="fitness-text-action"
+                disabled={busy}
+                onClick={() => (dirty ? setCancelling(true) : leave())}
+              >
+                Cancel
+              </button>
+            </div>
+          </header>
+          {recovery.storageError && (
+            <p role="alert" className="error">
+              Recovery storage is unavailable. Save draft before leaving.
+            </p>
+          )}
+          {recovery.recovered && recovery.conflict && (
+            <div className="fitness-builder-recovery" role="status">
+              <p>
+                This workout changed since these edits. Save a new draft or
+                discard the recovered changes.
               </p>
-            )}
-          </div>
-          <details
-            className="fitness-builder-notes"
-            open={notesOpen}
-            onToggle={(event) => setNotesOpen(event.currentTarget.open)}
-          >
-            <summary>{notesOpen ? "Workout notes" : "Add notes"}</summary>
-            <NotesField
+              {recovery.conflict && (
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy}
+                  onClick={() => saveAs(true, true)}
+                >
+                  Save as new draft
+                </button>
+              )}
+              <button
+                type="button"
+                className="fitness-text-action"
+                disabled={busy}
+                onClick={discardRecovered}
+              >
+                Discard recovered changes
+              </button>
+            </div>
+          )}
+          <div className="fitness-builder-setup form-stack">
+            <div className="field">
+              <label htmlFor={titleId}>Workout title</label>
+              <input
+                id={titleId}
+                aria-invalid={!!errors.title}
+                aria-describedby={errors.title ? `${titleId}-error` : undefined}
+                maxLength={160}
+                value={title}
+                disabled={busy}
+                onChange={(event) =>
+                  recovery.change({ title: event.target.value })
+                }
+              />
+              {errors.title && (
+                <p id={`${titleId}-error`} className="error" role="alert">
+                  {errors.title}
+                </p>
+              )}
+            </div>
+            <NotesEditor
               label="Workout notes"
-              hideLabel
               value={notes}
+              open={notesOpen}
+              onOpenChange={setNotesOpen}
               disabled={busy}
               error={errors.notes}
               onChange={(value) => recovery.change({ notes: value ?? "" })}
             />
-          </details>
-        </div>
-        <div
-          className="fitness-builder-exercises"
-          role="region"
-          aria-label="Workout exercises"
-          tabIndex={0}
-        >
-          <StrengthExercises
-            value={exercises}
-            onChange={(exercises) => recovery.change({ exercises })}
-            errors={errors}
-            disabled={busy}
-            building
-          />
-          {plan && (
-            <>
-              <button
-                type="button"
-                className="fitness-text-action danger"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    confirm(
-                      "Delete this reusable workout? Scheduled workouts and recorded workouts will remain.",
+          </div>
+          <div
+            className="fitness-builder-exercises"
+            role="region"
+            aria-label="Workout exercises"
+            tabIndex={0}
+          >
+            <StrengthExercises
+              value={exercises}
+              onChange={(exercises) => recovery.change({ exercises })}
+              onNotice={(message) => show({ message, kind: "success" })}
+              errors={errors}
+              disabled={busy}
+              building
+            />
+            {plan && (
+              <>
+                <button
+                  type="button"
+                  className="fitness-text-action danger"
+                  disabled={busy}
+                  onClick={() => {
+                    if (
+                      confirm(
+                        "Delete this reusable workout? Scheduled workouts and recorded workouts will remain.",
+                      )
                     )
-                  )
-                    remove.mutate();
-                }}
-              >
-                Delete {plan.isDraft ? "draft" : "workout"}
-              </button>
-              <CommandError command={remove} />
-            </>
-          )}
+                      remove.mutate();
+                  }}
+                >
+                  Delete {plan.isDraft ? "draft" : "workout"}
+                </button>
+                <CommandError command={remove} />
+              </>
+            )}
+          </div>
         </div>
         <footer className="fitness-builder-footer">
           {!cancelling && <CommandError command={save} />}
@@ -298,6 +349,31 @@ function WorkoutBuilder({
           </div>
         </footer>
       </form>
+      {notice && (
+        <Toast
+          key={notice.id}
+          {...notice}
+          action={
+            notice.action ? { ...notice.action, disabled: busy } : undefined
+          }
+          onDismiss={() => dismiss(notice.id)}
+        />
+      )}
+      {actionsMenu && recovery.recovered && !recovery.conflict && (
+        <ContextMenu
+          {...actionsMenu}
+          label="Workout actions"
+          actions={[
+            {
+              label: "Discard recovered changes",
+              disabled: busy,
+              destructive: true,
+              run: discardRecovered,
+            },
+          ]}
+          onClose={closeActions}
+        />
+      )}
       {cancelling && (
         <Dialog
           title="Save your changes?"
@@ -305,42 +381,43 @@ function WorkoutBuilder({
             if (!busy) setCancelling(false);
           }}
         >
-          <p>
-            Save this as a draft to finish later, or discard your unsaved
-            changes.
-          </p>
-          <div className="form-stack">
-            <button
-              className="button primary"
-              disabled={busy || recovery.conflict}
-              onClick={() => saveAs(true)}
-            >
-              Save draft
-            </button>
-            <button
-              className="button danger"
-              disabled={busy}
-              onClick={() => {
-                recovery.clear();
-                leave();
-              }}
-            >
-              Discard
-            </button>
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => setCancelling(false)}
-            >
-              Keep editing
-            </button>
+          <div className="fitness-workout-exit-confirmation">
+            <div className="fitness-workout-exit-actions">
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => setCancelling(false)}
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                className="button danger"
+                disabled={busy}
+                onClick={() => {
+                  recovery.clear();
+                  leave();
+                }}
+              >
+                Discard
+              </button>
+              <button
+                type="button"
+                className="button primary"
+                disabled={busy || recovery.conflict}
+                onClick={() => saveAs(true)}
+              >
+                Save draft
+              </button>
+            </div>
+            {error && (
+              <p className="error" role="alert">
+                {error}
+              </p>
+            )}
+            <CommandError command={save} />
           </div>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
-          <CommandError command={save} />
         </Dialog>
       )}
     </div>

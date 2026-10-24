@@ -46,7 +46,12 @@ export const blockSchema = recordSchema.extend({
 export const timeEntrySchema = recordSchema.extend({
   ...timeFields,
   timeBlockId: idSchema.nullable(),
-  sourceType: z.enum(["manual", "strength_workout", "cardio_activity"]),
+  sourceType: z.enum([
+    "manual",
+    "strength_workout",
+    "cardio_activity",
+    "task_time",
+  ]),
   sourceId: idSchema.nullable(),
 });
 export const allocationSchema = z.object({

@@ -1,9 +1,14 @@
-import { ExerciseProgressPage } from "@/features/fitness/exercise-progress";
+import { redirect } from "next/navigation";
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
 }) {
   const { id } = await params;
-  return <ExerciseProgressPage key={id} id={id} />;
+  const { mode } = await searchParams;
+  redirect(
+    `/fitness/exercises/${encodeURIComponent(id)}${mode ? `?mode=${encodeURIComponent(mode)}` : ""}`,
+  );
 }

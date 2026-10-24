@@ -1,18 +1,21 @@
 "use client";
-import { useId } from "react";
-import Link from "next/link";
 import { fromKilograms, fromMeters } from "@168hours/domain-utils";
-import type { StrengthMetrics } from "@168hours/contracts";
+import {
+  exerciseLoggingTypeSchema,
+  measurementsFor,
+  type ExerciseLoggingType,
+  type StrengthMetrics,
+} from "@168hours/contracts";
 import { number } from "@/lib/format";
 
-export const trackingLabels = {
-  reps_load: "Reps + load",
-  reps: "Reps",
-  duration: "Duration",
-  duration_load: "Duration + load",
-  distance_duration: "Distance + duration",
-  laps_duration: "Laps + duration",
-};
+export const trackingLabels = Object.fromEntries(
+  exerciseLoggingTypeSchema.options.map((type) => [
+    type,
+    measurementsFor(type)
+      .map((field) => field[0]!.toUpperCase() + field.slice(1))
+      .join(" + "),
+  ]),
+) as Record<ExerciseLoggingType, string>;
 export function distance(value: number | null, unit: "km" | "mi") {
   return value === null
     ? "Not recorded"
@@ -50,86 +53,5 @@ export function MetricCards({
         </div>
       ))}
     </dl>
-  );
-}
-export function ProgressChart({
-  label,
-  points,
-  format,
-}: {
-  label: string;
-  points: { label: string; value: number | null; href: string }[];
-  format: (value: number) => string;
-}) {
-  const titleId = useId();
-  const values = points.flatMap((p) => (p.value === null ? [] : [p.value]));
-  if (!values.length)
-    return <p className="muted">No recorded values for this measure yet.</p>;
-  const maximum = Math.max(...values, 1);
-  const x = (i: number) => 38 + (i * 504) / Math.max(points.length - 1, 1);
-  const y = (value: number) => 158 - (value / maximum) * 124;
-  // Null values break the line; missing measurements never become zero.
-  const path = points
-    .map((p, i) =>
-      p.value === null
-        ? ""
-        : `${i === 0 || points[i - 1]!.value === null ? "M" : "L"}${x(i)},${y(p.value)}`,
-    )
-    .join(" ");
-  return (
-    <figure className="fitness-progress-chart">
-      <svg viewBox="0 0 580 194" role="group" aria-labelledby={titleId}>
-        <title id={titleId}>
-          {label}. Exact values and workout links are available below.
-        </title>
-        <line
-          x1="38"
-          x2="542"
-          y1="158"
-          y2="158"
-          className="fitness-chart-axis"
-        />
-        <text x="38" y="20">
-          {format(maximum)}
-        </text>
-        <path d={path} className="fitness-chart-line" />
-        {points.map((p, i) =>
-          p.value === null ? null : (
-            <a
-              key={`${p.href}:${i}`}
-              href={p.href}
-              aria-label={`${p.label}: ${format(p.value)}`}
-            >
-              <circle cx={x(i)} cy={y(p.value)} r="6">
-                <title>
-                  {p.label}: {format(p.value)}
-                </title>
-              </circle>
-            </a>
-          ),
-        )}
-        <text x="38" y="185">
-          {points[0]?.label}
-        </text>
-        <text x="542" y="185" textAnchor="end">
-          {points.at(-1)?.label}
-        </text>
-      </svg>
-      <figcaption className="muted text-small">
-        {label}. Select a point to open its{" "}
-        {points[0]?.href.includes("session") ? "workout" : "week"}.
-      </figcaption>
-      <details className="fitness-secondary">
-        <summary>View chart data</summary>
-        <ul className="record-list">
-          {points.map((p, i) => (
-            <li key={`${p.href}:${i}`}>
-              <Link href={p.href}>{p.label}</Link>
-              <span>{p.value === null ? "Not recorded" : format(p.value)}</span>
-            </li>
-          ))}
-        </ul>
-      </details>
-    </figure>
   );
 }

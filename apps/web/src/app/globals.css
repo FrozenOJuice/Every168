@@ -1,12 +1,15 @@
+@import "../styles/tasks.css";
 @import "tailwindcss";
 @import "../styles/admin.css";
 @import "../styles/shell.css";
 @import "../styles/calendar.css";
+@import "../styles/toast.css";
 @import "../styles/domains.css";
 @import "../styles/routines.css";
 @import "../styles/fitness.css";
 @import "../styles/food.css";
 @import "../styles/domain-workspace.css";
+@import "../styles/assistant.css";
 
 :root {
   --background: #f8f8f5;
@@ -33,6 +36,12 @@
 }
 * {
   box-sizing: border-box;
+}
+html {
+  scrollbar-width: none;
+}
+html::-webkit-scrollbar {
+  display: none;
 }
 body {
   margin: 0;
@@ -407,4 +416,35 @@ p a:not(.button),
   right: 2px;
   top: 50%;
   transform: translateY(-50%);
+}
+
+/* Shared action tooltips: concise labels, consistent placement and palette. */
+.action-tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: min(240px, calc(100vw - 16px));
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-popover);
+  animation: tooltip-appear 100ms ease-out;
+}
+@keyframes tooltip-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-tooltip {
+    animation: none;
+  }
 }

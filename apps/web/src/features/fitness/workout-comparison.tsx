@@ -1,4 +1,5 @@
 "use client";
+import { measurementsFor } from "@168hours/contracts";
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -72,7 +73,7 @@ export function WorkoutComparison({
                 key={`${exercise.exerciseId}:${index}`}
               >
                 <h2>
-                  <Link href={`/fitness/progress/${exercise.exerciseId}`}>
+                  <Link href={`/fitness/exercises/${exercise.exerciseId}`}>
                     {exercise.name}
                   </Link>
                 </h2>
@@ -84,6 +85,7 @@ export function WorkoutComparison({
                     label="This workout"
                     metrics={exercise}
                     mode={exercise.loggingType}
+                    modes={exercise.measurementTypes}
                     unit={unit}
                     distanceUnit={distanceUnit}
                   />
@@ -91,6 +93,7 @@ export function WorkoutComparison({
                     label="Previous workout"
                     metrics={q.data.previous!.exercises[index]!}
                     mode={exercise.loggingType}
+                    modes={exercise.measurementTypes}
                     unit={unit}
                     distanceUnit={distanceUnit}
                   />
@@ -106,33 +109,37 @@ function ComparisonValues({
   label,
   metrics: m,
   mode,
+  modes,
   unit,
   distanceUnit,
 }: {
   label: string;
   metrics: StrengthMetrics;
   mode: ExerciseLoggingType;
+  modes?: ExerciseLoggingType[];
   unit: "kg" | "lb";
   distanceUnit: "km" | "mi";
 }) {
+  const fields = [...new Set((modes ?? [mode]).flatMap(measurementsFor))];
   return (
     <div>
       <h3>{label}</h3>
       <dl>
         <dt>Completed sets</dt>
         <dd>{m.completedSets}</dd>
-        {(mode === "reps_load" || mode === "duration_load") && (
+        {fields.includes("load") && (
           <>
             <dt>Highest load</dt>
             <dd>{load(m.maxWeightKg, unit)}</dd>
           </>
         )}
-        {mode === "reps" || mode === "reps_load" ? (
+        {fields.includes("reps") && (
           <>
             <dt>Most reps in a set</dt>
             <dd>{m.maxReps ?? "Not recorded"}</dd>
           </>
-        ) : (
+        )}
+        {fields.includes("duration") && (
           <>
             <dt>Longest set</dt>
             <dd>
@@ -142,19 +149,19 @@ function ComparisonValues({
             </dd>
           </>
         )}
-        {mode === "distance_duration" && (
+        {fields.includes("distance") && (
           <>
             <dt>Longest distance</dt>
             <dd>{distance(m.maxDistanceMeters, distanceUnit)}</dd>
           </>
         )}
-        {mode === "laps_duration" && (
+        {fields.includes("laps") && (
           <>
             <dt>Most laps</dt>
             <dd>{m.maxLaps ?? "Not recorded"}</dd>
           </>
         )}
-        {mode === "reps_load" && (
+        {fields.includes("reps") && fields.includes("load") && (
           <>
             <dt>Recorded volume</dt>
             <dd>{volumeText(m, unit)}</dd>

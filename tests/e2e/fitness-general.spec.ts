@@ -51,6 +51,10 @@ test("mixed activities retain independent intent, measurements, recovery and pro
     ],
   });
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", { name: "Advanced editor", exact: true })
+    .first()
+    .click();
   await expect(
     page.getByLabel("Intent for Swimming", { exact: true }),
   ).toHaveValue("technique");
@@ -61,11 +65,25 @@ test("mixed activities retain independent intent, measurements, recovery and pro
     page.getByLabel("Target distance (mi)", { exact: true }).first(),
   ).toHaveValue("1");
   await page
-    .getByRole("button", { name: "Measurements for Swimming", exact: true })
+    .getByRole("button", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
     .click();
   await page
-    .getByRole("option", { name: "Laps + duration", exact: true })
-    .click();
+    .getByRole("group", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
+    .getByRole("checkbox", { name: "Laps", exact: true })
+    .check();
+  await page
+    .getByRole("group", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
+    .getByRole("checkbox", { name: "Distance", exact: true })
+    .uncheck();
   await page.getByLabel("Target laps", { exact: true }).first().fill("8");
   await page.getByRole("button", { name: "Save workout", exact: true }).click();
   await expect(page).toHaveURL(/\/fitness$/);
@@ -87,14 +105,28 @@ test("mixed activities retain independent intent, measurements, recovery and pro
   );
   await page.goto(`/fitness/session/${w.id}`);
   await page
+    .getByRole("button", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
+    .click();
+  await page
     .getByLabel("Intent for Swimming", { exact: true })
     .fill("technique");
   await page
-    .getByRole("button", { name: "Measurements for Swimming", exact: true })
-    .click();
+    .getByRole("group", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
+    .getByRole("checkbox", { name: "Distance", exact: true })
+    .check();
   await page
-    .getByRole("option", { name: "Distance + duration", exact: true })
-    .click();
+    .getByRole("group", {
+      name: "Configure measurements for Swimming",
+      exact: true,
+    })
+    .getByRole("checkbox", { name: "Laps", exact: true })
+    .uncheck();
   await page
     .getByLabel("Actual distance (mi)", { exact: true })
     .first()
@@ -175,18 +207,29 @@ test("custom activity defaults accept optional intent tags and distance measurem
     },
   });
   expect(response.ok()).toBe(true);
-  await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page.goto("/fitness/exercises");
   await page
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
   await page
     .getByLabel("Exercise name", { exact: true })
     .fill("Cycling practice");
-  await page.getByRole("button", { name: "Tracking", exact: true }).click();
-  await page
-    .getByRole("option", { name: "Distance + duration", exact: true })
-    .click();
+  const measurements = page.getByRole("group", {
+    name: "Measurements",
+    exact: true,
+  });
+  await measurements
+    .getByRole("checkbox", { name: "Distance", exact: true })
+    .check();
+  await measurements
+    .getByRole("checkbox", { name: "Duration", exact: true })
+    .check();
+  await measurements
+    .getByRole("checkbox", { name: "Reps", exact: true })
+    .uncheck();
+  await measurements
+    .getByRole("checkbox", { name: "Load", exact: true })
+    .uncheck();
   await page
     .getByLabel("Intent tags (optional)", { exact: true })
     .fill("Technique, recreation");

@@ -2,7 +2,7 @@
 
 The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows.
 
-Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness and Food, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
+Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness, Food and Tasks, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
 - Put Account access first and Calendar immediately after it as the main product experience. Follow with settings, supporting planning features, daily logging, and review. Keep Admin and shared behavior at the end.
 - Within each section, introduce setup and creation before editing, reuse, deletion, and review. List current features and behavior in that order.
@@ -282,7 +282,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 
 ### Feedback messages
 
-- Copying shows a brief confirmation.
+- Copying shows a brief confirmation using the shared app toast.
 - Pasting, duplication, supported deletions, template application, and Calendar activity logging show a brief message with Undo.
 - Undo remains available by keyboard after the message disappears.
 - Missing selections and empty copies show guidance; failed actions show an error and offer retry where supported.
@@ -337,9 +337,10 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Navigation and settings
 
-- Main navigation contains Calendar, Fitness and Food on desktop and mobile.
-- Food and Fitness share a Calendar-style Day panel with date/week navigation, domain-only or All activities, next-plan emphasis and a same-date Calendar link. The selected day carries between these workspaces during navigation; explicit date URLs take precedence. At 1150px and below, Day opens the panel as a drawer. Calendar retains its full workspace.
-- Unscheduled, Routines, and Goals pages are retained for later scope decisions and accessible by URL; they are absent from main navigation.
+- Main navigation contains Calendar, Fitness, Food, Tasks and Assistant on desktop and mobile.
+- Food, Fitness and Tasks share the same full-height Calendar-style Day panel on the right, aligned to the top without a domain title bar. It includes date/week navigation, domain-only or All activities, next-plan emphasis and a same-date Calendar link. The selected day carries between these workspaces during navigation; explicit date URLs take precedence. At 1150px and below, Day opens the panel as a drawer. Calendar retains its full workspace.
+- Unscheduled and Goals remain accessible by URL outside main navigation. Reusable Routines are also accessible within Tasks.
+- Open the dedicated Assistant preview from navigation, or use the floating Ask Assistant button for quick chat on your current page.
 - Open Settings through the account menu.
 - Choose a timezone or use the device's timezone.
 - Choose Sunday or Monday as the first day of the week.
@@ -350,6 +351,42 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Create and edit life categories in Settings, with a name and optional color.
 - Archive categories; existing records keep their category.
 - Assign categories to goals.
+
+## Tasks
+
+### Capture and organize
+
+- Open Tasks from main navigation. Inbox captures a task with only its title; moving it out of Inbox does not require a project. Quick capture in Today assigns the selected planned day, and capture within a project assigns that project.
+- Use Inbox, Today, Upcoming, All tasks and Projects. Today includes unfinished tasks planned or due by the selected day and linked work on that day; overdue deadlines are labelled. Upcoming includes future deadlines/planned days and linked future work. The selected date carries between domain workspaces.
+- Add notes, an optional due date, a separate planned work day, optional priority and tags. Tasks can stand alone or belong to a project/section. Add, edit, check, remove and reorder up to 100 subtasks.
+- Search titles, notes and tags; filter active, completed, skipped or all statuses, priority, a tag and archived tasks. Projects provide their own task view. Task and project lists load additional pages on request.
+- Edit, duplicate, move out of Inbox, mark In progress/To do, complete, reopen, archive and restore. Duplication creates an independent Inbox task with fresh unchecked subtasks and no recurrence, reservations or actual time.
+- Delete a task with confirmation; its linked planned blocks and recorded task time are removed together. Completing a task keeps its reservations and does not invent actual time. Archived tasks remain available through filters.
+
+### Projects
+
+- Create a project with a name, optional description/target date and ordered named sections. Add standalone or existing tasks to it through the task editor; move tasks up/down within a section.
+- Review canonical completed/total task counts. Explicitly complete, archive or reactivate a project independently of its task statuses. Archived/completed projects remain visible and editable.
+- Remove a section to leave its tasks unsectioned. Delete a project with confirmation to retain its tasks as standalone tasks, including their Calendar links and history.
+
+### Schedule and record work
+
+- Reserve several Calendar work blocks for one task. A planned day and a due date remain separate from timed reservations. Scheduling and actual time logging keep task completion independent.
+- Open a reservation in Calendar to move or edit it; Calendar offers Open task. Calendar deletion removes the reservation link, and undo restores unchanged links. Task-only Day activity includes genuinely linked blocks, dated tasks, completion moments and actual task time; All activities shows the broader day.
+- Dated unfinished tasks appear in Calendar Day's Any time list with planned/due context. Week and Month indicate dated tasks alongside moments. Completing/skipping a task records a completion moment with no duration.
+- Log actual start/end times with optional notes; correct or delete records afterward. Each record contributes exactly one task-time ledger entry. Calendar and the Day panel open the canonical task for review. Local-time input follows account timezone and rejects ambiguous/nonexistent times; unchanged saved instants are retained during corrections.
+- Forms retain input on errors, protect unsaved edits, reject stale writes and reuse the same request key after an uncertain response. Pending/uncertain changes block dismissal.
+
+### Repetition and reusable checklists
+
+- Repeat daily, weekly or monthly, with an optional inclusive end date. Completing or skipping the current occurrence creates its next task with fresh unchecked subtasks. Monthly recurrence retains its original day, clamping shorter months and returning to that day afterward.
+- Edit just an occurrence or apply its template/repetition changes to future occurrences. Completed/skipped history remains independent. Reopening an old occurrence never creates a second successor. Archive or delete a current occurrence to stop working on it; use Skip to advance instead.
+- Open existing Routines inside Tasks for reusable ordered checklists, saved progress and completion counts. These remain distinct from dated task occurrences and do not fabricate timed activity.
+
+### Needs work
+
+- Forms use explicit saves without unsaved-draft recovery after refresh. Boards, dependencies, attachments, collaboration, notifications, automatic scheduling, live timers and advanced reporting are outside this pass.
+- One next repeating occurrence is generated when the current one is completed or skipped; future occurrences are not bulk-created in Calendar. A task supports up to 100 reservations and 200 actual-time records, and projects up to 50 sections.
 
 ## Goals
 
@@ -374,12 +411,11 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Delete an unscheduled plan through its editor, with confirmation.
 - Load more items when the list has additional results.
 
-### Needs work
-
-- Unscheduled plans are retained for later Tasks scoping and absent from main navigation.
+- Unscheduled Calendar plans remain separate from tasks; creating a task does not convert a retained plan.
 
 ## Routines
 
+- Open reusable Routines within Tasks or at the retained `/routines` URL.
 - Create a named routine with an ordered checklist.
 - Edit the name and steps; add, remove, or move steps up and down.
 - Check and uncheck steps; progress is saved between visits.
@@ -391,7 +427,6 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
-- Routines are retained for later Tasks scoping and absent from main navigation.
 - Checklists support up to 50 steps.
 - Completing a routine does not create Calendar blocks or record a timed session.
 
@@ -404,17 +439,21 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Workspace
 
-- The wider main area shows Next workout, saved My workouts, creation/start actions and secondary History access. The shared Day panel sits on the right by default. Exercises switches that space to the library; opening a workout builder or session shows Exercises automatically. Switching back to Day preserves the current workout draft and library filters; no separate Browse exercises screen.
+- Fitness has Training and History navigation. Training shows an active workout, saved workouts, Training Programs and then the exercise library; History lists recorded workouts with search, status filters and secondary weekly totals. The shared Day panel stays full height on the right, including while building or training, without a domain title bar.
 - Fitness-only Day activity includes genuinely linked scheduled workouts and recorded workout/exercise activity. All activities also shows Calendar plans and other domains. Planned activities open Calendar on the selected date; recorded workouts open their session, with unsaved-change protection before leaving.
 - Create/edit a reusable workout or start training in the main area, replacing its default content. Clicking an exercise card always opens details. While a workout is open, hovering or keyboard-focusing a card replaces its equipment/muscle preview with an inset button with a soft border and faint green tint, showing + beside Add to workout in the information area; clicking it adds without opening details. The name and illustration remain visible. Touch screens show the action without hovering. The independent favourite star stays top-right. There is no separate Info button or bottom Add row. Exercises can also be added from details, each with an unfinished set. Titles, notes, ordered exercises and targets remain in place.
-- Exercise help/details replace the right-side library while the main workout stays visible. Back to exercises restores the library filters and scroll position.
-- Exercise creation/editing uses the main area while retaining the current workout's draft. The right library remains available on desktop; saving or cancelling returns to the previous main view. Creating an exercise while building or training adds it to the current workout.
-- On narrow screens, Add exercise/Help shows the library or details, and Back to workout restores the active editor or training view without losing its state. Exercise forms use the main area and return to the library when closed.
-- Next workout uses the earliest unstarted linked Calendar workout whose scheduled time has not ended. Calendar moves update it; started instances and deleted links are excluded. A matching title on an ordinary Calendar block does not establish a Fitness connection.
+- Exercise names and last-session links open Details/History in the exercise library pane, beside the workout on desktop during creation/editing. Narrow screens switch to that pane; Back to exercises or Escape returns to the library search. The workout stays intact; Your workout or Back to workout switches back to it. Instructions, last-session recall, ordered sets and older sessions share the same view used by library cards. Failed reads retain a return action and retry.
+- Create/edit exercises from the Training library or the inline workout picker. Creating while building or training adds the exercise and returns to the workout. Cancelling or closing a dirty exercise form asks before discarding its changes.
+- During workout creation/editing, Training and History stay fixed above independent workout and library scroll panes. The workout heading, title, notes and exercises scroll together above pinned Save draft and Save workout actions; scrolling either pane does not move the page.
+- Sets can be cleared while typing; leaving the field blank restores one set. Basic/Advanced editor switching is instant. Only expanding/collapsing the whole exercise animates, with reduced-motion preferences respected.
+- Workout target cards place Advanced editor in the exercise header before Collapse and Delete. Desktop shows its label; narrow screens use a sliders icon with the shared tooltip and active-state styling. The control stays available on collapsed cards and opens the exercise when used. Intent tags sit at the bottom of the expanded card. Measurement choices use compact toggle chips with checkmarks for selected fields and no repeated selection helper text. Sets and targets remain grouped beneath a distinct exercise header. Advanced editor uses a bordered control with a sliders icon and visible active state. Rest and notes share full-width outlined disclosures, with their arrows at the far right in both states. Both expand into fields with integrated headers.
+- The dotted empty workout area directs you to choose exercises from the library; mobile uses the Add exercises tab.
+- Workout creation/editing currently uses a reversible layout experiment: the Day panel is hidden, the wider draft stays in the middle beside app navigation and the library uses two columns within a narrower right pane on desktop. Mobile switches between Your workout and Add exercises, preserving both. Sessions retain the inline picker and Day panel. Search/filters and workout recovery remain available.
+- Scheduled workouts are shown in the shared Calendar day panel; Training keeps its focus on saved workouts and programs.
 
 ### Exercise library
 
-- On desktop, the main workout area and right library/details use the remaining viewport height below the shared Fitness header and scroll independently. The right panel keeps its width while switching between browsing and building, with two card columns, a full-width search row and compact toolbar controls.
+- The exercise library sits below Training Programs, with responsive cards, search and filters. Its cards scroll with the page rather than inside a separate scroll area. Workout builders and sessions open it only when adding an exercise. Workout and exercise forms keep scrolling fields and fixed actions; the shared Day rail stays independent on the right.
 - While search, equipment/muscle filters, Favourites or Hidden are active, the matching exercise count appears in muted text beside Clear all. It hides when no filters are active; the library heading and space above the cards stay clear.
 - Browse 16 built-in strength exercises with equipment, muscle groups, short instructions, and visual placeholders. Cards emphasize the exercise name, show equipment beneath it, and show as many muscle tags as fit on one line, with a +N count for the remainder; details show all muscles. Long card names and equipment lists use at most two lines, with full text available on hover; custom labels remain visible.
 - In the Filters panel, a compact dropdown without search controls sorting; in the desktop library panel it sits below Equipment and Muscle group. Sort built-in and custom exercises together by Name A–Z (default), Name Z–A, or Recently added. Recently added puts newest custom exercises first, then built-ins alphabetically; favouriting or hiding a built-in does not change its order. Sorting applies alongside filters, and Clear all preserves the chosen sort.
@@ -423,7 +462,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Results update immediately, matching any selected option within each group and combining equipment with muscles. Selected equipment and muscle filters appear as removable chips below the panel and remain below the toolbar when it closes; all tags share one horizontally scrollable row, so muscle tags never wrap below equipment. The scrollbar is hidden; an edge fade indicates more tags offscreen, and touch, trackpad and keyboard scrolling remain available. One Clear all button stays fixed at the right and vertically centered with the tags; it resets filters, visibility, favourites and exercise search. The Filters badge counts equipment and muscle choices; Favourites and Hidden show their active state only on their toolbar buttons, without removable tags.
 - Filters stays open while browsing results. Click Filters again or press Escape from the panel to close it; Escape returns focus to the Filters button. Filtering works for built-in and custom exercises alike.
 - Favourite or unfavourite an exercise from its details or the star at the top-right of its card. Empty card stars appear on hover or keyboard focus and stay visible on touch screens; filled stars stay visible. Card stars are outlined until favourited; favourited stars stay filled even on hover. Hover or keyboard focus adds a subtle tinted button background and preserves the card outline. Pointer clicks do not leave a focus outline or keep an empty star visible after moving away; keyboard navigation retains visible focus. Clicking the star does not open details; starred exercises appear in the Favourites filter, including when choosing exercises for a workout. Favourites are private, persist across refreshes, and retain their status when hidden, shown, archived or restored.
-- Select an exercise to replace the right library with its name and favourite star, large illustration placeholder, bulleted equipment list, muscle tags, and instructions. Back to exercises returns to the library; the main workout remains intact.
+- Select an exercise to replace the lower library with its name and favourite star, large illustration placeholder, bulleted equipment list, muscle tags, and instructions. Back to exercises returns to the library; the main workout remains intact.
 - Add an exercise to an existing workout or begin building a new workout from it.
 - Browsing does not create personal records. Favourites and built-in visibility are private account preferences, separate from exercise definitions.
 
@@ -434,7 +473,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Create a private custom exercise with a name, optional instructions, equipment, muscles worked, and a Favourite star beside the Create/Edit heading. Search fields stay above removable selected chips; arrows/Enter select options, Escape/outside click closes them. Removing a chip keeps the dropdown closed instead of returning pointer focus to search. Keyboard removal focuses another chip, or the closed search field when none remain. Nearby blank-space clicks dismiss and release search focus in one click.
 - Create/Edit exercise puts the name first, Equipment and Muscles worked side by side on wider screens, and a visible compact Instructions (optional) textarea that can be resized. Cancel and Create exercise/Save changes stay fixed below the scrolling fields.
 - Field validation explains problems beside the affected input and focuses it. Cancel leaves unchanged exercises directly; changed forms offer Keep editing or Discard changes. Leaving through navigation, the Day panel, refresh or closing the tab warns while exercise changes are unsaved or a save is unresolved; pending/uncertain saves retain their retry controls.
-- Each exercise has default measurements: Reps + load, Reps, Duration, Duration + load, Distance + duration, or Laps + duration. Custom exercises choose them in Create/Edit; built-ins have curated defaults. These are measurement presets, not mandatory strength/cardio categories.
+- Choose any combination of Reps, Load, Duration, Distance and Laps independently, with at least one selected. Custom exercises choose default measurements in Create/Edit; built-ins have curated defaults. These measurements do not impose strength/cardio categories.
 - Add optional custom intent tags such as strength, cardio, technique, recovery or recreation. Up to eight tags, 32 characters each, are trimmed, lowercased and deduplicated. Custom definitions provide defaults; each exercise in a workout can override or clear its tags independently of measurements.
 - Create a custom exercise in the main area while preparing or recording a workout; the action says Create and add to workout and uses the existing addition/limit checks. Custom cards and details have a small Custom label; there is no fixed library-count cap.
 - Duplicate either type into an independent custom exercise and open its editor. Copies retain the definition, but start active and unfavourited, with no copied workout history or progress. Built-in originals stay unchanged.
@@ -445,23 +484,31 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 ### Prepare and schedule
 
 - An empty workout shows a dotted Add exercise placeholder that focuses the library.
-- Create reusable workouts mixing activities such as lifting, running, swimming and cycling, with a title, ordered exercises and exercise notes. Optional workout notes start collapsed behind Add notes.
+- Create reusable workouts mixing activities such as lifting, running, swimming and cycling, with a title, ordered exercises and exercise notes. Workout and exercise notes share the same full-width outlined disclosure as Rest, with a right-aligned chevron and a filled indicator when text exists. Expanded notes form one bordered field with the disclosure built into its header. Empty notes start collapsed; saved notes open when editing. Collapsing keeps the text; clear the field to remove a note.
 - Creation/editing has a Cancel action instead of a My workouts back link. The exercise list scrolls while Save draft and Save workout stay at the bottom. Desktop uses the adjacent library directly; Add exercise switches to the library when Day is showing or on narrow screens.
-- Save draft keeps an incomplete workout in My workouts with a Draft label and Continue editing. Drafts may have no exercises or sets; unnamed drafts use Untitled workout. Saved drafts survive refresh and can be edited or deleted.
+- Save draft keeps an incomplete workout in My workouts with a Draft label and Continue editing. Drafts may have no exercises; each exercise in the editor keeps at least one set. Unnamed drafts use Untitled workout. Saved drafts survive refresh and can be edited or deleted.
 - Save workout requires a title, at least one exercise and at least one set per exercise. It makes a draft ready to start or schedule; drafts cannot do either. Saving an existing workout as a draft makes that reusable workout unavailable for starting/scheduling until ready again, without changing its scheduled copies or recorded sessions.
-- Unsaved workout creation/editing recovers automatically after navigation or refresh in the same browser tab, separately for each account and workout. Incomplete and invalid entries are retained. Save or Discard clears recovery; Save draft/Save workout still saves to your account.
+- Unsaved workout creation/editing recovers automatically after navigation or refresh in the same browser tab, separately for each account and workout. Incomplete and invalid entries are retained. A brief Draft restored toast offers Discard; expiry or dismissal keeps the edits. Discard recovered changes remains under Workout actions afterward. Save or Discard clears recovery; Save draft/Save workout still saves to your account.
 - If recovered edits conflict with a newer saved workout, save them as a new draft or discard them to load the latest; recovery never silently overwrites it. If browser storage is unavailable, the editor tells you to save before leaving.
-- Cancel leaves unchanged forms immediately. Unsaved changes offer Save draft, Discard or Keep editing; discarding edits preserves the previously saved workout or draft.
+- Cancel leaves unchanged forms immediately. Unsaved changes open a compact confirmation with Keep editing, Discard and a primary Save draft action. Desktop keeps the choices in one row; phones give Save draft its own full-width row. Discarding edits preserves the previously saved workout or draft.
 - Workout validation appears beside the title, notes, exercise list or affected set field. Save focuses the first problem and opens collapsed cards/timing fields when needed. Incomplete drafts remain supported; invalid entered values must be corrected.
-- Added exercises use compact cards with a six-dot handle, a name that opens exercise help, and a visible remove button. Cards can collapse to their exercise name and set count while keeping help, reordering and removal available; expanding restores entered values. Add set and optional exercise notes sit beneath the set list. Opening notes replaces Add notes with a field below the footer and one × removal control. Removing clears the note and closes its field; workout saves/session autosave persist the removal.
+- Added exercises start expanded for setting targets, using compact cards with a six-dot handle, a name that opens exercise help, and a visible remove button. Collapsed cards show only the exercise header, with help, editor controls, reordering and removal still available; expanding restores entered values. In the set editor, Add set sits directly beneath the set rows, before the divider for Notes. Notes expand below their persistent toggle, using the same control as workout notes. Clearing the field removes the note when the workout saves or the session autosaves.
 - Adding an exercise updates the workout without an added-exercise notification.
+- The last set cannot be removed from an exercise in the set editor or training; remove the exercise itself when it is no longer needed. Additional sets can be removed normally, preserving the remaining targets. Saved or recovered draft exercises with no sets open with one blank, editable set, so Basic always has available measurement fields.
+- During workout creation/editing, each exercise header shows a live target summary beside its name, retained when collapsed: 3 × 12 · 100 kg for matching sets, or ranges such as 3 sets · 8–12 reps · 80–100 kg when targets vary. Mixed measurements group consecutive matching sets in order, such as 1 × 45s / 2 × 8 · 80 kg; longer combinations show the first three groups and a remaining-set count. Partially unset targets are identified. Summaries respect selected measurements and preferred units; hidden saved values and actual session results are excluded.
+- The creation preview starts each exercise with a set count and shared measurement targets. Blank targets are allowed. Advanced editor exposes individual warm-up/working-set targets for selected measurements, with a full-width outlined Measurements disclosure matching Notes and Rest. Its header includes the selected measurements and a far-right chevron; the choices open inside the same bordered field. Custom per-set measurements, differing targets or differing between-set rest keep the exercise in Advanced editor when recovered or reopened. Editing a shared target applies it to all sets. Optional Rest between sets uses a connected field header with a compact timer-style Minutes : Seconds input. Its header shows Rest as needed when unset, the saved duration, No rest for zero, or Varies for differing intervals. Its heading stays full width and outlined even when collapsed. With fewer than two sets it remains visible but disabled, with Requires at least 2 sets; adding a second set enables it. Reducing back to one collapses the editor without clearing stored rest. Focusing either time field selects its number, so typing replaces existing digits or zero padding directly. Set up to 60 minutes; extra seconds carry into minutes on blur. Unset rest means rest as needed, without a timed target. Unused minutes/seconds stay blank when reopening; clearing the entered duration unsets rest. Only an explicitly entered zero means no rest. Reopening the inline editor keeps that zero in the minutes or seconds field where it was entered. Collapsing preserves the value; changing it applies to every between-set rest, excluding the final set. Exercise/workout notes remain available.
+- Reps, load, duration, distance and laps fields select their current number on focus in Basic, Advanced and training. Clicking or tabbing in lets typing replace the existing value directly; blank targets and preferred-unit conversion are retained.
+- In the workout builder, use the copy control beside each set’s + and × to apply filled targets or rest to following existing sets separately. Targets apply only to measurements selected in both sets; blank, invalid and hidden source targets leave destinations unchanged. Rest copies unset, zero or a duration only to following intervals before another set. Earlier sets, measurement overrides, notes and recorded results stay intact; unavailable actions are disabled with an ordinary cursor, and a shared toast confirms changes.
 - In the workout builder, Add set reuses the previous set’s reps, load, duration, distance, laps and rest targets. The first set starts blank; every new set is independent, with no copied actual results or completion.
-- Set rows show the main fields for the exercise’s tracking type. The chevron exposes other measurement targets without clearing their saved values. Each set has a narrow draggable number, appropriately sized main fields, and details/× removal controls on the same row.
-- Rest appears as an editable line between sets: Add rest, No rest, or Rest N sec. It belongs to the preceding set and moves with it. Click to type over the seconds as inline text without an input box; Enter or clicking away finishes editing. Rest is absent from advanced controls and the final set. If removing or reordering sets leaves an invalid final rest value, a visible Clear invalid rest action allows saving; adding a following set restores editing. This applies while building and training.
-- Choose measurements and intent for each exercise while building or training. Saving captures those choices; scheduled copies, program workouts and recorded sessions retain them independently of later definition edits. Changing a preset never clears other measurements. Use one set for a continuous activity or several for repeated intervals.
+- Reset to basic uses a compact confirmation with a short description and Cancel/Reset actions. It removes set measurement overrides, retains shared selected targets/rest, clears differing targets/rest and unselected measurement targets, then returns to basic for adjustment. Cancel preserves the draft; collapsing preserves settings. Set count, notes, intent and recorded results remain intact. Save the workout to persist the reset.
+- Each set inherits the exercise’s measurements until customised. Use + beside the set’s × (Add or remove measurements tooltip) to choose its own fields. The + stays highlighted for custom selections, with a tooltip and accessible description explaining the exception; matching exercise defaults clears that state. Options expand below the inputs inside the shaded set outline. A reset icon alongside the options restores inheritance, with a Reset to exercise measurements tooltip. When a set’s selection matches the exercise, it automatically follows exercise defaults again; the reset icon is disabled. Changing exercise defaults updates inherited sets while differing custom sets keep their selections; hidden values are retained.
+- Overrides survive draft recovery, reordering, added-set target reuse, saves, scheduling, programs, session logging and repeating workouts. History and statistics use each set’s effective selection and preserve original set numbers when filtering results.
+- Set rows show each selected measurement; every selection uses the same outlined set row with measurement fields between the draggable number and remove control. Labels and values retain the same typography as measurements are added. Each selected exercise measurement has its own column, keeping all five on one compact line when space permits. Sets share one horizontal scroll area on narrower screens, with set numbers and actions pinned, complete set outlines and rest controls kept in view. Matching fields retain their positions when another default field is omitted. Set-specific extras use one additional line beneath the default fields. Set/rest spacing stays compact in Advanced editor. Unselected measurement inputs are absent; add them through the measurement selector. Their stored values remain intact. Each set has a draggable number and a removal control. During training, Targets contains only selected measurements.
+- Rest appears as an editable line between sets: Rest as needed when unset, No rest for an explicit zero, or a duration such as Rest 1m 30s. It belongs to the preceding set and moves with it. Click a divider in Advanced editor or training to edit its minutes and seconds in a small, single-line control with visible min/sec suffixes, borderless inputs and a keyboard-focus underline. Touch targets remain usable; the basic Rest editor retains its larger labeled fields. Moving between the fields keeps editing open; Enter or leaving the editor finishes editing and Enter restores focus to the divider. Changes apply only to that rest interval. The final set has no rest control. If removing or reordering sets leaves an invalid final rest value, a visible Clear invalid rest action allows saving; adding a following set restores editing. This applies while building and training.
+- Choose measurements and intent for each exercise while building or training. Saving captures those choices; scheduled copies, program workouts and recorded sessions retain them independently of later definition edits. Adding or removing a measurement never clears its stored targets or actual values. Use one set for a continuous activity or several for repeated intervals.
 - Drag an exercise’s six-dot handle or a set’s number to reorder with a mouse or touch. Set numbers show a subtle border/background on hover or keyboard focus and a visible border on touch. Focus a handle and use Up/Down arrow keys to move it. Escape cancels a drag; release applies the new order. Lists scroll near their edges while dragging. Reordering preserves all targets and set details.
-- The default main area shows Next workout first, saved My workouts below it, and History as a secondary disclosure. Empty sections use short, unboxed messages.
-- Create a workout beside the My workouts heading. Saved cards use two columns when space allows and one on narrower layouts; Next workout stays full-width above them. Saved cards show the title, exercise/set counts and a compact exercise preview; Start workout is the main action, with quieter Edit and Schedule actions beneath it. Start empty workout is a secondary action below the saved list.
+- Training shows saved My workouts and Training programs, each with a primary creation button. Recorded sessions live in History.
+- Create a workout beside the My workouts heading. Saved cards use two columns when space allows and one on narrower layouts. Saved cards show the title, exercise/set counts and a compact exercise preview; Start workout is the main action, with quieter Edit and Schedule actions beneath it.
 - Schedule a workout as Calendar time. Each scheduled workout keeps its own copy of the exercises, captured names and targets. Starting it preserves those names even if a custom exercise has since been renamed.
 - Edit or delete a reusable workout without changing scheduled copies or recorded sessions.
 - Start a scheduled workout from its Fitness card or Calendar editor; starting it again opens the same session.
@@ -470,14 +517,14 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Training programs
 
-- Create named programs from ready saved workouts, with notes, a start date and up to 20 ordered steps. The same workout can appear more than once; the sequence repeats after its last step.
+- Create program beside the Training programs heading opens the dedicated creator. Create named programs from ready saved workouts, with notes, a start date and up to 20 ordered steps. The same workout can appear more than once; the sequence repeats after its last step.
 - Choose preferred weekdays to suggest training dates in your account timezone, or leave them unchecked for a flexible rotation. Date suggestions do not reserve Calendar time or prevent training on another day.
 - Edit program details, add/remove workouts and reorder steps. Changes apply to future workouts; a workout already started or scheduled retains its captured exercises and targets. Unavailable or draft source workouts are identified so you can replace or skip them.
 - Start the next workout directly, or schedule it explicitly. Rescheduling moves the same Calendar entry and keeps your position. Calendar and Fitness open the same linked session.
 - Finishing the session advances the program automatically. Skipping advances without recording a workout and removes that step’s reserved Calendar time; an in-progress session must be finished or discarded first.
 - Pause/resume programs and filter active, paused or all programs. Pausing stops new program actions but preserves access to existing workouts and Calendar entries.
 - Delete a program and its step history without deleting recorded workouts or existing Calendar entries.
-- Review the next step, cycle, finished/skipped counts and paginated history with session links. Training includes a link back to its program; Fitness’s overview shows active programs.
+- Review the next step, cycle, finished/skipped counts and paginated history with session links. Training includes a link back to its program; Training shows active and paused programs directly, with Show more programs for additional results.
 - Counts reflect session corrections/deletions. Deleting the latest session returns that step to ready; deleting an older session does not rewind later steps. Edits preserve step identity when reordering; if a completed step was removed, continuation uses its former position in the revised sequence.
 
 #### Needs work
@@ -488,9 +535,9 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 ### Train
 
 - Show the exercise’s main tracking fields for actual reps, load, duration, distance or laps; advanced controls retain all other fields and planned targets, using preferred kg/lb and km/mi units. Expand targets, exercise details, and workout details when needed.
-- Mark sets Completed or Skipped; other sets remain Unfinished. Skipping remaining sets preserves already completed sets.
+- Mark sets Completed or Skipped; other sets remain Unfinished. Completion requires at least one recorded measurement, including load alone; known zero load is valid. Skipping remaining sets preserves already completed sets.
 - Add, remove, and reorder exercises and sets during the session without changing the reusable workout. Exercise six-dot/trash controls and set number/× controls use the same mouse/touch and keyboard behavior as the builder, preserving actual results and completion state.
-- Show the latest finished session for each exercise and its captured tracking type while training: completed-set count, highest load, most reps, longest set, distance or laps, and recorded volume with incomplete measurements flagged. Open that session or its progress and records.
+- Both workout preparation and training show compact Last time references with the latest actual sets and date for the selected measurements. Open the reference for the full exercise history without leaving the workout. Missing measurements stay explicit, and the current session is excluded.
 - Start an optional rest timer when completing a set with a rest target and another set follows.
 - Session edits save automatically after a short pause; Save changes is also available.
 - Recover session edits across navigation and refresh in the same tab, including incomplete or invalid measurements and date/time entries. Invalid fields keep the session marked Unsaved changes and block saving until corrected. Stale drafts cannot overwrite newer saved changes.
@@ -500,7 +547,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Review and reuse
 
-- See recent workouts in History; expand it to search and filter by In progress or Finished, and load more. Workout choice and History status use searchable custom dropdowns that float over content and dismiss with one outside click, including nearby blank space.
+- Open History to search recorded workouts, filter by In progress or Finished, and load more. Workout choice and History status use searchable custom dropdowns that float over content and dismiss with one outside click, including nearby blank space.
 - Review and correct titles, notes, exercise/set details, and actual start/end times. Start and finish times each show their own validation; correcting one does not clear an error in the other.
 - Finished sessions appear on Calendar with one source of recorded time. Corrections and deletions update Calendar.
 - Repeat a previous session with fresh set completion and empty actual performance; reuse its measurements, intent tags and targets, or actual values where targets were absent.
@@ -508,20 +555,22 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Review completed-set history for an individual exercise and open its original session.
 - Delete a session with confirmation; its planned Calendar time remains.
 
-### Progress
+### Exercise history and statistics
 
-- Open Progress from Fitness to review any local week, with previous/next navigation and a 12-week trend. Weeks follow account timezone and week-start preferences.
+- Each exercise’s History view shows its full last-session set table and expandable older sessions, including load, reps, duration, distance or laps as applicable. Unknown measurements remain labelled Not recorded. There is no separate Progress tab.
+- Weekly totals sit in a secondary disclosure with previous/next navigation. Weeks follow account timezone and week-start preferences.
 - See finished workout count, summed session duration including rest, completed sets, and recorded volume. A workout and its full duration belong to the week it started; planned workouts, ongoing sessions, skipped sets and unfinished sets are excluded.
-- Volume means actual load × reps for sets captured as Reps + load. Unknown values stay unknown, zero load stays zero, and partial totals identify the number of sets missing measurements. Load and volume follow the preferred kg/lb unit.
-- Search all exercises with finished workout history, including archived exercises. Open an exercise’s progress from the list, exercise details or training; results stay separate by the measurements preset captured in each session. Intent tags do not divide progress history.
+- Volume means actual load × reps for sets whose captured measurements include both Reps and Load, including selections with additional measurements. Unknown values stay unknown, zero load stays zero, and partial totals identify the number of sets missing measurements. Load and volume follow the preferred kg/lb unit.
+- Browse exercise history from the Training library, inline picker or a workout. Archived exercises retain history. Results stay separate by the measurement selection captured in each session; intent tags do not divide history.
 - Review all-time personal records for highest load, most reps, longest set, longest distance, most laps or highest set volume, as applicable. Records show the actual set measurements and link to their source workout; ties use the earliest workout.
-- Switch exercise trend measures, view exact chart data and open source sessions. History follows workout dates rather than entry dates; load older sessions to extend the chart. Latest-versus-previous comparisons flag incomplete measurements instead of presenting a complete comparison.
-- Compare a saved workout with the most recent earlier finished workout having the same exercises, order and captured tracking types. Compare session duration and each exercise’s completed sets, best measurements and known volume side by side; matching titles alone do not establish a comparison.
+- Personal records and session statistics sit in secondary disclosures. Switch statistical measures and open source sessions; history follows workout dates rather than entry dates and supports loading older sessions. Latest-versus-previous comparisons flag incomplete measurements. The dot charts have been removed.
+- Compare a saved workout with the most recent earlier finished workout having the same exercises, order and captured measurement selections. Compare session duration and each exercise’s completed sets, best measurements and known volume side by side; matching titles alone do not establish a comparison.
 - Corrections and deletions update derived progress and records. Exercise renaming and archiving preserve access to recorded results.
 
 ### Needs work
 
-- History is accessible from the right-side disclosure; its final placement remains to be decided.
+- The workout creation layout is an owner-requested experiment and may be reverted after review.
+- The live session experience needs further work.
 
 - Exercise visuals are placeholders until the actual assets are ready.
 - Catalogue expansion toward 75–100 exercises, primary/secondary muscle roles and illustration highlighting are planned for later.
@@ -616,14 +665,31 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Across the app
 
+- Shared toasts give brief success, information and error feedback with consistent styling, bottom-right placement, optional actions and dismissal. Calendar and Fitness recovery use them. They avoid phone navigation and fixed workout save actions, pause while hovered or keyboard-focused, and respect reduced motion. Persistent conflicts and field errors remain in the relevant form.
+
+- Shared action tooltips provide consistent styling, delayed hover, keyboard-focus hints, Escape dismissal and placement within the screen. Workout set controls and exercise collapse/remove controls use this treatment; touch actions work directly.
+
 - Responsive layouts support desktop, tablet, and phone screens.
+- The page scrollbar is hidden; wheel, trackpad, touch and keyboard scrolling remain available.
 - Forms keep labels clear of visible keyboard-focus outlines and show validation feedback; failed reads offer retry controls.
 - Supported saves retain their request when a response is uncertain so retrying does not create duplicate records.
 - Conflicting edits are rejected instead of silently overwriting a newer saved version.
 - Dates and local-day summaries follow the account timezone, including daylight-saving changes.
 
+### Assistant preview
+
+- Assistant has a dedicated conversation workspace at /assistant. The floating chat button opens a compact popup from other authenticated pages without unmounting the current workspace; phones use a larger bottom sheet. The launcher stays clear of mobile navigation, fixed workout save actions and ordinary toasts, and is hidden on the Assistant page.
+- On desktop/tablet, drag the quick-chat title bar to move it and use the resize grip to change its size; mouse users can also drag edges/corners. Focus Move quick chat or Resize quick chat and use arrow keys, with Shift for larger steps. Escape cancels an active drag; Reset layout restores the default position and size. Bounds keep the popup reachable when the viewport changes. Layout stays in account-scoped memory across closing/navigation and clears on reload; phones keep the bottom sheet.
+- Quick chat offers Open in Assistant to continue in the dedicated area. Both views share one editable multiline draft; examples append to existing text. Closing, reopening and client navigation retain the draft in account-scoped memory; reload clears it. No saved conversation history is created.
+- Opening quick chat or entering Assistant from a page captures its page/date labels and return link. Conversation context stays attached while browsing elsewhere or entering Assistant. Remove context, Add page context or Use current page makes an explicit change; removing context retains the return destination. Calendar without a date captures account-local today.
+- Return to workout/Food/Tasks/Calendar returns to the captured URL and selected day. Workout creation uses existing draft recovery to retain unsaved targets and notes after the round trip; navigation is blocked while its writes are pending or changed edits cannot be recovered because browser storage failed. Other editors retain their existing unsaved-change confirmations, including cancellation of Open in Assistant.
+- Quick chat is also reachable from native modal editors. Closing it or Escape restores launcher focus without closing the underlying editor. Desktop/tablet quick chat is nonmodal unless an editor is already modal; phones use native modal focus containment.
+- A visible Preview badge, explanatory caption and disabled Send identify the interface. It sends no messages, fetches no records for AI and performs no domain writes.
+
 ### Needs work
 
-- Cross-domain AI and dedicated mobile/desktop apps are planned but not implemented.
+- Some controls elsewhere still use native browser title hints and have not been moved to the shared tooltip component.
+
+- Actual AI conversations, cross-domain information access, saved conversation history and approved app actions are not implemented; Assistant is currently an interface preview. Dedicated mobile/desktop apps remain planned.
 - Custom domains are deferred until later, before the stretch-goal watch app; neither is implemented.
 - Public domain sharing and social features are not implemented.

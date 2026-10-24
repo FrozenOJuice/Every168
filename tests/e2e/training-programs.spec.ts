@@ -65,9 +65,6 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
 }, info) => {
   await setup(page);
   await page.goto("/fitness");
-  await page
-    .getByRole("link", { name: "View programs →", exact: true })
-    .click();
   await page.getByRole("link", { name: "Create program", exact: true }).click();
   await page
     .getByLabel("Program name", { exact: true })
@@ -92,6 +89,18 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     page.getByText("Mon · Wed · Starts Oct 26", { exact: true }),
   ).toBeVisible();
   const programPath = new URL(page.url()).pathname;
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Training", exact: true })
+    .click();
+  const programCard = page
+    .locator(".fitness-program-overview .fitness-program-card")
+    .filter({ hasText: "Two-day strength" });
+  await expect(programCard).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "View programs →", exact: true }),
+  ).toHaveCount(0);
+  await programCard.click();
   await page.getByRole("link", { name: "Edit program", exact: true }).click();
   await page
     .getByLabel("Program notes", { exact: true })

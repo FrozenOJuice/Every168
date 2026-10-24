@@ -185,7 +185,9 @@ export function CalendarMonth({
               day.date,
               week.timezone,
               filter,
-            ).filter((entry) => entry.kind === "moment");
+            ).filter(
+              (entry) => entry.kind === "moment" || entry.kind === "task",
+            );
             const count = records.length + moments.length;
             const limit =
               records.length > capacity.slots
@@ -265,7 +267,12 @@ export function CalendarMonth({
                       aria-label={"Show moments for " + day.date}
                     >
                       {moments.length}
-                      <span className="month-moment-label"> moments</span>
+                      <span className="month-moment-label">
+                        {" "}
+                        {moments.some((e) => e.kind === "task")
+                          ? "tasks / moments"
+                          : "moments"}
+                      </span>
                     </button>
                   )}
                 </div>

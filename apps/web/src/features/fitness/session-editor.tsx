@@ -124,7 +124,7 @@ function SessionEditor({ session }: { session: Workout }) {
         sessionStorage.removeItem(storageKey);
       } catch {}
       invalidateFitness(cache);
-      router.push("/fitness#history");
+      router.push("/fitness/history");
     },
   });
   const reusable = useCommand({
@@ -230,7 +230,7 @@ function SessionEditor({ session }: { session: Workout }) {
   const finished = !!draft.input.endedAt;
   return (
     <div className="fitness-session-workspace" ref={editorRef}>
-      <Link href="/fitness#history">← Fitness</Link>
+      <Link href="/fitness/history">← History</Link>
       <ProgramSessionLink id={session.id} />
       <PageHeading
         title={finished ? "Workout review" : "Workout in progress"}

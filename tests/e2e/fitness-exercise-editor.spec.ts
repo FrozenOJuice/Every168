@@ -17,8 +17,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
       })
     ).status(),
   ).toBe(200);
-  await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page.goto("/fitness/exercises");
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
   });
@@ -32,6 +31,15 @@ test("exercise creation validates, protects changes and adds directly to a worko
   const name = editor.getByLabel("Exercise name", { exact: true });
   await expect(name).toBeFocused();
   await expect(editor.getByLabel("Instructions (optional)")).toBeVisible();
+  if (testInfo.project.name !== "desktop") {
+    const actions = (await editor
+      .locator(".fitness-exercise-editor-footer")
+      .boundingBox())!;
+    const navigation = (await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .boundingBox())!;
+    expect(actions.y + actions.height).toBeLessThanOrEqual(navigation.y);
+  }
   await editor
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
@@ -112,6 +120,10 @@ test("exercise creation validates, protects changes and adds directly to a worko
       ).json()
     ).items,
   ).toEqual([]);
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Training", exact: true })
+    .click();
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
   const workout = page.getByRole("region", {
     name: "Workout workspace",
@@ -120,10 +132,9 @@ test("exercise creation validates, protects changes and adds directly to a worko
   await workout
     .getByLabel("Workout title", { exact: true })
     .fill("Custom workout");
-  if (testInfo.project.name !== "desktop")
-    await workout
-      .getByRole("button", { name: "Add exercise", exact: true })
-      .click();
+  await workout
+    .getByRole("button", { name: "Add exercise", exact: true })
+    .click();
   await library
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
@@ -132,10 +143,6 @@ test("exercise creation validates, protects changes and adds directly to a worko
     .getByRole("button", { name: "Create and add to workout", exact: true })
     .click();
   await expect(editor).toHaveCount(0);
-  if (testInfo.project.name !== "desktop")
-    await page
-      .getByRole("button", { name: "Back to workout", exact: true })
-      .click();
   await expect(
     workout.getByLabel("Workout title", { exact: true }),
   ).toHaveValue("Custom workout");

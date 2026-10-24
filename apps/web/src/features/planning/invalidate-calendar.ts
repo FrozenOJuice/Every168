@@ -4,6 +4,7 @@ export async function invalidateCalendar(cache: QueryClient) {
     [
       "week",
       "fitness",
+      "tasks",
       "calendar-activity",
       "calendar-items",
       "calendar-search",

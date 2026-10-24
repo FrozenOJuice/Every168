@@ -84,7 +84,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   await card
     .getByRole("button", { name: "Collapse Bench press exercise", exact: true })
     .click();
-  await expect(card.getByText("2 sets", { exact: true })).toBeVisible();
+  await expect(card.getByText("2 sets", { exact: true })).toHaveCount(0);
   await expect(first.getByLabel("Target reps", { exact: true })).toBeHidden();
   await save.click();
   await expect(first.getByLabel("Target reps", { exact: true })).toBeFocused();
@@ -134,7 +134,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   await card.getByRole("button", { name: "Add set", exact: true }).click();
   await second
     .getByRole("button", {
-      name: "Edit rest after set 2: Rest 90 sec",
+      name: "Edit rest after set 2: Rest 1m 30s",
       exact: true,
     })
     .click();
@@ -150,7 +150,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
   await card
     .getByRole("button", { name: "Collapse Bench press exercise", exact: true })
     .click();
-  await expect(card.getByText("2 sets", { exact: true })).toBeVisible();
+  await expect(card.getByText("2 sets", { exact: true })).toHaveCount(0);
   await page.screenshot({
     path: testInfo.outputPath("collapsed-workout.png"),
     fullPage: true,

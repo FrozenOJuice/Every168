@@ -130,7 +130,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
 
 test("Cancel leaves unchanged workouts and offers draft, discard and keep editing for changes", async ({
   page,
-}) => {
+}, testInfo) => {
   test.setTimeout(90000);
   expect(
     (
@@ -165,6 +165,43 @@ test("Cancel leaves unchanged workouts and offers draft, discard and keep editin
   await right
     .getByLabel("Workout title", { exact: true })
     .fill("Keep this draft");
+  await cancel();
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText(/Save this as a draft to finish later/),
+  ).toHaveCount(0);
+  const choices = dialog.locator(".fitness-workout-exit-actions");
+  await expect(choices.getByRole("button")).toHaveText([
+    "Keep editing",
+    "Discard",
+    "Save draft",
+  ]);
+  const keep = (await choices
+    .getByRole("button", { name: "Keep editing", exact: true })
+    .boundingBox())!;
+  const discard = (await choices
+    .getByRole("button", { name: "Discard", exact: true })
+    .boundingBox())!;
+  const save = (await choices
+    .getByRole("button", { name: "Save draft", exact: true })
+    .boundingBox())!;
+  for (const box of [keep, discard, save])
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  expect(keep.y).toBeCloseTo(discard.y, 0);
+  if (testInfo.project.name === "phone") {
+    expect(save.y).toBeGreaterThan(keep.y);
+    expect(save.width).toBeCloseTo((await choices.boundingBox())!.width, 0);
+  } else expect(save.y).toBeCloseTo(keep.y, 0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("unsaved-workout.png"),
+    fullPage: true,
+  });
+  await dialog.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    right.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeFocused();
   await cancel();
   await dialog
     .getByRole("button", { name: "Keep editing", exact: true })

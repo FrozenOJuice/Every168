@@ -1,14 +1,13 @@
-import type { ExerciseLoggingType } from "@168hours/contracts";
-export type ExerciseMeasurement =
-  "reps" | "load" | "duration" | "distance" | "laps";
-export const exerciseTrackingFields: Record<
-  ExerciseLoggingType,
-  ExerciseMeasurement[]
-> = {
-  reps_load: ["reps", "load"],
-  reps: ["reps"],
-  duration: ["duration"],
-  duration_load: ["duration", "load"],
-  distance_duration: ["distance", "duration"],
-  laps_duration: ["laps", "duration"],
-};
+import {
+  exerciseLoggingTypeSchema,
+  measurementsFor,
+  type ExerciseLoggingType,
+  type ExerciseMeasurement,
+} from "@168hours/contracts";
+export type { ExerciseMeasurement } from "@168hours/contracts";
+export const exerciseTrackingFields = Object.fromEntries(
+  exerciseLoggingTypeSchema.options.map((type) => [
+    type,
+    measurementsFor(type),
+  ]),
+) as Record<ExerciseLoggingType, ExerciseMeasurement[]>;

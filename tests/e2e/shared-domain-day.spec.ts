@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+test.use({ actionTimeout: 10000 });
 test("Food and Fitness share the selected day while workouts retain their own tools", async ({
   page,
 }, info) => {
@@ -69,9 +70,8 @@ test("Food and Fitness share the selected day while workouts retain their own to
   const navigation = page.getByRole("navigation", { name: "Main navigation" });
   await navigation.getByRole("link", { name: "Fitness", exact: true }).click();
   const mobile = info.project.name !== "desktop";
-  const tabs = page.getByRole("group", { name: "Fitness side panel" });
-  if (mobile)
-    await tabs.getByRole("button", { name: "Day", exact: true }).click();
+  const dayButton = page.getByRole("button", { name: "Day", exact: true });
+  if (mobile) await dayButton.click();
   const panel = mobile
     ? page.getByRole("dialog", { name: "Your day", exact: true })
     : page.getByRole("complementary", { name: "Fitness day panel" });
@@ -97,20 +97,26 @@ test("Food and Fitness share the selected day while workouts retain their own to
     fullPage: true,
   });
   if (mobile) await panel.getByRole("button", { name: "Close dialog" }).click();
-  await tabs.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await page
     .getByRole("searchbox", { name: "Find an exercise", exact: true })
     .fill("walk");
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Training", exact: true })
+    .click();
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
   await page.getByLabel("Workout title", { exact: true }).fill("Keep my draft");
-  await tabs.getByRole("button", { name: "Day", exact: true }).click();
+  if (mobile) await dayButton.click();
   await panel.getByRole("button", { name: "Fitness", exact: true }).click();
   await panel.getByRole("button", { name: "Next day", exact: true }).click();
   if (mobile) await panel.getByRole("button", { name: "Close dialog" }).click();
   await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
     "Keep my draft",
   );
-  await tabs.getByRole("button", { name: "Exercises", exact: true }).click();
   await expect(
     page.getByRole("searchbox", { name: "Find an exercise", exact: true }),
   ).toHaveValue("walk");
@@ -133,8 +139,7 @@ test("Food and Fitness share the selected day while workouts retain their own to
   await page
     .getByLabel("Program name", { exact: true })
     .fill("Unsaved program");
-  if (mobile)
-    await tabs.getByRole("button", { name: "Day", exact: true }).click();
+  if (mobile) await dayButton.click();
   page.once("dialog", (dialog) => dialog.dismiss());
   await panel.getByRole("button", { name: /Next.*Evening walk/ }).click();
   await expect(panel).toBeVisible();
@@ -144,15 +149,20 @@ test("Food and Fitness share the selected day while workouts retain their own to
   );
   await expect(page).toHaveURL(/\/fitness\/programs\/new/);
   await page.getByLabel("Program name", { exact: true }).fill("");
+  page.once("dialog", (dialog) => dialog.accept());
   await navigation.getByRole("link", { name: "Fitness", exact: true }).click();
-  await tabs.getByRole("button", { name: "Exercises", exact: true }).click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  await page
+    .getByRole("navigation", { name: "Fitness views" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
   await page
     .getByLabel("Exercise name", { exact: true })
     .fill("Unsaved exercise");
-  await tabs.getByRole("button", { name: "Day", exact: true }).click();
+  if (mobile) await dayButton.click();
   page.once("dialog", (dialog) => dialog.dismiss());
   await panel.getByRole("button", { name: /Next.*Evening walk/ }).click();
   await expect(panel).toBeVisible();

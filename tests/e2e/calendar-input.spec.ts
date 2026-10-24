@@ -195,7 +195,7 @@ test("Space selects mixed plans, modifier Space groups and Enter edits", async (
   await expect(second).toHaveAttribute("aria-pressed", "true");
   await actions(page).click();
   await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(page.locator(".calendar-notice-message")).toHaveText(
+  await expect(page.locator(".app-toast-message")).toHaveText(
     "3 plans copied.",
   );
   await second.press("Enter");
@@ -232,7 +232,7 @@ test("touch actions support mixed groups, copy, destination paste and undo witho
   await menu(page)
     .getByRole("menuitem", { name: "Paste into day", exact: true })
     .tap();
-  await expect(page.locator(".calendar-notice-message")).toBeVisible();
+  await expect(page.locator(".app-toast-message")).toBeVisible();
   await page.getByRole("button", { name: "Undo", exact: true }).tap();
   await expect(page.locator(".calendar-interactions")).toHaveAttribute(
     "aria-busy",
@@ -297,7 +297,7 @@ test("overflow lists expose the same explicit actions and selection toggle", asy
   await popup.getByRole("button", { name: "Actions", exact: true }).click();
   await expect(popup.getByRole("menu")).toBeVisible();
   await popup.getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(popup.locator(".calendar-notice-message")).toHaveText(
+  await expect(popup.locator(".app-toast-message")).toHaveText(
     "2 plans copied.",
   );
   await popup.getByRole("button", { name: "Actions", exact: true }).click();
@@ -326,7 +326,7 @@ test("multi-select context menus preserve selected groups and replace them for u
     menu(page).getByRole("menuitem", { name: "Edit", exact: true }),
   ).toHaveCount(0);
   await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(page.locator(".calendar-notice-message")).toHaveText(
+  await expect(page.locator(".app-toast-message")).toHaveText(
     "2 plans copied.",
   );
   await second.click({ button: "right" });
@@ -337,9 +337,7 @@ test("multi-select context menus preserve selected groups and replace them for u
     menu(page).getByRole("menuitem", { name: "Edit", exact: true }),
   ).toBeVisible();
   await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(page.locator(".calendar-notice-message")).toHaveText(
-    "Plan copied.",
-  );
+  await expect(page.locator(".app-toast-message")).toHaveText("Plan copied.");
   await allDay.click({ button: "right" });
   await expect(allDay).toHaveAttribute("aria-pressed", "true");
   await expect(second).toHaveAttribute("aria-pressed", "false");
@@ -372,7 +370,7 @@ test("keyboard date and view navigation clear plan selections and anchors withou
   await gridFirst.press("Space");
   await gridAllDay.press("Control+Space");
   await page.keyboard.press("Control+c");
-  await expect(page.locator(".calendar-notice-message")).toHaveText(
+  await expect(page.locator(".app-toast-message")).toHaveText(
     "2 plans copied.",
   );
   await page
@@ -431,9 +429,7 @@ test("Actions resolves selected plan data without a rendered plan anchor and ret
     menu(page).getByRole("menuitem", { name: "Copy", exact: true }),
   ).toBeEnabled();
   await menu(page).getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(page.locator(".calendar-notice-message")).toHaveText(
-    "Plan copied.",
-  );
+  await expect(page.locator(".app-toast-message")).toHaveText("Plan copied.");
   await style.evaluate((element) => element.remove());
   await slot(page, date, 10).focus();
   await page.keyboard.press("ArrowDown");

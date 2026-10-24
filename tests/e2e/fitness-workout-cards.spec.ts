@@ -227,7 +227,7 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     .click();
   await expect(
     rows.first().getByRole("button", {
-      name: "Edit rest after set 1: Rest 90 sec",
+      name: "Edit rest after set 1: Rest 1m 30s",
       exact: true,
     }),
   ).toBeVisible();

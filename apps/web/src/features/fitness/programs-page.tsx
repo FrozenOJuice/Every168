@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Loading, ErrorState, PageHeading } from "@/components/ui/feedback";
@@ -44,12 +45,18 @@ export function ProgramsPage() {
 }
 export function ProgramsOverview() {
   return (
-    <section className="form-stack" aria-labelledby="programs-heading">
+    <section
+      className="fitness-program-overview"
+      aria-labelledby="programs-heading"
+    >
       <div className="fitness-section-heading">
         <h2 id="programs-heading">Training programs</h2>
-        <Link href="/fitness/programs">View programs →</Link>
+        <Link className="button primary" href="/fitness/programs/new">
+          <Plus size={16} aria-hidden="true" />
+          Create program
+        </Link>
       </div>
-      <ProgramList compact status="active" />
+      <ProgramList compact status="all" />
     </section>
   );
 }
@@ -99,20 +106,20 @@ function ProgramList({
           ))}
       </div>
       {!q.data.pages[0]?.items.length && (
-        <p className="muted">
+        <p className={compact ? "fitness-overview-empty" : "muted"}>
           No {status === "all" ? "" : status + " "}programs yet.{" "}
-          {status !== "paused" && (
+          {!compact && status !== "paused" && (
             <Link href="/fitness/programs/new">Create a program</Link>
           )}
         </p>
       )}
-      {q.hasNextPage && !compact && (
+      {q.hasNextPage && (
         <button
           className="button"
           disabled={q.isFetchingNextPage}
           onClick={() => void q.fetchNextPage()}
         >
-          More programs
+          {compact ? "Show more programs" : "More programs"}
         </button>
       )}
     </>

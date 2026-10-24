@@ -207,7 +207,7 @@ export function planningService(
       tx: TransactionContext,
       u: string,
       input: TimeEntryInput & {
-        sourceType: "strength_workout" | "cardio_activity";
+        sourceType: "strength_workout" | "cardio_activity" | "task_time";
         sourceId: string;
       },
     ) {

@@ -10,30 +10,6 @@
 .food-main {
   min-width: 0;
 }
-.food-header {
-  height: 76px;
-  padding: 0 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border);
-}
-.food-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.food-title > svg {
-  color: var(--primary);
-}
-.food-title h1 {
-  margin: 0;
-  font-size: 1.3rem;
-  letter-spacing: -0.04em;
-}
-.food-header .food-mobile-day {
-  display: none;
-}
 .food-nav {
   display: flex;
   gap: 24px;
@@ -323,9 +299,6 @@
   .domain-calendar-rail {
     display: none;
   }
-  .food-header .food-mobile-day {
-    display: inline-flex;
-  }
 }
 @media (max-width: 900px) {
   .main-content:has(.food-workspace) {
@@ -333,10 +306,6 @@
   }
   .food-workspace {
     min-height: calc(100dvh - 144px);
-  }
-  .food-header {
-    height: 64px;
-    padding: 0 20px;
   }
   .food-nav {
     padding: 0 20px;

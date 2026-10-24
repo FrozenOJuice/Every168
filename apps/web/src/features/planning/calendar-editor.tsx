@@ -1,3 +1,7 @@
+import {
+  TaskBlockAction,
+  TaskTimeAction,
+} from "@/features/tasks/calendar-task-actions";
 import Link from "next/link";
 import { ScheduledWorkoutAction } from "@/features/fitness/scheduled-workout-action";
 import { CalendarComposer } from "./calendar-composer";
@@ -114,7 +118,9 @@ export function CalendarEditor({
             <p className="muted text-small">
               {"sourceType" in item && item.sourceType === "strength_workout"
                 ? "Recorded from Fitness. Open the session to review or correct it."
-                : "Recorded activity. Its editing workspace is not available yet."}
+                : item.sourceType === "task_time"
+                  ? "Recorded from Tasks. Open Tasks to review or correct it."
+                  : "Recorded activity. Its editing workspace is not available yet."}
             </p>
           </div>
         </div>
@@ -138,6 +144,10 @@ export function CalendarEditor({
           </Link>
         )}
       {plan && <ScheduledWorkoutAction blockId={plan.id} />}
+      {plan && <TaskBlockAction blockId={plan.id} />}
+      {automatic && "sourceType" in item && item.sourceType === "task_time" && (
+        <TaskTimeAction sourceId={item.sourceId!} />
+      )}
       {editor.allDayItem && (
         <details className="calendar-block-actions">
           <summary>Actions</summary>

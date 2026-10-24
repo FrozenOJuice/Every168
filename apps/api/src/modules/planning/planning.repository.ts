@@ -644,7 +644,7 @@ export function planningRepository(db: Database) {
       context: TransactionContext,
       u: string,
       input: TimeEntryInput & {
-        sourceType: "strength_workout" | "cardio_activity";
+        sourceType: "strength_workout" | "cardio_activity" | "task_time";
         sourceId: string;
       },
     ) {
@@ -674,7 +674,7 @@ export function planningRepository(db: Database) {
     removeSource: (
       context: TransactionContext,
       u: string,
-      type: "strength_workout" | "cardio_activity",
+      type: "strength_workout" | "cardio_activity" | "task_time",
       id: string,
     ) =>
       databaseFor(db, context)

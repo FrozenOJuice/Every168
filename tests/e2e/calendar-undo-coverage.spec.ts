@@ -188,7 +188,7 @@ test("undo activity logged through Calendar quick actions at its source", async 
     const record = await (await response).json();
     await expect(dialog).toHaveCount(0);
     await expect(page).toHaveURL(/view=day/);
-    const notice = page.locator(".calendar-notice");
+    const notice = page.locator(".app-toast");
     await expect(
       notice.getByRole("button", { name: "Undo", exact: true }),
     ).toBeVisible();

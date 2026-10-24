@@ -196,6 +196,9 @@ it("returns chronological session trends and all-time records with source sets, 
       .body,
   );
   expect(first.sessions.items[0]?.id).toBe(later.id);
+  expect(first.sessions.items[0]?.sets).toMatchObject([
+    { reps: 8, weightKg: 50 },
+  ]);
   expect(first.records.find((r) => r.metric === "load")).toMatchObject({
     value: 50,
     workoutId: earlier.id,
@@ -213,6 +216,10 @@ it("returns chronological session trends and all-time records with source sets, 
   );
   expect(second.sessions.items[0]?.id).toBe(earlier.id);
   expect(second.sessions.items[0]?.volumeKg).toBe(600);
+  expect(second.sessions.items[0]?.sets).toMatchObject([
+    { reps: 12, weightKg: 50 },
+    { reps: 5, weightKg: 0 },
+  ]);
   expect(second.sessions.nextCursor).toBeNull();
   const timed = exerciseReportSchema.parse(
     (
@@ -229,7 +236,14 @@ it("returns chronological session trends and all-time records with source sets, 
   await a.write("post", `exercises/${e.id}/archive`, {}, e.version).expect(200);
   expect(
     (await a.get("fitness-progress/exercises?search=Records")).body.items[0],
-  ).toMatchObject({ id: e.id, archived: true });
+  ).toMatchObject({
+    id: e.id,
+    archived: true,
+    latest: {
+      loggingType: "duration_load",
+      sets: [{ durationSeconds: 60, weightKg: 100 }],
+    },
+  });
   expect(
     (await a.get(`fitness-progress/exercises/${e.id}`)).body.records,
   ).toHaveLength(3);
@@ -358,4 +372,228 @@ it("scopes every progress read and reference to its owner and rejects malformed 
     .expect(422);
   await a.get(`fitness-progress/exercises/${e.id}?cursor=invalid`).expect(422);
   await request(app).get("/api/v1/fitness-progress").expect(401);
+});
+
+it("persists independent measurements through plans and sessions and derives mixed-field metrics", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const { body: exercise } = await a
+    .write("post", "exercises", {
+      name: "Mixed measurements",
+      loggingType: "reps_distance_laps_duration_load",
+    })
+    .expect(201);
+  const { body: plan } = await a
+    .write("post", "strength-plans", {
+      title: "Mixed workout",
+      exercises: [
+        {
+          exerciseId: exercise.id,
+          loggingType: "reps_duration_load",
+          sets: [
+            { targetReps: 8, targetWeightKg: 20, targetDurationSeconds: 60 },
+          ],
+        },
+      ],
+    })
+    .expect(201);
+  const { body: begun } = await a
+    .write(
+      "post",
+      `strength-plans/${plan.id}/begin`,
+      {
+        startedAt: "2026-10-20T12:00:00Z",
+      },
+      plan.version,
+    )
+    .expect(201);
+  expect(begun.exercises[0]).toMatchObject({
+    loggingType: "reps_duration_load",
+  });
+  expect(begun.exercises[0].sets[0]).toMatchObject({
+    targetReps: 8,
+    targetWeightKg: 20,
+    targetDurationSeconds: 60,
+  });
+  const w = await workout(
+    a,
+    exercise.id,
+    "2026-10-21T12:00:00Z",
+    [
+      {
+        reps: 8,
+        weightKg: 20,
+        durationSeconds: 60,
+        distanceMeters: 100,
+        laps: 2,
+        completed: true,
+      },
+    ],
+    { mode: "reps_distance_laps_duration_load" },
+  );
+  const path = `fitness-progress/exercises/${exercise.id}?loggingType=reps_distance_laps_duration_load`;
+  const { body: report } = await a.get(path).expect(200);
+  expect(report.sessions.items[0]).toMatchObject({
+    maxReps: 8,
+    maxWeightKg: 20,
+    maxDurationSeconds: 60,
+    maxDistanceMeters: 100,
+    maxLaps: 2,
+    volumeKg: 160,
+    missingVolumeSets: 0,
+  });
+  expect(
+    report.records.map((r: { metric: string }) => r.metric).sort(),
+  ).toEqual(
+    ["distance", "duration", "laps", "load", "reps", "setVolume"].sort(),
+  );
+  await b.get(path).expect(404);
+  const { body: comparison } = await a
+    .get(`fitness-progress/workouts/${w.id}`)
+    .expect(200);
+  expect(comparison.current.exercises[0]).toMatchObject({
+    volumeKg: 160,
+    maxDurationSeconds: 60,
+  });
+  await workout(
+    a,
+    exercise.id,
+    "2026-10-22T12:00:00Z",
+    [
+      {
+        weightKg: 0,
+        completed: true,
+      },
+    ],
+    { mode: "load" },
+  );
+  const { body: loadOnly } = await a
+    .get(`fitness-progress/exercises/${exercise.id}?loggingType=load`)
+    .expect(200);
+  expect(loadOnly.sessions.items[0]).toMatchObject({
+    maxWeightKg: 0,
+    maxReps: null,
+    maxDurationSeconds: null,
+    volumeKg: null,
+  });
+});
+
+it("keeps per-set overrides through scheduling, starting and repeating, and reports effective measurements", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const { body: exercise } = await a
+    .write("post", "exercises", { name: "Set variants" })
+    .expect(201);
+  const { body: plan } = await a
+    .write("post", "strength-plans", {
+      title: "Set variants",
+      exercises: [
+        {
+          exerciseId: exercise.id,
+          loggingType: "reps_load",
+          sets: [
+            {
+              measurementOverride: "reps_load",
+              targetReps: 8,
+              targetWeightKg: 20,
+            },
+            {
+              measurementOverride: "duration",
+              targetDurationSeconds: 45,
+              targetWeightKg: 20,
+            },
+          ],
+        },
+      ],
+    })
+    .expect(201);
+  const { body: scheduled } = await a
+    .write(
+      "post",
+      `strength-plans/${plan.id}/schedule`,
+      {
+        startsAt: "2026-10-20T12:00:00Z",
+        endsAt: "2026-10-20T13:00:00Z",
+      },
+      plan.version,
+    )
+    .expect(201);
+  expect(scheduled.exercises[0].sets[0].measurementOverride).toBeNull();
+  expect(scheduled.exercises[0].sets[1].measurementOverride).toBe("duration");
+  const { body: begun } = await a
+    .write(
+      "post",
+      `strength-plans/${scheduled.id}/begin`,
+      {
+        startedAt: "2026-10-20T12:00:00Z",
+      },
+      scheduled.version,
+    )
+    .expect(201);
+  expect(begun.exercises[0].sets[1]).toMatchObject({
+    measurementOverride: "duration",
+    targetDurationSeconds: 45,
+    targetWeightKg: 20,
+  });
+  const w = await workout(a, exercise.id, "2026-10-21T12:00:00Z", [
+    {
+      measurementOverride: "reps_load",
+      reps: 8,
+      weightKg: 20,
+      completed: true,
+    },
+    {
+      measurementOverride: "duration",
+      reps: 100,
+      weightKg: 100,
+      durationSeconds: 45,
+      completed: true,
+    },
+  ]);
+  expect(w.exercises[0]!.sets[0]!.measurementOverride).toBeNull();
+  const { body: duration } = await a
+    .get(`fitness-progress/exercises/${exercise.id}?loggingType=duration`)
+    .expect(200);
+  expect(duration.sessions.items[0]).toMatchObject({
+    maxDurationSeconds: 45,
+    maxReps: null,
+    maxWeightKg: null,
+    volumeKg: null,
+  });
+  expect(duration.sessions.items[0].sets[0].position).toBe(1);
+  const { body: weighted } = await a
+    .get(`fitness-progress/exercises/${exercise.id}?loggingType=reps_load`)
+    .expect(200);
+  expect(weighted.sessions.items[0]).toMatchObject({
+    completedSets: 1,
+    volumeKg: 160,
+    maxWeightKg: 20,
+  });
+  const { body: comparison } = await a
+    .get(`fitness-progress/workouts/${w.id}`)
+    .expect(200);
+  expect(comparison.current.exercises[0]).toMatchObject({
+    completedSets: 2,
+    maxReps: 8,
+    maxWeightKg: 20,
+    maxDurationSeconds: 45,
+    volumeKg: 160,
+  });
+  const { body: repeated } = await a
+    .write("post", `strength-workouts/${w.id}/repeat`, {}, w.version)
+    .expect(201);
+  expect(repeated.exercises[0].sets[1]).toMatchObject({
+    measurementOverride: "duration",
+    completed: false,
+    durationSeconds: null,
+  });
+  await b.get(`strength-workouts/${w.id}`).expect(404);
+  await a
+    .write("post", "strength-plans", {
+      title: "Invalid",
+      exercises: [
+        { exerciseId: exercise.id, sets: [{ measurementOverride: "unknown" }] },
+      ],
+    })
+    .expect(422);
 });

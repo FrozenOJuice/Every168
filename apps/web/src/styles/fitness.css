@@ -1565,35 +1565,6 @@
     padding: 0;
     border: 0;
   }
-  .fitness-library-workspace.has-active-workout:not(.shows-mobile-library)
-    .fitness-exercise-panel,
-  .fitness-library-workspace.has-active-workout.shows-mobile-library
-    .fitness-primary-pane {
-    display: none;
-  }
-  .fitness-library-workspace .fitness-library.has-editor .fitness-primary-pane {
-    display: block;
-  }
-  .fitness-library-workspace
-    .fitness-library.has-editor
-    .fitness-exercise-panel,
-  .fitness-library-host:has(.fitness-library.has-editor)
-    .fitness-mobile-workout-return {
-    display: none;
-  }
-  .fitness-mobile-workout-return {
-    position: sticky;
-    top: 64px;
-    z-index: 10;
-    background: var(--background);
-    width: 100%;
-    justify-content: flex-start;
-    margin-bottom: 12px;
-  }
-  .fitness-library-workspace.has-active-workout:not(.shows-mobile-library)
-    .fitness-mobile-workout-return {
-    display: none;
-  }
   .fitness-main-workspace .fitness-set-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1818,7 +1789,7 @@
 }
 .fitness-main-workspace .fitness-compact-exercise,
 .fitness-compact-exercise {
-  --fitness-set-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px 44px;
+  --fitness-set-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 44px;
   position: relative;
   padding: 8px;
   gap: 0;
@@ -1970,24 +1941,12 @@
   gap: 2px 16px;
   padding: 2px 8px 0;
 }
-.fitness-workout-exercise-footer .fitness-text-action {
+.fitness-add-set {
+  margin-top: 4px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-weight: 500;
-}
-.fitness-exercise-note-editor {
-  padding: 0 8px 8px;
-}
-.fitness-exercise-note-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--muted-foreground);
-  font-size: 0.8rem;
-}
-.fitness-exercise-note-editor textarea {
-  min-height: 64px;
 }
 .fitness-reorder-handle.fitness-set-number:not(:disabled):hover,
 .fitness-reorder-handle.fitness-set-number:focus-visible {
@@ -2137,14 +2096,6 @@
 .fitness-exercise-collapse[aria-expanded="false"] > svg {
   transform: rotate(-90deg);
 }
-.fitness-collapsed-exercise-summary {
-  margin: 0 8px 8px 44px;
-  font-size: 0.8rem;
-  color: var(--muted-foreground);
-}
-.fitness-compact-exercise > [hidden] {
-  display: none;
-}
 .fitness-field-error {
   margin: 6px 0 0;
   font-size: 0.72rem;
@@ -2161,7 +2112,7 @@
 
 .fitness-exercise-fields[data-logging-type="reps"],
 .fitness-exercise-fields[data-logging-type="duration"] {
-  --fitness-set-columns: 44px minmax(0, 1fr) 44px 44px;
+  --fitness-set-columns: 44px minmax(0, 1fr) 44px;
 }
 .fitness-exercise-fields .fitness-set-fields.is-actual {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2199,33 +2150,8 @@
   font-size: 0.75rem;
   color: var(--primary);
 }
-.fitness-rest-line-editor label {
-  font-weight: inherit;
-}
-.fitness-rest-line-editor input {
-  appearance: textfield;
-  min-width: 2ch;
-  min-height: 44px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: center;
-  box-shadow: none;
-}
-.fitness-rest-line-editor input:focus-visible {
-  outline: none;
-  background-image: linear-gradient(currentColor, currentColor);
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  background-position: center calc(50% + 0.65em);
-}
-.fitness-rest-line-editor input::-webkit-inner-spin-button,
-.fitness-rest-line-editor input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+.fitness-rest-line-editor[hidden] {
+  display: none;
 }
 .fitness-rest-line-editor .fitness-field-error {
   flex-basis: 100%;
@@ -2412,4 +2338,30 @@
 }
 .fitness-program-next {
   overflow-wrap: anywhere;
+}
+
+.fitness-exercise-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition:
+    grid-template-rows 240ms cubic-bezier(0.2, 0, 0, 1),
+    visibility 0s;
+}
+.fitness-exercise-body[data-collapsed="true"] {
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows 240ms cubic-bezier(0.2, 0, 0, 1),
+    visibility 0s 240ms;
+}
+.fitness-exercise-body-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fitness-exercise-body,
+  .fitness-exercise-body[data-collapsed="true"] {
+    transition: none;
+  }
 }

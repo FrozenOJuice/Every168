@@ -52,7 +52,8 @@ export function useReorderList<T>(
     let scroller: HTMLElement | null = root.current;
     while (
       scroller &&
-      !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)
+      (!/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) ||
+        scroller.scrollHeight <= scroller.clientHeight)
     )
       scroller = scroller.parentElement;
     const initialScroll = scroller?.scrollTop ?? window.scrollY;

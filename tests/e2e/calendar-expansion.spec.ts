@@ -179,13 +179,13 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     .getByRole("button", { name: "Select 2026-09-07", exact: true })
     .click();
   await page.keyboard.press("Meta+c");
-  await expect(page.locator(".calendar-notice")).toContainText("1 day copied.");
+  await expect(page.locator(".app-toast")).toContainText("1 day copied.");
   await page.goto("/?date=2026-09-14&view=day");
   await day
     .getByRole("button", { name: "Select 2026-09-14", exact: true })
     .click();
   await page.keyboard.press("Meta+v");
-  await expect(page.locator(".calendar-notice")).toContainText("Plans pasted");
+  await expect(page.locator(".app-toast")).toContainText("Plans pasted");
   await tool("Templates");
   await dialog
     .getByRole("button", { name: "Save calendar as template" })

@@ -1,3 +1,4 @@
+import { measurementsFor } from "@168hours/contracts";
 import { addDays, localDate, weekRange } from "@168hours/domain-utils";
 import type {
   ExerciseReportQuery,
@@ -20,48 +21,50 @@ function summarize(workout: SavedWorkout) {
       ? (workout.endedAt.getTime() - workout.startedAt.getTime()) / 1000
       : null,
     exercises: workout.exercises.map((e) => {
+      const selected = (s: (typeof e.sets)[number]) =>
+        measurementsFor(s.measurementOverride ?? e.loggingType);
+      const weighted = (s: (typeof e.sets)[number]) =>
+        selected(s).includes("reps") && selected(s).includes("load");
       const sets = e.sets.filter((s) => s.completed && !s.skipped);
       const maximum = (
         key:
           "reps" | "weightKg" | "durationSeconds" | "distanceMeters" | "laps",
       ) => {
-        const values = sets.flatMap((s) => (s[key] === null ? [] : [s[key]!]));
+        const field = {
+          reps: "reps",
+          weightKg: "load",
+          durationSeconds: "duration",
+          distanceMeters: "distance",
+          laps: "laps",
+        } as const;
+        const values = sets.flatMap((s) =>
+          s[key] === null || !selected(s).includes(field[key]) ? [] : [s[key]!],
+        );
         return values.length ? Math.max(...values) : null;
       };
-      const volume =
-        e.loggingType === "reps_load"
-          ? sets.filter((s) => s.reps !== null && s.weightKg !== null)
-          : [];
+      const weightedSets = sets.filter(weighted);
+      const volume = weightedSets.filter(
+        (s) => s.reps !== null && s.weightKg !== null,
+      );
       const metrics: StrengthMetrics = {
         completedSets: sets.length,
-        maxReps:
-          e.loggingType === "reps" || e.loggingType === "reps_load"
-            ? maximum("reps")
-            : null,
-        maxWeightKg:
-          e.loggingType === "reps_load" || e.loggingType === "duration_load"
-            ? maximum("weightKg")
-            : null,
-        maxDurationSeconds: [
-          "duration",
-          "duration_load",
-          "distance_duration",
-          "laps_duration",
-        ].includes(e.loggingType)
-          ? maximum("durationSeconds")
-          : null,
+        maxReps: maximum("reps"),
+        maxWeightKg: maximum("weightKg"),
+        maxDurationSeconds: maximum("durationSeconds"),
         maxDistanceMeters: maximum("distanceMeters"),
         maxLaps: maximum("laps"),
         volumeKg: volume.length
           ? volume.reduce((total, s) => total + s.reps! * s.weightKg!, 0)
           : null,
-        missingVolumeSets:
-          e.loggingType === "reps_load" ? sets.length - volume.length : 0,
+        missingVolumeSets: weightedSets.length - volume.length,
       };
       return {
         exerciseId: e.exerciseId,
         name: e.exerciseNameSnapshot,
         loggingType: e.loggingType,
+        measurementTypes: [
+          ...new Set(e.sets.map((s) => s.measurementOverride ?? e.loggingType)),
+        ],
         ...metrics,
       };
     }),

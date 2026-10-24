@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useLayoutEffect, useCallback, useId } from "react";
 import { Plus } from "lucide-react";
+import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { emptySet, type ExerciseDraft } from "./strength-draft";
 import { WorkoutExerciseCard } from "./workout-exercise-card";
@@ -14,6 +15,7 @@ export function StrengthExercises({
   building = false,
   errors = {},
   onRest,
+  onNotice,
   disabled = false,
 }: {
   value: ExerciseDraft[];
@@ -23,6 +25,7 @@ export function StrengthExercises({
   building?: boolean;
   errors?: Record<string, string>;
   onRest?: (seconds: number) => void;
+  onNotice?: (message: string) => void;
   disabled?: boolean;
 }) {
   const errorId = useId();
@@ -62,7 +65,17 @@ export function StrengthExercises({
   } = useReorderList(value, onChange, disabled);
   return (
     <div className="fitness-workout-exercises">
-      {building && !value.length && (
+      {building && workoutCreationExperiment && !value.length && (
+        <div
+          className="fitness-builder-empty fitness-builder-library-hint"
+          tabIndex={-1}
+          data-validation-error={!!errors.exercises}
+          aria-describedby={errors.exercises ? errorId : undefined}
+        >
+          Choose exercises from the library to add them to your workout.
+        </div>
+      )}
+      {building && !workoutCreationExperiment && !value.length && (
         <button
           type="button"
           className="fitness-builder-empty"
@@ -102,6 +115,7 @@ export function StrengthExercises({
               sessionId={sessionId}
               disabled={disabled}
               onRest={onRest}
+              onNotice={onNotice}
               handle={handle(index, `exercise ${index + 1}: ${exercise.name}`)}
               onChange={(next) => update(index, next)}
               onRemove={() => {
@@ -132,7 +146,7 @@ export function StrengthExercises({
         ))}
       </div>
       {feedback}
-      {(!building || value.length > 0) && (
+      {(!building || (!workoutCreationExperiment && value.length > 0)) && (
         <button
           type="button"
           className={`button${building ? " fitness-builder-add-exercise" : ""}`}

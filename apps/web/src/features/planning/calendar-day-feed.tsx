@@ -2,6 +2,7 @@ import { CalendarSourceLink } from "./calendar-source-link";
 import {
   Activity,
   CircleDot,
+  CheckSquare,
   Droplet,
   Dumbbell,
   Scale,
@@ -25,6 +26,7 @@ import {
 import { activityOnDate } from "./calendar-activity";
 const icons = {
   activity: Activity,
+  check: CheckSquare,
   droplet: Droplet,
   dumbbell: Dumbbell,
   scale: Scale,
@@ -57,19 +59,23 @@ export function ActivityLink({
         <strong>{entry.title}</strong>
       </span>
       <span>
-        {formatTime(entry.occurredAt, timezone, true)}
+        {entry.kind === "task"
+          ? "Any time"
+          : formatTime(entry.occurredAt, timezone, true)}
         {entry.endsAt ? " – " + formatTime(entry.endsAt, timezone, true) : ""}
       </span>
       <span>{entry.summary}</span>
       <small>
         {entry.domain} ·{" "}
-        {entry.kind === "moment"
-          ? "Moment"
-          : entry.status === "draft"
-            ? entry.domain === "Fitness"
-              ? "In progress"
-              : "Draft session"
-            : "Recorded session"}
+        {entry.kind === "task"
+          ? "Task"
+          : entry.kind === "moment"
+            ? "Moment"
+            : entry.status === "draft"
+              ? entry.domain === "Fitness"
+                ? "In progress"
+                : "Draft session"
+              : "Recorded session"}
       </small>
     </>
   );
@@ -124,17 +130,20 @@ export function CalendarDayFeed({
       record,
       activity: null as CalendarActivity | null,
     })),
-    ...domain.map((entry) => ({
-      key: entry.source.type + entry.source.id,
-      at: entry.occurredAt,
-      end: entry.endsAt,
-      record: null,
-      activity: entry,
-    })),
+    ...domain
+      .filter((entry) => entry.kind !== "task")
+      .map((entry) => ({
+        key: entry.source.type + entry.source.id,
+        at: entry.occurredAt,
+        end: entry.endsAt,
+        record: null,
+        activity: entry,
+      })),
   ].sort(
     (a, b) => Date.parse(a.at) - Date.parse(b.at) || a.key.localeCompare(b.key),
   );
   const anytime = itemsOnDate(items, date, filter);
+  const datedTasks = domain.filter((entry) => entry.kind === "task");
   const upcoming = feed.filter(
     (entry) => Date.parse(entry.at) > Date.parse(now),
   );
@@ -193,10 +202,19 @@ export function CalendarDayFeed({
             ))}
         </div>
       )}
-      {anytime.length > 0 && (
+      {(anytime.length > 0 || datedTasks.length > 0) && (
         <>
           <h3>Any time</h3>
           <ol className="day-records">
+            {datedTasks.map((entry) => (
+              <li key={entry.source.type + entry.source.id}>
+                <ActivityLink
+                  entry={entry}
+                  timezone={week.timezone}
+                  onOpen={onOpenActivity}
+                />
+              </li>
+            ))}
             {anytime.map((item) => (
               <li key={item.id}>
                 <CalendarItemButton
@@ -273,7 +291,7 @@ export function CalendarDayFeed({
             </div>
           ),
       )}
-      {!feed.length && !anytime.length && (
+      {!feed.length && !anytime.length && !datedTasks.length && (
         <p className="empty">No plans or activity for this day yet.</p>
       )}
       {activity.truncatedSources.map((source, index) => (

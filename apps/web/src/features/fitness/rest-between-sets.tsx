@@ -1,6 +1,7 @@
 "use client";
-import { useId, useLayoutEffect, useRef, useState } from "react";
-import { number } from "@/lib/format";
+import { useLayoutEffect, useRef, useState } from "react";
+import { RestDurationField } from "./rest-duration-field";
+import { formatRestDuration } from "./rest-duration";
 
 export function RestBetweenSets({
   value,
@@ -16,67 +17,55 @@ export function RestBetweenSets({
   error?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const id = useId();
-  const editor = useRef<HTMLInputElement>(null);
+  const editor = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   if (error && !open) setOpen(true);
   useLayoutEffect(() => {
-    if (open) editor.current?.focus();
-    if (open) editor.current?.select();
+    if (open) {
+      const input = editor.current?.querySelector("input");
+      input?.focus();
+      input?.select();
+    }
   }, [open]);
   const label =
     value === null
-      ? "Add rest"
+      ? "Rest as needed"
       : value === 0
         ? "No rest"
-        : `Rest ${number(value)} sec`;
+        : `Rest ${formatRestDuration(value)}`;
   return (
     <div className="fitness-rest-between-sets">
-      {open ? (
-        <div className="fitness-rest-line-editor">
-          <label htmlFor={id}>Rest</label>
-          <input
-            ref={editor}
-            id={id}
-            aria-label="Rest (seconds)"
-            aria-invalid={!!error}
-            aria-describedby={error ? `${id}-error` : undefined}
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={3600}
-            step={1}
-            style={{ width: `${Math.max(2, String(value ?? "").length)}ch` }}
-            value={value ?? ""}
-            disabled={disabled}
-            onChange={(event) =>
-              onChange(
-                event.target.value === "" ? null : Number(event.target.value),
-              )
-            }
-            onBlur={() => {
-              if (!error) setOpen(false);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !error) {
-                event.preventDefault();
-                setOpen(false);
-                requestAnimationFrame(() => trigger.current?.focus());
-              }
-            }}
-          />
-          <span>sec</span>
-          {error && (
-            <p
-              id={`${id}-error`}
-              className="error fitness-field-error"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-        </div>
-      ) : (
+      <div
+        hidden={!open}
+        ref={editor}
+        className="fitness-rest-line-editor"
+        onBlur={(event) => {
+          if (!error && !event.currentTarget.contains(event.relatedTarget))
+            setOpen(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !error) {
+            event.preventDefault();
+            // Finish normalization before hiding, without discarding which
+            // time component the user explicitly set to zero.
+            editor.current
+              ?.querySelector<HTMLInputElement>("input:focus")
+              ?.blur();
+            setOpen(false);
+            requestAnimationFrame(() => trigger.current?.focus());
+          }
+        }}
+      >
+        <span>Rest</span>
+        <RestDurationField
+          compact
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          error={error}
+        />
+      </div>
+      {!open && (
         <button
           ref={trigger}
           type="button"

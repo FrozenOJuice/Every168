@@ -103,33 +103,30 @@ export function FoodPage() {
     />
   );
   return (
-    <div className="food-workspace">
-      <div className="food-main">
-        <header className="food-header">
-          <div className="food-title">
-            <Utensils size={20} aria-hidden="true" />
-            <h1>Food</h1>
-          </div>
+    <div className="food-workspace domain-workspace">
+      <div className="food-main domain-main">
+        <h1 className="sr-only">Food</h1>
+        <div className="domain-workspace-tools">
+          <nav className="food-nav" aria-label="Food navigation">
+            {views.map(([v, label]) => (
+              <Link
+                key={v}
+                href={url(v)}
+                aria-current={view === v ? "page" : undefined}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
           <button
-            className="button food-mobile-day"
+            className="button domain-mobile-day"
             onClick={() => setDayOpen(true)}
             aria-haspopup="dialog"
           >
             <CalendarDays size={17} aria-hidden="true" />
             Day
           </button>
-        </header>
-        <nav className="food-nav" aria-label="Food navigation">
-          {views.map(([v, label]) => (
-            <Link
-              key={v}
-              href={url(v)}
-              aria-current={view === v ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        </div>
         <div className="food-content">
           {view === "day" ? (
             <div className="food-daily-grid">

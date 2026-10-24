@@ -1,22 +1,15 @@
 "use client";
 import { ProgramsOverview } from "./programs-page";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { ArrowUpRight, ChevronDown, Play, Plus } from "lucide-react";
+import { useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
-import { useCommand, CommandError } from "@/lib/use-command";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 
 import { FitnessSelect } from "./fitness-select";
 import { PlanCard } from "./workout-actions";
-import { invalidateFitness } from "./fitness-cache";
 export function FitnessPage() {
   const active = useQuery({
     queryKey: ["fitness", "active"],
@@ -25,13 +18,6 @@ export function FitnessPage() {
   const current = active.data?.items[0];
   return (
     <div className="fitness-training-overview">
-      <Link
-        className="fitness-text-action fitness-progress-link"
-        href="/fitness/progress"
-      >
-        View progress →
-      </Link>
-      <NextWorkout />
       {current && (
         <section className="fitness-current" aria-label="Workout in progress">
           <div>
@@ -51,31 +37,12 @@ export function FitnessPage() {
       {active.error && (
         <ErrorState error={active.error} retry={() => void active.refetch()} />
       )}
-      <ProgramsOverview />
       <WorkoutsOverview />
-      <FitnessActivityOverview />
+      <ProgramsOverview />
     </div>
   );
 }
 function WorkoutsOverview() {
-  const router = useRouter();
-  const cache = useQueryClient();
-  const start = useCommand({
-    mutationFn: (startedAt: string, key: string) =>
-      api.startWorkout(
-        {
-          title: "Workout",
-          startedAt,
-          notes: null,
-          linkedTimeBlockId: null,
-        },
-        key,
-      ),
-    onSuccess: (w) => {
-      invalidateFitness(cache);
-      router.push(`/fitness/session/${w.id}`);
-    },
-  });
   return (
     <div className="fitness-my-workouts">
       <section id="my-workouts" aria-labelledby="my-workouts-heading">
@@ -85,77 +52,20 @@ function WorkoutsOverview() {
           </div>
           <div className="fitness-workout-header-actions">
             <Link
-              className="fitness-text-action"
+              className="button primary"
               href="/fitness/workout/new"
               aria-label="Create workout"
             >
               <Plus size={16} aria-hidden="true" />
-              Create
+              Create workout
             </Link>
           </div>
         </div>
         <PlanList kind="workout" />
-        <button
-          className="fitness-text-action fitness-empty-workout"
-          disabled={start.isPending}
-          onClick={() => start.mutate(new Date().toISOString())}
-        >
-          <Play size={16} aria-hidden="true" />
-          Start empty workout
-        </button>
-        <CommandError command={start} />
       </section>
     </div>
   );
 }
-function NextWorkout() {
-  const q = useQuery({
-    queryKey: ["fitness", "next"],
-    queryFn: api.getNextStrengthWorkout,
-    refetchInterval: 60000,
-  });
-  return (
-    <section aria-labelledby="next-workout-heading">
-      <div className="fitness-section-heading">
-        <h2 id="next-workout-heading">Next workout</h2>
-      </div>
-      {q.isPending ? (
-        <Loading />
-      ) : q.error ? (
-        <ErrorState error={q.error} retry={() => void q.refetch()} />
-      ) : q.data ? (
-        <PlanCard plan={q.data.plan} scheduledBlock={q.data.block} />
-      ) : (
-        <p className="fitness-overview-empty">No scheduled workouts.</p>
-      )}
-    </section>
-  );
-}
-function FitnessActivityOverview() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const reveal = () => {
-      if (window.location.hash === "#history") setOpen(true);
-    };
-    reveal();
-    window.addEventListener("hashchange", reveal);
-    return () => window.removeEventListener("hashchange", reveal);
-  }, []);
-  return (
-    <details
-      id="history"
-      className="fitness-secondary fitness-overview-history"
-      open={open}
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary>
-        History <ChevronDown size={16} aria-hidden="true" />
-      </summary>
-      <WorkoutHistory />
-    </details>
-  );
-}
-
 function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
   const q = useInfiniteQuery({
     queryKey: ["fitness", "plans", kind],
@@ -196,9 +106,8 @@ function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
     </>
   );
 }
-function WorkoutHistory() {
+export function WorkoutHistory() {
   const timezone = useMe().preferences.timezone;
-  const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "completed">("all");
   const q = useInfiniteQuery({
@@ -219,15 +128,8 @@ function WorkoutHistory() {
         <div>
           <h2 id="fitness-history-heading">History</h2>
         </div>
-        <button
-          className="fitness-text-action"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? "Less" : "View all"}
-        </button>
       </div>
-      {expanded && (
+      {
         <div className="fitness-history-filters">
           <label className="field">
             Find a workout
@@ -248,7 +150,7 @@ function WorkoutHistory() {
             ]}
           />
         </div>
-      )}
+      }
       {q.isPending ? (
         <Loading />
       ) : q.error ? (
@@ -257,7 +159,7 @@ function WorkoutHistory() {
         <div className="fitness-history-items">
           {q.data.pages
             .flatMap((p) => p.items)
-            .slice(0, expanded ? undefined : 3)
+
             .map((w) => (
               <Link
                 key={w.id}
@@ -283,7 +185,7 @@ function WorkoutHistory() {
       ) : (
         <p className="fitness-overview-empty">No workouts recorded yet.</p>
       )}
-      {expanded && q.hasNextPage && (
+      {q.hasNextPage && (
         <button
           className="fitness-text-action"
           disabled={q.isFetchingNextPage}

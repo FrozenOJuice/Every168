@@ -1,273 +1,189 @@
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-test.use({ actionTimeout: 10000 });
 
-test("the right library supports workouts and exercise editing in the main area", async ({
+test("inline exercise library follows programs and preserves workout drafts", async ({
   page,
 }, testInfo) => {
-  test.setTimeout(90000);
-  expect(
-    (
-      await page.request.post("/api/auth/sign-up/email", {
-        headers: { Origin: "http://localhost:3100" },
-        data: {
-          name: "Fitness workspace member",
-          email: `workspace-${randomUUID()}@example.com`,
-          password: "Synthetic-workout-password-123",
+  const write = async (path: string, data: object, version?: number) => {
+    const response = await page.request[version ? "put" : "post"](path, {
+      headers: {
+        Origin: "http://localhost:3100",
+        "Idempotency-Key": randomUUID(),
+        ...(version ? { "If-Match": `"${version}"` } : {}),
+      },
+      data,
+    });
+    expect(response.ok()).toBe(true);
+    return response.json();
+  };
+  await write("/api/auth/sign-up/email", {
+    name: "Connected fitness",
+    email: `flow-${randomUUID()}@example.com`,
+    password: "Synthetic-workout-password-123",
+  });
+  const exercise = await write("/api/v1/exercises", {
+    name: "Recall squat",
+    notes: "Move with control.",
+  });
+  const previous = await write("/api/v1/strength-workouts", {
+    title: "Earlier workout",
+    startedAt: "2026-10-12T15:00:00Z",
+  });
+  await write(
+    `/api/v1/strength-workouts/${previous.id}`,
+    {
+      title: previous.title,
+      startedAt: previous.startedAt,
+      endedAt: "2026-10-12T16:00:00Z",
+      exercises: [
+        {
+          exerciseId: exercise.id,
+          sets: [
+            { reps: 8, weightKg: 40 },
+            { reps: 6, weightKg: 45 },
+          ],
         },
-      })
-    ).status(),
-  ).toBe(200);
+      ],
+    },
+    previous.version,
+  );
   await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
-  const right = page.getByRole("region", {
+  const navigation = page.getByRole("navigation", { name: "Fitness views" });
+  await expect(navigation.getByRole("link")).toHaveText([
+    "Training",
+    "History",
+  ]);
+  await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
+  const programs = await page
+    .locator(".fitness-program-overview")
+    .boundingBox();
+  const library = await page.locator(".fitness-exercise-panel").boundingBox();
+  expect(library!.y).toBeGreaterThanOrEqual(programs!.y + programs!.height);
+  await page
+    .getByRole("searchbox", { name: "Find an exercise", exact: true })
+    .fill("Recall");
+  await page.getByRole("button", { name: "Recall squat", exact: true }).click();
+  await expect(page.locator(".fitness-inline-recall")).toContainText(
+    "8 reps × 40 kg",
+  );
+  await page.getByRole("button", { name: "History", exact: true }).click();
+  await expect(page.locator(".fitness-recall-section")).toContainText("45 kg");
+  await navigation.getByRole("link", { name: "Training", exact: true }).click();
+  await page.getByRole("link", { name: "Create workout", exact: true }).click();
+  const workout = page.getByRole("region", {
     name: "Workout workspace",
-    exact: true,
     includeHidden: true,
   });
-  const left = page.locator(".fitness-exercise-panel");
-  const search = page.getByRole("searchbox", {
-    name: "Find an exercise",
+  await workout.getByLabel("Workout title", { exact: true }).fill("My session");
+  if (testInfo.project.name === "phone")
+    await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
+  else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
+  const add = workout.getByRole("button", {
+    name: "Add exercise",
     exact: true,
   });
-  await expect(page.locator(".fitness-library-card")).toHaveCount(16);
-  await expect(
-    right.getByRole("heading", { name: "Next workout", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Browse exercises", exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    right.getByText("No scheduled workouts.", { exact: true }),
-  ).toBeVisible();
-  const initialLibraryWidth =
-    testInfo.project.name === "desktop"
-      ? (await left.boundingBox())!.width
-      : null;
-  await search.fill("press");
-  await right
-    .getByRole("link", { name: "Create workout", exact: true })
-    .click();
-  const title = right.getByLabel("Workout title", { exact: true });
-  await title.fill("Push day");
-  if (testInfo.project.name === "phone")
-    await right
-      .getByRole("button", { name: "Add exercise", exact: true })
-      .click();
-  await expect(search).toHaveValue("press");
+  await add.click();
+  const picker = page.locator(".fitness-library-view-builder");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  if (testInfo.project.name === "desktop") {
-    const l = (await left.boundingBox())!,
-      r = (await right.boundingBox())!;
-    expect(l.x).toBeGreaterThan(r.x + r.width);
-    expect(r.width).toBeGreaterThan(l.width);
-    expect(Math.abs(l.width - initialLibraryWidth!)).toBeLessThan(1);
-    await expect(title).toBeVisible();
-  }
-  await left
+  await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
+  await expect(
+    picker.getByRole("searchbox", { name: "Find an exercise", exact: true }),
+  ).toBeFocused();
+  await picker.screenshot({ path: testInfo.outputPath("exercise-picker.png") });
+  await expect(
+    picker.getByRole("searchbox", { name: "Find an exercise", exact: true }),
+  ).toHaveValue("Recall");
+  await picker
+    .getByRole("button", { name: "Recall squat", exact: true })
+    .hover();
+  await picker
+    .getByRole("button", { name: "Add Recall squat", exact: true })
+    .click();
+  if (testInfo.project.name === "phone")
+    await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
+  else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
+  await expect(add).toBeFocused();
+  await expect(
+    workout.getByLabel("Workout title", { exact: true }),
+  ).toHaveValue("My session");
+  await expect(workout.locator(".fitness-inline-recall")).toContainText(
+    "6 reps × 45 kg",
+  );
+  await workout.getByLabel("Target reps", { exact: true }).fill("8");
+  await workout.locator(".fitness-inline-recall").getByRole("button").click();
+  const details = page.getByRole("complementary", {
+    name: "Exercise library panel",
+    exact: true,
+  });
+  await expect(details.locator(".fitness-recall-section tbody tr")).toHaveCount(
+    2,
+  );
+  await details.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(
+    details.getByText("Move with control.", { exact: true }),
+  ).toBeVisible();
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await details
+    .getByRole("button", { name: "Back to exercises", exact: true })
+    .click();
+  if (testInfo.project.name === "phone")
+    await page
+      .getByRole("button", { name: "Your workout", exact: true })
+      .click();
+  await expect(workout.getByLabel("Target reps", { exact: true })).toHaveValue(
+    "8",
+  );
+  await add.click();
+  await picker
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
-  const exerciseEditor = page.getByRole("region", {
-    name: "Create exercise",
+  await picker
+    .getByLabel("Exercise name", { exact: true })
+    .fill("New variation");
+  await picker.getByRole("button", { name: "Cancel", exact: true }).click();
+  const discard = page.getByRole("dialog", {
+    name: "Discard exercise changes?",
     exact: true,
   });
-  await expect(
-    exerciseEditor.getByLabel("Exercise name", { exact: true }),
-  ).toBeFocused();
-  await expect(right.getByLabel("Workout title", { exact: true })).toHaveValue(
-    "Push day",
+  await expect(discard).toBeVisible();
+  await discard
+    .getByRole("button", { name: "Keep editing", exact: true })
+    .click();
+  await expect(picker.getByLabel("Exercise name", { exact: true })).toHaveValue(
+    "New variation",
   );
-  if (testInfo.project.name === "desktop") {
-    expect((await exerciseEditor.boundingBox())!.x).toBeLessThan(
-      (await left.boundingBox())!.x,
-    );
-    await expect(
-      left.getByRole("searchbox", { name: "Find an exercise", exact: true }),
-    ).toBeVisible();
-  }
-  await exerciseEditor
-    .getByRole("button", { name: "Cancel", exact: true })
-    .click();
-  await expect(search).toHaveValue("press");
-  const benchCard = left.getByRole("button", {
-    name: "Bench press",
-    exact: true,
-  });
-  const addBench = left.getByRole("button", {
-    name: "Add Bench press",
-    exact: true,
-  });
-  const benchTile = benchCard.locator("..");
-  if (testInfo.project.name === "desktop") {
-    await search.focus();
-    await page.mouse.move(0, 0);
-    await expect(addBench).toHaveCSS("opacity", "0");
-    await expect(benchTile.locator(".fitness-card-information")).toHaveCSS(
-      "opacity",
-      "1",
-    );
-    await benchCard.hover();
-  }
-  await expect(addBench).toHaveCSS("opacity", "1");
-  await expect(benchTile.locator(".fitness-card-information")).toHaveCSS(
-    "opacity",
-    "0",
-  );
-  await expect(addBench).toHaveText("Add to workout");
-  const visual = await benchCard
-    .locator(".fitness-card-visual-wrap")
-    .boundingBox();
-  const information = await benchTile
-    .locator(".fitness-card-information")
-    .boundingBox();
-  const addBox = await addBench.boundingBox();
-  expect(addBox!.y).toBeGreaterThanOrEqual(visual!.y + visual!.height);
-  expect(
-    Math.abs(
-      addBox!.x + addBox!.width / 2 - (information!.x + information!.width / 2),
-    ),
-  ).toBeLessThan(2);
-  await expect(benchCard.locator(".fitness-library-card-title")).toBeVisible();
-  await benchCard.locator("..").screenshot({
-    path: testInfo.outputPath("exercise-card-add-button.png"),
-  });
-  if (testInfo.project.name === "desktop") {
-    await addBench.focus();
-    await page.keyboard.press("Enter");
-  } else await addBench.tap();
-  await expect(page.locator(".fitness-picker-add")).toHaveCount(0);
-  await expect(page.locator(".fitness-card-details")).toHaveCount(0);
-  await expect(page.locator(".fitness-panel-notice")).toHaveCount(0);
-  if (testInfo.project.name === "desktop") {
-    await benchCard.focus();
-    await page.keyboard.press("Enter");
-  } else await benchCard.tap();
-  await expect(right.locator(".fitness-exercise")).toHaveCount(1);
-  await expect(
-    left.getByRole("region", { name: "Bench press details", exact: true }),
-  ).toBeVisible();
-  if (testInfo.project.name === "desktop")
-    await expect(title).toHaveValue("Push day");
-  await left
-    .getByRole("button", { name: "Back to exercises", exact: true })
-    .click();
-  await expect(search).toHaveValue("press");
-  if (testInfo.project.name === "desktop") await benchCard.hover();
-  await left
-    .getByRole("button", { name: "Favourite Bench press", exact: true })
-    .click();
-  await expect(right.locator(".fitness-exercise")).toHaveCount(1);
-  await search.fill("");
-  if (testInfo.project.name === "desktop")
-    await left.getByRole("button", { name: "Squat", exact: true }).hover();
-  await left.getByRole("button", { name: "Add Squat", exact: true }).click();
-  await expect(page.locator(".fitness-panel-notice")).toHaveCount(0);
-  await expect(right.locator(".fitness-exercise")).toHaveCount(2);
-  if (testInfo.project.name === "desktop") {
-    const squat = left.getByRole("button", {
-      name: "Squat",
-      exact: true,
-    });
-    await left.getByRole("button", { name: "Add Squat", exact: true }).hover();
-    await squat.scrollIntoViewIfNeeded();
-    const scroll = await page
-      .locator(".fitness-exercise-grid")
-      .evaluate((node) => node.scrollTop);
-    await squat.click();
-    await left
-      .getByRole("button", { name: "Back to exercises", exact: true })
-      .click();
-    await expect
-      .poll(() =>
-        page
-          .locator(".fitness-exercise-grid")
-          .evaluate((node) => node.scrollTop),
-      )
-      .toBe(scroll);
-  } else
-    await page
-      .getByRole("button", { name: "Back to workout", exact: true })
-      .click();
-  await right.getByLabel("Target reps", { exact: true }).first().fill("8");
-  await right
-    .getByRole("button", { name: "Help with Bench press", exact: true })
-    .click();
-  await expect(
-    left.getByRole("region", { name: "Bench press details", exact: true }),
-  ).toBeVisible();
-  await expect(
-    left.getByRole("heading", { name: "Equipment", exact: true }),
-  ).toBeVisible();
-  await expect(
-    right.getByLabel("Target reps", { exact: true }).first(),
-  ).toHaveValue("8");
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({
-    path: testInfo.outputPath("fitness-library-and-workout.png"),
-    fullPage: true,
-  });
-  await left
-    .getByRole("button", { name: "Back to exercises", exact: true })
+  await picker
+    .getByRole("button", { name: "Create and add to workout", exact: true })
     .click();
   if (testInfo.project.name === "phone")
-    await page
-      .getByRole("button", { name: "Back to workout", exact: true })
-      .click();
-  await right
+    await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
+  else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
+  await expect(workout.locator(".fitness-exercise")).toHaveCount(2);
+  await page.screenshot({
+    path: testInfo.outputPath("connected-workout.png"),
+    fullPage: true,
+  });
+  await workout
     .getByRole("button", { name: "Save workout", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness$/);
-  const card = right.locator(".fitness-workout-card").filter({
-    has: page.getByRole("heading", { name: "Push day", exact: true }),
+  const card = page.locator(".fitness-workout-card").filter({
+    has: page.getByRole("heading", { name: "My session", exact: true }),
   });
-  await expect(card).toBeVisible();
-  await expect(page.locator(".fitness-library-card")).toHaveCount(16);
-  await page.locator(".fitness-exercise-grid").evaluate((node) => {
-    node.scrollTop = 0;
-  });
-  await page.screenshot({
-    path: testInfo.outputPath("fitness-library-overview.png"),
-    fullPage: true,
-  });
-  await card.getByRole("link", { name: "Edit", exact: true }).click();
-  await expect(title).toHaveValue("Push day");
+  await card
+    .getByRole("button", { name: "Start workout", exact: true })
+    .click();
+  await expect(workout.locator(".fitness-inline-recall")).toContainText(
+    "40 kg",
+  );
+  await navigation.getByRole("link", { name: "History", exact: true }).click();
   await expect(
-    right.getByLabel("Target reps", { exact: true }).first(),
-  ).toHaveValue("8");
-  await right.getByRole("button", { name: "Cancel", exact: true }).click();
-  const plans = await (await page.request.get("/api/v1/strength-plans")).json();
-  expect(
-    (
-      await page.request.post(
-        `/api/v1/strength-plans/${plans.items[0].id}/schedule`,
-        {
-          headers: {
-            Origin: "http://localhost:3100",
-            "Idempotency-Key": randomUUID(),
-            "If-Match": `"${plans.items[0].version}"`,
-          },
-          data: {
-            startsAt: "2030-01-15T15:00:00Z",
-            endsAt: "2030-01-15T16:00:00Z",
-          },
-        },
-      )
-    ).status(),
-  ).toBe(201);
-  await page.reload();
-  await expect(
-    right
-      .locator("section")
-      .filter({
-        has: page.getByRole("heading", { name: "Next workout", exact: true }),
-      })
-      .getByRole("heading", { name: "Push day", exact: true }),
+    page.getByRole("link", { name: /Earlier workout/ }),
   ).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath("fitness-next-workout.png"),
-    fullPage: true,
-  });
+  await expect(page.getByRole("link", { name: /My session/ })).toBeVisible();
+  await page.getByRole("link", { name: /Earlier workout/ }).click();
+  await expect(page).toHaveURL(new RegExp(previous.id));
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

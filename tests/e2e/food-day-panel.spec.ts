@@ -80,11 +80,15 @@ test("Food keeps a shared Calendar day beside its workspace", async ({
     yieldServings: 4,
     instructions: "Warm gently and serve with fresh berries.",
   });
-  await page.clock.install({ time: new Date("2026-10-23T14:00:00Z") });
   await page.goto("/food?date=2026-10-23");
   const mobile = info.project.name !== "desktop";
   const main = page.locator(".food-main");
   await expect(main.getByText("860 kcal", { exact: true })).toBeVisible();
+  await page.clock.install({ time: new Date("2026-10-23T14:00:00Z") });
+  // Refresh the already-mounted day clock after changing the test time.
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
     path: info.outputPath("food-workspace.png"),

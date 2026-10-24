@@ -1,3 +1,4 @@
+import { normalizeMeasurementOverride } from "@168hours/contracts";
 import {
   CALENDAR_ACTIVITY_LIMIT,
   type CalendarContribution,
@@ -120,6 +121,11 @@ export function strengthService(
                 ? existing.loggingType
                 : definition.loggingType),
           );
+          for (const set of e.sets)
+            set.measurementOverride = normalizeMeasurementOverride(
+              set.measurementOverride,
+              loggingTypes.at(-1)!,
+            );
           intents.push(
             e.intentTags ??
               (existing?.exerciseId === e.exerciseId
@@ -181,6 +187,7 @@ export function strengthService(
             intentTags: e.intentTags,
             notes: e.notes,
             sets: e.sets.map((s) => ({
+              measurementOverride: s.measurementOverride ?? null,
               reps: null,
               weightKg: null,
               durationSeconds: null,

@@ -363,7 +363,10 @@ export function CalendarGrid({
                       day.date,
                       week.timezone,
                       filter,
-                    ).filter((entry) => entry.kind === "moment").length > 0 && (
+                    ).filter(
+                      (entry) =>
+                        entry.kind === "moment" || entry.kind === "task",
+                    ).length > 0 && (
                       <button
                         className="text-button calendar-moment-count"
                         onClick={() => onShowDay(day.date)}
@@ -375,9 +378,19 @@ export function CalendarGrid({
                             day.date,
                             week.timezone,
                             filter,
-                          ).filter((entry) => entry.kind === "moment").length
+                          ).filter(
+                            (entry) =>
+                              entry.kind === "moment" || entry.kind === "task",
+                          ).length
                         }{" "}
-                        moments
+                        {activityOnDate(
+                          activity,
+                          day.date,
+                          week.timezone,
+                          filter,
+                        ).some((e) => e.kind === "task")
+                          ? "tasks / moments"
+                          : "moments"}
                       </button>
                     )}
                     {hidden > 0 && (

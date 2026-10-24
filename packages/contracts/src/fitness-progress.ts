@@ -26,9 +26,19 @@ export const strengthMetricsSchema = z.object({
   missingVolumeSets: z.number().int().nonnegative(),
 });
 export type StrengthMetrics = z.infer<typeof strengthMetricsSchema>;
+export const recordedProgressSetSchema = z.object({
+  position: z.number().int().nonnegative().optional(),
+  id: idSchema,
+  reps: z.number().nullable(),
+  weightKg: z.number().nullable(),
+  durationSeconds: z.number().nullable(),
+  distanceMeters: z.number().nullable(),
+  laps: z.number().nullable(),
+});
 export const progressSessionSchema = strengthMetricsSchema.extend({
   id: idSchema,
   title: z.string(),
+  sets: z.array(recordedProgressSetSchema),
   startedAt: instantSchema,
   endedAt: instantSchema,
 });
@@ -75,6 +85,13 @@ export const progressExerciseSchema = z.object({
   id: idSchema,
   name: z.string(),
   archived: z.boolean(),
+  latest: z
+    .object({
+      startedAt: instantSchema,
+      loggingType: exerciseLoggingTypeSchema,
+      sets: z.array(recordedProgressSetSchema),
+    })
+    .nullable(),
 });
 export type ProgressExercise = z.infer<typeof progressExerciseSchema>;
 const comparisonWorkoutSchema = z.object({
@@ -88,6 +105,7 @@ const comparisonWorkoutSchema = z.object({
       exerciseId: idSchema,
       name: z.string(),
       loggingType: exerciseLoggingTypeSchema,
+      measurementTypes: z.array(exerciseLoggingTypeSchema).optional(),
     }),
   ),
 });

@@ -21,6 +21,7 @@ import type {
   SelectionMoveInput,
   GroupDeleteInput,
 } from "@168hours/contracts";
+import { useToast } from "@/components/ui/toast";
 import { useCommand } from "@/lib/use-command";
 import { useCalendarHistory } from "./use-calendar-history";
 import type { DragMode } from "./calendar-drag";
@@ -91,7 +92,7 @@ type Interactions = {
       kind?: CalendarNotice["kind"];
     },
   ) => void;
-  dismissNotice: () => void;
+  dismissNotice: (id?: number) => void;
   remove: ReturnType<
     typeof useCommand<BlockDeletion & { title: string; key: string }, Block>
   >;
@@ -142,11 +143,14 @@ export function CalendarInteractions({
     [preview, setPreview] = useState<Preview | null>(null),
     [adjusting, setAdjusting] = useState(false),
     [mode, setMode] = useState<Exclude<DragMode, "create">>("move"),
-    [status, setStatus] = useState(""),
-    [notice, setNotice] = useState<CalendarNotice | null>(null);
+    [status, setStatus] = useState("");
+  const {
+    notice,
+    show: publishNotice,
+    dismiss: dismissNotice,
+  } = useToast<CalendarNotice>();
   const { selectedPlans, timeSelection, multiSelect, setMultiSelect } =
     selection;
-  const noticeId = useRef(0);
   const [occurrenceRequest, setOccurrenceRequest] =
     useState<OccurrenceRequest | null>(null);
   const [clipboardBusy, setClipboardBusy] = useState(false);
@@ -158,27 +162,13 @@ export function CalendarInteractions({
       kind?: CalendarNotice["kind"];
     },
   ) {
-    setNotice({
-      id: ++noticeId.current,
+    publishNotice({
       message,
       undoKey: options?.undoKey,
       action: options?.action,
       kind: options?.kind ?? "hint",
     });
   }
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(
-      () =>
-        setNotice((current) => (current?.id === notice.id ? null : current)),
-      notice.undoKey || notice.action
-        ? 5000
-        : notice.kind === "hint" || notice.kind === "error"
-          ? 4000
-          : 2400,
-    );
-    return () => window.clearTimeout(timer);
-  }, [notice]);
   const [selectionScope, setSelectionScope] = useState(scope);
   // Reset before children render without remounting commands or history.
   if (selectionScope !== scope) {
@@ -570,7 +560,7 @@ export function CalendarInteractions({
     status,
     notice,
     showNotice,
-    dismissNotice: () => setNotice(null),
+    dismissNotice,
     command: { ...command, mutate: submitAdjustment },
   };
   return (

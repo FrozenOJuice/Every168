@@ -59,7 +59,7 @@ test("copy selected days with gaps and paste one block at a selected time", asyn
   await page.keyboard.press("Meta+v");
   const dialog = page.getByRole("dialog", { name: "Paste plans" });
   await expect(dialog).toHaveCount(0);
-  await expect(page.locator(".calendar-notice")).toContainText("Plans pasted");
+  await expect(page.locator(".app-toast")).toContainText("Plans pasted");
   await expect(day("2026-09-15")).toHaveAttribute(
     "aria-label",
     "Select 2026-09-15, 2 records",
@@ -126,7 +126,7 @@ test("copy selected days with gaps and paste one block at a selected time", asyn
     /is-selected/,
   );
   await page.keyboard.press("Meta+v");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Select a destination day first.",
   );
   await clickDay("2026-09-26", ["Shift"]);
@@ -249,7 +249,7 @@ test("copy selected days with gaps and paste one block at a selected time", asyn
     "Select 2026-09-20, 1 records",
   );
   await page
-    .locator(".calendar-notice")
+    .locator(".app-toast")
     .getByRole("button", { name: "Undo" })
     .click();
   await expect(day("2026-09-20")).toHaveAttribute(
@@ -464,11 +464,11 @@ test("failed keyboard copy and paste show notices, and uncertain paste retries s
     .getByRole("button", { name: /Copy source.*planned/ });
   await expect(sourceBlock).toBeVisible();
   await page.keyboard.press("Meta+c");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Select a plan or day to copy.",
   );
   await page.keyboard.press("Meta+v");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Copy a plan or day before pasting.",
   );
 
@@ -481,13 +481,13 @@ test("failed keyboard copy and paste show notices, and uncertain paste retries s
     };
   });
   await page.keyboard.press("Meta+c");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Could not copy plans in this tab.",
   );
   await page.reload();
   await sourceBlock.click();
   await page.keyboard.press("Meta+c");
-  await expect(page.locator(".calendar-notice")).toContainText("Plan copied.");
+  await expect(page.locator(".app-toast")).toContainText("Plan copied.");
 
   await page.goto("/?date=2026-09-14&view=month");
   const targetDay = page
@@ -506,7 +506,7 @@ test("failed keyboard copy and paste show notices, and uncertain paste retries s
     }),
   );
   await page.keyboard.press("Meta+v");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Could not paste plans. Test preview failure.",
   );
   await page.unroute("**/api/v1/calendar/snapshot-preview");
@@ -520,14 +520,14 @@ test("failed keyboard copy and paste show notices, and uncertain paste retries s
     return route.continue();
   });
   await page.keyboard.press("Meta+v");
-  await expect(page.locator(".calendar-notice")).toContainText(
+  await expect(page.locator(".app-toast")).toContainText(
     "Could not confirm paste. Retry the same change.",
   );
   await page
-    .locator(".calendar-notice")
+    .locator(".app-toast")
     .getByRole("button", { name: "Retry" })
     .click();
-  await expect(page.locator(".calendar-notice")).toContainText("Plans pasted");
+  await expect(page.locator(".app-toast")).toContainText("Plans pasted");
   await expect(targetDay).toHaveAttribute(
     "aria-label",
     "Select 2026-09-14, 1 records",

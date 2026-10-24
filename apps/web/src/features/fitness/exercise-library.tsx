@@ -24,26 +24,32 @@ import {
   sortLibrary,
 } from "./exercise-library-model";
 export function ExerciseLibrary({
+  view = "workout",
   onChoose,
   mainContent,
-  exerciseDetail,
+  detailContent,
   resetKey,
   onEditorOpen,
   onEditorClose,
-  sidePanel,
-  showSidePanel = false,
+  pickerOpen = false,
+  onDismissPicker,
+  onShowPicker,
 }: {
+  view?: "training" | "workout" | "content" | "builder";
   onChoose?: (exercise: Exercise) => void;
   mainContent?: ReactNode;
-  exerciseDetail?: ReactNode;
+  detailContent?: ReactNode;
   resetKey?: string;
   onEditorOpen: () => void;
   onEditorClose: () => void;
-  sidePanel?: ReactNode;
-  showSidePanel?: boolean;
+  pickerOpen?: boolean;
+  onDismissPicker?: () => void;
+  onShowPicker?: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const panelScroll = useRef(0);
   const gridScroll = useRef(0);
   const pageScroll = useRef(0);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
@@ -145,16 +151,6 @@ export function ExerciseLibrary({
     setWasChoosing(choosing);
     if (choosing) setArchived(false);
   }
-  const externalHelp = !!exerciseDetail;
-  const [hadExternalHelp, setHadExternalHelp] = useState(externalHelp);
-  if (hadExternalHelp !== externalHelp) {
-    setHadExternalHelp(externalHelp);
-    if (externalHelp) {
-      setSelected(null);
-      setCreating(false);
-      setEditingExercise(null);
-    }
-  }
   const closeEditor = () => {
     setCreating(false);
     setEditingExercise(null);
@@ -200,7 +196,7 @@ export function ExerciseLibrary({
       </section>
     ) : null;
   const details =
-    exerciseDetail ??
+    detailContent ??
     (item ? (
       <ExerciseDetails
         key={item.key}
@@ -234,166 +230,219 @@ export function ExerciseLibrary({
     ) : null);
   const showingDetails = !!details;
   useLayoutEffect(() => {
+    if (panel.current) {
+      if (showingDetails) {
+        panelScroll.current = panel.current.scrollTop;
+        panel.current.scrollTop = 0;
+      } else panel.current.scrollTop = panelScroll.current;
+    }
     if (!showingDetails && grid.current)
       grid.current.scrollTop = gridScroll.current;
   }, [showingDetails]);
+  useLayoutEffect(() => {
+    if (!pickerOpen || showingDetails) return;
+    const frame = requestAnimationFrame(() =>
+      root.current
+        ?.querySelector<HTMLInputElement>(
+          '.fitness-exercise-panel input[type="search"]',
+        )
+        ?.focus(),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [pickerOpen, showingDetails]);
+  const exercisePanel = (
+    <aside
+      ref={panel}
+      id="exercises"
+      className="fitness-exercise-panel"
+      aria-label="Exercise library panel"
+      hidden={!!editor}
+    >
+      <section
+        hidden={!!details}
+        className="fitness-library-main"
+        aria-labelledby={
+          onChoose ? "fitness-picker-heading" : "fitness-library-heading"
+        }
+      >
+        <div className="fitness-section-heading">
+          <div>
+            <h2
+              id={
+                onChoose ? "fitness-picker-heading" : "fitness-library-heading"
+              }
+            >
+              {onChoose ? "Choose an exercise" : "Exercise library"}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="fitness-text-action"
+            disabled={!!editor}
+            onClick={(e) => {
+              opener.current = e.currentTarget;
+              captureScroll();
+              setCreating(true);
+              setEditingExercise(null);
+              onEditorOpen();
+            }}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Create exercise
+          </button>
+        </div>
+        <ExerciseLibraryControls
+          resultCount={filtered.length}
+          hasMore={!!custom.hasNextPage}
+          sort={sort}
+          onSort={setSort}
+          search={search}
+          equipment={equipment}
+          muscle={muscle}
+          favourites={favourites}
+          archived={archived}
+          allowArchived={!onChoose}
+          onSearch={(value) => {
+            setSearch(value);
+            setSelected(null);
+          }}
+          onClear={clearFilters}
+          onEquipment={setEquipment}
+          onMuscle={setMuscle}
+          onFavourites={setFavourites}
+          onArchived={(value) => {
+            setArchived(value);
+            setSelected(null);
+          }}
+        />
+        {catalog.isPending || custom.isPending ? (
+          <Loading />
+        ) : catalog.error || custom.error ? (
+          <ErrorState
+            error={(catalog.error ?? custom.error)!}
+            retry={() => {
+              void catalog.refetch();
+              void custom.refetch();
+            }}
+          />
+        ) : (
+          <div
+            ref={grid}
+            className="fitness-exercise-grid"
+            onScroll={(event) => {
+              if (!showingDetails)
+                gridScroll.current = event.currentTarget.scrollTop;
+            }}
+          >
+            {filtered.map((exercise) => (
+              <ExerciseLibraryCard
+                key={exercise.key}
+                item={exercise}
+                selected={item?.key === exercise.key}
+                onChoose={onChoose}
+                onDetails={(target) => {
+                  opener.current = target;
+                  captureScroll();
+                  setSelected(exercise.key);
+                }}
+              >
+                <span
+                  className="fitness-library-card-meta"
+                  title={
+                    exercise.equipment.join(", ") || "No equipment specified"
+                  }
+                >
+                  {exercise.equipment.join(", ") || "No equipment specified"}
+                </span>
+                <ExerciseMuscleTags muscles={exercise.muscles} />
+              </ExerciseLibraryCard>
+            ))}
+          </div>
+        )}
+        {!catalog.isPending &&
+          !custom.isPending &&
+          !catalog.error &&
+          !custom.error &&
+          !filtered.length && (
+            <div className="fitness-quiet-empty">
+              <h3>No matching exercises</h3>
+              <p>Try another name or clear the filters.</p>
+            </div>
+          )}
+        {custom.hasNextPage && (
+          <button
+            type="button"
+            className="fitness-text-action"
+            disabled={custom.isFetchingNextPage}
+            onClick={() => void custom.fetchNextPage()}
+          >
+            More of your exercises
+          </button>
+        )}
+      </section>
+      <div className="fitness-library-focus" hidden={!details}>
+        {details}
+      </div>
+    </aside>
+  );
   return (
     <div
       ref={root}
-      className={`fitness-library${editor ? " has-editor" : ""}${details ? " has-detail" : ""}`}
+      data-picker-open={pickerOpen}
+      className={`fitness-library fitness-library-view-${view}${editor ? " has-editor" : ""}${details ? " has-detail" : ""}`}
     >
+      {view === "builder" && !editor && (
+        <div
+          className="fitness-creation-mobile-tabs"
+          role="group"
+          aria-label="Workout creation view"
+        >
+          <button
+            type="button"
+            aria-pressed={!pickerOpen}
+            onClick={onDismissPicker}
+          >
+            Your workout
+          </button>
+          <button
+            type="button"
+            aria-pressed={pickerOpen}
+            onClick={onShowPicker}
+          >
+            {detailContent ? "Exercise details" : "Add exercises"}
+          </button>
+        </div>
+      )}
       <div className="fitness-library-layout">
-        <div className="fitness-primary-pane">
-          <div className="fitness-primary-content" hidden={!!editor}>
+        <div
+          className="fitness-primary-pane"
+          hidden={view === "workout" && pickerOpen && !editor}
+        >
+          <div
+            className="fitness-primary-content"
+            hidden={!!editor || (view === "workout" && pickerOpen)}
+          >
             {mainContent}
           </div>
           <div className="fitness-primary-editor" hidden={!editor}>
             {editor}
           </div>
         </div>
-        <aside
-          className="fitness-exercise-panel"
-          hidden={showSidePanel}
-          aria-label="Exercise library panel"
-        >
-          <section
-            hidden={!!details}
-            className="fitness-library-main"
-            aria-labelledby={
-              onChoose ? "fitness-picker-heading" : "fitness-library-heading"
-            }
-          >
-            <div className="fitness-section-heading">
-              <div>
-                <h2
-                  id={
-                    onChoose
-                      ? "fitness-picker-heading"
-                      : "fitness-library-heading"
-                  }
-                >
-                  Exercise library
-                </h2>
-              </div>
+        {(view === "training" ||
+          view === "builder" ||
+          (view === "workout" && pickerOpen)) && (
+          <>
+            {view === "workout" && !editor && !detailContent && (
               <button
                 type="button"
                 className="fitness-text-action"
-                disabled={!!editor}
-                onClick={(e) => {
-                  opener.current = e.currentTarget;
-                  captureScroll();
-                  setCreating(true);
-                  setEditingExercise(null);
-                  onEditorOpen();
-                }}
+                onClick={onDismissPicker}
               >
-                <Plus size={16} aria-hidden="true" />
-                Create exercise
-              </button>
-            </div>
-            <ExerciseLibraryControls
-              resultCount={filtered.length}
-              hasMore={!!custom.hasNextPage}
-              sort={sort}
-              onSort={setSort}
-              search={search}
-              equipment={equipment}
-              muscle={muscle}
-              favourites={favourites}
-              archived={archived}
-              allowArchived={!onChoose}
-              onSearch={(value) => {
-                setSearch(value);
-                setSelected(null);
-              }}
-              onClear={clearFilters}
-              onEquipment={setEquipment}
-              onMuscle={setMuscle}
-              onFavourites={setFavourites}
-              onArchived={(value) => {
-                setArchived(value);
-                setSelected(null);
-              }}
-            />
-            {catalog.isPending || custom.isPending ? (
-              <Loading />
-            ) : catalog.error || custom.error ? (
-              <ErrorState
-                error={(catalog.error ?? custom.error)!}
-                retry={() => {
-                  void catalog.refetch();
-                  void custom.refetch();
-                }}
-              />
-            ) : (
-              <div
-                ref={grid}
-                className="fitness-exercise-grid"
-                onScroll={(event) => {
-                  if (!showingDetails)
-                    gridScroll.current = event.currentTarget.scrollTop;
-                }}
-              >
-                {filtered.map((exercise) => (
-                  <ExerciseLibraryCard
-                    key={exercise.key}
-                    item={exercise}
-                    selected={item?.key === exercise.key}
-                    onChoose={onChoose}
-                    onDetails={(target) => {
-                      opener.current = target;
-                      captureScroll();
-                      setSelected(exercise.key);
-                    }}
-                  >
-                    <span
-                      className="fitness-library-card-meta"
-                      title={
-                        exercise.equipment.join(", ") ||
-                        "No equipment specified"
-                      }
-                    >
-                      {exercise.equipment.join(", ") ||
-                        "No equipment specified"}
-                    </span>
-                    <ExerciseMuscleTags muscles={exercise.muscles} />
-                  </ExerciseLibraryCard>
-                ))}
-              </div>
-            )}
-            {!catalog.isPending &&
-              !custom.isPending &&
-              !catalog.error &&
-              !custom.error &&
-              !filtered.length && (
-                <div className="fitness-quiet-empty">
-                  <h3>No matching exercises</h3>
-                  <p>Try another name or clear the filters.</p>
-                </div>
-              )}
-            {custom.hasNextPage && (
-              <button
-                type="button"
-                className="fitness-text-action"
-                disabled={custom.isFetchingNextPage}
-                onClick={() => void custom.fetchNextPage()}
-              >
-                More of your exercises
+                ← Back to workout
               </button>
             )}
-          </section>
-          <div className="fitness-library-focus" hidden={!details}>
-            {details}
-          </div>
-        </aside>
-        {sidePanel && (
-          <aside
-            className="domain-calendar-rail"
-            aria-label="Fitness day panel"
-            hidden={!showSidePanel}
-          >
-            {sidePanel}
-          </aside>
+            {exercisePanel}
+          </>
         )}
       </div>
     </div>

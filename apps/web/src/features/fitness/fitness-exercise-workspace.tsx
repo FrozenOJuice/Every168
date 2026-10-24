@@ -9,21 +9,20 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import type { Exercise } from "@168hours/contracts";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { Loading, ErrorState } from "@/components/ui/feedback";
+import Link from "next/link";
+import type { Exercise, ExerciseLoggingType } from "@168hours/contracts";
 import { ExerciseLibrary } from "./exercise-library";
-import { ExerciseDetails } from "./exercise-details";
-import { CalendarDays, Dumbbell, Library } from "lucide-react";
+import { ExerciseHelp } from "./exercise-help";
+import { CalendarDays } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
+import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { FitnessDayPanel } from "./fitness-day-panel";
 
 type Choose = (exercise: Exercise) => boolean | void;
 const WorkspaceContext = createContext<{
   register: (choose: Choose) => () => void;
   pick: () => void;
-  help: (id: string) => void;
+  help: (id: string, history?: boolean, mode?: ExerciseLoggingType) => void;
 } | null>(null);
 export function useFitnessExercisePanel() {
   const value = useContext(WorkspaceContext);
@@ -36,11 +35,18 @@ export function FitnessExerciseWorkspace({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const trainingView = pathname === "/fitness";
+  const progressView =
+    pathname.startsWith("/fitness/history") ||
+    pathname.startsWith("/fitness/progress");
+  const building =
+    workoutCreationExperiment && pathname.startsWith("/fitness/workout/");
   const activeWorkout = /\/fitness\/(workout|session)\//.test(pathname);
   const [choose, setChoose] = useState<Choose | null>(null);
   const [helpId, setHelpId] = useState<string | null>(null);
-  const [mobileLibrary, setMobileLibrary] = useState(false);
-  const [dayVisible, setDayVisible] = useState(!activeWorkout);
+  const [helpHistory, setHelpHistory] = useState(false);
+  const [helpMode, setHelpMode] = useState<ExerciseLoggingType>();
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState(false);
   const [browseRequest, setBrowseRequest] = useState(0);
   const [notice, setNotice] = useState("");
@@ -55,18 +61,21 @@ export function FitnessExerciseWorkspace({
   if (previousPath !== pathname) {
     setPreviousPath(pathname);
     setHelpId(null);
-    setMobileLibrary(false);
     setNotice("");
-    setDayVisible(!activeWorkout);
+    setPickerOpen(false);
   }
   useLayoutEffect(() => {
     workout.current?.closest(".fitness-primary-pane")?.scrollTo({ top: 0 });
   }, [pathname]);
   const closeHelp = () => {
     setHelpId(null);
+    setPickerOpen(true);
     requestAnimationFrame(() => {
-      if (opener.current?.isConnected)
-        opener.current.focus({ preventScroll: true });
+      library.current
+        ?.querySelector<HTMLInputElement>(
+          '.fitness-exercise-panel input[type="search"]',
+        )
+        ?.focus({ preventScroll: true });
     });
   };
   return (
@@ -74,181 +83,156 @@ export function FitnessExerciseWorkspace({
       value={{
         register,
         pick: () => {
-          setDayVisible(false);
           opener.current =
             document.activeElement instanceof HTMLElement
               ? document.activeElement
               : null;
           setHelpId(null);
           setBrowseRequest((request) => request + 1);
-          setMobileLibrary(true);
-          requestAnimationFrame(() =>
-            library.current
-              ?.querySelector<HTMLInputElement>(
-                '.fitness-exercise-panel input[type="search"]',
-              )
-              ?.focus({ preventScroll: true }),
-          );
+          setPickerOpen(true);
         },
-        help: (id) => {
-          setDayVisible(false);
+        help: (id, history = false, mode) => {
           opener.current =
             document.activeElement instanceof HTMLElement
               ? document.activeElement
               : null;
           setHelpId(id);
-          setMobileLibrary(true);
+          setHelpHistory(history);
+          setHelpMode(mode);
+          setBrowseRequest((request) => request + 1);
+          setPickerOpen(true);
         },
       }}
     >
       <div
-        className={`fitness-workspace fitness-library-workspace${activeWorkout ? " has-active-workout" : ""}${mobileLibrary ? " shows-mobile-library" : ""}${dayVisible ? " has-day-panel" : ""}`}
+        className={`fitness-workspace fitness-library-workspace fitness-stacked-workspace domain-workspace fitness-organized-workspace${building ? " fitness-creation-experiment" : ""}`}
       >
-        <header className="domain-workspace-heading">
-          <div>
-            <Dumbbell size={20} aria-hidden="true" />
-            <h1>Fitness</h1>
+        <div className="domain-main fitness-domain-main">
+          <h1 className="sr-only">Fitness</h1>
+          <div className="domain-workspace-tools">
+            <nav className="fitness-domain-nav" aria-label="Fitness views">
+              <Link
+                href="/fitness"
+                aria-current={!progressView ? "page" : undefined}
+              >
+                Training
+              </Link>
+              <Link
+                href="/fitness/history"
+                aria-current={progressView ? "page" : undefined}
+              >
+                History
+              </Link>
+            </nav>
+            {!building && (
+              <button
+                className="button domain-mobile-day"
+                onClick={() => setDayOpen(true)}
+                aria-haspopup="dialog"
+              >
+                <CalendarDays size={17} aria-hidden="true" />
+                Day
+              </button>
+            )}
           </div>
-          <div role="group" aria-label="Fitness side panel">
-            <button
-              className="button"
-              aria-pressed={!dayVisible}
-              onClick={() => {
-                setDayVisible(false);
-                setMobileLibrary(true);
+          <div ref={library} className="fitness-library-host">
+            {notice && (
+              <p className="fitness-panel-notice" role="status">
+                {notice}
+              </p>
+            )}
+            <ExerciseLibrary
+              view={
+                building
+                  ? "builder"
+                  : trainingView
+                    ? "training"
+                    : activeWorkout
+                      ? "workout"
+                      : "content"
+              }
+              resetKey={`${pathname}:${browseRequest}`}
+              onEditorOpen={() => {
                 requestAnimationFrame(() =>
                   library.current
-                    ?.querySelector<HTMLInputElement>('input[type="search"]')
-                    ?.focus(),
+                    ?.querySelector(".fitness-primary-pane")
+                    ?.scrollIntoView({ block: "start" }),
                 );
               }}
-            >
-              <Library size={17} aria-hidden="true" />
-              Exercises
-            </button>
-            <button
-              className="button"
-              aria-pressed={dayVisible}
-              onClick={() => {
-                setDayVisible(true);
-                setMobileLibrary(false);
-                if (window.matchMedia("(max-width: 1150px)").matches)
-                  setDayOpen(true);
-              }}
-            >
-              <CalendarDays size={17} aria-hidden="true" />
-              Day
-            </button>
-          </div>
-        </header>
-        <div ref={library} className="fitness-library-host">
-          {activeWorkout && (
-            <button
-              type="button"
-              className="fitness-text-action fitness-mobile-workout-return"
-              aria-label="Back to workout"
-              onClick={() => {
-                setMobileLibrary(false);
-                requestAnimationFrame(() =>
-                  workout.current
-                    ?.querySelector<HTMLButtonElement>(
-                      "button[data-add-exercise]",
-                    )
-                    ?.focus(),
-                );
-              }}
-            >
-              ← Back to workout
-            </button>
-          )}
-          {notice && (
-            <p className="fitness-panel-notice" role="status">
-              {notice}
-            </p>
-          )}
-          <ExerciseLibrary
-            sidePanel={<FitnessDayPanel onNavigate={() => setDayOpen(false)} />}
-            showSidePanel={dayVisible}
-            resetKey={`${pathname}:${browseRequest}`}
-            onEditorOpen={() => setMobileLibrary(false)}
-            onEditorClose={() =>
-              setMobileLibrary(window.matchMedia("(max-width: 1000px)").matches)
-            }
-            exerciseDetail={
-              helpId ? (
-                <ExerciseHelp id={helpId} onClose={closeHelp} />
-              ) : undefined
-            }
-            onChoose={
-              choose
-                ? (exercise) => {
-                    const accepted = choose(exercise);
-                    setNotice(
-                      accepted === false
-                        ? "Cannot add another exercise right now."
-                        : "",
-                    );
+              onEditorClose={() => {}}
+              pickerOpen={pickerOpen}
+              onShowPicker={() => setPickerOpen(true)}
+              onDismissPicker={() => {
+                setHelpId(null);
+                setPickerOpen(false);
+                requestAnimationFrame(() => {
+                  if (helpId && opener.current?.isConnected) {
+                    opener.current.focus({ preventScroll: true });
+                    return;
                   }
-                : undefined
-            }
-            mainContent={
-              <section
-                ref={workout}
-                className="fitness-main-workspace"
-                aria-label="Workout workspace"
-              >
-                {children}
-              </section>
-            }
-          />
+                  workout.current
+                    ?.querySelector<HTMLElement>("[data-add-exercise]")
+                    ?.focus();
+                });
+              }}
+              detailContent={
+                helpId ? (
+                  <ExerciseHelp
+                    key={`${helpId}:${helpHistory}:${helpMode}`}
+                    id={helpId}
+                    onClose={closeHelp}
+                    history={helpHistory}
+                    mode={helpMode}
+                  />
+                ) : undefined
+              }
+              onChoose={
+                choose
+                  ? (exercise) => {
+                      const accepted = choose(exercise);
+                      if (accepted !== false) {
+                        setPickerOpen(false);
+                        requestAnimationFrame(() =>
+                          workout.current
+                            ?.querySelector<HTMLElement>("[data-add-exercise]")
+                            ?.focus({ preventScroll: true }),
+                        );
+                      }
+                      setNotice(
+                        accepted === false
+                          ? "Cannot add another exercise right now."
+                          : "",
+                      );
+                    }
+                  : undefined
+              }
+              mainContent={
+                <section
+                  ref={workout}
+                  tabIndex={-1}
+                  className="fitness-main-workspace"
+                  aria-label="Workout workspace"
+                >
+                  {children}
+                </section>
+              }
+            />
+          </div>
         </div>
-        {dayOpen && (
+        {!building && (
+          <aside
+            className="domain-calendar-rail"
+            aria-label="Fitness day panel"
+          >
+            <FitnessDayPanel onNavigate={() => setDayOpen(false)} />
+          </aside>
+        )}
+        {!building && dayOpen && (
           <Dialog title="Your day" onClose={() => setDayOpen(false)}>
             <FitnessDayPanel onNavigate={() => setDayOpen(false)} />
           </Dialog>
         )}
       </div>
     </WorkspaceContext.Provider>
-  );
-}
-function ExerciseHelp({ id, onClose }: { id: string; onClose: () => void }) {
-  const query = useQuery({
-    queryKey: ["fitness", "exercise", id],
-    queryFn: () => api.getExercise(id),
-  });
-  const catalog = useQuery({
-    queryKey: ["fitness", "catalog"],
-    queryFn: api.getExerciseCatalog,
-    enabled: !!query.data?.catalogKey,
-  });
-  if (query.isPending || (query.data?.catalogKey && catalog.isPending))
-    return <Loading />;
-  if (query.error)
-    return (
-      <ErrorState error={query.error} retry={() => void query.refetch()} />
-    );
-  if (query.data?.catalogKey && catalog.error)
-    return (
-      <ErrorState error={catalog.error} retry={() => void catalog.refetch()} />
-    );
-  const exercise = query.data!;
-  return (
-    <ExerciseDetails
-      key={id}
-      item={{
-        key: exercise.catalogKey ?? id,
-        name: exercise.name,
-        notes: exercise.notes,
-        equipment: exercise.equipment,
-        muscles: exercise.muscles,
-        exercise,
-        definition: catalog.data?.find(
-          (entry) => entry.key === exercise.catalogKey,
-        ),
-      }}
-      onClose={onClose}
-      onDuplicated={() => {}}
-      workoutContext
-    />
   );
 }

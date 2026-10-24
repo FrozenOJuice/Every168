@@ -19,12 +19,14 @@ export function ContextMenu({
   anchor,
   actions,
   onClose,
+  label = "Calendar actions",
 }: {
   x: number;
   y: number;
   anchor: HTMLElement;
   actions: ContextMenuAction[];
   onClose: () => void;
+  label?: string;
 }) {
   const menu = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -58,7 +60,7 @@ export function ContextMenu({
     <div
       ref={menu}
       role="menu"
-      aria-label="Calendar actions"
+      aria-label={label}
       className="context-menu"
       style={{ left: x, top: y }}
       onContextMenu={(event) => event.preventDefault()}

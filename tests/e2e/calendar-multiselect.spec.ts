@@ -70,11 +70,9 @@ test("select several calendar plans without triggering a drag or single-plan act
   await expect(page.locator("[data-calendar-clipboard-status]")).toHaveText(
     "2 plans copied.",
   );
-  await expect(page.locator(".calendar-notice")).toContainText(
-    "2 plans copied.",
-  );
+  await expect(page.locator(".app-toast")).toContainText("2 plans copied.");
   await expect(
-    page.locator(".calendar-notice").getByRole("button", { name: "Undo" }),
+    page.locator(".app-toast").getByRole("button", { name: "Undo" }),
   ).toHaveCount(0);
   await page.goto("/?date=2026-09-14&view=day");
   const destinationHeading = grid.getByRole("button", {
@@ -109,9 +107,9 @@ test("select several calendar plans without triggering a drag or single-plan act
   await page.keyboard.press("Delete");
   await expect(block("Alpha plan")).toHaveCount(0);
   await expect(block("Beta plan")).toHaveCount(0);
-  await expect(page.locator(".calendar-notice")).toContainText("Plans deleted");
+  await expect(page.locator(".app-toast")).toContainText("Plans deleted");
   await page
-    .locator(".calendar-notice")
+    .locator(".app-toast")
     .getByRole("button", { name: "Undo" })
     .click();
   await expect(block("Alpha plan")).toBeVisible();

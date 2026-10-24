@@ -45,7 +45,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   await start(page);
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
-  ).toHaveText(["Calendar", "Fitness", "Food"]);
+  ).toHaveText(["Calendar", "Fitness", "Food", "Tasks", "Assistant"]);
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
   await page.getByLabel("Workout title", { exact: true }).fill("Strength A");
   if (testInfo.project.name !== "desktop")
@@ -240,9 +240,18 @@ test("a newer saved workout blocks autosave and preserves the local draft across
   page,
 }) => {
   await start(page);
-  await page
-    .getByRole("button", { name: "Start empty workout", exact: true })
-    .click();
+  const created = await (
+    await page.request.post("/api/v1/strength-workouts", {
+      headers: headers(),
+      data: {
+        title: "Workout",
+        startedAt: new Date().toISOString(),
+        notes: null,
+        linkedTimeBlockId: null,
+      },
+    })
+  ).json();
+  await page.goto(`/fitness/session/${created.id}`);
   await expect(page).toHaveURL(/\/fitness\/session\//);
   await openWorkoutDetails(page);
   await expect(page.getByLabel("Workout name", { exact: true })).toBeVisible();

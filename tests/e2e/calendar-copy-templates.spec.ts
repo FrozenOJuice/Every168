@@ -67,15 +67,13 @@ test("templates and keyboard copying work without the Copy plans form", async ({
   await expect(dialog).toContainText("4 plans will be added");
   await dialog.getByRole("button", { name: "Add these plans" }).click();
   await expect(page).toHaveURL(/date=2026-10-05/);
-  await expect(page.locator(".calendar-notice")).toContainText(
-    "Template applied",
-  );
+  await expect(page.locator(".app-toast")).toContainText("Template applied");
   const applied = (
     await (await page.request.get("/api/v1/weeks/2026-10-05")).json()
   ).blocks;
   expect(applied).toHaveLength(4);
   await page
-    .locator(".calendar-notice")
+    .locator(".app-toast")
     .getByRole("button", { name: "Undo", exact: true })
     .click();
   await expect(

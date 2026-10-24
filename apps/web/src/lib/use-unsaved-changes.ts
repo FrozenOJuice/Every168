@@ -9,12 +9,14 @@ export function canNavigateAway() {
 export function useUnsavedChanges(
   dirty: boolean,
   message = "Leave this workout without saving your changes?",
+  blocked = false,
 ) {
   useEffect(() => {
     if (!dirty) return;
     const unload = (event: BeforeUnloadEvent) => event.preventDefault();
     const beforeNavigation = (event: Event) => {
-      if (!event.defaultPrevented && !confirm(message)) event.preventDefault();
+      if (!event.defaultPrevented && (blocked || !confirm(message)))
+        event.preventDefault();
     };
     const navigate = (event: MouseEvent) => {
       const anchor =
@@ -25,7 +27,7 @@ export function useUnsavedChanges(
         anchor instanceof HTMLAnchorElement &&
         anchor.href !== window.location.href &&
         !anchor.hash &&
-        !confirm(message)
+        (blocked || !confirm(message))
       ) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -39,5 +41,5 @@ export function useUnsavedChanges(
       document.removeEventListener("click", navigate, true);
       document.removeEventListener(navigationEvent, beforeNavigation);
     };
-  }, [dirty, message]);
+  }, [dirty, message, blocked]);
 }

@@ -5,7 +5,6 @@ import {
   exerciseInput,
   exerciseEquipmentOptions,
   exerciseMuscleOptions,
-  exerciseLoggingTypeSchema,
   type Exercise,
   type ExerciseInput,
 } from "@168hours/contracts";
@@ -14,9 +13,9 @@ import { useCommand, CommandError } from "@/lib/use-command";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { Dialog } from "@/components/ui/dialog";
 import { NotesField } from "./notes-field";
-import { FitnessSelect } from "./fitness-select";
+
 import { IntentTagsField } from "./intent-tags-field";
-import { trackingLabels } from "./progress-shared";
+import { MeasurementFields } from "./measurement-fields";
 import { ExerciseMultiSelect } from "./exercise-multi-select";
 
 export function ExerciseEditor({
@@ -168,18 +167,10 @@ export function ExerciseEditor({
                 {errors.name}
               </p>
             )}
-            <FitnessSelect
-              label="Tracking"
+            <MeasurementFields
               value={loggingType}
-              searchable={false}
               disabled={save.isPending}
-              options={Object.entries(trackingLabels).map(([value, label]) => ({
-                value,
-                label,
-              }))}
-              onChange={(value) =>
-                setLoggingType(exerciseLoggingTypeSchema.parse(value))
-              }
+              onChange={setLoggingType}
             />
             <IntentTagsField
               value={intentTags}
@@ -214,7 +205,12 @@ export function ExerciseEditor({
             </div>
           </div>
           <footer className="fitness-exercise-editor-footer">
-            <button className="button" type="button" onClick={cancel}>
+            <button
+              data-exercise-cancel
+              className="button"
+              type="button"
+              onClick={cancel}
+            >
               Cancel
             </button>
             <button className="button primary" type="submit">

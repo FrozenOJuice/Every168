@@ -76,7 +76,7 @@ export const timeEntries = pgTable(
     startsAt: instant("starts_at").notNull(),
     endsAt: instant("ends_at").notNull(),
     sourceType: text("source_type", {
-      enum: ["manual", "strength_workout", "cardio_activity"],
+      enum: ["manual", "strength_workout", "cardio_activity", "task_time"],
     })
       .default("manual")
       .notNull(),
@@ -93,7 +93,7 @@ export const timeEntries = pgTable(
     ),
     check(
       "entry_source_kind",
-      sql`(${t.sourceType}='manual' and ${t.sourceId} is null) or (${t.sourceType} in ('strength_workout','cardio_activity') and ${t.sourceId} is not null)`,
+      sql`(${t.sourceType}='manual' and ${t.sourceId} is null) or (${t.sourceType} in ('strength_workout','cardio_activity','task_time') and ${t.sourceId} is not null)`,
     ),
     index("entry_user_start_idx").on(t.userId, t.startsAt),
     foreignKey({

@@ -1,3 +1,4 @@
+import { normalizeMeasurementOverride } from "@168hours/contracts";
 import {
   strengthPlanInput,
   strengthScheduleInput,
@@ -33,6 +34,13 @@ export function strengthPlansService(
       rows.push({
         ...e,
         name: definition.name,
+        sets: e.sets.map((set) => ({
+          ...set,
+          measurementOverride: normalizeMeasurementOverride(
+            set.measurementOverride,
+            e.loggingType ?? definition.loggingType,
+          ),
+        })),
         loggingType: e.loggingType ?? definition.loggingType,
         intentTags: e.intentTags ?? definition.intentTags,
       });

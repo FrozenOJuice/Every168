@@ -9,6 +9,7 @@ import {
 import { useMe } from "@/features/identity/me";
 export function WorkoutNumberField({
   label,
+  displayLabel,
   value,
   onChange,
   disabled,
@@ -17,8 +18,10 @@ export function WorkoutNumberField({
   min = 1,
   hideLabel = false,
   error,
+  placeholder,
 }: {
   label: string;
+  displayLabel?: string;
   value: number | null;
   onChange: (v: number | null) => void;
   disabled: boolean;
@@ -27,6 +30,7 @@ export function WorkoutNumberField({
   min?: number;
   hideLabel?: boolean;
   error?: string;
+  placeholder?: string;
 }) {
   const id = useId();
   const { weightUnit: unit, distanceUnit } = useMe().preferences;
@@ -41,10 +45,11 @@ export function WorkoutNumberField({
   return (
     <div className="field">
       <label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
-        {label}
+        {displayLabel ?? label}
       </label>
       <input
         id={id}
+        aria-label={displayLabel ? label : undefined}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         type="number"
@@ -53,6 +58,8 @@ export function WorkoutNumberField({
         min={weight || distance ? 0 : min}
         disabled={disabled}
         value={display}
+        placeholder={placeholder}
+        onFocus={(event) => event.currentTarget.select()}
         onChange={(event) =>
           onChange(
             event.target.value === ""

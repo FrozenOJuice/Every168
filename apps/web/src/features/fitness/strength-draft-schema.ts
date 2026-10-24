@@ -15,6 +15,7 @@ export const exerciseDraftSchema = z.object({
     z.object({
       id: z.string().optional(),
       clientKey: z.string().optional(),
+      measurementOverride: exerciseLoggingTypeSchema.nullable().optional(),
       reps: measurement,
       weightKg: measurement,
       durationSeconds: measurement,

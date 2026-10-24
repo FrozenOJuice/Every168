@@ -46,6 +46,7 @@ describe("Strength target and actual boundaries", () => {
     };
     const plan = planInput("A", null, [e], true);
     expect(plan.exercises[0]!.sets[0]).toEqual({
+      measurementOverride: null,
       targetReps: 8,
       targetWeightKg: 50,
       targetDurationSeconds: null,
@@ -163,4 +164,26 @@ describe("new planned set targets", () => {
       nextPlannedSet({ ...source, targetWeightKg: null, restSeconds: null }),
     ).toMatchObject({ targetWeightKg: null, restSeconds: null });
   });
+});
+
+it("copies per-set measurement choices with planned targets but no actual performance", () => {
+  const original = {
+    ...emptySet(),
+    measurementOverride: "duration" as const,
+    durationSeconds: 35,
+    targetDurationSeconds: 40,
+    completed: true,
+  };
+  const next = nextPlannedSet(original);
+  expect(next).toMatchObject({
+    measurementOverride: "duration",
+    durationSeconds: null,
+    targetDurationSeconds: 40,
+    completed: false,
+  });
+  expect(next.clientKey).not.toBe(original.clientKey);
+  const plan = planInput("Mixed", null, [
+    { exerciseId: id, name: "Mixed", notes: null, sets: [original] },
+  ]);
+  expect(plan.exercises[0]!.sets[0]!.measurementOverride).toBe("duration");
 });

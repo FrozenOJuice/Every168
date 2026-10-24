@@ -1,32 +1,25 @@
 "use client";
-import { Trash2, Plus, X, ChevronDown } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import {
-  load,
-  distance,
-  sessionDate,
-  volumeText,
-  trackingLabels,
-} from "./progress-shared";
-import {
-  useRef,
-  useState,
-  useLayoutEffect,
-  useId,
-  type ReactNode,
-} from "react";
-import { api } from "@/lib/api";
-import { useMe } from "@/features/identity/me";
-import { NotesField } from "./notes-field";
+import { normalizeMeasurementOverride } from "@168hours/contracts";
+import { hasCustomSetSettings } from "./workout-basic-settings";
+import { ResetWorkoutExercise } from "./reset-workout-exercise";
+import { TooltipButton } from "@/components/ui/tooltip-button";
+import { copyFollowingSets } from "./copy-following-sets";
+import { Trash2, Plus, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { WorkoutMeasurementsEditor } from "./workout-measurements-editor";
+import { ExerciseRecall } from "./exercise-recall";
+import { useState, useId, type CSSProperties, type ReactNode } from "react";
+import { NotesEditor } from "./notes-editor";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { emptySet, nextPlannedSet, type ExerciseDraft } from "./strength-draft";
 import { useReorderList } from "./reorder-list";
 import { exerciseTrackingFields } from "./exercise-tracking";
-import { exerciseLoggingTypeSchema } from "@168hours/contracts";
-import { FitnessSelect } from "./fitness-select";
+
 import { IntentTagsField } from "./intent-tags-field";
+import { workoutCreationExperiment } from "./workout-creation-experiment";
+import { WorkoutQuickTargets } from "./workout-quick-targets";
 import { WorkoutSetRow } from "./workout-set-row";
+import { workoutExerciseSummary } from "./workout-exercise-summary";
+import { useMe } from "@/features/identity/me";
 
 export function WorkoutExerciseCard({
   exercise,
@@ -38,6 +31,7 @@ export function WorkoutExerciseCard({
   disabled,
   handle,
   onRest,
+  onNotice,
   onChange,
   onRemove,
 }: {
@@ -50,9 +44,16 @@ export function WorkoutExerciseCard({
   disabled: boolean;
   handle: ReactNode;
   onRest?: (seconds: number) => void;
+  onNotice?: (message: string) => void;
   onChange: (exercise: ExerciseDraft) => void;
   onRemove: () => void;
 }) {
+  const quick = workoutCreationExperiment && collapsible && !session;
+  const { preferences } = useMe();
+  const custom = hasCustomSetSettings(exercise);
+  const [detailed, setDetailed] = useState(() => custom);
+  const [resetting, setResetting] = useState(false);
+  if (quick && custom && !detailed) setDetailed(true);
   const panel = useFitnessExercisePanel();
   const [collapsed, setCollapsed] = useState(false);
   const contentId = useId();
@@ -61,16 +62,20 @@ export function WorkoutExerciseCard({
     ([key, error]) => error && key.startsWith(`${errorPrefix}.`),
   );
   if (collapsed && hasErrors) setCollapsed(false);
-  const [notesOpen, setNotesOpen] = useState(false);
+  if (quick && hasErrors && !detailed) setDetailed(true);
+  const [notesOpen, setNotesOpen] = useState(!!exercise.notes);
   if (!notesOpen && errors[`${errorPrefix}.notes`]) setNotesOpen(true);
-  const notesRef = useRef<HTMLDivElement>(null);
-  const notesButtonRef = useRef<HTMLButtonElement>(null);
-  useLayoutEffect(() => {
-    if (notesOpen) notesRef.current?.querySelector("textarea")?.focus();
-  }, [notesOpen]);
-  const { weightUnit: unit, distanceUnit, timezone } = useMe().preferences;
   const loggingType = exercise.loggingType ?? "reps_load";
   const mainFields = exerciseTrackingFields[loggingType];
+  const measurementColumns = Math.max(
+    mainFields.length,
+    ...exercise.sets.map(
+      (set) =>
+        exerciseTrackingFields[set.measurementOverride ?? loggingType].filter(
+          (field) => !mainFields.includes(field),
+        ).length,
+    ),
+  );
   const {
     root: setListRef,
     rowProps,
@@ -81,320 +86,322 @@ export function WorkoutExerciseCard({
     (value) => onChange({ ...exercise, sets: value }),
     disabled,
   );
-  const previous = useQuery({
-    queryKey: [
-      "fitness",
-      "previous-session",
-      exercise.exerciseId,
-      sessionId,
-      loggingType,
-    ],
-    queryFn: () =>
-      api.getExerciseReport(exercise.exerciseId, {
-        loggingType,
-        limit: 1,
-        excludeWorkoutId: sessionId,
-      }),
-    enabled: !!session,
-  });
-  const last = previous.data?.sessions.items[0];
   return (
     <>
+      {resetting && (
+        <ResetWorkoutExercise
+          exercise={exercise}
+          disabled={disabled}
+          onCancel={() => setResetting(false)}
+          onConfirm={(next) => {
+            onChange(next);
+            setResetting(false);
+            setDetailed(false);
+          }}
+        />
+      )}
       <div className="fitness-workout-exercise-heading">
         {handle}
-        <h2 aria-label={exercise.name}>
-          <button
+        <div className="fitness-exercise-heading-copy">
+          <h2 aria-label={exercise.name}>
+            <button
+              type="button"
+              className="fitness-exercise-name"
+              aria-label={`Help with ${exercise.name}`}
+              title="Exercise details"
+              onClick={() => panel.help(exercise.exerciseId)}
+            >
+              {exercise.name}
+            </button>
+          </h2>
+          {!session && (
+            <span className="fitness-exercise-target-summary">
+              {workoutExerciseSummary(exercise, preferences)}
+            </span>
+          )}
+        </div>
+        {quick && (
+          <TooltipButton
             type="button"
-            className="fitness-exercise-name"
-            aria-label={`Help with ${exercise.name}`}
-            title="Exercise details"
-            onClick={() => panel.help(exercise.exerciseId)}
+            className="fitness-disclosure-control fitness-advanced-editor"
+            aria-label={detailed ? "Reset to basic" : "Advanced editor"}
+            aria-expanded={detailed}
+            disabled={disabled}
+            tooltip={
+              detailed ? "Reset to basic editor" : "Open advanced editor"
+            }
+            onClick={() => {
+              setCollapsed(false);
+              if (detailed && custom) setResetting(true);
+              else setDetailed(!detailed);
+            }}
           >
-            {exercise.name}
-          </button>
-        </h2>
+            <SlidersHorizontal size={16} aria-hidden="true" />
+            <span className="fitness-advanced-editor-label">
+              {detailed ? "Reset to basic" : "Advanced editor"}
+            </span>
+          </TooltipButton>
+        )}
         {collapsible && (
-          <button
+          <TooltipButton
             type="button"
             className="icon-button fitness-exercise-collapse"
             aria-label={`${collapsed ? "Expand" : "Collapse"} ${exercise.name} exercise`}
             aria-expanded={!collapsed}
             aria-controls={contentId}
-            title={collapsed ? "Expand exercise" : "Collapse exercise"}
+            tooltip={collapsed ? "Expand exercise" : "Collapse exercise"}
             onClick={() => setCollapsed(!collapsed)}
           >
             <ChevronDown size={18} aria-hidden="true" />
-          </button>
+          </TooltipButton>
         )}
-        <button
+        <TooltipButton
           type="button"
           className="icon-button fitness-remove-control"
           disabled={disabled}
           aria-label={`Remove ${exercise.name} exercise`}
-          title="Remove exercise"
+          tooltip="Remove exercise"
           onClick={onRemove}
         >
           <Trash2 size={18} aria-hidden="true" />
-        </button>
+        </TooltipButton>
       </div>
-      {collapsed && (
-        <p className="fitness-collapsed-exercise-summary">
-          {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}
-          {exercise.notes ? " · Note" : ""}
-        </p>
-      )}
       <div
         id={contentId}
-        className="fitness-exercise-fields"
-        data-logging-type={loggingType}
-        hidden={collapsed}
+        className="fitness-exercise-body"
+        data-collapsed={collapsed}
+        aria-hidden={collapsed}
+        inert={collapsed}
       >
-        <div className="fitness-exercise-metadata">
-          <FitnessSelect
-            label={`Measurements for ${exercise.name}`}
-            value={loggingType}
-            searchable={false}
-            disabled={disabled}
-            options={Object.entries(trackingLabels).map(([value, label]) => ({
-              value,
-              label,
-            }))}
-            onChange={(value) =>
-              onChange({
-                ...exercise,
-                loggingType: exerciseLoggingTypeSchema.parse(value),
-              })
-            }
-          />
-          <IntentTagsField
-            label={`Intent for ${exercise.name}`}
-            value={exercise.intentTags ?? []}
-            disabled={disabled}
-            onChange={(intentTags) => onChange({ ...exercise, intentTags })}
-          />
-        </div>
-        {session && last && (
-          <div className="fitness-previous-set">
-            <Link href={`/fitness/session/${last.id}`}>
-              Latest finished session · {sessionDate(last.startedAt, timezone)}
-            </Link>
-            <p>
-              {last.completedSets} completed sets
-              {last.maxReps !== null ? ` · Best reps: ${last.maxReps}` : ""}
-              {last.maxWeightKg !== null
-                ? ` · Highest load: ${load(last.maxWeightKg, unit)}`
-                : ""}
-              {last.maxDistanceMeters !== null
-                ? ` · Distance: ${distance(last.maxDistanceMeters, distanceUnit)}`
-                : ""}
-              {last.maxLaps !== null ? ` · Laps: ${last.maxLaps}` : ""}
-              {last.maxDurationSeconds !== null
-                ? ` · Longest set: ${last.maxDurationSeconds} sec`
-                : ""}
-            </p>
-            {loggingType === "reps_load" && (
-              <p>Volume: {volumeText(last, unit)}</p>
-            )}
-            <Link href={`/fitness/progress/${exercise.exerciseId}`}>
-              Progress and records →
-            </Link>
-          </div>
-        )}
-        {previous.error && (
-          <p className="error" role="alert">
-            Previous performance could not load.{" "}
-            <button
-              className="fitness-text-action"
-              type="button"
-              onClick={() => void previous.refetch()}
-            >
-              Retry history
-            </button>
-          </p>
-        )}
-        {!session && (
+        <div className="fitness-exercise-body-clip">
           <div
-            className="fitness-planned-set-columns fitness-numbered-set-columns"
-            aria-hidden="true"
+            className="fitness-exercise-fields"
+            data-logging-type={loggingType}
+            data-measurement-count={mainFields.length}
           >
-            <span>Set</span>
-            {mainFields.map((field) => (
-              <span key={field}>
-                {field === "reps"
-                  ? "Reps"
-                  : field === "load"
-                    ? `Load (${unit})`
-                    : field === "distance"
-                      ? `Distance (${distanceUnit})`
-                      : field === "laps"
-                        ? "Laps"
-                        : "Time (sec)"}
-              </span>
-            ))}
-            <span />
-            <span />
-          </div>
-        )}
-        <div
-          ref={setListRef}
-          className={`fitness-workout-set-list${session ? " is-session" : ""}`}
-        >
-          {exercise.sets.map((set, index) => (
             <div
-              {...rowProps(index)}
-              key={set.id ?? set.clientKey ?? index}
-              className={`fitness-workout-set${session ? " is-session" : ""}${set.completed ? " is-complete" : ""} ${rowProps(index).className ?? ""}`}
-              role="group"
-              aria-label={`Set ${index + 1}`}
+              className="fitness-card-measurements"
+              hidden={quick && !detailed}
             >
-              <WorkoutSetRow
-                set={set}
-                index={index}
-                loggingType={loggingType}
-                hasNextSet={index < exercise.sets.length - 1}
-                session={session}
+              <WorkoutMeasurementsEditor
+                name={exercise.name}
+                value={loggingType}
                 disabled={disabled}
-                errors={errors}
-                errorPrefix={`${errorPrefix}.sets.${index}`}
-                handle={setHandle(
-                  index,
-                  `set ${index + 1}`,
-                  session ? `Set ${index + 1}` : index + 1,
-                )}
-                onRest={onRest}
-                onChange={(next) =>
+                onChange={(nextType) =>
                   onChange({
                     ...exercise,
-                    sets: exercise.sets.map((item, i) =>
-                      i === index ? next : item,
-                    ),
+                    loggingType: nextType,
+                    sets: exercise.sets.map((set) => ({
+                      ...set,
+                      measurementOverride: normalizeMeasurementOverride(
+                        normalizeMeasurementOverride(
+                          set.measurementOverride,
+                          loggingType,
+                        ),
+                        nextType,
+                      ),
+                    })),
                   })
                 }
-                onRemove={() => {
-                  onChange({
-                    ...exercise,
-                    sets: exercise.sets.filter((_, i) => i !== index),
-                  });
-                  requestAnimationFrame(() => {
-                    const rows =
-                      setListRef.current?.querySelectorAll<HTMLElement>(
-                        ":scope > [data-reorder-item]",
-                      );
-                    const row =
-                      rows?.[Math.min(index, (rows?.length ?? 0) - 1)];
-                    const target = Array.from(
-                      row?.querySelectorAll<HTMLInputElement>("input") ?? [],
-                    ).find(
-                      (input) =>
-                        input.getClientRects().length && !input.disabled,
-                    );
-                    (
-                      target ??
-                      setListRef.current?.parentElement?.querySelector<HTMLButtonElement>(
-                        "[data-add-set]",
-                      )
-                    )?.focus({ preventScroll: true });
-                  });
-                }}
               />
             </div>
-          ))}
-        </div>
-        {feedback}
-        <div className="fitness-workout-exercise-footer">
-          <button
-            type="button"
-            data-add-set
-            data-validation-error={!!errors[`${errorPrefix}.sets`]}
-            aria-describedby={
-              errors[`${errorPrefix}.sets`] ? setErrorId : undefined
-            }
-            className="fitness-text-action"
-            disabled={disabled || exercise.sets.length >= 100}
-            onClick={() =>
-              onChange({
-                ...exercise,
-                sets: [
-                  ...exercise.sets,
-                  collapsible
-                    ? nextPlannedSet(exercise.sets.at(-1))
-                    : emptySet(),
-                ],
-              })
-            }
-          >
-            <Plus size={16} aria-hidden="true" />
-            Add set
-          </button>
-          {!notesOpen && (
-            <button
-              ref={notesButtonRef}
-              type="button"
-              className="fitness-text-action"
-              disabled={disabled}
-              onClick={() => setNotesOpen(true)}
-            >
-              {exercise.notes ? "Exercise notes" : "Add notes"}
-            </button>
-          )}
-        </div>
-        {errors[`${errorPrefix}.sets`] && (
-          <p id={setErrorId} className="error" role="alert">
-            {errors[`${errorPrefix}.sets`]}
-          </p>
-        )}
-        {notesOpen && (
-          <div
-            ref={notesRef}
-            className="fitness-exercise-note-editor"
-            role="group"
-            aria-label={`Exercise note for ${exercise.name}`}
-          >
-            <div className="fitness-exercise-note-heading">
-              <span>Exercise note</span>
+            <ExerciseRecall
+              quietEmpty={quick}
+              id={exercise.exerciseId}
+              mode={loggingType}
+              excludeWorkoutId={sessionId}
+              onHistory={() =>
+                panel.help(exercise.exerciseId, true, loggingType)
+              }
+            />
+            {quick && !detailed && (
+              <WorkoutQuickTargets
+                exercise={exercise}
+                disabled={disabled}
+                onChange={onChange}
+              />
+            )}
+            {(!quick || detailed) && (
+              <>
+                <div
+                  ref={setListRef}
+                  className={`fitness-workout-set-list${session ? " is-session" : ""}`}
+                  style={
+                    !session
+                      ? ({
+                          "--fitness-measurement-columns": mainFields.length,
+                          "--fitness-measurement-min-columns":
+                            measurementColumns,
+                        } as CSSProperties)
+                      : undefined
+                  }
+                >
+                  {exercise.sets.map((set, index) => (
+                    <div
+                      {...rowProps(index)}
+                      key={set.id ?? set.clientKey ?? index}
+                      className={`fitness-workout-set${session ? " is-session" : ""}${set.completed ? " is-complete" : ""} ${rowProps(index).className ?? ""}`}
+                      role="group"
+                      aria-label={`Set ${index + 1}`}
+                    >
+                      <WorkoutSetRow
+                        set={set}
+                        index={index}
+                        loggingType={loggingType}
+                        hasNextSet={index < exercise.sets.length - 1}
+                        session={session}
+                        disabled={disabled}
+                        canRemove={exercise.sets.length > 1}
+                        errors={errors}
+                        errorPrefix={`${errorPrefix}.sets.${index}`}
+                        handle={setHandle(
+                          index,
+                          `set ${index + 1}`,
+                          session ? `Set ${index + 1}` : index + 1,
+                        )}
+                        onRest={onRest}
+                        canCopyTargets={
+                          !session &&
+                          copyFollowingSets(exercise, index, "targets").count >
+                            0
+                        }
+                        canCopyRest={
+                          !session &&
+                          copyFollowingSets(exercise, index, "rest").count > 0
+                        }
+                        onCopy={
+                          !session
+                            ? (kind) => {
+                                const result = copyFollowingSets(
+                                  exercise,
+                                  index,
+                                  kind,
+                                );
+                                if (!result.count) return;
+                                onChange(result.exercise);
+                                onNotice?.(
+                                  `${kind === "targets" ? "Targets" : "Rest"} applied to ${result.count} following ${result.count === 1 ? "set" : "sets"}.`,
+                                );
+                              }
+                            : undefined
+                        }
+                        onChange={(next) =>
+                          onChange({
+                            ...exercise,
+                            sets: exercise.sets.map((item, i) =>
+                              i === index ? next : item,
+                            ),
+                          })
+                        }
+                        onRemove={() => {
+                          if (exercise.sets.length <= 1) return;
+                          onChange({
+                            ...exercise,
+                            sets: exercise.sets.filter((_, i) => i !== index),
+                          });
+                          requestAnimationFrame(() => {
+                            const rows =
+                              setListRef.current?.querySelectorAll<HTMLElement>(
+                                ":scope > [data-reorder-item]",
+                              );
+                            const row =
+                              rows?.[Math.min(index, (rows?.length ?? 0) - 1)];
+                            const target = Array.from(
+                              row?.querySelectorAll<HTMLInputElement>(
+                                "input",
+                              ) ?? [],
+                            ).find(
+                              (input) =>
+                                input.getClientRects().length &&
+                                !input.disabled,
+                            );
+                            (
+                              target ??
+                              setListRef.current?.parentElement?.querySelector<HTMLButtonElement>(
+                                "[data-add-set]",
+                              )
+                            )?.focus({ preventScroll: true });
+                          });
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  data-add-set
+                  data-validation-error={!!errors[`${errorPrefix}.sets`]}
+                  aria-describedby={
+                    errors[`${errorPrefix}.sets`] ? setErrorId : undefined
+                  }
+                  className="fitness-text-action fitness-add-set"
+                  disabled={disabled || exercise.sets.length >= 100}
+                  onClick={() =>
+                    onChange({
+                      ...exercise,
+                      sets: [
+                        ...exercise.sets,
+                        collapsible
+                          ? nextPlannedSet(exercise.sets.at(-1))
+                          : emptySet(),
+                      ],
+                    })
+                  }
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  Add set
+                </button>
+                {feedback}
+              </>
+            )}
+            <div className="fitness-workout-exercise-footer">
+              <NotesEditor
+                label="Exercise notes"
+                value={exercise.notes}
+                open={notesOpen}
+                onOpenChange={setNotesOpen}
+                disabled={disabled}
+                error={errors[`${errorPrefix}.notes`]}
+                onChange={(notes) => onChange({ ...exercise, notes })}
+              />
+            </div>
+            {errors[`${errorPrefix}.sets`] && (
+              <p id={setErrorId} className="error" role="alert">
+                {errors[`${errorPrefix}.sets`]}
+              </p>
+            )}
+            {session && exercise.sets.length > 0 && (
               <button
                 type="button"
-                className="icon-button fitness-remove-control"
-                aria-label={`Remove note from ${exercise.name}`}
-                title="Remove note"
+                className="fitness-text-action"
                 disabled={disabled}
-                onClick={() => {
-                  onChange({ ...exercise, notes: null });
-                  setNotesOpen(false);
-                  requestAnimationFrame(() => notesButtonRef.current?.focus());
-                }}
+                onClick={() =>
+                  onChange({
+                    ...exercise,
+                    sets: exercise.sets.map((set) => ({
+                      ...set,
+                      skipped: !set.completed,
+                    })),
+                  })
+                }
               >
-                <X size={16} aria-hidden="true" />
+                Skip remaining sets
               </button>
-            </div>
-            <NotesField
-              label="Exercise notes"
-              hideLabel
-              disabled={disabled}
-              value={exercise.notes}
-              error={errors[`${errorPrefix}.notes`]}
-              onChange={(notes) => onChange({ ...exercise, notes })}
-            />
+            )}
+            {(!quick || detailed) && (
+              <div className="fitness-exercise-intent">
+                <IntentTagsField
+                  label={`Intent for ${exercise.name}`}
+                  value={exercise.intentTags ?? []}
+                  disabled={disabled}
+                  onChange={(intentTags) =>
+                    onChange({ ...exercise, intentTags })
+                  }
+                />
+              </div>
+            )}
           </div>
-        )}
-        {session && exercise.sets.length > 0 && (
-          <button
-            type="button"
-            className="fitness-text-action"
-            disabled={disabled}
-            onClick={() =>
-              onChange({
-                ...exercise,
-                sets: exercise.sets.map((set) => ({
-                  ...set,
-                  skipped: !set.completed,
-                })),
-              })
-            }
-          >
-            Skip remaining sets
-          </button>
-        )}
+        </div>
       </div>
     </>
   );

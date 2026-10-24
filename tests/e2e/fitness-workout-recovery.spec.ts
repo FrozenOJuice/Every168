@@ -28,13 +28,15 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   });
   const title = workspace.getByLabel("Workout title", { exact: true });
   await title.fill("Unfinished workout");
-  await workspace.locator(".fitness-builder-notes > summary").click();
+  await workspace
+    .getByRole("button", { name: "Toggle workout notes", exact: true })
+    .click();
   await workspace
     .getByLabel("Workout notes", { exact: true })
     .fill("Keep these unsaved notes");
   if (testInfo.project.name === "phone")
-    await workspace
-      .getByRole("button", { name: "Add exercise", exact: true })
+    await page
+      .getByRole("button", { name: "Add exercises", exact: true })
       .click();
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
@@ -49,7 +51,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
     .click();
   if (testInfo.project.name === "phone")
     await page
-      .getByRole("button", { name: "Back to workout", exact: true })
+      .getByRole("button", { name: "Your workout", exact: true })
       .click();
   const reps = workspace.getByLabel("Target reps", { exact: true }).first();
   await reps.fill("0"); // Invalid entries must also survive recovery.
@@ -62,7 +64,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   await expect(title).toHaveValue("Unfinished workout");
   await expect(reps).toHaveValue("0");
   await expect(
-    workspace.getByText("Unsaved changes restored.", { exact: true }),
+    page.locator(".app-toast").getByText("Draft restored", { exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(title).toHaveValue("Unfinished workout");
@@ -137,8 +139,9 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   await page.goto(`/fitness/workout/${original.id}`);
   await title.fill("Discard this");
   await page.reload();
-  await workspace
-    .getByRole("button", { name: "Discard recovered changes", exact: true })
+  await page
+    .locator(".app-toast")
+    .getByRole("button", { name: "Discard", exact: true })
     .click();
   await expect(title).toHaveValue("Newer saved workout");
   await title.fill("Deliberate discard");
@@ -151,7 +154,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   await page.goto(`/fitness/workout/${original.id}`);
   await expect(title).toHaveValue("Newer saved workout");
   await expect(
-    workspace.getByText("Unsaved changes restored.", { exact: true }),
+    page.locator(".app-toast").getByText("Draft restored", { exact: true }),
   ).toHaveCount(0);
   await page.evaluate(() => {
     Storage.prototype.setItem = () => {

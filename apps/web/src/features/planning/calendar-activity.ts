@@ -15,7 +15,8 @@ export function activityOnDate(
         ? Date.parse(entry.endsAt) > Date.parse(range.startsAt)
         : Date.parse(entry.occurredAt) >= Date.parse(range.startsAt)) &&
       (!filter ||
-        ((filter.kind === "all" || filter.kind === "entry") &&
+        ((filter.kind === "all" ||
+          filter.kind === (entry.status === "planned" ? "block" : "entry")) &&
           (!filter.categoryId || filter.categoryId === "none") &&
           (entry.title + " " + entry.summary + " " + entry.domain)
             .toLocaleLowerCase()

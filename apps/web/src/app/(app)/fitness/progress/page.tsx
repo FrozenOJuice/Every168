@@ -1,9 +1,11 @@
-import { FitnessProgressPage } from "@/features/fitness/progress-overview";
+import { redirect } from "next/navigation";
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
   const { date } = await searchParams;
-  return <FitnessProgressPage date={date} />;
+  redirect(
+    `/fitness/history${date ? `?date=${encodeURIComponent(date)}` : ""}`,
+  );
 }

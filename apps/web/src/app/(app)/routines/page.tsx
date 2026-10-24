@@ -1,2 +1,4 @@
 import { RoutinesPage } from "@/features/routines/routines-page";
-export default RoutinesPage;
+export default function Page() {
+  return <RoutinesPage />;
+}

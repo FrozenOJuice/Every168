@@ -71,14 +71,13 @@ async function setup(page: Page, withWorkouts = true) {
   return { exercise, workouts, write };
 }
 
-test("weekly progress, exercise records and trends work with units, empty modes and source links", async ({
+test("exercise recall, weekly totals and records work with units, empty modes and source links", async ({
   page,
 }, testInfo) => {
   const { exercise, workouts, write } = await setup(page);
   await page.goto("/fitness");
-  await page
-    .getByRole("link", { name: "View progress →", exact: true })
-    .click();
+  await page.getByRole("link", { name: "History", exact: true }).click();
+  await page.getByText("Weekly totals", { exact: true }).click();
   await page.getByLabel("Week containing", { exact: true }).fill("2026-10-14");
   await expect(page).toHaveURL(/date=2026-10-14/);
   await expect(
@@ -93,12 +92,6 @@ test("weekly progress, exercise records and trends work with units, empty modes 
   ).toHaveText("2");
   await expect(cards).toContainText("2h 00m");
   await expect(cards).toContainText("820 kg·reps · 2 incomplete sets");
-  await page
-    .getByRole("button", { name: "Weekly measure", exact: true })
-    .click();
-  await page
-    .getByRole("option", { name: "Completed sets", exact: true })
-    .click();
   await page.getByRole("link", { name: "Previous week", exact: true }).click();
   await expect(cards).toContainText("0h 00m");
   await page.getByRole("link", { name: "Next week", exact: true }).click();
@@ -108,17 +101,34 @@ test("weekly progress, exercise records and trends work with units, empty modes 
     path: testInfo.outputPath("weekly-progress.png"),
     fullPage: true,
   });
-  await page
-    .getByLabel("Find a recorded exercise", { exact: true })
-    .fill("Progress squat");
-  await page.getByRole("link", { name: "Progress squat", exact: true }).click();
+  await page.goto(`/fitness/exercises/${exercise.id}`);
   await expect(
-    page.getByRole("heading", { name: "Progress squat progress", exact: true }),
+    page.getByRole("heading", { name: "Progress squat", exact: true }),
   ).toBeVisible();
+  const lastTime = page.locator(".fitness-recall-section");
+  await expect(lastTime).toContainText("Oct 14, 2026");
+  await expect(lastTime.locator("tbody tr")).toHaveCount(2);
+  await expect(lastTime.locator("tbody tr").first()).toContainText("50 kg");
+  await expect(lastTime.locator("tbody tr").first()).toContainText("10");
+  await expect(lastTime.locator("tbody tr").last()).toContainText(
+    "Not recorded",
+  );
+  await page.locator(".fitness-session-history summary").first().click();
+  await expect(page.locator(".fitness-session-history")).toContainText("40 kg");
+  if (
+    !(await page
+      .locator("details")
+      .filter({
+        has: page.locator("summary", { hasText: /^Personal records$/ }),
+      })
+      .evaluate((element) => (element as HTMLDetailsElement).open))
+  )
+    await page.getByText("Personal records", { exact: true }).first().click();
   const records = page.locator(".fitness-progress-records");
   await expect(records).toContainText("50 kg");
   await expect(records).toContainText("10 reps");
   await expect(records).toContainText("500 kg·reps");
+  await page.getByText("Session statistics", { exact: true }).first().click();
   await page
     .getByRole("button", { name: "Progress measure", exact: true })
     .click();
@@ -131,17 +141,35 @@ test("weekly progress, exercise records and trends work with units, empty modes 
   await expect(page.locator(".fitness-progress-sessions")).toContainText(
     "1 incomplete set",
   );
-  await page
-    .getByRole("button", { name: "Tracking type", exact: true })
-    .click();
-  await page.getByRole("option", { name: "Duration", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Duration", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "Load", exact: true }).uncheck();
+
+  if (
+    !(await page
+      .locator("details")
+      .filter({
+        has: page.locator("summary", { hasText: /^Personal records$/ }),
+      })
+      .evaluate((element) => (element as HTMLDetailsElement).open))
+  )
+    await page.getByText("Personal records", { exact: true }).first().click();
   await expect(
     page.getByText("No records yet for Duration.", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Tracking type", exact: true })
-    .click();
-  await page.getByRole("option", { name: "Reps + load", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Reps", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Load", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Duration", exact: true }).uncheck();
+
+  if (
+    !(await page
+      .locator("details")
+      .filter({
+        has: page.locator("summary", { hasText: /^Personal records$/ }),
+      })
+      .evaluate((element) => (element as HTMLDetailsElement).open))
+  )
+    await page.getByText("Personal records", { exact: true }).first().click();
   await expect(records).toContainText("50 kg");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(
@@ -153,13 +181,6 @@ test("weekly progress, exercise records and trends work with units, empty modes 
     path: testInfo.outputPath("exercise-progress.png"),
     fullPage: true,
   });
-  const chart = page.locator(".fitness-progress-chart");
-  await chart.locator("svg a").last().focus();
-  await expect(chart.locator("svg a").last()).toBeFocused();
-  await chart.getByText("View chart data", { exact: true }).click();
-  await expect(chart.locator(".record-list")).toContainText("500 kg·reps");
-  await chart.screenshot({ path: testInfo.outputPath("exercise-trend.png") });
-  await chart.getByText("View chart data", { exact: true }).click();
   const me = await (await page.request.get("/api/v1/me")).json();
   await write(
     "put",
@@ -168,6 +189,16 @@ test("weekly progress, exercise records and trends work with units, empty modes 
     me.preferences.version,
   );
   await page.reload();
+  await expect(lastTime).toContainText("110.2 lb");
+  if (
+    !(await page
+      .locator("details")
+      .filter({
+        has: page.locator("summary", { hasText: /^Personal records$/ }),
+      })
+      .evaluate((element) => (element as HTMLDetailsElement).open))
+  )
+    await page.getByText("Personal records", { exact: true }).first().click();
   await expect(records).toContainText("110.2 lb");
   await records.locator("li").first().getByRole("link").click();
   await expect(page).toHaveURL(new RegExp(workouts[1]!.id));
@@ -178,7 +209,7 @@ test("weekly progress, exercise records and trends work with units, empty modes 
   await expect(comparison).toContainText("110.2 lb");
   await expect(
     comparison.getByRole("link", { name: "Progress squat", exact: true }),
-  ).toHaveAttribute("href", `/fitness/progress/${exercise.id}`);
+  ).toHaveAttribute("href", `/fitness/exercises/${exercise.id}`);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -190,21 +221,17 @@ test("saved corrections and deletions update progress, and training shows the pr
   await page.goto(`/fitness/session/${current.id}`);
   await page.getByLabel("Actual load (kg)", { exact: true }).first().fill("60");
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
-  await page.goto(`/fitness/progress/${exercise.id}`);
-  await expect(page.locator(".fitness-progress-records")).toContainText(
-    "60 kg",
-  );
+  await page.goto(`/fitness/exercises/${exercise.id}`);
+  await expect(page.locator(".fitness-recall-section")).toContainText("60 kg");
   await page.goto(`/fitness/session/${current.id}`);
   page.once("dialog", (dialog) => dialog.accept());
   await page
     .getByRole("button", { name: "Delete workout", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/fitness#history$/);
-  await page.goto(`/fitness/progress/${exercise.id}`);
-  await expect(page.locator(".fitness-progress-records")).toContainText(
-    "40 kg",
-  );
-  await expect(page.locator(".fitness-progress-records")).not.toContainText(
+  await expect(page).toHaveURL(/\/fitness\/history$/);
+  await page.goto(`/fitness/exercises/${exercise.id}`);
+  await expect(page.locator(".fitness-recall-section")).toContainText("40 kg");
+  await expect(page.locator(".fitness-recall-section")).not.toContainText(
     "60 kg",
   );
   const previous = workouts[0]!;
@@ -216,17 +243,24 @@ test("saved corrections and deletions update progress, and training shows the pr
   );
   await page.goto(`/fitness/session/${active.id}`);
   await expect(page.locator(".fitness-previous-set")).toContainText(
-    "Latest finished session · Oct 12, 2026",
+    "Last time · Oct 12, 2026",
   );
   await expect(page.locator(".fitness-previous-set")).toContainText(
-    "2 completed sets",
+    "Set 2: 8 reps",
   );
   await expect(page.locator(".fitness-previous-set")).toContainText("40 kg");
   await page
     .locator(".fitness-previous-set")
-    .getByRole("link", { name: "Progress and records →", exact: true })
+    .getByRole("button", { name: /Last time/ })
     .click();
-  await expect(page).toHaveURL(new RegExp(`/fitness/progress/${exercise.id}`));
+  await expect(
+    page
+      .getByRole("complementary", {
+        name: "Exercise library panel",
+        exact: true,
+      })
+      .locator(".fitness-recall-section"),
+  ).toContainText("40 kg");
 });
 
 test("progress has useful empty states and retry after a read failure", async ({
@@ -248,14 +282,15 @@ test("progress has useful empty states and retry after a read failure", async ({
       });
     else await route.continue();
   });
-  await page.goto("/fitness/progress");
+  await page.goto("/fitness/history");
+  await page.getByText("Weekly totals", { exact: true }).click();
   await expect(
     page.getByText("Progress is temporarily unavailable.", { exact: true }),
   ).toBeVisible();
   fail = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(
-    page.getByText("Finish a workout to see your exercise progress here.", {
+    page.getByText("No workouts recorded yet.", {
       exact: true,
     }),
   ).toBeVisible();

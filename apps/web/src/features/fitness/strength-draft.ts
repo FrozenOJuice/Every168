@@ -26,6 +26,7 @@ export const emptySet = (): SetDraft => ({
 export function nextPlannedSet(previous?: SetDraft): SetDraft {
   return {
     ...emptySet(),
+    measurementOverride: previous?.measurementOverride ?? null,
     targetReps: previous?.targetReps ?? null,
     targetWeightKg: previous?.targetWeightKg ?? null,
     targetDurationSeconds: previous?.targetDurationSeconds ?? null,
@@ -63,6 +64,7 @@ export function sessionInput(v: SessionDraft): WorkoutUpdateInput {
       notes: e.notes,
       sets: e.sets.map((s) => ({
         id: s.id,
+        measurementOverride: s.measurementOverride ?? null,
         reps: s.reps,
         weightKg: s.weightKg,
         durationSeconds: s.durationSeconds,
@@ -85,7 +87,9 @@ export function planExercises(plan?: StrengthPlan): ExerciseDraft[] {
     plan?.exercises.map((e) => ({
       ...e,
       clientKey: crypto.randomUUID(),
-      sets: e.sets.map((s) => ({ ...emptySet(), ...s })),
+      sets: e.sets.length
+        ? e.sets.map((s) => ({ ...emptySet(), ...s }))
+        : [emptySet()],
     })) ?? []
   );
 }
@@ -104,6 +108,7 @@ export function planInput(
       intentTags: e.intentTags,
       notes: e.notes,
       sets: e.sets.map((s) => ({
+        measurementOverride: s.measurementOverride ?? null,
         targetReps: s.targetReps ?? (fromActual ? s.reps : null),
         targetWeightKg: s.targetWeightKg ?? (fromActual ? s.weightKg : null),
         targetDurationSeconds:

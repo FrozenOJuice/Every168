@@ -16,18 +16,18 @@ This document records the agreed direction and priority order. It describes futu
 
 ## Domains: useful experiences of their own
 
-- Current foundation: Calendar, Fitness and Food are the main-navigation destinations. The first Strength workflow covers reusable workouts, optional scheduling, set-by-set session logging, and review. The old Exercise UI remains retired; Everyday Food reuses the retained nutrition, hydration and body services. Keep Unscheduled and Routines for later Tasks decisions; Goals are deferred.
+- Current foundation: Calendar, Fitness, Food and Tasks are the main-navigation destinations. The first Strength workflow covers reusable workouts, optional scheduling, set-by-set session logging, and review. The old Exercise UI remains retired; Everyday Food reuses the retained nutrition, hydration and body services. Tasks includes the existing reusable Routines; Unscheduled Calendar plans remain available separately. Goals are deferred.
 
 - Work toward three built-in workspaces around Calendar: Fitness, Food, and Tasks.
 - Fitness covers workout planning, sessions, sets, reps, rest, and progress. Fitness is the product workspace name; the existing Exercise backend module supplies its canonical records and services.
-- Fitness keeps My workouts, the next genuinely scheduled linked workout, creation/editing and training in the main area, with a shared Day panel or exercise library on the right. The overview defaults to Day; building/training opens Exercises, with an explicit switch that preserves both states. Add directly from that library. Exercise help replaces the right library while retaining the main workout, filters and scroll. Exercise creation/editing uses the main area while preserving the current workout draft. Mobile switches explicitly between these areas without discarding state. Use contextual panels and progressive detail instead of generic lists separated by top-level tabs. Exercise visuals use placeholders until supplied assets are ready. Keep current scheduling intact and show genuinely linked planned workouts alongside recorded Fitness activity in the shared Day panel.
+- Fitness uses Training and History within the main column. Workouts and programs are the starting point. Add exercise opens an inline picker and returns to the retained workout; last-session sets appear during preparation and training, with shared details/history opened in context. Recorded workouts and secondary weekly totals live in History. Food, Fitness and Tasks share the same full-height Day rail without domain title bars and a Day drawer on narrower screens. Calendar retains its full workspace. Exercise visuals remain placeholders, and scheduled activity stays in the shared Day panel.
 - The authorized Fitness progress slice adds local-week summaries, per-exercise trends and sourced personal records, previous-session context while training, and comparisons between workouts with matching exercises and tracking types. It uses existing actual records and leaves automatic progression, cardio UI and advanced set types for later scope.
 - The authorized general Fitness slice supports mixed activities in the shared workout/program flow, optional default and per-session intent tags, editable measurement presets, distance and laps with targets, recovery and progress. Intent never restricts measurements; a separate cardio workspace is not part of this slice.
 - The authorized Training Programs slice adds repeating ordered saved workouts, optional preferred weekdays, explicit next-workout scheduling/rescheduling, session-driven advancement, skipping, pause/resume, editing and history. Prepared snapshots stay independent; deleting a program preserves workouts and Calendar entries. Bulk future scheduling, periodization and automatic load/repetition progression remain outside this slice.
 - Exercise management distinguishes curated read-only built-ins from user-owned custom definitions while using one workout/logging system. Built-ins support favourite, hide and duplicate; custom exercises support editing, duplication, archiving and safe deletion when unused. Preferences remain account-specific. A larger curated catalogue, primary/secondary muscle roles and illustration highlighting are later additions.
 - Everyday Food covers a daily food log, private foods and favourites, reusable saved meals, basic recipes with ingredient amounts/instructions/yield, optional nutrition, quick and repeated entries, corrections/history, and water/weight review. Logging preserves independent snapshots. Meal planning, shopping lists, custom targets, broader trends, external lookup, barcodes, pantry and AI remain a later pass.
-- Food and Fitness share a reusable Calendar day panel: selected-day context, domain/All activities, shared Calendar styling and a responsive Day drawer. The selected day carries between these workspaces; each domain supplies its own source actions and actual plan links. This is the convention for future domain workspaces. Calendar itself keeps its full view without an extra domain panel; Settings, Admin and retained hidden pages are unchanged.
-- Tasks helps users capture commitments, organize to-dos and projects, choose next actions, and follow progress. Projects organize tasks within this workspace; detailed workflows remain to be scoped.
+- Food, Fitness and Tasks share a reusable Calendar day panel: selected-day context, domain/All activities, shared Calendar styling and a responsive Day drawer. The selected day carries between these workspaces; each domain supplies its own source actions and actual plan links. This is the convention for future domain workspaces. Calendar itself keeps its full view without an extra domain panel; Settings, Admin and retained hidden pages are unchanged.
+- Tasks helps users capture commitments, organize to-dos and projects, choose next actions, and follow progress. The authorized Everyday Tasks slice includes Inbox, standalone tasks/subtasks, optional deadlines/planned days, priorities/tags, projects/sections/order, completion/history, recurrence, multiple Calendar reservations and independently recorded actual time. Repeating tasks create one next occurrence on completion/skip and retain completed history. Existing Routines are accessible within Tasks. Boards, dependencies, attachments, collaboration, notifications, automatic scheduling and advanced reporting remain later work.
 - A task represents something to complete; a Calendar block represents time allocated toward it. Scheduling or spending time on a task does not automatically complete it, and completing a task does not require scheduling it.
 - An unscheduled plan is a scheduling state, not automatically a task. An unscheduled workout belongs in Fitness; an unscheduled meal belongs in Food. Tasks may surface actionable items across domains without taking ownership of their records.
 - Keep detailed domain workflows in their own interfaces while sharing relevant activity with Calendar.
@@ -48,7 +48,7 @@ This document records the agreed direction and priority order. It describes futu
 
 ## AI: assistance across domains
 
-- Help users plan, review, and make choices using relevant context across their own domains.
+- Help users plan, review, and make choices using relevant context across their own domains. Future Assistant operations should cover actions available to the authenticated user, including creating workouts/meals and scheduling, through canonical services and existing permissions.
 - Ask follow-up questions when preferences, goals, equipment, availability, or other constraints are missing.
 - Use relevant saved preferences, accepted plans, recorded activity, and prior decisions in later requests.
 - Distinguish a conversational suggestion from a saved plan, an ongoing activity, or a completed record.
@@ -64,7 +64,7 @@ Example flow:
 5. Later, ask for a recipe. AI can consider training context alongside dietary preferences and other relevant information, perhaps offering a higher-protein option.
 6. Saving a recipe, planning a meal, and recording that it was eaten remain separate actions.
 
-AI implementation details and the depth of recipe functionality will be scoped separately.
+The owner-authorized interface preview provides a dedicated Assistant workspace and a compact global quick-chat popup, with a mobile bottom sheet. Both share the composer draft and explicitly attached page/date context, retained across navigation until changed. Open in Assistant continues in the dedicated area; a return link leads back to the captured workspace, respecting existing unsaved-change protection and workout recovery. Sending is disabled; the preview reads no records for AI and executes no actions. Drafts remain in account-scoped component memory while browsing and clear on reload. Actual AI integration, action previews/execution and the depth of recipe functionality will be scoped separately.
 
 ## Clients: natural use on each device
 
@@ -96,3 +96,13 @@ Custom domains are deferred. Keep them in mind when designing shared Calendar in
 - Avoid building speculative infrastructure for every future domain or device.
 - This roadmap supersedes the older weekly-planner-only framing and expansion ordering. Original Core exclusions still bound Core implementation; adding an item to this roadmap does not begin its implementation.
 - Integrations, notification delivery, social features, billing, and other older expansion ideas require their own scope decisions.
+
+### Workout creation preview
+
+The owner is trialling a reversible draft-left/library-right layout for reusable workout creation and editing. Hide the Day panel in this workspace. Keep top-level Fitness tabs fixed above independently scrolling workout and library panes, with save actions pinned beneath workout content; mobile switches between Your workout and Add exercises. Compact controls set the set count and shared optional targets, with Advanced editor retaining individual targets and advanced fields. Existing data formats, draft recovery and save commands remain canonical. `workoutCreationExperiment` controls the trial; sessions retain their inline picker and Day panel.
+
+### Independent Fitness measurements
+
+The owner-authorized follow-up replaces fixed measurement presets with independent Reps, Load, Duration, Distance and Laps choices, requiring at least one. Apply to custom exercise defaults and workout/session snapshots; preserve hidden values, units, recovery, scheduling and history. Progress derives metrics from selected fields, with volume available whenever Reps and Load are both selected.
+
+The owner-authorized per-set follow-up adds optional overrides that inherit exercise measurements by default, customisation/reset in preparation and training, preserved values and snapshots, and effective per-set reporting. It includes draft recovery and copying but no automatic progression or new measurement types.

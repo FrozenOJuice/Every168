@@ -22,8 +22,7 @@ test("exercise-specific fields, advanced values and rest lines work in building 
       })
     ).status(),
   ).toBe(200);
-  await page.goto("/fitness");
-  await page.getByRole("button", { name: "Exercises", exact: true }).click();
+  await page.goto("/fitness/exercises");
   await page
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
@@ -34,10 +33,8 @@ test("exercise-specific fields, advanced values and rest lines work in building 
   await editor
     .getByLabel("Exercise name", { exact: true })
     .fill("Weighted hold");
-  await editor.getByRole("button", { name: "Tracking", exact: true }).click();
-  await editor
-    .getByRole("option", { name: "Duration + load", exact: true })
-    .click();
+  await editor.getByRole("checkbox", { name: "Duration", exact: true }).check();
+  await editor.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
   await editor
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();
@@ -59,11 +56,11 @@ test("exercise-specific fields, advanced values and rest lines work in building 
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
   });
-  if (testInfo.project.name === "phone")
-    await workout
-      .getByRole("button", { name: "Add exercise", exact: true })
-      .click();
   for (const name of ["Plank", "Bench press", "Push-up", "Weighted hold"]) {
+    if (testInfo.project.name === "phone")
+      await page
+        .getByRole("button", { name: "Add exercises", exact: true })
+        .click();
     await library
       .getByRole("searchbox", { name: "Find an exercise", exact: true })
       .fill(name);
@@ -72,16 +69,20 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     await library
       .getByRole("button", { name: `Add ${name}`, exact: true })
       .click();
+    if (testInfo.project.name === "phone")
+      await expect(
+        page.getByRole("button", { name: "Your workout", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
   }
-  if (testInfo.project.name === "phone")
-    await page
-      .getByRole("button", { name: "Back to workout", exact: true })
-      .click();
   const cards = workout.locator(".fitness-workout-exercise-list > section");
   const plank = cards.nth(0),
     bench = cards.nth(1),
     pushup = cards.nth(2),
     weighted = cards.nth(3);
+  for (const card of [plank, bench, pushup, weighted])
+    await card
+      .getByRole("button", { name: "Advanced editor", exact: true })
+      .click();
   await expect(
     plank.getByLabel("Target duration (seconds)", { exact: true }),
   ).toBeVisible();
@@ -110,13 +111,18 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     .getByLabel("Target duration (seconds)", { exact: true })
     .fill("45");
   await plank
-    .getByRole("button", { name: "More details for set 1", exact: true })
+    .getByRole("button", { name: /Configure measurements for/ })
     .click();
+  await plank.getByRole("checkbox", { name: "Reps", exact: true }).check();
+  await plank.getByRole("checkbox", { name: "Load", exact: true }).check();
   await plank.getByLabel("Target reps", { exact: true }).fill("3");
   await plank.getByLabel("Target load (kg)", { exact: true }).fill("5");
-  await plank
-    .getByRole("button", { name: "More details for set 1", exact: true })
-    .click();
+  await plank.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
+  await plank.getByRole("checkbox", { name: "Load", exact: true }).uncheck();
+  await expect(plank.getByLabel("Target reps", { exact: true })).toHaveCount(0);
+  await expect(
+    plank.getByRole("button", { name: /More details for set/ }),
+  ).toHaveCount(0);
   await plank.getByRole("button", { name: "Add set", exact: true }).click();
   const rows = plank.locator(".fitness-workout-set-list > [data-reorder-item]");
   await expect(
@@ -142,17 +148,14 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     .press("Enter");
   await expect(
     rows.first().getByRole("button", {
-      name: "Edit rest after set 1: Rest 90 sec",
+      name: "Edit rest after set 1: Rest 1m 30s",
       exact: true,
     }),
   ).toBeFocused();
   await expect(rows.nth(1).locator(".fitness-rest-between-sets")).toHaveCount(
     0,
   );
-  await rows
-    .nth(1)
-    .getByRole("button", { name: "More details for set 2", exact: true })
-    .click();
+
   await expect(
     rows.nth(1).getByLabel("Rest (seconds)", { exact: true }),
   ).toHaveCount(0);
@@ -236,6 +239,21 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     .first()
     .locator("summary")
     .click();
+  await expect(
+    sessionPlank.getByLabel("Target reps", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    sessionPlank.getByLabel("Actual reps", { exact: true }),
+  ).toHaveCount(0);
+  await sessionPlank
+    .getByRole("button", { name: /Configure measurements for/ })
+    .click();
+  await sessionPlank
+    .getByRole("checkbox", { name: "Reps", exact: true })
+    .check();
+  await sessionPlank
+    .getByRole("checkbox", { name: "Load", exact: true })
+    .check();
   await expect(
     sessionPlank.getByLabel("Target reps", { exact: true }).first(),
   ).toHaveValue("3");

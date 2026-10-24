@@ -14,13 +14,14 @@ import {
 
 const queryKey = ["routines"];
 
-export function RoutinesPage() {
+export function RoutinesPage({ embedded = false }: { embedded?: boolean }) {
   const cache = useQueryClient();
   const [editing, setEditing] = useState<Routine | "new" | null>(null);
   const query = useQuery({ queryKey, queryFn: api.getRoutines });
   return (
     <>
       <PageHeading
+        level={embedded ? 2 : 1}
         title="Routines"
         description="Keep the steps you do together in one place."
       >

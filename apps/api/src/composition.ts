@@ -1,3 +1,5 @@
+import { tasksRepository } from "./modules/tasks/tasks.repository.js";
+import { tasksService } from "./modules/tasks/tasks.service.js";
 import { trainingProgramsRepository } from "./modules/exercise/training-programs.repository.js";
 import { trainingProgramsService } from "./modules/exercise/training-programs.service.js";
 import { strengthProgressRepository } from "./modules/exercise/strength-progress.repository.js";
@@ -65,11 +67,22 @@ export function compose(input: ConfigInput) {
     identity,
     goals,
     {
-      capture: (u, id, context) => exercises.capturePlanLinks(u, id, context),
-      restore: (u, id, links, context) =>
-        exercises.restorePlanLinks(u, id, links, context),
+      capture: async (u, id, context) => [
+        ...(await exercises.capturePlanLinks(u, id, context)),
+        ...(await tasks.capturePlanLinks(u, id, context)),
+      ],
+      restore: async (u, id, links, context) => {
+        await exercises.restorePlanLinks(
+          u,
+          id,
+          links.filter((x) => x.kind !== "task-schedule"),
+          context,
+        );
+        await tasks.restorePlanLinks(u, id, links, context);
+      },
     },
   );
+  const tasks = tasksService(tasksRepository(db), planning, identity);
   const calendarItems = calendarItemsService(
     calendarItemsRepository(db),
     categories,
@@ -149,6 +162,7 @@ export function compose(input: ConfigInput) {
   );
   const cardio = cardioService(runInTransaction, cardioRepo, planning);
   const calendarActivity = calendarActivityService(identity, [
+    tasks.calendarActivity,
     nutrition.calendarActivity,
     hydration.calendarActivity,
     body.calendarActivity,
@@ -199,6 +213,7 @@ export function compose(input: ConfigInput) {
     },
   );
   return {
+    tasks,
     admin,
     metrics,
     calendarItems,

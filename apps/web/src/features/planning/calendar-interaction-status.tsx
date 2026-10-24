@@ -1,3 +1,4 @@
+import { Toast } from "@/components/ui/toast";
 import { createPortal } from "react-dom";
 import { CommandError } from "@/lib/use-command";
 import { useCalendarInteractions } from "./calendar-interactions";
@@ -15,26 +16,29 @@ export function CalendarInteractionStatus({
   const content = (
     <>
       {notice && (
-        <div className="calendar-notice" data-kind={notice.kind}>
-          <span className="calendar-notice-mark" aria-hidden="true">
-            {notice.kind === "hint" ? "i" : notice.kind === "error" ? "!" : "✓"}
-          </span>
-          <span className="calendar-notice-message">{notice.message}</span>
-          {(canUndoNotice || notice.action) && (
-            <button
-              type="button"
-              className="calendar-notice-action"
-              disabled={canUndoNotice && interaction.busy}
-              onClick={() => {
-                if (canUndoNotice) interaction.history.undo();
-                else notice.action?.onClick();
-                interaction.dismissNotice();
-              }}
-            >
-              {canUndoNotice ? "Undo" : notice.action?.label}
-            </button>
-          )}
-        </div>
+        <Toast
+          key={notice.id}
+          message={notice.message}
+          kind={
+            notice.kind === "error"
+              ? "error"
+              : notice.kind === "hint"
+                ? "info"
+                : "success"
+          }
+          action={
+            canUndoNotice
+              ? {
+                  label: "Undo",
+                  onClick: () => {
+                    interaction.history.undo();
+                  },
+                  disabled: interaction.busy,
+                }
+              : notice.action
+          }
+          onDismiss={() => interaction.dismissNotice(notice.id)}
+        />
       )}
       {interaction.selectedId && interaction.adjusting && (
         <div className="calendar-adjust-controls">

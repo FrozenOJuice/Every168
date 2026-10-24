@@ -1,3 +1,4 @@
+import { tasksClient } from "./tasks";
 import { trainingProgramsClient } from "./training-programs";
 import { adminClient } from "./admin";
 import { exerciseClient } from "./exercise";
@@ -14,6 +15,7 @@ export function createClient(options: ClientOptions = {}) {
   const http = createHttp(options);
   return {
     ...adminClient(http),
+    ...tasksClient(http),
     ...calendarClient(http),
     ...routinesClient(http),
     ...exerciseClient(http),

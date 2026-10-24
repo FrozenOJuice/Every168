@@ -38,7 +38,7 @@ test("delete one all-day plan from selection or editor and undo without confirma
     await dialog.dismiss();
   });
   const shortcut = testInfo.project.name === "phone" ? "Control" : "Meta";
-  const notice = page.locator(".calendar-notice");
+  const notice = page.locator(".app-toast");
   const views =
     testInfo.project.name === "desktop"
       ? ["day", "week", "month"]

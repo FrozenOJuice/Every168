@@ -50,15 +50,73 @@ export const intentTagsSchema = z
   .array(z.string().trim().min(1).max(32))
   .max(8)
   .transform((tags) => [...new Set(tags.map((tag) => tag.toLowerCase()))]);
-export const exerciseLoggingTypeSchema = z.enum([
-  "reps_load",
+// Canonical measurement-set keys keep snapshots and history grouping deterministic.
+// The UI selects individual measurements; these keys are not user-facing presets.
+export const exerciseMeasurementOptions = [
   "reps",
+  "load",
   "duration",
-  "duration_load",
+  "distance",
+  "laps",
+] as const;
+export type ExerciseMeasurement = (typeof exerciseMeasurementOptions)[number];
+export const exerciseLoggingTypeSchema = z.enum([
+  "reps",
+  "distance",
+  "laps",
+  "duration",
+  "load",
+  "reps_distance",
+  "reps_laps",
+  "reps_duration",
+  "reps_load",
+  "distance_laps",
   "distance_duration",
+  "distance_load",
   "laps_duration",
+  "laps_load",
+  "duration_load",
+  "reps_distance_laps",
+  "reps_distance_duration",
+  "reps_distance_load",
+  "reps_laps_duration",
+  "reps_laps_load",
+  "reps_duration_load",
+  "distance_laps_duration",
+  "distance_laps_load",
+  "distance_duration_load",
+  "laps_duration_load",
+  "reps_distance_laps_duration",
+  "reps_distance_laps_load",
+  "reps_distance_duration_load",
+  "reps_laps_duration_load",
+  "distance_laps_duration_load",
+  "reps_distance_laps_duration_load",
 ]);
 export type ExerciseLoggingType = z.infer<typeof exerciseLoggingTypeSchema>;
+export function measurementsFor(
+  type: ExerciseLoggingType,
+): ExerciseMeasurement[] {
+  return exerciseMeasurementOptions.filter((field) =>
+    type.split("_").includes(field),
+  );
+}
+export function measurementSetKey(
+  fields: readonly ExerciseMeasurement[],
+): ExerciseLoggingType {
+  return exerciseLoggingTypeSchema.parse(
+    ["reps", "distance", "laps", "duration", "load"]
+      .filter((field) => fields.includes(field as ExerciseMeasurement))
+      .join("_"),
+  );
+}
+/** Matching selections inherit future exercise changes rather than staying detached. */
+export function normalizeMeasurementOverride(
+  override: ExerciseLoggingType | null | undefined,
+  inherited: ExerciseLoggingType,
+): ExerciseLoggingType | null {
+  return override && override !== inherited ? override : null;
+}
 export const exerciseInput = z
   .object({
     name: titleSchema,
@@ -153,6 +211,7 @@ export type ExerciseCatalogEntry = z.infer<
 >[number];
 export const setInput = z
   .object({
+    measurementOverride: exerciseLoggingTypeSchema.nullable().optional(),
     reps: z.number().int().positive().max(10000).nullable().default(null),
     weightKg: z.number().finite().min(0).max(2000).nullable().default(null),
     durationSeconds: z
@@ -202,13 +261,14 @@ export const setInput = z
     (v) =>
       !v.completed ||
       v.reps !== null ||
+      v.weightKg !== null ||
       v.durationSeconds !== null ||
       v.distanceMeters !== null ||
       v.laps !== null,
     {
       path: ["reps"],
       message:
-        "Enter actual reps, duration, distance or laps before completing a set.",
+        "Enter actual reps, load, duration, distance or laps before completing a set.",
     },
   )
   .refine((v) => !(v.completed && v.skipped), {
@@ -217,6 +277,7 @@ export const setInput = z
   });
 export const plannedSetInput = z
   .object({
+    measurementOverride: exerciseLoggingTypeSchema.nullable().optional(),
     targetReps: z.number().int().positive().max(10000).nullable().default(null),
     targetWeightKg: z
       .number()

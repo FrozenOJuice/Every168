@@ -1,0 +1,74 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import type { ExerciseLoggingType } from "@168hours/contracts";
+import { api } from "@/lib/api";
+import { Loading, ErrorState } from "@/components/ui/feedback";
+import { ArrowLeft } from "lucide-react";
+import { ExerciseDetails } from "./exercise-details";
+export function ExerciseHelp({
+  id,
+  onClose,
+  history = false,
+  mode,
+  backLabel = "Back to exercises",
+}: {
+  id: string;
+  onClose: () => void;
+  history?: boolean;
+  mode?: ExerciseLoggingType;
+  backLabel?: string;
+}) {
+  const query = useQuery({
+    queryKey: ["fitness", "exercise", id],
+    queryFn: () => api.getExercise(id),
+  });
+  const catalog = useQuery({
+    queryKey: ["fitness", "catalog"],
+    queryFn: api.getExerciseCatalog,
+    enabled: !!query.data?.catalogKey,
+  });
+  const pending =
+    query.isPending || (query.data?.catalogKey && catalog.isPending);
+  const error = query.error ?? (query.data?.catalogKey ? catalog.error : null);
+  if (pending || error)
+    return (
+      <section className="fitness-inspector" aria-label="Exercise details">
+        <button type="button" className="fitness-back" onClick={onClose}>
+          <ArrowLeft size={16} aria-hidden="true" /> {backLabel}
+        </button>
+        {pending ? (
+          <Loading />
+        ) : (
+          <ErrorState
+            error={error!}
+            retry={() =>
+              void (query.error ? query.refetch() : catalog.refetch())
+            }
+          />
+        )}
+      </section>
+    );
+  const exercise = query.data!;
+  return (
+    <ExerciseDetails
+      key={id}
+      item={{
+        key: exercise.catalogKey ?? id,
+        name: exercise.name,
+        notes: exercise.notes,
+        equipment: exercise.equipment,
+        muscles: exercise.muscles,
+        exercise,
+        definition: catalog.data?.find(
+          (entry) => entry.key === exercise.catalogKey,
+        ),
+      }}
+      onClose={onClose}
+      backLabel={backLabel}
+      onDuplicated={() => {}}
+      initialHistory={history}
+      initialMode={mode}
+      workoutContext
+    />
+  );
+}

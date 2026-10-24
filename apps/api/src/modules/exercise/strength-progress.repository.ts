@@ -1,5 +1,7 @@
+import { measurementsFor, type ExerciseMeasurement } from "@168hours/contracts";
 import {
   and,
+  inArray,
   eq,
   isNotNull,
   ne,
@@ -37,7 +39,10 @@ const scope = (u: string) =>
     eq(sets.skipped, false),
     isNotNull(workouts.endedAt),
   );
-const weightedReps = sql`${entries.loggingType} = 'reps_load'`;
+const effectiveType = sql<ExerciseLoggingType>`coalesce(${sets.measurementOverride}, ${entries.loggingType})`;
+const hasMeasurement = (field: ExerciseMeasurement) =>
+  sql`${field} = any(string_to_array(${effectiveType}, '_'))`;
+const weightedReps = sql`${hasMeasurement("reps")} and ${hasMeasurement("load")}`;
 const volume = sql<
   number | null
 >`sum(case when ${weightedReps} then ${sets.reps} * ${sets.weightKg} end)`.mapWith(
@@ -51,23 +56,29 @@ const metrics = {
   completedSets: sql<number>`count(*)`.mapWith(Number),
   maxReps: sql<
     number | null
-  >`max(case when ${entries.loggingType} in ('reps','reps_load') then ${sets.reps} end)`.mapWith(
+  >`max(case when ${hasMeasurement("reps")} then ${sets.reps} end)`.mapWith(
     Number,
   ),
   maxWeightKg: sql<
     number | null
-  >`max(case when ${entries.loggingType} in ('reps_load','duration_load') then ${sets.weightKg} end)`.mapWith(
+  >`max(case when ${hasMeasurement("load")} then ${sets.weightKg} end)`.mapWith(
     Number,
   ),
   maxDurationSeconds: sql<
     number | null
-  >`max(case when ${entries.loggingType} in ('duration','duration_load','distance_duration','laps_duration') then ${sets.durationSeconds} end)`.mapWith(
+  >`max(case when ${hasMeasurement("duration")} then ${sets.durationSeconds} end)`.mapWith(
     Number,
   ),
-  maxDistanceMeters: sql<number | null>`max(${sets.distanceMeters})`.mapWith(
+  maxDistanceMeters: sql<
+    number | null
+  >`max(case when ${hasMeasurement("distance")} then ${sets.distanceMeters} end)`.mapWith(
     Number,
   ),
-  maxLaps: sql<number | null>`max(${sets.laps})`.mapWith(Number),
+  maxLaps: sql<
+    number | null
+  >`max(case when ${hasMeasurement("laps")} then ${sets.laps} end)`.mapWith(
+    Number,
+  ),
   volumeKg: volume,
   missingVolumeSets: missingVolume,
 };
@@ -146,7 +157,87 @@ export function strengthProgressRepository(db: Database) {
         )
         .orderBy(desc(exercises.createdAt), desc(exercises.id))
         .limit(q.limit + 1);
-      return pageResult(rows, q.limit);
+      const page = pageResult(rows, q.limit);
+      if (!page.items.length) return { ...page, items: [] };
+      const latest = await db
+        .selectDistinctOn([entries.exerciseId], {
+          exerciseId: entries.exerciseId,
+          workoutId: workouts.id,
+          startedAt: workouts.startedAt,
+          loggingType: effectiveType,
+        })
+        .from(sets)
+        .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+        .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+        .where(
+          and(
+            scope(u),
+            inArray(
+              entries.exerciseId,
+              page.items.map((row) => row.id),
+            ),
+          ),
+        )
+        .orderBy(
+          asc(entries.exerciseId),
+          desc(workouts.startedAt),
+          desc(workouts.id),
+          asc(entries.position),
+          asc(sets.position),
+        );
+      const latestSets = latest.length
+        ? await db
+            .select({
+              exerciseId: entries.exerciseId,
+              workoutId: workouts.id,
+              loggingType: effectiveType,
+              position: sets.position,
+              id: sets.id,
+              reps: sets.reps,
+              weightKg: sets.weightKg,
+              durationSeconds: sets.durationSeconds,
+              distanceMeters: sets.distanceMeters,
+              laps: sets.laps,
+            })
+            .from(sets)
+            .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+            .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+            .where(
+              and(
+                scope(u),
+                inArray(
+                  entries.exerciseId,
+                  page.items.map((row) => row.id),
+                ),
+                inArray(
+                  workouts.id,
+                  latest.map((row) => row.workoutId),
+                ),
+              ),
+            )
+            .orderBy(asc(entries.position), asc(sets.position))
+        : [];
+      return {
+        ...page,
+        items: page.items.map((row) => {
+          const last = latest.find((item) => item.exerciseId === row.id);
+          return {
+            ...row,
+            latest: last
+              ? {
+                  startedAt: last.startedAt,
+                  loggingType: last.loggingType,
+                  sets: latestSets.filter(
+                    (set) =>
+                      set.exerciseId === row.id &&
+                      set.workoutId === last.workoutId &&
+                      set.loggingType === last.loggingType,
+                  ),
+                }
+              : null,
+          };
+        }),
+      };
     },
     async exercise(
       u: string,
@@ -159,7 +250,7 @@ export function strengthProgressRepository(db: Database) {
           const filter = and(
             scope(u),
             eq(entries.exerciseId, id),
-            eq(entries.loggingType, mode),
+            sql`${effectiveType} = ${mode}`,
             q.excludeWorkoutId
               ? ne(workouts.id, q.excludeWorkoutId)
               : undefined,
@@ -183,18 +274,10 @@ export function strengthProgressRepository(db: Database) {
             .groupBy(workouts.id)
             .orderBy(desc(workouts.startedAt), desc(workouts.id))
             .limit(q.limit + 1);
-          const measures =
-            mode === "reps_load"
-              ? (["load", "reps", "setVolume"] as const)
-              : mode === "duration_load"
-                ? (["load", "duration"] as const)
-                : mode === "reps"
-                  ? (["reps"] as const)
-                  : mode === "distance_duration"
-                    ? (["distance", "duration"] as const)
-                    : mode === "laps_duration"
-                      ? (["laps", "duration"] as const)
-                      : (["duration"] as const);
+          const fields = measurementsFor(mode);
+          const measures: (ExerciseMeasurement | "setVolume")[] = [...fields];
+          if (fields.includes("reps") && fields.includes("load"))
+            measures.push("setVolume");
           const records = [];
           for (const metric of measures) {
             const value =
@@ -238,7 +321,43 @@ export function strengthProgressRepository(db: Database) {
               .limit(1);
             if (record) records.push({ metric, ...record });
           }
-          return { records, sessions: pageResult(rows, q.limit) };
+          const page = pageResult(rows, q.limit);
+          const recordedSets = page.items.length
+            ? await tx
+                .select({
+                  workoutId: workouts.id,
+                  position: sets.position,
+                  id: sets.id,
+                  reps: sets.reps,
+                  weightKg: sets.weightKg,
+                  durationSeconds: sets.durationSeconds,
+                  distanceMeters: sets.distanceMeters,
+                  laps: sets.laps,
+                })
+                .from(sets)
+                .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+                .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+                .where(
+                  and(
+                    filter,
+                    inArray(
+                      workouts.id,
+                      page.items.map((row) => row.id),
+                    ),
+                  ),
+                )
+                .orderBy(asc(entries.position), asc(sets.position))
+            : [];
+          return {
+            records,
+            sessions: {
+              ...page,
+              items: page.items.map((row) => ({
+                ...row,
+                sets: recordedSets.filter((set) => set.workoutId === row.id),
+              })),
+            },
+          };
         },
         { isolationLevel: "repeatable read", accessMode: "read only" },
       );
@@ -246,7 +365,7 @@ export function strengthProgressRepository(db: Database) {
     async previousMatching(u: string, id: string, startedAt: Date) {
       // Match the ordered exercise identities and captured tracking modes, never titles.
       const signature = (workout: typeof workouts.id | string) =>
-        sql`(select string_agg(${entries.exerciseId}::text || ':' || ${entries.loggingType}, ',' order by ${entries.position}) from ${entries} where ${entries.workoutId} = ${workout} and ${entries.userId} = ${u})`;
+        sql`(select string_agg(${entries.exerciseId}::text || ':' || ${entries.loggingType} || coalesce((select ':' || string_agg(coalesce(${sets.measurementOverride}, ${entries.loggingType}), ';' order by ${sets.position}) from ${sets} where ${sets.workoutExerciseId} = ${entries.id} and ${sets.userId} = ${u} having bool_or(${sets.measurementOverride} is not null)), ''), ',' order by ${entries.position}) from ${entries} where ${entries.workoutId} = ${workout} and ${entries.userId} = ${u})`;
       const [previous] = await db
         .select({ id: workouts.id })
         .from(workouts)

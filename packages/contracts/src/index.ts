@@ -15,3 +15,4 @@ export * from "./admin";
 export * from "./calendar-activity";
 export * from "./fitness-progress";
 export * from "./training-programs";
+export * from "./tasks";

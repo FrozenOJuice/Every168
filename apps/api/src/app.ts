@@ -1,3 +1,4 @@
+import { tasksRoutes } from "./modules/tasks/tasks.routes.js";
 import { trainingProgramsRoutes } from "./modules/exercise/training-programs.routes.js";
 import { adminRoutes } from "./modules/identity/admin.routes.js";
 import { calendarRoutes } from "./modules/planning/calendar.routes.js";
@@ -21,6 +22,7 @@ import { requireSession, requireOrigin } from "./shared/auth/middleware.js";
 import { identityRoutes } from "./modules/identity/identity.routes.js";
 import { AppError } from "./shared/errors/app-error.js";
 export function createApp({
+  tasks,
   admin,
   metrics,
   writes,
@@ -104,6 +106,7 @@ export function createApp({
       calendarActivity,
     ),
     routinesRoutes(routines, writes),
+    tasksRoutes(tasks, writes),
     goalsRoutes(goals, writes),
     dashboardRoutes(dashboard),
     nutritionRoutes(nutrition, writes),

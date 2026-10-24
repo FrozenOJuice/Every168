@@ -1,0 +1,117 @@
+.app-toast {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  right: 16px;
+  bottom: calc(var(--toast-clearance, 20px) + env(safe-area-inset-bottom));
+  min-height: 48px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-popover);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  animation: app-toast-enter 160ms ease-out;
+}
+.app-toast-mark {
+  display: grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 12%, var(--card));
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.app-toast[data-kind="info"] .app-toast-mark {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+.app-toast[data-kind="error"] {
+  border-color: color-mix(in srgb, var(--destructive) 40%, var(--border));
+}
+.app-toast[data-kind="error"] .app-toast-mark {
+  background: color-mix(in srgb, var(--destructive) 12%, var(--card));
+  color: var(--destructive);
+}
+.app-toast-message {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.app-toast-action {
+  flex: 0 0 auto;
+  min-height: 34px;
+  margin-left: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.app-toast-action:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.app-toast-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.app-toast-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+@keyframes app-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-toast {
+    animation: none;
+  }
+}
+@media (max-width: 900px) {
+  .app-toast {
+    bottom: calc(var(--toast-clearance, 80px) + env(safe-area-inset-bottom));
+  }
+}
+@media (pointer: coarse) {
+  .app-toast-action {
+    min-height: 44px;
+  }
+}
+
+.app-toast-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+.app-toast-dismiss:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+@media (pointer: coarse) {
+  .app-toast-dismiss {
+    width: 44px;
+    min-height: 44px;
+  }
+}

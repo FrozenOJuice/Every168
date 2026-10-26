@@ -24,6 +24,7 @@ import { useMe } from "@/features/identity/me";
 export function WorkoutExerciseCard({
   exercise,
   collapsible = false,
+  initiallyCollapsed = false,
   errors = {},
   errorPrefix = "",
   session,
@@ -37,6 +38,7 @@ export function WorkoutExerciseCard({
 }: {
   exercise: ExerciseDraft;
   collapsible?: boolean;
+  initiallyCollapsed?: boolean;
   errors?: Record<string, string>;
   errorPrefix?: string;
   session?: boolean;
@@ -55,7 +57,7 @@ export function WorkoutExerciseCard({
   const [resetting, setResetting] = useState(false);
   if (quick && custom && !detailed) setDetailed(true);
   const panel = useFitnessExercisePanel();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(collapsible && initiallyCollapsed);
   const contentId = useId();
   const setErrorId = useId();
   const hasErrors = Object.entries(errors).some(
@@ -68,12 +70,11 @@ export function WorkoutExerciseCard({
   const loggingType = exercise.loggingType ?? "reps_load";
   const mainFields = exerciseTrackingFields[loggingType];
   const measurementColumns = Math.max(
-    mainFields.length,
-    ...exercise.sets.map(
-      (set) =>
-        exerciseTrackingFields[set.measurementOverride ?? loggingType].filter(
-          (field) => !mainFields.includes(field),
-        ).length,
+    mainFields.reduce((sum, field) => sum + (field === "duration" ? 2 : 1), 0),
+    ...exercise.sets.map((set) =>
+      exerciseTrackingFields[set.measurementOverride ?? loggingType]
+        .filter((field) => !mainFields.includes(field))
+        .reduce((sum, field) => sum + (field === "duration" ? 2 : 1), 0),
     ),
   );
   const {
@@ -229,7 +230,12 @@ export function WorkoutExerciseCard({
                   style={
                     !session
                       ? ({
-                          "--fitness-measurement-columns": mainFields.length,
+                          "--fitness-measurement-grid": mainFields
+                            .map(
+                              (field) =>
+                                `minmax(0, ${field === "duration" ? 2 : 1}fr)`,
+                            )
+                            .join(" "),
                           "--fitness-measurement-min-columns":
                             measurementColumns,
                         } as CSSProperties)
@@ -239,7 +245,7 @@ export function WorkoutExerciseCard({
                   {exercise.sets.map((set, index) => (
                     <div
                       {...rowProps(index)}
-                      key={set.id ?? set.clientKey ?? index}
+                      key={set.clientKey ?? set.id ?? index}
                       className={`fitness-workout-set${session ? " is-session" : ""}${set.completed ? " is-complete" : ""} ${rowProps(index).className ?? ""}`}
                       role="group"
                       aria-label={`Set ${index + 1}`}

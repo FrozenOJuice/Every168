@@ -1,4 +1,5 @@
 "use client";
+import { FitnessUnits } from "./fitness-units";
 import {
   createContext,
   useCallback,
@@ -17,6 +18,7 @@ import { CalendarDays } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { FitnessDayPanel } from "./fitness-day-panel";
+import { restoreActionFocus } from "@/components/ui/tooltip-button";
 
 type Choose = (exercise: Exercise) => boolean | void;
 const WorkspaceContext = createContext<{
@@ -45,6 +47,8 @@ export function FitnessExerciseWorkspace({
   const [choose, setChoose] = useState<Choose | null>(null);
   const [helpId, setHelpId] = useState<string | null>(null);
   const [helpHistory, setHelpHistory] = useState(false);
+  const [helpReturnsToWorkout, setHelpReturnsToWorkout] = useState(false);
+  const helpScroll = useRef({ page: 0, pane: 0 });
   const [helpMode, setHelpMode] = useState<ExerciseLoggingType>();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState(false);
@@ -69,6 +73,16 @@ export function FitnessExerciseWorkspace({
   }, [pathname]);
   const closeHelp = () => {
     setHelpId(null);
+    if (helpReturnsToWorkout) {
+      setPickerOpen(false);
+      requestAnimationFrame(() => {
+        const pane = workout.current?.closest(".fitness-primary-pane");
+        if (pane) pane.scrollTop = helpScroll.current.pane;
+        window.scrollTo({ top: helpScroll.current.page });
+        if (opener.current?.isConnected) restoreActionFocus(opener.current);
+      });
+      return;
+    }
     setPickerOpen(true);
     requestAnimationFrame(() => {
       library.current
@@ -92,6 +106,12 @@ export function FitnessExerciseWorkspace({
           setPickerOpen(true);
         },
         help: (id, history = false, mode) => {
+          setHelpReturnsToWorkout(pathname.startsWith("/fitness/session/"));
+          helpScroll.current = {
+            page: window.scrollY,
+            pane:
+              workout.current?.closest(".fitness-primary-pane")?.scrollTop ?? 0,
+          };
           opener.current =
             document.activeElement instanceof HTMLElement
               ? document.activeElement
@@ -124,6 +144,7 @@ export function FitnessExerciseWorkspace({
                 History
               </Link>
             </nav>
+            <FitnessUnits />
             {!building && (
               <button
                 className="button domain-mobile-day"
@@ -181,6 +202,11 @@ export function FitnessExerciseWorkspace({
                     key={`${helpId}:${helpHistory}:${helpMode}`}
                     id={helpId}
                     onClose={closeHelp}
+                    backLabel={
+                      helpReturnsToWorkout
+                        ? "Back to workout"
+                        : "Back to exercises"
+                    }
                     history={helpHistory}
                     mode={helpMode}
                   />

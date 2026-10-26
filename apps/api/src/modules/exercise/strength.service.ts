@@ -194,6 +194,7 @@ export function strengthService(
               distanceMeters: null,
               laps: null,
               completed: false,
+              resultsEdited: false,
               skipped: false,
               targetReps: s.targetReps ?? s.reps,
               targetWeightKg: s.targetWeightKg ?? s.weightKg,

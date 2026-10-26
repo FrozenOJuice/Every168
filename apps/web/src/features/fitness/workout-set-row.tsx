@@ -1,4 +1,5 @@
 "use client";
+import { formatFitnessDuration } from "./rest-duration";
 import { useId, useState, type ReactNode } from "react";
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { X, Plus, RotateCcw, Copy } from "lucide-react";
@@ -56,7 +57,7 @@ export function WorkoutSetRow({
   canCopyTargets?: boolean;
   canCopyRest?: boolean;
 }) {
-  const { weightUnit: unit, distanceUnit } = useMe().preferences;
+  const { weightUnit: unit, distanceUnit, durationUnit } = useMe().preferences;
   const hiddenRestErrorId = useId();
   const invalidFinalRest =
     !hasNextSet &&
@@ -102,7 +103,7 @@ export function WorkoutSetRow({
   const messages = {
     reps: "Use whole reps from 1 to 10,000, or leave blank.",
     load: `Use a load from 0 to ${number(fromKilograms(2000, unit))} ${unit}, or leave blank.`,
-    duration: "Use whole seconds from 1 to 86,400, or leave blank.",
+    duration: "Enter 1 second to 24 hours, or leave blank.",
     distance: "Use a positive distance up to 10,000 km, or leave blank.",
     laps: "Use whole laps from 1 to 10,000, or leave blank.",
   };
@@ -132,13 +133,16 @@ export function WorkoutSetRow({
         value={set[key]}
         weight={field === "load"}
         distance={field === "distance"}
+        duration={field === "duration"}
         disabled={disabled}
-        error={
-          !actual && errors[`${errorPrefix}.${key}`]
-            ? messages[field]
-            : undefined
+        error={errors[`${errorPrefix}.${key}`] ? messages[field] : undefined}
+        onChange={(value) =>
+          onChange({
+            ...set,
+            [key]: value,
+            ...(actual ? { resultsEdited: true } : {}),
+          })
         }
-        onChange={(value) => onChange({ ...set, [key]: value })}
       />
     );
   };
@@ -268,7 +272,8 @@ export function WorkoutSetRow({
           </div>
           <details className="fitness-set-targets">
             <summary>
-              Targets · {targetSummary(set, unit, distanceUnit, main)}
+              Targets ·{" "}
+              {targetSummary(set, unit, distanceUnit, main, durationUnit)}
             </summary>
             <div className="fitness-set-fields">
               {main.map((field) => measurement(field))}
@@ -339,7 +344,12 @@ export function WorkoutSetRow({
                 <div
                   className="fitness-set-extra-measurements"
                   style={{
-                    gridTemplateColumns: `repeat(${extraFields.length}, minmax(0, 1fr))`,
+                    gridTemplateColumns: extraFields
+                      .map(
+                        (field) =>
+                          `minmax(0, ${field === "duration" ? 2 : 1}fr)`,
+                      )
+                      .join(" "),
                   }}
                 >
                   {extraFields.map((field) => (
@@ -411,8 +421,9 @@ export function WorkoutSetRow({
 function targetSummary(
   set: SetDraft,
   unit: "kg" | "lb",
-  distanceUnit: "km" | "mi",
+  distanceUnit: "m" | "km" | "yd" | "mi",
   fields: ExerciseMeasurement[],
+  durationUnit: import("@168hours/domain-utils").DurationUnit,
 ) {
   const parts = [
     fields.includes("reps") && set.targetReps !== null
@@ -422,7 +433,7 @@ function targetSummary(
       ? `${number(fromKilograms(set.targetWeightKg, unit))} ${unit}`
       : null,
     fields.includes("duration") && set.targetDurationSeconds !== null
-      ? `${set.targetDurationSeconds}s`
+      ? formatFitnessDuration(set.targetDurationSeconds, durationUnit)
       : null,
     fields.includes("distance") && set.targetDistanceMeters !== null
       ? `${number(fromMeters(set.targetDistanceMeters, distanceUnit))} ${distanceUnit}`

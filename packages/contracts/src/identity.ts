@@ -14,7 +14,8 @@ export const preferencesInput = z
       }, "Choose a valid IANA timezone"),
     weekStartsOn: z.union([z.literal(0), z.literal(1)]),
     weightUnit: z.enum(["kg", "lb"]),
-    distanceUnit: z.enum(["km", "mi"]),
+    durationUnit: z.enum(["min_sec", "s", "min", "h"]).default("min_sec"),
+    distanceUnit: z.enum(["m", "km", "yd", "mi"]),
   })
   .strict();
 export const meSchema = z.object({

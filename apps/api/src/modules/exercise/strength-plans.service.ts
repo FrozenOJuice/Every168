@@ -329,6 +329,7 @@ export function strengthPlansService(
               distanceMeters: null,
               laps: null,
               completed: false,
+              resultsEdited: false,
               skipped: false,
             })),
           })),

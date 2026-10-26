@@ -71,6 +71,7 @@ export function sessionInput(v: SessionDraft): WorkoutUpdateInput {
         distanceMeters: s.distanceMeters,
         laps: s.laps,
         completed: s.completed,
+        resultsEdited: s.resultsEdited,
         skipped: s.skipped,
         targetReps: s.targetReps,
         targetWeightKg: s.targetWeightKg,

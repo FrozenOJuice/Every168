@@ -111,7 +111,10 @@ export const preferences = pgTable(
     weightUnit: text("weight_unit", { enum: ["kg", "lb"] })
       .notNull()
       .default("kg"),
-    distanceUnit: text("distance_unit", { enum: ["km", "mi"] })
+    durationUnit: text("duration_unit", { enum: ["min_sec", "s", "min", "h"] })
+      .notNull()
+      .default("min_sec"),
+    distanceUnit: text("distance_unit", { enum: ["m", "km", "yd", "mi"] })
       .notNull()
       .default("km"),
     ...dates(),
@@ -119,7 +122,7 @@ export const preferences = pgTable(
   (t) => [
     check(
       "preferences_values",
-      sql`${t.version}>0 and ${t.weekStartsOn} in (0,1) and ${t.weightUnit} in ('kg','lb') and ${t.distanceUnit} in ('km','mi') and char_length(${t.timezone}) between 1 and 100`,
+      sql`${t.version}>0 and ${t.weekStartsOn} in (0,1) and ${t.weightUnit} in ('kg','lb') and ${t.distanceUnit} in ('m','km','yd','mi') and ${t.durationUnit} in ('min_sec','s','min','h') and char_length(${t.timezone}) between 1 and 100`,
     ),
   ],
 );

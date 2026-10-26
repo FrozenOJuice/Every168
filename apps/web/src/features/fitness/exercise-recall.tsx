@@ -1,4 +1,5 @@
 "use client";
+import { formatFitnessDuration } from "./rest-duration";
 import { useQuery } from "@tanstack/react-query";
 import type { ExerciseLoggingType } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -19,7 +20,8 @@ export function ExerciseRecall({
   onHistory: () => void;
   quietEmpty?: boolean;
 }) {
-  const { timezone, weightUnit, distanceUnit } = useMe().preferences;
+  const { timezone, weightUnit, distanceUnit, durationUnit } =
+    useMe().preferences;
   const query = useQuery({
     queryKey: ["fitness", "previous-session", id, excludeWorkoutId, mode],
     queryFn: () =>
@@ -72,7 +74,10 @@ export function ExerciseRecall({
                     : field === "duration"
                       ? set.durationSeconds === null
                         ? "time not recorded"
-                        : `${set.durationSeconds} sec`
+                        : formatFitnessDuration(
+                            set.durationSeconds,
+                            durationUnit,
+                          )
                       : set[field] === null
                         ? `${field} not recorded`
                         : `${set[field]} ${field}`,

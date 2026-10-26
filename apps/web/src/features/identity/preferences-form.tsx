@@ -52,10 +52,18 @@ export function PreferencesForm() {
             <option value="lb">Pounds (lb)</option>
           </Field>
           <Field name="distanceUnit" label="Distance">
+            <option value="m">Metres (m)</option>
             <option value="km">Kilometres (km)</option>
+            <option value="yd">Yards (yd)</option>
             <option value="mi">Miles (mi)</option>
           </Field>
         </div>
+        <Field name="durationUnit" label="Fitness duration">
+          <option value="min_sec">Minutes & seconds</option>
+          <option value="s">Seconds (s)</option>
+          <option value="min">Minutes (min)</option>
+          <option value="h">Hours (h)</option>
+        </Field>
         <Submit>Save preferences</Submit>
         {saved && (
           <p role="status" className="success">

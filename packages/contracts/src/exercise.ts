@@ -211,6 +211,7 @@ export type ExerciseCatalogEntry = z.infer<
 >[number];
 export const setInput = z
   .object({
+    resultsEdited: z.boolean().default(false),
     measurementOverride: exerciseLoggingTypeSchema.nullable().optional(),
     reps: z.number().int().positive().max(10000).nullable().default(null),
     weightKg: z.number().finite().min(0).max(2000).nullable().default(null),

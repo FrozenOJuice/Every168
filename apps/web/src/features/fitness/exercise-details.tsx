@@ -1,4 +1,5 @@
 "use client";
+import { FitnessConfirm } from "./fitness-confirm";
 import { useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -34,6 +35,7 @@ export function ExerciseDetails({
   initialHistory?: boolean;
   initialMode?: ExerciseLoggingType;
 }) {
+  const [deleting, setDeleting] = useState(false);
   const [history, setHistory] = useState(initialHistory);
   const cache = useQueryClient();
   const panel = useRef<HTMLElement>(null);
@@ -267,14 +269,7 @@ export function ExerciseDetails({
                   <button
                     className="fitness-text-action"
                     disabled={busy}
-                    onClick={() => {
-                      if (
-                        confirm(
-                          "Permanently delete this unused custom exercise?",
-                        )
-                      )
-                        remove.mutate();
-                    }}
+                    onClick={() => setDeleting(true)}
                   >
                     Delete exercise
                   </button>
@@ -285,10 +280,24 @@ export function ExerciseDetails({
             <CommandError command={edit} />
             <CommandError command={archive} />
             <CommandError command={duplicate} />
-            <CommandError command={remove} />
+            {!deleting && <CommandError command={remove} />}
           </>
         )}
       </>
+      {deleting && (
+        <FitnessConfirm
+          title="Delete exercise?"
+          description="This permanently removes the unused custom exercise."
+          action="Delete exercise"
+          cancel="Cancel"
+          danger
+          busy={busy}
+          onCancel={() => setDeleting(false)}
+          onConfirm={() => remove.mutate()}
+        >
+          <CommandError command={remove} />
+        </FitnessConfirm>
+      )}
     </section>
   );
 }

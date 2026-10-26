@@ -68,7 +68,7 @@
 }
 .app-toast-action:disabled {
   opacity: 0.55;
-  cursor: wait;
+  cursor: default;
 }
 @keyframes app-toast-enter {
   from {

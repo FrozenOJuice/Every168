@@ -28,6 +28,7 @@ export const exerciseDraftSchema = z.object({
       targetLaps: measurement.default(null),
       restSeconds: measurement,
       completed: z.boolean(),
+      resultsEdited: z.boolean().default(false),
       skipped: z.boolean(),
     }),
   ),

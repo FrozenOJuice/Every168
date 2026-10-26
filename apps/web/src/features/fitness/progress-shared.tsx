@@ -16,7 +16,7 @@ export const trackingLabels = Object.fromEntries(
       .join(" + "),
   ]),
 ) as Record<ExerciseLoggingType, string>;
-export function distance(value: number | null, unit: "km" | "mi") {
+export function distance(value: number | null, unit: "m" | "km" | "yd" | "mi") {
   return value === null
     ? "Not recorded"
     : `${number(fromMeters(value, unit))} ${unit}`;

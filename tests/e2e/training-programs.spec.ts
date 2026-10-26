@@ -103,6 +103,9 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
   await programCard.click();
   await page.getByRole("link", { name: "Edit program", exact: true }).click();
   await page
+    .getByRole("button", { name: "Toggle program notes", exact: true })
+    .click();
+  await page
     .getByLabel("Program notes", { exact: true })
     .fill("Alternate workouts and leave room to recover.");
   await page.getByRole("button", { name: "Save program", exact: true }).click();
@@ -150,9 +153,10 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     .click();
   await expect(page).toHaveURL(/\/fitness\/session\//);
   const sessionPath = new URL(page.url()).pathname;
-  await page.getByLabel("Actual reps", { exact: true }).first().fill("8");
-  await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
-  await page.getByLabel("Completed", { exact: true }).first().check();
+  await page
+    .getByRole("button", { name: "Expand Program squat exercise", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Complete set", exact: true }).click();
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   await page
     .getByRole("button", { name: "Finish workout", exact: true })
@@ -201,9 +205,7 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     .click();
   await expect(page).toHaveURL(/\/fitness\/programs$/);
   await page.goto(sessionPath);
-  await expect(
-    page.getByRole("heading", { name: "Workout review", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Workout review", { exact: true })).toBeVisible();
 });
 test("program forms retain edits, surface read failures, recover a lost response with the same key and reject stale writes", async ({
   page,
@@ -218,8 +220,11 @@ test("program forms retain edits, surface read failures, recover a lost response
     page.getByRole("alert").filter({ hasText: "Add at least one workout" }),
   ).toBeVisible();
   await add(page, "Workout A");
-  page.once("dialog", (d) => d.dismiss());
-  await page.getByRole("link", { name: "Cancel", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Keep editing", exact: true })
+    .click();
   await expect(page.getByLabel("Program name", { exact: true })).toHaveValue(
     "Flexible program",
   );

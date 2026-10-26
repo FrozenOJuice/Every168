@@ -111,11 +111,28 @@ export function strengthProgressService(
     async comparison(u: string, id: string) {
       const current = await strength.get(u, id);
       const previousId = await repo.previousMatching(u, id, current.startedAt);
+      const previous = previousId ? await strength.get(u, previousId) : null;
+      // Repeated occurrences with identical selections match in occurrence order.
+      const signature = (e: SavedWorkout["exercises"][number]) =>
+        e.exerciseId +
+        ":" +
+        e.loggingType +
+        (e.sets.some((s) => s.measurementOverride !== null)
+          ? ":" +
+            e.sets.map((s) => s.measurementOverride ?? e.loggingType).join(";")
+          : "");
+      if (previous) {
+        const remaining = [...previous.exercises];
+        previous.exercises = current.exercises.map((e) => {
+          const index = remaining.findIndex(
+            (candidate) => signature(candidate) === signature(e),
+          );
+          return remaining.splice(index, 1)[0]!;
+        });
+      }
       return {
         current: summarize(current),
-        previous: previousId
-          ? summarize(await strength.get(u, previousId))
-          : null,
+        previous: previous ? summarize(previous) : null,
       };
     },
   };

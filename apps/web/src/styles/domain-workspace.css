@@ -232,6 +232,25 @@
   max-width: none;
   padding: 0;
 }
+html:has(.fitness-workspace),
+.fitness-creation-experiment .fitness-builder-scroll {
+  scrollbar-width: auto;
+}
+html:has(.fitness-workspace)::-webkit-scrollbar,
+.fitness-creation-experiment .fitness-builder-scroll::-webkit-scrollbar {
+  display: block;
+  width: 10px;
+}
+html:has(.fitness-workspace)::-webkit-scrollbar-thumb,
+.fitness-creation-experiment .fitness-builder-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid var(--background);
+  border-radius: 10px;
+  background: var(--muted-foreground);
+}
+html:has(.fitness-workspace)::-webkit-scrollbar-track,
+.fitness-creation-experiment .fitness-builder-scroll::-webkit-scrollbar-track {
+  background: var(--background);
+}
 .fitness-stacked-workspace.domain-workspace {
   max-width: none;
   height: auto;
@@ -792,47 +811,59 @@
 .fitness-builder-notes[open] .fitness-disclosure-chevron {
   transform: rotate(180deg);
 }
-.fitness-creation-experiment .fitness-compact-exercise {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-compact-exercise {
   border-radius: 10px;
   padding: 0;
 }
-.fitness-creation-experiment .fitness-workout-exercise-heading {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-workout-exercise-heading {
   background: var(--muted);
   border-radius: 9px 9px 0 0;
   margin: 0;
   padding: 8px;
 }
-.fitness-creation-experiment .fitness-exercise-fields {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-exercise-fields {
   border-top: 1px solid var(--border);
   padding: 16px;
 }
-.fitness-creation-experiment .fitness-exercise-name {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-exercise-name {
   color: var(--foreground);
   font-size: 0.95rem;
 }
-.fitness-creation-experiment .fitness-exercise-collapse {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-exercise-collapse {
   border: 1px solid var(--border);
   background: var(--card);
   border-radius: var(--radius);
   margin-right: 4px;
 }
-.fitness-creation-experiment .fitness-quick-target-fields {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-quick-target-fields {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
   gap: 12px;
   margin: 0 0 16px;
 }
-.fitness-creation-experiment .fitness-quick-target-fields .field {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-quick-target-fields
+  .field {
   flex-direction: column;
   gap: 8px;
   display: flex;
 }
-.fitness-creation-experiment .fitness-quick-target-fields label {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-quick-target-fields
+  label {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 550;
 }
-.fitness-creation-experiment .fitness-quick-target-fields input {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-quick-target-fields
+  input {
   text-align: center;
   font-variant-numeric: tabular-nums;
   background: var(--background);
@@ -840,22 +871,102 @@
   font-size: 1rem;
   font-weight: 550;
 }
-.fitness-creation-experiment .fitness-quick-target-fields input::placeholder {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-quick-target-fields
+  input::placeholder {
   font-size: 0.8rem;
   font-weight: 400;
 }
+.fitness-number-control {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--input);
+  border-radius: var(--radius);
+  background: var(--background);
+  overflow: hidden;
+}
+.fitness-quick-target-fields .fitness-number-control > input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  appearance: textfield;
+}
+.fitness-number-control input::-webkit-inner-spin-button,
+.fitness-number-control input::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.fitness-number-control:focus-within {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+.fitness-number-control > input:focus-visible {
+  outline: none;
+}
+.fitness-number-control:has(input[aria-invalid="true"]) {
+  border-color: var(--destructive);
+}
+.fitness-number-arrows {
+  display: flex;
+  flex: 0 0 36px;
+  flex-direction: column;
+  border-left: 1px solid var(--input);
+  background: var(--card);
+}
+.fitness-number-arrows > button {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 23px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.fitness-number-arrows > button + button {
+  border-top: 1px solid var(--border);
+}
+.fitness-number-arrows > button:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.fitness-number-arrows > button:active:not(:disabled) {
+  background: var(--border);
+}
+.fitness-number-arrows > button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+@media (pointer: coarse) {
+  .fitness-number-arrows {
+    flex-basis: 44px;
+  }
+  .fitness-number-arrows > button {
+    min-height: 44px;
+  }
+}
 
-.fitness-creation-experiment .fitness-workout-exercise-footer {
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
+  .fitness-workout-exercise-footer {
   border-top: 1px solid var(--border);
   margin-top: 12px;
   padding-top: 12px;
 }
 
 @media (max-width: 600px) {
-  .fitness-creation-experiment .fitness-exercise-fields {
+  :is(.fitness-creation-experiment, .fitness-session-plan-editor)
+    .fitness-exercise-fields {
     padding: 12px;
   }
-  .fitness-creation-experiment .fitness-quick-target-fields {
+  :is(.fitness-creation-experiment, .fitness-session-plan-editor)
+    .fitness-quick-target-fields {
     gap: 8px;
   }
   .fitness-disclosure-control {
@@ -972,9 +1083,9 @@
   display: grid;
 }
 .fitness-set-measurements {
-  grid-template-columns: repeat(
-    var(--fitness-measurement-columns, 2),
-    minmax(0, 1fr)
+  grid-template-columns: var(
+    --fitness-measurement-grid,
+    repeat(2, minmax(0, 1fr))
   );
   align-items: end;
   gap: 8px;
@@ -1281,7 +1392,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.fitness-rest-disclosure:has(.fitness-rest-summary)
+.fitness-rest-disclosure:has(.fitness-rest-summary, .fitness-rest-hint)
   .fitness-disclosure-chevron {
   margin-left: 0;
 }
@@ -1400,17 +1511,41 @@
 
 .fitness-rest-heading-copy {
   line-height: 16px;
+  flex: none;
 }
-.fitness-rest-heading-copy > small {
-  display: block;
+.fitness-rest-hint {
+  margin-left: auto;
+  padding-left: 12px;
   font-size: 0.6875rem;
   font-weight: 400;
-  line-height: 12px;
+  line-height: 1.4;
+  text-align: right;
+}
+.fitness-rest-disclosure > .fitness-inline-editor-heading {
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+.fitness-rest-disclosure {
+  transition:
+    background-color 180ms ease,
+    opacity 180ms ease;
+}
+.fitness-rest-disclosure:has(> .fitness-inline-editor-heading:disabled) {
+  background: color-mix(in srgb, var(--foreground) 4%, var(--card));
+  opacity: 0.65;
 }
 .fitness-rest-disclosure > .fitness-inline-editor-heading:disabled {
   opacity: 1;
   color: var(--muted-foreground);
+  background: transparent;
   cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fitness-rest-disclosure,
+  .fitness-rest-disclosure > .fitness-inline-editor-heading {
+    transition: none;
+  }
 }
 
 .fitness-workout-exercise-heading > .fitness-advanced-editor {
@@ -1452,8 +1587,20 @@
   }
 }
 
-.fitness-creation-experiment
+:is(.fitness-creation-experiment, .fitness-session-plan-editor)
   .fitness-compact-exercise:has(> .fitness-exercise-body[data-collapsed="true"])
   > .fitness-workout-exercise-heading {
   border-radius: 9px;
+}
+
+/* Paired duration components share the measurement grid without covering neighbours. */
+.fitness-duration-target .fitness-duration-target-inputs input {
+  padding-right: 28px;
+  padding-left: 4px;
+}
+.fitness-quick-target-fields > .fitness-duration-target {
+  grid-column: span 2;
+}
+.fitness-main-workspace .fitness-set-fields:has(.fitness-duration-target) {
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
 }

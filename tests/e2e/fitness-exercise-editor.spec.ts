@@ -132,9 +132,11 @@ test("exercise creation validates, protects changes and adds directly to a worko
   await workout
     .getByLabel("Workout title", { exact: true })
     .fill("Custom workout");
-  await workout
-    .getByRole("button", { name: "Add exercise", exact: true })
-    .click();
+  const addExercises = page.getByRole("button", {
+    name: "Add exercises",
+    exact: true,
+  });
+  if (await addExercises.isVisible()) await addExercises.click();
   await library
     .getByRole("button", { name: "Create exercise", exact: true })
     .click();

@@ -24,7 +24,7 @@ it("summarizes matching planned sets without counting rest or recorded results",
     })),
   );
   draft.sets[0]!.restSeconds = 90;
-  expect(workoutExerciseSummary(draft, metric)).toBe("3 × 12 · 100 kg");
+  expect(workoutExerciseSummary(draft, metric)).toBe("3×12 | 100 kg");
 });
 
 it("shows ranges and identifies partially unset targets rather than implying matching sets", () => {
@@ -36,7 +36,7 @@ it("shows ranges and identifies partially unset targets rather than implying mat
       ]),
       metric,
     ),
-  ).toBe("2 sets · 8–12 reps · 80–100 kg");
+  ).toBe("2 sets | 8–12 reps | 80–100 kg");
   expect(
     workoutExerciseSummary(
       exercise([
@@ -45,7 +45,7 @@ it("shows ranges and identifies partially unset targets rather than implying mat
       ]),
       metric,
     ),
-  ).toBe("2 sets · 12 reps · 100 kg · Some targets unset");
+  ).toBe("2 sets | 12 reps | 100 kg | Some targets unset");
 });
 
 it("respects per-set measurements and excludes saved targets for hidden measurements", () => {
@@ -57,7 +57,7 @@ it("respects per-set measurements and excludes saved targets for hidden measurem
       ]),
       metric,
     ),
-  ).toBe("1 × 12 · 100 kg / 1 × 1m");
+  ).toBe("1×12 | 100 kg / 1×1m");
   expect(
     workoutExerciseSummary(
       exercise(
@@ -66,7 +66,7 @@ it("respects per-set measurements and excludes saved targets for hidden measurem
       ),
       metric,
     ),
-  ).toBe("1 × 1m 30s");
+  ).toBe("1×1m 30s");
 });
 
 it("groups consecutive matching mixed sets and preserves their order", () => {
@@ -77,11 +77,11 @@ it("groups consecutive matching mixed sets and preserves their order", () => {
     { measurementOverride: "duration", targetDurationSeconds: 45 },
   ]);
   expect(workoutExerciseSummary(draft, metric)).toBe(
-    "1 × 45s / 2 × 8 · 80 kg / 1 × 45s",
+    "1×45s / 2×8 | 80 kg / 1×45s",
   );
   draft.sets.push(...exercise([{ targetReps: 10 }, { targetReps: 12 }]).sets);
   expect(workoutExerciseSummary(draft, metric)).toBe(
-    "1 × 45s / 2 × 8 · 80 kg / 1 × 45s / + 2 sets",
+    "1×45s / 2×8 | 80 kg / 1×45s / + 2 sets",
   );
 });
 
@@ -98,7 +98,7 @@ it("identifies mixed sets with no targets and retains preferred units and zero l
       ]),
       { weightUnit: "lb", distanceUnit: "mi" },
     ),
-  ).toBe("1 set · duration / 1 × 1 mi · 0 lb");
+  ).toBe("1 set | duration / 1×1 mi | 0 lb");
 });
 
 it("uses preferred units and includes each selected measurement", () => {
@@ -110,7 +110,7 @@ it("uses preferred units and includes each selected measurement", () => {
       ),
       { weightUnit: "lb", distanceUnit: "mi" },
     ),
-  ).toBe("1 × 1 mi · 100 lb");
+  ).toBe("1×1 mi | 100 lb");
   expect(
     workoutExerciseSummary(
       exercise(
@@ -127,13 +127,13 @@ it("uses preferred units and includes each selected measurement", () => {
       ),
       metric,
     ),
-  ).toBe("1 × 12 · 1m 30s · 1 km · 2 laps · 100 kg");
+  ).toBe("1×12 | 1m 30s | 1 km | 2 laps | 100 kg");
 });
 
 it("keeps empty targets distinct from an explicit zero load", () => {
   expect(workoutExerciseSummary(exercise([{}, {}]), metric)).toBe("2 sets");
   expect(
     workoutExerciseSummary(exercise([{ targetWeightKg: 0 }]), metric),
-  ).toBe("1 set · 0 kg");
+  ).toBe("1 set | 0 kg");
   expect(workoutExerciseSummary(exercise([]), metric)).toBe("0 sets");
 });

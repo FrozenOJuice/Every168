@@ -246,6 +246,20 @@
       "when": 1792861655396,
       "tag": "0034_eager_the_hood",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792960853622,
+      "tag": "0035_lazy_juggernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792965304189,
+      "tag": "0036_unknown_moondragon",
+      "breakpoints": true
     }
   ]
 }

@@ -30,6 +30,12 @@ test("exercise editors keep one editable set through removal, mode changes and r
     exercises: [{ exerciseId: exercise.id, sets: [] }],
   });
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", {
+      name: "Expand Minimum practice exercise",
+      exact: true,
+    })
+    .click();
   const workout = page.getByRole("region", {
     name: "Workout workspace",
     includeHidden: true,
@@ -43,6 +49,12 @@ test("exercise editors keep one editable set through removal, mode changes and r
   await expect(page).toHaveURL(/\/fitness$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", {
+      name: "Expand Minimum practice exercise",
+      exact: true,
+    })
+    .click();
   await expect(count).toHaveValue("1");
   await workout
     .getByRole("button", { name: "Toggle workout notes", exact: true })
@@ -62,6 +74,12 @@ test("exercise editors keep one editable set through removal, mode changes and r
     sessionStorage.setItem(key, JSON.stringify(stored));
   }, plan.id);
   await page.reload();
+  await page
+    .getByRole("button", {
+      name: "Expand Minimum practice exercise",
+      exact: true,
+    })
+    .click();
   await expect(count).toHaveValue("1");
   await expect(
     workout.getByLabel("Workout notes", { exact: true }),
@@ -126,6 +144,16 @@ test("exercise editors keep one editable set through removal, mode changes and r
     .locator(".fitness-workout-card")
     .filter({ hasText: "Minimum practice" })
     .getByRole("button", { name: "Start workout", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Edit workout", exact: true }).click();
+  await page
+    .getByRole("button", {
+      name: "Expand Minimum practice exercise",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByRole("button", { name: "Advanced editor", exact: true })
     .click();
   await expect(remove).toBeDisabled();
   await expect(

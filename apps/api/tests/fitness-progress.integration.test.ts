@@ -597,3 +597,134 @@ it("keeps per-set overrides through scheduling, starting and repeating, and repo
     })
     .expect(422);
 });
+
+it("discovers all recorded measurement combinations while retaining exact filtered statistics and ownership", async () => {
+  const a = client((await signUp()).cookie),
+    b = client((await signUp()).cookie);
+  const { body: e } = await a
+    .write("post", "exercises", { name: "Varied exercise" })
+    .expect(201);
+  await workout(a, e.id, "2026-10-01T10:00:00Z", [{ reps: 8, weightKg: 30 }]);
+  await workout(
+    a,
+    e.id,
+    "2026-10-02T10:00:00Z",
+    [{ durationSeconds: 60, reps: 999 }],
+    { mode: "duration" },
+  );
+  const report = exerciseReportSchema.parse(
+    (
+      await a
+        .get(`fitness-progress/exercises/${e.id}?allMeasurements=true`)
+        .expect(200)
+    ).body,
+  );
+  expect(report.availableMeasurementTypes.sort()).toEqual([
+    "duration",
+    "reps_load",
+  ]);
+  expect(report.sessions.items).toHaveLength(2);
+  expect(report.sessions.items[0]!.sets[0]!.loggingType).toBe("duration");
+  expect(report.sessions.items[0]!.maxReps).toBeNull();
+  expect(report.records).toEqual([]);
+  const filtered = exerciseReportSchema.parse(
+    (
+      await a
+        .get(`fitness-progress/exercises/${e.id}?loggingType=reps_load`)
+        .expect(200)
+    ).body,
+  );
+  expect(filtered.sessions.items).toHaveLength(1);
+  expect(filtered.availableMeasurementTypes).toHaveLength(2);
+  await b
+    .get(`fitness-progress/exercises/${e.id}?allMeasurements=true`)
+    .expect(404);
+});
+
+it("aligns reordered comparisons by exercise and matches duplicate occurrences without mixing results", async () => {
+  const a = client((await signUp()).cookie);
+  const { body: first } = await a
+    .write("post", "exercises", { name: "First exercise" })
+    .expect(201);
+  const { body: second } = await a
+    .write("post", "exercises", { name: "Second exercise" })
+    .expect(201);
+  const make = async (
+    day: string,
+    entries: { exerciseId: string; reps: number }[],
+  ) => {
+    const { body: w } = await a
+      .write("post", "strength-workouts", {
+        title: "Order",
+        startedAt: `${day}T10:00:00Z`,
+      })
+      .expect(201);
+    return (
+      await a
+        .write(
+          "put",
+          `strength-workouts/${w.id}`,
+          {
+            title: w.title,
+            startedAt: w.startedAt,
+            endedAt: `${day}T11:00:00Z`,
+            exercises: entries.map((e) => ({
+              exerciseId: e.exerciseId,
+              loggingType: "reps",
+              sets: [{ reps: e.reps, completed: true }],
+            })),
+          },
+          w.version,
+        )
+        .expect(200)
+    ).body;
+  };
+  const previous = await make("2026-10-01", [
+    { exerciseId: first.id, reps: 5 },
+    { exerciseId: second.id, reps: 20 },
+    { exerciseId: first.id, reps: 8 },
+  ]);
+  const current = await make("2026-10-02", [
+    { exerciseId: second.id, reps: 22 },
+    { exerciseId: first.id, reps: 6 },
+    { exerciseId: first.id, reps: 9 },
+  ]);
+  const comparison = workoutComparisonSchema.parse(
+    (await a.get(`fitness-progress/workouts/${current.id}`).expect(200)).body,
+  );
+  expect(comparison.previous!.id).toBe(previous.id);
+  expect(comparison.previous!.exercises.map((e) => e.maxReps)).toEqual([
+    20, 5, 8,
+  ]);
+  expect(comparison.current.exercises.map((e) => e.maxReps)).toEqual([
+    22, 6, 9,
+  ]);
+});
+
+it("persists deliberately cleared actuals and resets that flag when repeating a session", async () => {
+  const a = client((await signUp()).cookie);
+  const { body: e } = await a
+    .write("post", "exercises", { name: "Cleared results" })
+    .expect(201);
+  const w = await workout(
+    a,
+    e.id,
+    "2026-10-01T10:00:00Z",
+    [{ completed: false, resultsEdited: true, targetReps: 12 }],
+    { active: true },
+  );
+  expect(
+    (await a.get(`strength-workouts/${w.id}`).expect(200)).body.exercises[0]
+      .sets[0],
+  ).toMatchObject({ resultsEdited: true, reps: null, targetReps: 12 });
+  const repeat = (
+    await a
+      .write("post", `strength-workouts/${w.id}/repeat`, {}, w.version)
+      .expect(201)
+  ).body;
+  expect(repeat.exercises[0].sets[0]).toMatchObject({
+    resultsEdited: false,
+    reps: null,
+    targetReps: 12,
+  });
+});

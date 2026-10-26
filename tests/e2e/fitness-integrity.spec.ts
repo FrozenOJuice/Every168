@@ -80,6 +80,12 @@ async function seed(page: Page, finished = false) {
   return { plan, session };
 }
 async function details(page: Page) {
+  await page.locator(".fitness-workout-details").waitFor({ state: "attached" });
+  const correct = page.getByRole("button", {
+    name: "Correct results",
+    exact: true,
+  });
+  if (await correct.isVisible()) await correct.click();
   const element = page.locator(".fitness-workout-details");
   await expect(element).toBeVisible();
   if ((await element.getAttribute("open")) === null)
@@ -93,12 +99,30 @@ test("invalid session fields survive refresh and navigation without saving or lo
   const path = `/fitness/session/${session.id}`;
   await page.goto(path);
   await details(page);
+  await page
+    .getByRole("button", {
+      name: "Expand Regression squat exercise",
+      exact: true,
+    })
+    .click();
+  const editResults = page.getByRole("button", {
+    name: "Edit results",
+    exact: true,
+  });
+  if (await editResults.isVisible()) await editResults.click();
   const reps = page.getByLabel("Actual reps", { exact: true }).first();
   const notes = page.getByLabel("Workout notes", { exact: true });
   await reps.fill("0");
   await notes.fill("Retain the rest of my workout");
   await page.reload();
   await details(page);
+  await page
+    .getByRole("button", {
+      name: "Expand Regression squat exercise",
+      exact: true,
+    })
+    .click();
+  if (await editResults.isVisible()) await editResults.click();
   await expect(reps).toHaveValue("0");
   await expect(notes).toHaveValue("Retain the rest of my workout");
   await expect(page.locator(".fitness-save-state")).toHaveText(
@@ -115,6 +139,13 @@ test("invalid session fields survive refresh and navigation without saving or lo
   await expect(page).not.toHaveURL(new RegExp(session.id));
   await page.goto(path);
   await details(page);
+  await page
+    .getByRole("button", {
+      name: "Expand Regression squat exercise",
+      exact: true,
+    })
+    .click();
+  if (await editResults.isVisible()) await editResults.click();
   await expect(reps).toHaveValue("0");
   await expect(notes).toHaveValue("Retain the rest of my workout");
   await reps.fill("8");
@@ -185,19 +216,71 @@ test("invalid rest remains actionable when removing the following set in buildin
   page,
 }, testInfo) => {
   const { plan, session } = await seed(page);
+  await page.goto("/fitness");
+  const me = await (await page.request.get("/api/v1/me")).json();
   for (const [path, saveLabel] of [
     [`/fitness/workout/${plan.id}`, "Save workout"],
     [`/fitness/session/${session.id}`, "Save changes"],
   ]) {
+    // Current duration controls clamp valid entry. Exercise recovery of an invalid
+    // stored value instead of depending on the retired raw-seconds control.
+    await page.evaluate(
+      ({ plan, session, userId, builder }) => {
+        const exercises = session.exercises.map((e) => ({
+          ...e,
+          name: e.exerciseNameSnapshot,
+          clientKey: e.id,
+          sets: e.sets.map((set, index) => ({
+            ...set,
+            clientKey: set.id,
+            restSeconds: index === 0 ? 4000 : null,
+          })),
+        }));
+        if (builder)
+          sessionStorage.setItem(
+            `168hours:workout-builder:${userId}:${plan.id}`,
+            JSON.stringify({
+              format: 1,
+              version: plan.version,
+              draft: { title: plan.title, notes: "", exercises },
+            }),
+          );
+        else
+          sessionStorage.setItem(
+            `168hours:strength-draft:${userId}:${session.id}`,
+            JSON.stringify({
+              version: session.version,
+              input: {
+                title: session.title,
+                notes: session.notes,
+                startedAt: session.startedAt,
+                endedAt: session.endedAt,
+                linkedTimeBlockId: session.linkedTimeBlockId,
+                exercises,
+              },
+            }),
+          );
+      },
+      {
+        plan,
+        session,
+        userId: me.user.id,
+        builder: saveLabel === "Save workout",
+      },
+    );
     await page.goto(path!);
-    await page
-      .getByRole("button", {
-        name: "Edit rest after set 1: Add rest",
-        exact: true,
-      })
-      .click();
-    await page.getByLabel("Rest (seconds)", { exact: true }).fill("4000");
-    await page.getByLabel("Rest (seconds)", { exact: true }).press("Enter");
+    if (saveLabel === "Save changes")
+      await page
+        .getByRole("button", { name: "Edit workout", exact: true })
+        .click();
+    await expect(
+      page.getByRole("heading", { name: "Regression squat", exact: true }),
+    ).toBeVisible();
+    const expand = page.getByRole("button", {
+      name: "Expand Regression squat exercise",
+      exact: true,
+    });
+    if (await expand.isVisible()) await expand.click();
     await page
       .getByRole("button", { name: "Remove set 2", exact: true })
       .click();
@@ -205,9 +288,9 @@ test("invalid rest remains actionable when removing the following set in buildin
     await expect(
       page.getByText(/The last set has an invalid rest value/),
     ).toBeVisible();
-    await expect(
-      page.getByLabel("Rest (seconds)", { exact: true }),
-    ).toHaveCount(0);
+    await expect(page.getByLabel("Rest seconds", { exact: true })).toHaveCount(
+      0,
+    );
     const clear = page.getByRole("button", {
       name: "Clear invalid rest",
       exact: true,

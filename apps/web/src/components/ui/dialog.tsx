@@ -45,6 +45,7 @@ export function Dialog({
       <div className="row between dialog-heading">
         <h2 id={titleId}>{title}</h2>
         <button
+          type="button"
           className="icon-button"
           aria-label="Close dialog"
           onClick={onClose}

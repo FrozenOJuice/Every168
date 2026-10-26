@@ -1,8 +1,9 @@
 "use client";
+import { ActiveWorkouts } from "./active-workouts";
 import { ProgramsOverview } from "./programs-page";
 import Link from "next/link";
 import { useState } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
@@ -11,32 +12,9 @@ import { ErrorState, Loading } from "@/components/ui/feedback";
 import { FitnessSelect } from "./fitness-select";
 import { PlanCard } from "./workout-actions";
 export function FitnessPage() {
-  const active = useQuery({
-    queryKey: ["fitness", "active"],
-    queryFn: () => api.getWorkouts({ status: "active", limit: 1 }),
-  });
-  const current = active.data?.items[0];
   return (
     <div className="fitness-training-overview">
-      {current && (
-        <section className="fitness-current" aria-label="Workout in progress">
-          <div>
-            <span className="fitness-state">In progress</span>
-            <strong>{current.title}</strong>
-            <span className="text-small">Pick up where you left off.</span>
-          </div>
-          <Link
-            className="button primary"
-            href={`/fitness/session/${current.id}`}
-          >
-            Continue workout
-            <ArrowUpRight size={16} aria-hidden="true" />
-          </Link>
-        </section>
-      )}
-      {active.error && (
-        <ErrorState error={active.error} retry={() => void active.refetch()} />
-      )}
+      <ActiveWorkouts />
       <WorkoutsOverview />
       <ProgramsOverview />
     </div>

@@ -62,13 +62,23 @@ test("numeric replacement, selective copying and mixed summaries survive saving"
   const cards = page.locator(".fitness-compact-exercise");
   const mixedCard = cards.nth(0),
     entryCard = cards.nth(1);
+  await expect(
+    page.getByRole("button", { name: /^Expand .* exercise$/ }),
+  ).toHaveCount(2);
+  await mixedCard
+    .getByRole("button", {
+      name: "Expand Mixed practice exercise",
+      exact: true,
+    })
+    .click();
+  await entryCard
+    .getByRole("button", { name: "Expand Target entry exercise", exact: true })
+    .click();
   const sets = mixedCard.locator(
     ".fitness-workout-set-list > [data-reorder-item]",
   );
   const summary = mixedCard.locator(".fitness-exercise-target-summary");
-  await expect(summary).toHaveText(
-    "1 × 45s / 1 × 8 / 1 × 12 · 80 kg / + 2 sets",
-  );
+  await expect(summary).toHaveText("1×45s / 1×8 / 1×12 | 80 kg / + 2 sets");
   await summary.scrollIntoViewIfNeeded();
   await page.screenshot({
     path: info.outputPath("mixed-summary.png"),
@@ -124,8 +134,8 @@ test("numeric replacement, selective copying and mixed summaries survive saving"
     sets.nth(3).getByLabel("Target load (kg)", { exact: true }),
   ).toHaveValue("100");
   await expect(
-    sets.nth(4).getByLabel("Target duration (seconds)", { exact: true }),
-  ).toHaveValue("90");
+    sets.nth(4).getByLabel("Target duration (minutes)", { exact: true }),
+  ).toHaveValue("1");
   await expect(
     page
       .getByRole("status")
@@ -204,6 +214,7 @@ test("numeric replacement, selective copying and mixed summaries survive saving"
   await expect(quick.locator(".fitness-rest-summary")).toHaveText(
     "Rest as needed",
   );
+  await quick.getByLabel("Target duration (minutes)", { exact: true }).fill("");
   for (let i = 0; i < labels.length; i++) {
     const input = quick.getByLabel(labels[i]!, { exact: true });
     await input.click();
@@ -241,9 +252,16 @@ test("numeric replacement, selective copying and mixed summaries survive saving"
     fullPage: true,
   });
   await page.reload();
-  await expect(summary).toHaveText(
-    "1 × 45s / 1 × 8 / 1 × 8 · 80 kg / + 2 sets",
-  );
+  await expect(
+    page.getByRole("button", { name: /^Expand .* exercise$/ }),
+  ).toHaveCount(2);
+  await mixedCard
+    .getByRole("button", {
+      name: "Expand Mixed practice exercise",
+      exact: true,
+    })
+    .click();
+  await expect(summary).toHaveText("1×45s / 1×8 / 1×8 | 80 kg / + 2 sets");
   await expect(
     sets.nth(3).getByRole("button", {
       name: "Edit rest after set 4: Rest 1m 15s",

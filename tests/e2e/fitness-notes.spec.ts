@@ -30,6 +30,12 @@ test("workout and exercise notes share a persistent toggle and preserve text whe
     exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 8 }] }],
   });
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", {
+      name: "Expand Notes exercise exercise",
+      exact: true,
+    })
+    .click();
   const workout = page.locator(".fitness-builder-setup");
   const card = page.locator(".fitness-compact-exercise").first();
   for (const [scope, label, text] of [
@@ -60,6 +66,12 @@ test("workout and exercise notes share a persistent toggle and preserve text whe
     fullPage: true,
   });
   await page.reload();
+  await page
+    .getByRole("button", {
+      name: "Expand Notes exercise exercise",
+      exact: true,
+    })
+    .click();
   await expect(
     workout.getByLabel("Workout notes", { exact: true }),
   ).toHaveValue("Keep this workout note");
@@ -80,6 +92,12 @@ test("workout and exercise notes share a persistent toggle and preserve text whe
   expect(saved.notes).toBe("Keep this workout note");
   expect(saved.exercises[0].notes).toBe("Keep this exercise note");
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", {
+      name: "Expand Notes exercise exercise",
+      exact: true,
+    })
+    .click();
   await expect(card.getByLabel("Exercise notes", { exact: true })).toHaveValue(
     "Keep this exercise note",
   );

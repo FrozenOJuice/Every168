@@ -10,6 +10,7 @@ export function FitnessSelect({
   disabled = false,
   hideLabel = false,
   searchable = true,
+  error,
 }: {
   label: string;
   options: readonly { value: string; label: string }[];
@@ -18,6 +19,7 @@ export function FitnessSelect({
   disabled?: boolean;
   hideLabel?: boolean;
   searchable?: boolean;
+  error?: string;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -104,7 +106,8 @@ export function FitnessSelect({
         type="button"
         className="fitness-select-trigger"
         aria-label={label}
-        aria-describedby={`${id}-value`}
+        data-invalid={!!error}
+        aria-describedby={`${id}-value${error ? ` ${id}-error` : ""}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-choices`}
@@ -121,6 +124,11 @@ export function FitnessSelect({
         </span>
         <ChevronDown size={16} aria-hidden="true" />
       </button>
+      {error && (
+        <p id={`${id}-error`} className="error" role="alert">
+          {error}
+        </p>
+      )}
       {open && !disabled && (
         <div
           ref={popup}

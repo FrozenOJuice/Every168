@@ -112,3 +112,65 @@ it("rejects expired sessions and enforces bounded request/error handling", async
     .expect(401);
   expect(failed.body.error.requestId).toBeTruthy();
 });
+
+it("persists global Fitness units with revision protection and account isolation", async () => {
+  const a = await signUp(),
+    b = await signUp();
+  const read = () => request(app).get("/api/v1/me").set("Cookie", a.cookie);
+  const before = await read();
+  const { version, ...initial } = before.body.preferences;
+  const updated = await request(app)
+    .put("/api/v1/preferences")
+    .set("Cookie", a.cookie)
+    .set("Origin", origin)
+    .set(commandHeaders(version))
+    .send({
+      ...initial,
+      weightUnit: "lb",
+      distanceUnit: "yd",
+      durationUnit: "min",
+    })
+    .expect(200);
+  expect((await read()).body.preferences).toMatchObject({
+    weightUnit: "lb",
+    distanceUnit: "yd",
+    durationUnit: "min",
+    timezone: initial.timezone,
+  });
+  expect(
+    (await request(app).get("/api/v1/me").set("Cookie", b.cookie)).body
+      .preferences,
+  ).toMatchObject({
+    weightUnit: "kg",
+    distanceUnit: "km",
+    durationUnit: "min_sec",
+  });
+  await request(app)
+    .put("/api/v1/preferences")
+    .set("Cookie", a.cookie)
+    .set("Origin", origin)
+    .set(commandHeaders(version))
+    .send({ ...initial, distanceUnit: "m", durationUnit: "h" })
+    .expect(409);
+  for (const changes of [
+    { distanceUnit: "m", durationUnit: "h" },
+    { distanceUnit: "mi", durationUnit: "s" },
+  ]) {
+    const current = (await read()).body.preferences;
+    await request(app)
+      .put("/api/v1/preferences")
+      .set("Cookie", a.cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(current.version))
+      .send({ ...initial, ...changes })
+      .expect(200);
+  }
+  expect(updated.body.version).toBeGreaterThan(version);
+  await request(app)
+    .put("/api/v1/preferences")
+    .set("Cookie", a.cookie)
+    .set("Origin", origin)
+    .set(commandHeaders())
+    .send({ ...initial, durationUnit: "days" })
+    .expect(422);
+});

@@ -9,6 +9,18 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+const returningFocus = new WeakSet<HTMLElement>();
+
+/** Restore an action's focus after closing its content without reopening its hint. */
+export function restoreActionFocus(element: HTMLElement) {
+  returningFocus.add(element);
+  try {
+    element.focus({ preventScroll: true });
+  } finally {
+    returningFocus.delete(element);
+  }
+}
+
 /** Shared, noninteractive action tooltip. The button keeps its own accessible name. */
 export function TooltipButton({
   tooltip,
@@ -30,7 +42,10 @@ export function TooltipButton({
   const [open, setOpen] = useState(false);
   const [host, setHost] = useState<Element | null>(null);
   const show = () => {
-    setHost(button.current?.closest("dialog") ?? document.body);
+    setHost(
+      button.current?.closest("dialog, main, aside, nav, header, footer") ??
+        document.body,
+    );
     setOpen(true);
   };
   const [position, setPosition] = useState<{
@@ -119,7 +134,10 @@ export function TooltipButton({
           onPointerLeave?.(event);
         }}
         onFocus={(event) => {
-          if (event.currentTarget.matches(":focus-visible")) {
+          if (
+            !returningFocus.has(event.currentTarget) &&
+            event.currentTarget.matches(":focus-visible")
+          ) {
             cancel();
             show();
           }

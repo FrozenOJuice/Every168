@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ExerciseLoggingType } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -30,9 +31,25 @@ export function ExerciseHelp({
   const pending =
     query.isPending || (query.data?.catalogKey && catalog.isPending);
   const error = query.error ?? (query.data?.catalogKey ? catalog.error : null);
+  const statePanel = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (pending || error) statePanel.current?.focus({ preventScroll: true });
+  }, [pending, error]);
   if (pending || error)
     return (
-      <section className="fitness-inspector" aria-label="Exercise details">
+      <section
+        ref={statePanel}
+        tabIndex={-1}
+        className="fitness-inspector"
+        aria-label="Exercise details"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose();
+          }
+        }}
+      >
         <button type="button" className="fitness-back" onClick={onClose}>
           <ArrowLeft size={16} aria-hidden="true" /> {backLabel}
         </button>

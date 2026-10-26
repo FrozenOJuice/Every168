@@ -36,6 +36,9 @@ test("sets inherit defaults or keep independent measurements through recovery an
     ],
   });
   await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", { name: "Expand Set practice exercise", exact: true })
+    .click();
   await expect(
     page.getByRole("button", { name: "Reset to basic", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
@@ -84,7 +87,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .getByLabel("Target load (kg)", { exact: true })
     .boundingBox())!;
   const duration = (await first
-    .getByLabel("Target duration (seconds)", { exact: true })
+    .getByLabel("Target duration (minutes)", { exact: true })
     .boundingBox())!;
   expect(firstReps.x).toBeCloseTo(secondReps.x, 0);
   expect(firstReps.width).toBeCloseTo(secondReps.width, 0);
@@ -213,6 +216,9 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .uncheck();
   await configure.click();
   await page.reload();
+  await page
+    .getByRole("button", { name: "Expand Set practice exercise", exact: true })
+    .click();
   await expect(configure).toHaveAttribute("data-custom", "true");
   await expect(configureDefaults).toHaveAttribute("aria-expanded", "false");
   await expect(
@@ -246,12 +252,20 @@ test("sets inherit defaults or keep independent measurements through recovery an
     saved.version,
   );
   await page.goto(`/fitness/session/${session.id}`);
+  await page
+    .getByRole("button", { name: "Expand Set practice exercise", exact: true })
+    .click();
+  const active = page.getByRole("region", { name: "Current set", exact: true });
+  await active
+    .getByRole("button", { name: "Edit results", exact: true })
+    .click();
   await expect(
-    first.getByLabel("Actual duration (seconds)", { exact: true }),
-  ).toBeVisible();
-  await expect(first.getByLabel("Actual reps", { exact: true })).toHaveCount(0);
-  await expect(second.getByLabel("Actual reps", { exact: true })).toBeVisible();
-  await first
+    active.getByLabel("Actual duration (seconds)", { exact: true }),
+  ).toHaveValue("45");
+  await expect(active.getByLabel("Actual reps", { exact: true })).toHaveCount(
+    0,
+  );
+  await active
     .getByLabel("Actual duration (seconds)", { exact: true })
     .fill("40");
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");

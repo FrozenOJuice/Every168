@@ -477,7 +477,7 @@ body:has(.app-toast) {
   body {
     --assistant-launcher-bottom: calc(80px + env(safe-area-inset-bottom));
   }
-  body:has(.fitness-workout-builder) {
+  body:has(.fitness-workout-builder, .fitness-program-editor) {
     --assistant-launcher-bottom: calc(164px + env(safe-area-inset-bottom));
   }
   .assistant-launcher {

@@ -1,7 +1,12 @@
 import { expect, it } from "vitest";
 import { workoutSchema, workoutUpdateInput } from "@168hours/contracts";
-import { emptySet, sessionDraft, sessionInput } from "./strength-draft";
-import { recoverSession } from "./session-recovery";
+import {
+  emptySet,
+  sessionDraft,
+  sessionInput,
+  type SessionDraft,
+} from "./strength-draft";
+import { acceptSessionSave, recoverSession } from "./session-recovery";
 
 const session = workoutSchema.parse({
   id: "00000000-0000-4000-8000-000000000001",
@@ -95,4 +100,67 @@ it("recognizes a confirmed payload after a lost response and ignores malformed s
       input: sessionDraft(session),
       dirty: false,
     });
+});
+
+it("retains an uncertain request key even when the server already has its payload", () => {
+  const input = sessionDraft(session);
+  const pending = {
+    input,
+    version: 2,
+    key: "00000000-0000-4000-8000-000000000002",
+  };
+  expect(
+    recoverSession(JSON.stringify({ input, version: 2, pending }), session),
+  ).toMatchObject({ pending, conflict: false, dirty: true });
+});
+it("rebases server IDs after edits and reordering during an in-flight save", () => {
+  const old: SessionDraft = invalidInput();
+  old.exercises[0]!.intentTags = [];
+  old.exercises[0]!.sets = [emptySet()];
+  const second = {
+    ...old.exercises[0]!,
+    clientKey: "second-exercise",
+    sets: [emptySet()],
+  };
+  old.exercises.push(second);
+  const saved = {
+    ...session,
+    version: 4,
+    exercises: old.exercises.map((e, i) => ({
+      ...e,
+      id: `assigned-${i}`,
+      exerciseNameSnapshot: e.name,
+      sets: e.sets.map((s) => ({ ...s, id: `set-${i}` })),
+    })),
+  } as unknown as typeof session;
+  const edited = {
+    ...old,
+    title: "Newer title",
+    exercises: [
+      second,
+      {
+        ...old.exercises[0]!,
+        sets: [{ ...old.exercises[0]!.sets[0]!, targetReps: 8 }, emptySet()],
+      },
+    ],
+  };
+  const result = acceptSessionSave(
+    { input: edited, version: 3, dirty: true, conflict: false },
+    { input: old, version: 3, key: "key" },
+    saved,
+  );
+  expect(result).toMatchObject({
+    version: 4,
+    dirty: true,
+    input: { title: "Newer title" },
+  });
+  expect(result.input.exercises.map((e) => e.id)).toEqual([
+    "assigned-1",
+    "assigned-0",
+  ]);
+  expect(result.input.exercises[1]!.sets[0]).toMatchObject({
+    id: "set-0",
+    targetReps: 8,
+  });
+  expect(result.input.exercises[1]!.sets[1]!.id).toBeUndefined();
 });

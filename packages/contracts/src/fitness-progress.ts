@@ -11,6 +11,7 @@ import { exerciseSchema, exerciseLoggingTypeSchema } from "./exercise";
 export const fitnessProgressQuery = z.object({ date: dateSchema.optional() });
 export const exerciseReportQuery = pageQuerySchema.extend({
   loggingType: exerciseLoggingTypeSchema.optional(),
+  allMeasurements: z.enum(["true", "false"]).optional(),
   excludeWorkoutId: idSchema.optional(),
   before: instantSchema.optional(),
 });
@@ -27,6 +28,7 @@ export const strengthMetricsSchema = z.object({
 });
 export type StrengthMetrics = z.infer<typeof strengthMetricsSchema>;
 export const recordedProgressSetSchema = z.object({
+  loggingType: exerciseLoggingTypeSchema.optional(),
   position: z.number().int().nonnegative().optional(),
   id: idSchema,
   reps: z.number().nullable(),
@@ -57,6 +59,7 @@ export const progressRecordSchema = z.object({
   laps: z.number().nullable(),
 });
 export const exerciseReportSchema = z.object({
+  availableMeasurementTypes: z.array(exerciseLoggingTypeSchema),
   exercise: exerciseSchema,
   loggingType: exerciseLoggingTypeSchema,
   records: z.array(progressRecordSchema),

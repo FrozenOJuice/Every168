@@ -171,13 +171,13 @@ it("keeps activity, intent and measurements independent through programs, schedu
         .expect(200)
     ).body,
   );
-  expect(report.records.map((r) => [r.metric, r.value])).toEqual([
+  expect(report.records.map((r) => [r.metric, r.value]).sort()).toEqual([
     ["distance", 500],
     ["duration", 900],
   ]);
   expect(report.sessions.items[0]).toMatchObject({
     maxDistanceMeters: 500,
-    maxLaps: 20,
+    maxLaps: null,
     volumeKg: null,
   });
   const key = randomUUID();
@@ -247,7 +247,9 @@ it("accepts distance-only and laps-only completed sets, keeps unknowns, and scop
   const report = exerciseReportSchema.parse(
     (await a.get(`fitness-progress/exercises/${e.id}`)).body,
   );
-  expect(report.records.map((r) => [r.metric, r.value])).toEqual([["laps", 8]]);
+  expect(report.records.map((r) => [r.metric, r.value]).sort()).toEqual([
+    ["laps", 8],
+  ]);
   expect(report.sessions.items[0]).toMatchObject({
     completedSets: 2,
     maxDurationSeconds: null,
@@ -256,7 +258,7 @@ it("accepts distance-only and laps-only completed sets, keeps unknowns, and scop
   const comparison = (await a.get(`fitness-progress/workouts/${w.id}`)).body;
   expect(comparison.current.exercises[0]).toMatchObject({
     maxLaps: 8,
-    maxDistanceMeters: 50,
+    maxDistanceMeters: null,
   });
   await b.get(`fitness-progress/exercises/${e.id}`).expect(404);
   await b

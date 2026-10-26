@@ -1,4 +1,8 @@
 "use client";
+import { FitnessConfirm } from "./fitness-confirm";
+import { useWorkoutStart } from "./active-workouts";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
+import { z } from "zod";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -39,7 +43,16 @@ function ProgramDetail({ program: p }: { program: TrainingProgram }) {
   const router = useRouter(),
     cache = useQueryClient(),
     timezone = useMe().preferences.timezone;
-  const [scheduling, setScheduling] = useState(false);
+  const { user } = useMe();
+  const [scheduling, setScheduling] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(
+        `168hours:program-schedule:${user.id}:${p.id}`,
+      );
+    } catch {
+      return false;
+    }
+  });
   const [confirm, setConfirm] = useState<{
     action: "skip" | "delete";
     program: TrainingProgram;
@@ -50,6 +63,7 @@ function ProgramDetail({ program: p }: { program: TrainingProgram }) {
       api.pauseTrainingProgram(p.id, v.paused, v.version, key),
     onSuccess: refresh,
   });
+  const startWorkout = useWorkoutStart();
   const begin = useCommand({
     mutationFn: (
       v: { sequence: number; version: number; startedAt: string },
@@ -168,13 +182,17 @@ function ProgramDetail({ program: p }: { program: TrainingProgram }) {
           ) : (
             <button
               className="button primary"
-              disabled={busy || p.paused || !p.next.available}
+              disabled={
+                busy || startWorkout.checking || p.paused || !p.next.available
+              }
               onClick={() =>
-                begin.mutate({
-                  sequence: p.next.sequence,
-                  version: p.version,
-                  startedAt: new Date().toISOString(),
-                })
+                void startWorkout.request(() =>
+                  begin.mutate({
+                    sequence: p.next.sequence,
+                    version: p.version,
+                    startedAt: new Date().toISOString(),
+                  }),
+                )
               }
             >
               Start next workout
@@ -200,6 +218,7 @@ function ProgramDetail({ program: p }: { program: TrainingProgram }) {
           )}
         </div>
         <CommandError command={begin} />
+        {startWorkout.dialog}
       </section>
       <section className="form-stack" aria-labelledby="sequence-heading">
         <h2 id="sequence-heading">Workout sequence</h2>
@@ -296,10 +315,12 @@ function ProgramSchedule({
   program: TrainingProgram;
   onSaved: () => void;
 }) {
-  const timezone = useMe().preferences.timezone,
+  const { user, preferences } = useMe();
+  const timezone = preferences.timezone,
     cache = useQueryClient();
   // Freeze the reviewed revision and block with the form, including across retries.
   const [base] = useState(p);
+  const [cancelling, setCancelling] = useState(false);
   const startDefault = base.next.block
     ? instantToLocalInput(base.next.block.startsAt, timezone)
     : `${base.next.suggestedDate}T09:00`;
@@ -310,13 +331,23 @@ function ProgramSchedule({
     [end, setEnd] = useState(endDefault),
     [error, setError] = useState("");
   const save = useCommand({
-    mutationFn: (v: ProgramScheduleInput, key: string) =>
-      api.scheduleTrainingProgram(base.id, v, base.version, key),
+    persistence: {
+      key: `168hours:program-schedule:${user.id}:${base.id}`,
+      parse: (value) =>
+        programScheduleInput
+          .safeExtend({ version: z.number().int().positive() })
+          .parse(value),
+    },
+    mutationFn: (
+      { version, ...v }: ProgramScheduleInput & { version: number },
+      key: string,
+    ) => api.scheduleTrainingProgram(base.id, v, version, key),
     onSuccess: () => {
       invalidateFitness(cache);
       onSaved();
     },
   });
+  useUnsavedChanges(save.isPending, "Wait for scheduling to finish.", true);
   return (
     <Dialog
       title={
@@ -325,14 +356,20 @@ function ProgramSchedule({
           : "Schedule program workout"
       }
       onClose={() => {
-        if (
-          !save.isPending &&
-          ((start === startDefault && end === endDefault) ||
-            window.confirm("Discard these schedule changes?"))
-        )
-          onSaved();
+        if (save.isPending) return;
+        if (start !== startDefault || end !== endDefault) setCancelling(true);
+        else onSaved();
       }}
     >
+      {cancelling && (
+        <FitnessConfirm
+          title="Discard schedule changes?"
+          action="Discard changes"
+          danger
+          onCancel={() => setCancelling(false)}
+          onConfirm={onSaved}
+        />
+      )}
       <form
         className="form-stack"
         onSubmit={(e) => {
@@ -351,7 +388,7 @@ function ProgramSchedule({
               blockVersion: base.next.block?.version ?? null,
             });
             setError("");
-            save.mutate(v);
+            save.mutate({ ...v, version: base.version });
           } catch {
             setError(
               "Choose valid, unambiguous times with the end after the start.",
@@ -369,7 +406,14 @@ function ProgramSchedule({
             <input
               type="datetime-local"
               required
-              value={start}
+              value={
+                save.needsRetry && save.recoveredVariables
+                  ? instantToLocalInput(
+                      save.recoveredVariables.startsAt,
+                      timezone,
+                    )
+                  : start
+              }
               onChange={(e) => setStart(e.target.value)}
             />
           </label>
@@ -378,7 +422,14 @@ function ProgramSchedule({
             <input
               type="datetime-local"
               required
-              value={end}
+              value={
+                save.needsRetry && save.recoveredVariables
+                  ? instantToLocalInput(
+                      save.recoveredVariables.endsAt,
+                      timezone,
+                    )
+                  : end
+              }
               onChange={(e) => setEnd(e.target.value)}
             />
           </label>

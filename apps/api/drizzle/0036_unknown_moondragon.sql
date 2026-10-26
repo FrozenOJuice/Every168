@@ -1,0 +1,3 @@
+ALTER TABLE "preferences" DROP CONSTRAINT "preferences_values";--> statement-breakpoint
+ALTER TABLE "preferences" ADD COLUMN "duration_unit" text DEFAULT 'min_sec' NOT NULL;--> statement-breakpoint
+ALTER TABLE "preferences" ADD CONSTRAINT "preferences_values" CHECK ("preferences"."version">0 and "preferences"."week_starts_on" in (0,1) and "preferences"."weight_unit" in ('kg','lb') and "preferences"."distance_unit" in ('m','km','yd','mi') and "preferences"."duration_unit" in ('min_sec','s','min','h') and char_length("preferences"."timezone") between 1 and 100);

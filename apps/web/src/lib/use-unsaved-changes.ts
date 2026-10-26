@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 const navigationEvent = "168hours:before-navigation";
 export function canNavigateAway() {
   return document.dispatchEvent(
@@ -11,8 +11,27 @@ export function useUnsavedChanges(
   message = "Leave this workout without saving your changes?",
   blocked = false,
 ) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!dirty) return;
+    const currentHref = window.location.href;
+    const traversal = (event: NavigateEvent) => {
+      if (
+        event.navigationType !== "traverse" ||
+        !event.cancelable ||
+        event.destination.url === currentHref
+      )
+        return;
+      if (blocked || !confirm(message)) event.preventDefault();
+    };
+    const currentState = window.history.state;
+    const pop = (event: PopStateEvent) => {
+      if (window.location.href === currentHref) return;
+      if (blocked || !confirm(message)) {
+        event.stopImmediatePropagation();
+        // Restore the current entry before the router handles a declined Back/Forward.
+        window.history.pushState(currentState, "", currentHref);
+      }
+    };
     const unload = (event: BeforeUnloadEvent) => event.preventDefault();
     const beforeNavigation = (event: Event) => {
       if (!event.defaultPrevented && (blocked || !confirm(message)))
@@ -26,7 +45,12 @@ export function useUnsavedChanges(
       if (
         anchor instanceof HTMLAnchorElement &&
         anchor.href !== window.location.href &&
-        !anchor.hash &&
+        !(
+          anchor.hash &&
+          anchor.origin === window.location.origin &&
+          anchor.pathname === window.location.pathname &&
+          anchor.search === window.location.search
+        ) &&
         (blocked || !confirm(message))
       ) {
         event.preventDefault();
@@ -34,10 +58,16 @@ export function useUnsavedChanges(
       }
     };
     window.addEventListener("beforeunload", unload);
+    if (window.navigation)
+      window.navigation.addEventListener("navigate", traversal);
+    else window.addEventListener("popstate", pop, true);
     document.addEventListener("click", navigate, true);
     document.addEventListener(navigationEvent, beforeNavigation);
     return () => {
       window.removeEventListener("beforeunload", unload);
+      if (window.navigation)
+        window.navigation.removeEventListener("navigate", traversal);
+      else window.removeEventListener("popstate", pop, true);
       document.removeEventListener("click", navigate, true);
       document.removeEventListener(navigationEvent, beforeNavigation);
     };

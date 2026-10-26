@@ -179,6 +179,7 @@ export const strengthSets = pgTable(
       "measurement_override",
     ).$type<ExerciseLoggingType>(),
     completed: boolean("completed").notNull(),
+    resultsEdited: boolean("results_edited").notNull().default(false),
     skipped: boolean("skipped").notNull().default(false),
     targetReps: integer("target_reps"),
     targetWeightKg: doublePrecision("target_weight_kg"),

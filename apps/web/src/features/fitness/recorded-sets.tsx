@@ -1,4 +1,5 @@
 "use client";
+import { formatFitnessDuration } from "./rest-duration";
 import type { ExerciseLoggingType, ProgressSession } from "@168hours/contracts";
 import { useMe } from "@/features/identity/me";
 import { exerciseTrackingFields } from "./exercise-tracking";
@@ -9,10 +10,16 @@ export function RecordedSets({
   mode,
 }: {
   sets: ProgressSession["sets"];
-  mode: ExerciseLoggingType;
+  mode?: ExerciseLoggingType;
 }) {
-  const { weightUnit, distanceUnit } = useMe().preferences;
-  const fields = exerciseTrackingFields[mode];
+  const { weightUnit, distanceUnit, durationUnit } = useMe().preferences;
+  const fields = [
+    ...new Set(
+      sets.flatMap(
+        (set) => exerciseTrackingFields[set.loggingType ?? mode ?? "reps_load"],
+      ),
+    ),
+  ];
   const labels = {
     reps: "Reps",
     load: `Load (${weightUnit})`,
@@ -40,17 +47,24 @@ export function RecordedSets({
               <th scope="row">{(set.position ?? index) + 1}</th>
               {fields.map((field) => (
                 <td key={field}>
-                  {field === "load"
-                    ? load(set.weightKg, weightUnit)
-                    : field === "distance"
-                      ? distance(set.distanceMeters, distanceUnit)
-                      : field === "duration"
-                        ? set.durationSeconds === null
-                          ? "Not recorded"
-                          : `${set.durationSeconds} sec`
-                        : set[field] === null
-                          ? "Not recorded"
-                          : set[field]}
+                  {!exerciseTrackingFields[
+                    set.loggingType ?? mode ?? "reps_load"
+                  ].includes(field)
+                    ? "—"
+                    : field === "load"
+                      ? load(set.weightKg, weightUnit)
+                      : field === "distance"
+                        ? distance(set.distanceMeters, distanceUnit)
+                        : field === "duration"
+                          ? set.durationSeconds === null
+                            ? "Not recorded"
+                            : formatFitnessDuration(
+                                set.durationSeconds,
+                                durationUnit,
+                              )
+                          : set[field] === null
+                            ? "Not recorded"
+                            : set[field]}
                 </td>
               ))}
             </tr>

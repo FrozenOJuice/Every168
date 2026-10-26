@@ -139,12 +139,17 @@ test("workout exercise details use the library pane and preserve the draft", asy
     "Exercise details unavailable.",
   );
   await library
-    .getByRole("button", { name: "Back to exercises", exact: true })
+    .getByRole("button", { name: "Back to workout", exact: true })
     .click();
-  await expect(search).toBeFocused();
-  await page
-    .getByRole("button", { name: "← Back to workout", exact: true })
-    .click();
+  await expect(workout).toBeVisible();
+  await expect(help).toBeFocused();
+  await help.click();
+  await expect(library.getByRole("alert")).toBeVisible();
+  await library
+    .getByRole("region", { name: "Exercise details", exact: true })
+    .press("Escape");
+  await expect(workout).toBeVisible();
+  await expect(help).toBeFocused();
   await help.click();
   await expect(library.getByRole("alert")).toBeVisible();
   await page.unroute(`**/api/v1/exercises/${exercise.id}`);
@@ -152,11 +157,9 @@ test("workout exercise details use the library pane and preserve the draft", asy
   await expect(details).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await details
-    .getByRole("button", { name: "Back to exercises", exact: true })
+    .getByRole("button", { name: "Back to workout", exact: true })
     .click();
-  await expect(search).toBeFocused();
-  await page
-    .getByRole("button", { name: "← Back to workout", exact: true })
-    .click();
+  await expect(workout).toBeVisible();
+  await expect(help).toBeFocused();
   await expect(workout).toBeVisible();
 });

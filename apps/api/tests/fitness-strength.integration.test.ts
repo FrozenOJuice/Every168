@@ -593,7 +593,7 @@ it("persists tracking types, protects built-ins and snapshots modes without drop
   await a
     .write("post", "exercises", {
       name: "Invalid type",
-      loggingType: "distance",
+      loggingType: "unsupported",
     })
     .expect(422);
   const plan = (

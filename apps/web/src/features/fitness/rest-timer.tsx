@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 export function RestTimer({
   until,
   onCancel,
+  label,
 }: {
   until: number | null;
   onCancel: () => void;
+  label?: string;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -17,6 +19,7 @@ export function RestTimer({
   const remaining = Math.max(0, Math.ceil((until - now) / 1000));
   return (
     <div className="fitness-rest" role="timer" aria-label="Rest timer">
+      {label && <span>{label}</span>}
       <strong>
         {remaining
           ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")} rest remaining`

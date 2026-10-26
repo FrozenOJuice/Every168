@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useLayoutEffect, useCallback, useId } from "react";
+import { useRef, useLayoutEffect, useCallback, useId, useState } from "react";
 import { Plus } from "lucide-react";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
@@ -13,6 +13,7 @@ export function StrengthExercises({
   session,
   sessionId,
   building = false,
+  initiallyCollapsed = false,
   errors = {},
   onRest,
   onNotice,
@@ -23,12 +24,16 @@ export function StrengthExercises({
   session?: boolean;
   sessionId?: string;
   building?: boolean;
+  initiallyCollapsed?: boolean;
   errors?: Record<string, string>;
   onRest?: (seconds: number) => void;
   onNotice?: (message: string) => void;
   disabled?: boolean;
 }) {
   const errorId = useId();
+  const [addedExerciseKeys, setAddedExerciseKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { register, pick } = useFitnessExercisePanel();
   const current = useRef({ value, onChange, disabled });
   useLayoutEffect(() => {
@@ -38,10 +43,12 @@ export function StrengthExercises({
     (exercise: import("@168hours/contracts").Exercise) => {
       const latest = current.current;
       if (latest.disabled || latest.value.length >= 50) return false;
+      const clientKey = crypto.randomUUID();
+      setAddedExerciseKeys((keys) => new Set(keys).add(clientKey));
       latest.onChange([
         ...latest.value,
         {
-          clientKey: crypto.randomUUID(),
+          clientKey,
           exerciseId: exercise.id,
           name: exercise.name,
           loggingType: exercise.loggingType,
@@ -99,8 +106,8 @@ export function StrengthExercises({
           <section
             {...rowProps(index)}
             key={
-              exercise.id ??
               exercise.clientKey ??
+              exercise.id ??
               `${exercise.exerciseId}:${index}`
             }
             className={`fitness-exercise fitness-compact-exercise ${rowProps(index).className ?? ""}`}
@@ -109,6 +116,10 @@ export function StrengthExercises({
             <WorkoutExerciseCard
               exercise={exercise}
               collapsible={building}
+              initiallyCollapsed={
+                initiallyCollapsed &&
+                !addedExerciseKeys.has(exercise.clientKey ?? "")
+              }
               errors={errors}
               errorPrefix={`exercises.${index}`}
               session={session}

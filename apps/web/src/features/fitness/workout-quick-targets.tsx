@@ -6,6 +6,7 @@ import { useMe } from "@/features/identity/me";
 import { RestDurationField } from "./rest-duration-field";
 import { formatRestDuration } from "./rest-duration";
 import { WorkoutNumberField } from "./workout-number-field";
+import { WorkoutNumericInput } from "./workout-numeric-input";
 import { exerciseTrackingFields } from "./exercise-tracking";
 import {
   nextPlannedSet,
@@ -98,33 +99,43 @@ export function WorkoutQuickTargets({
         </p>
       )}
       <div className="fitness-quick-target-fields">
-        <label className="field">
-          Sets
-          <input
-            type="number"
+        <div className="field">
+          <label htmlFor={`${restId}-sets`}>Sets</label>
+          <WorkoutNumericInput
+            id={`${restId}-sets`}
+            controlLabel="Sets"
+            steppers
             min={1}
             max={100}
             step={1}
             value={countText ?? exercise.sets.length}
             disabled={disabled}
             onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => {
-              const text = event.target.value;
+            onValueChange={(text) => {
               setCountText(text);
-              const count = Number(text);
-              if (text && Number.isInteger(count) && count >= 1 && count <= 100)
-                changeCount(count);
+            }}
+            onStep={(text) => {
+              setCountText(null);
+              changeCount(Number(text));
             }}
             onBlur={() => {
-              if (countText === "") changeCount(1);
+              const count = countText === "" ? 1 : Number(countText);
+              if (
+                countText !== null &&
+                Number.isInteger(count) &&
+                count >= 1 &&
+                count <= 100
+              )
+                changeCount(count);
               setCountText(null);
             }}
           />
-        </label>
+        </div>
         {fields.map((field) => (
           <WorkoutNumberField
             key={field}
             label={labels[field]}
+            steppers
             value={common(
               keys[field],
               exercise.sets.filter((set) => activeFields(set).includes(field)),
@@ -139,6 +150,7 @@ export function WorkoutQuickTargets({
             }
             weight={field === "load"}
             distance={field === "distance"}
+            duration={field === "duration"}
             disabled={disabled || !exercise.sets.length}
             onChange={(value) => update(field, value)}
           />
@@ -170,12 +182,12 @@ export function WorkoutQuickTargets({
           onClick={() => setRestOpen(!restOpen)}
         >
           <Timer size={16} aria-hidden="true" />
-          <span className="fitness-rest-heading-copy">
-            Rest between sets
-            {!restAvailable && (
-              <small id={`${restId}-hint`}>Requires at least 2 sets</small>
-            )}
-          </span>
+          <span className="fitness-rest-heading-copy">Rest between sets</span>
+          {!restAvailable && (
+            <small id={`${restId}-hint`} className="fitness-rest-hint">
+              Requires 2+ sets
+            </small>
+          )}
           {restSummary && (
             <span id={`${restId}-value`} className="fitness-rest-summary">
               {restSummary}

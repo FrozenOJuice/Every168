@@ -115,6 +115,10 @@ test("exercise recall, weekly totals and records work with units, empty modes an
   );
   await page.locator(".fitness-session-history summary").first().click();
   await expect(page.locator(".fitness-session-history")).toContainText("40 kg");
+  await page
+    .getByRole("button", { name: "Recorded measurements", exact: true })
+    .click();
+  await page.getByRole("option", { name: "Reps + Load", exact: true }).click();
   if (
     !(await page
       .locator("details")
@@ -141,36 +145,13 @@ test("exercise recall, weekly totals and records work with units, empty modes an
   await expect(page.locator(".fitness-progress-sessions")).toContainText(
     "1 incomplete set",
   );
-  await page.getByRole("checkbox", { name: "Duration", exact: true }).check();
-  await page.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
-  await page.getByRole("checkbox", { name: "Load", exact: true }).uncheck();
-
-  if (
-    !(await page
-      .locator("details")
-      .filter({
-        has: page.locator("summary", { hasText: /^Personal records$/ }),
-      })
-      .evaluate((element) => (element as HTMLDetailsElement).open))
-  )
-    await page.getByText("Personal records", { exact: true }).first().click();
-  await expect(
-    page.getByText("No records yet for Duration.", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("checkbox", { name: "Reps", exact: true }).check();
-  await page.getByRole("checkbox", { name: "Load", exact: true }).check();
-  await page.getByRole("checkbox", { name: "Duration", exact: true }).uncheck();
-
-  if (
-    !(await page
-      .locator("details")
-      .filter({
-        has: page.locator("summary", { hasText: /^Personal records$/ }),
-      })
-      .evaluate((element) => (element as HTMLDetailsElement).open))
-  )
-    await page.getByText("Personal records", { exact: true }).first().click();
-  await expect(records).toContainText("50 kg");
+  await page
+    .getByRole("button", { name: "Recorded measurements", exact: true })
+    .click();
+  await page
+    .getByRole("option", { name: "All recorded measurements", exact: true })
+    .click();
+  await expect(lastTime).toContainText("50 kg");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(
     await page.evaluate(
@@ -190,6 +171,11 @@ test("exercise recall, weekly totals and records work with units, empty modes an
   );
   await page.reload();
   await expect(lastTime).toContainText("110.2 lb");
+  await page
+    .getByRole("button", { name: "Recorded measurements", exact: true })
+    .click();
+  await page.getByRole("option", { name: "Reps + Load", exact: true }).click();
+
   if (
     !(await page
       .locator("details")
@@ -219,13 +205,26 @@ test("saved corrections and deletions update progress, and training shows the pr
   const { exercise, workouts, write } = await setup(page);
   const current = workouts[1]!;
   await page.goto(`/fitness/session/${current.id}`);
+  await page
+    .getByRole("button", { name: "Correct results", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Expand Progress squat exercise",
+      exact: true,
+    })
+    .click();
   await page.getByLabel("Actual load (kg)", { exact: true }).first().fill("60");
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   await page.goto(`/fitness/exercises/${exercise.id}`);
   await expect(page.locator(".fitness-recall-section")).toContainText("60 kg");
   await page.goto(`/fitness/session/${current.id}`);
-  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByText("More actions", { exact: true }).click();
   await page
+    .getByRole("button", { name: "Delete workout", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
     .getByRole("button", { name: "Delete workout", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness\/history$/);
@@ -242,6 +241,12 @@ test("saved corrections and deletions update progress, and training shows the pr
     previous.version,
   );
   await page.goto(`/fitness/session/${active.id}`);
+  await page
+    .getByRole("button", {
+      name: "Expand Progress squat exercise",
+      exact: true,
+    })
+    .click();
   await expect(page.locator(".fitness-previous-set")).toContainText(
     "Last time · Oct 12, 2026",
   );

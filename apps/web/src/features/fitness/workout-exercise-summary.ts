@@ -1,9 +1,13 @@
 import { measurementsFor, type ExerciseMeasurement } from "@168hours/contracts";
 import { fromKilograms, fromMeters } from "@168hours/domain-utils";
-import { formatRestDuration } from "./rest-duration";
+import { formatFitnessDuration } from "./rest-duration";
 import type { ExerciseDraft } from "./strength-draft";
 
-type Units = { weightUnit: "kg" | "lb"; distanceUnit: "km" | "mi" };
+type Units = {
+  weightUnit: "kg" | "lb";
+  distanceUnit: "m" | "km" | "yd" | "mi";
+  durationUnit?: import("@168hours/domain-utils").DurationUnit;
+};
 const targetKeys = {
   reps: "targetReps",
   load: "targetWeightKg",
@@ -54,7 +58,7 @@ export function workoutExerciseSummary(
         sets[0]!.measurementOverride ?? exercise.loggingType ?? "reps_load",
       );
       return fields.every((field) => sets[0]![targetKeys[field]] === null)
-        ? `${summary} · ${fields.join(" + ")}`
+        ? `${summary} | ${fields.join(" + ")}`
         : summary;
     });
     const remaining =
@@ -114,13 +118,13 @@ export function workoutExerciseSummary(
         return `${value} laps`;
       case "duration":
         return min === max
-          ? formatRestDuration(min)
-          : `${formatRestDuration(min)}–${formatRestDuration(max)}`;
+          ? formatFitnessDuration(min, units.durationUnit)
+          : `${formatFitnessDuration(min, units.durationUnit)}–${formatFitnessDuration(max, units.durationUnit)}`;
     }
   };
   const parts = [
     primary
-      ? `${count} × ${range(primary.field, primary.min, primary.max, true)}`
+      ? `${count}×${range(primary.field, primary.min, primary.max, true)}`
       : countLabel,
   ];
   for (const target of targets) {
@@ -128,5 +132,5 @@ export function workoutExerciseSummary(
     parts.push(range(target.field, target.min, target.max));
   }
   if (partial) parts.push("Some targets unset");
-  return parts.join(" · ");
+  return parts.join(" | ");
 }

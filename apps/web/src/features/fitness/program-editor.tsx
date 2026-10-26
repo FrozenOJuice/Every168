@@ -1,6 +1,14 @@
 "use client";
+import { z } from "zod";
+import { ArrowUp, ArrowDown, Trash2, RotateCcw } from "lucide-react";
+import { Toast, useToast } from "@/components/ui/toast";
+import { TooltipButton } from "@/components/ui/tooltip-button";
+import { FitnessConfirm } from "./fitness-confirm";
+import { NotesEditor } from "./notes-editor";
+import { useProgramRecovery } from "./program-recovery";
+import { focusSessionError } from "./session-validation";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import {
   useInfiniteQuery,
@@ -29,14 +37,21 @@ export const trainingDayNames = [
   "Friday",
   "Saturday",
 ];
+const subscribeHydration = () => () => {};
 export function ProgramEditorPage({ id }: { id?: string }) {
+  // Tab-local recovery must be read after hydration, before mounting the editor.
+  const hydrated = useSyncExternalStore(
+    subscribeHydration,
+    () => true,
+    () => false,
+  );
   const q = useQuery({
     queryKey: ["fitness", "program", id],
     queryFn: () => api.getTrainingProgram(id!),
     enabled: !!id,
     refetchOnWindowFocus: false,
   });
-  if (id && q.isPending) return <Loading />;
+  if (!hydrated || (id && q.isPending)) return <Loading />;
   if (q.error)
     return <ErrorState error={q.error} retry={() => void q.refetch()} />;
   return <ProgramEditor key={id ?? "new"} program={q.data} />;
@@ -46,11 +61,13 @@ function ProgramEditor({
 }: {
   program?: TrainingProgram;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [program] = useState(initialProgram);
-  const { preferences } = useMe(),
+  const { user, preferences } = useMe(),
     router = useRouter(),
     cache = useQueryClient();
-  const [draft, setDraft] = useState<TrainingProgramInput>(() => ({
+  const [initial] = useState<TrainingProgramInput>(() => ({
     title: program?.title ?? "",
     notes: program?.notes ?? null,
     startDate:
@@ -59,10 +76,31 @@ function ProgramEditor({
     paused: program?.paused ?? false,
     steps: program?.steps.map(({ id, workoutId }) => ({ id, workoutId })) ?? [],
   }));
-  const [dirty, setDirty] = useState(false),
-    [error, setError] = useState("");
+  const recovery = useProgramRecovery(
+    `168hours:program-draft:${user.id}:${program?.id ?? "new"}`,
+    initial,
+    program?.version ?? null,
+  );
+  const { draft, dirty } = recovery;
+  const [error, setError] = useState("");
+  const [notesOpen, setNotesOpen] = useState(!!initial.notes);
+  const [cancelling, setCancelling] = useState(false);
+  const { notice, show, dismiss } = useToast();
+  const discard = recovery.discard;
+  useEffect(() => {
+    if (recovery.recovered && !recovery.conflict)
+      show({
+        message: "Draft restored",
+        action: {
+          label: "Discard",
+          onClick: () => {
+            discard();
+          },
+        },
+      });
+  }, [recovery.recovered, recovery.conflict, show, discard]);
   const [selected, setSelected] = useState("");
-  useUnsavedChanges(dirty, "Leave this program without saving your changes?");
+
   const workouts = useInfiniteQuery({
     queryKey: ["fitness", "program-workout-options"],
     initialPageParam: undefined as string | undefined,
@@ -74,21 +112,51 @@ function ProgramEditor({
     workouts.data?.pages.flatMap((p) => p.items).filter((w) => !w.isDraft) ??
     [];
   const change = (v: Partial<TrainingProgramInput>) => {
-    setDraft({ ...draft, ...v });
-    setDirty(true);
+    recovery.change({ ...draft, ...v });
     setError("");
   };
   const save = useCommand({
-    mutationFn: (input: TrainingProgramInput, key: string) =>
+    persistence: {
+      key: `168hours:program-save:${user.id}:${program?.id ?? "new"}`,
+      parse: (value) =>
+        z
+          .object({
+            input: trainingProgramInput,
+            version: z.number().int().positive().nullable(),
+          })
+          .parse(value),
+    },
+    mutationFn: (
+      {
+        input,
+        version,
+      }: { input: TrainingProgramInput; version: number | null },
+      key: string,
+    ) =>
       program
-        ? api.updateTrainingProgram(program.id, input, program.version, key)
+        ? api.updateTrainingProgram(program.id, input, version!, key)
         : api.createTrainingProgram(input, key),
     onSuccess: (p) => {
-      setDirty(false);
+      recovery.clear();
       invalidateFitness(cache);
       router.push(`/fitness/programs/${p.id}`);
     },
   });
+  useUnsavedChanges(
+    (dirty && recovery.storageError) || save.isPending,
+    "Leave this program without saving your changes?",
+    save.isPending,
+  );
+  const validation = trainingProgramInput.safeParse(draft);
+  const fields: Record<string, string> =
+    submitted && !validation.success
+      ? Object.fromEntries(
+          validation.error.issues.map((issue) => [
+            issue.path.join("."),
+            issue.message,
+          ]),
+        )
+      : {};
   const back = program
     ? `/fitness/programs/${program.id}`
     : "/fitness/programs";
@@ -101,48 +169,100 @@ function ProgramEditor({
     change({ steps });
   };
   return (
-    <div className="form-stack fitness-program-page">
-      <Link href={back}>← {program ? "Program" : "Training programs"}</Link>
-      <PageHeading
-        title={program ? "Edit training program" : "Create training program"}
-        description="Repeat an ordered sequence of your saved workouts, at your own pace or on preferred days."
-      />
+    <div className="form-stack fitness-program-page fitness-program-editor">
+      <div className="fitness-program-editor-heading">
+        <PageHeading
+          title={program ? "Edit training program" : "Create training program"}
+        />
+        {recovery.recovered && (
+          <TooltipButton
+            type="button"
+            className="icon-button"
+            tooltip="Discard recovered changes"
+            aria-label="Discard recovered changes"
+            disabled={save.isPending}
+            onClick={() => recovery.discard()}
+          >
+            <RotateCcw size={18} aria-hidden="true" />
+          </TooltipButton>
+        )}
+      </div>
       <form
+        ref={formRef}
+        noValidate
         className="form-stack"
         onSubmit={(e) => {
           e.preventDefault();
+          if (save.isPending || recovery.conflict) return;
           const parsed = trainingProgramInput.safeParse(draft);
           if (!parsed.success) {
-            setError(parsed.error.issues[0]?.message ?? "Check your program.");
+            setSubmitted(true);
+            setError("Check the highlighted program fields.");
+            requestAnimationFrame(() => focusSessionError(formRef.current));
             return;
           }
-          save.mutate(parsed.data);
+          save.mutate({
+            input: parsed.data,
+            version: program?.version ?? null,
+          });
         }}
       >
-        <fieldset className="form-stack" disabled={save.isPending}>
+        {recovery.storageError && (
+          <p className="error" role="alert">
+            Local draft storage is unavailable. Save before leaving.
+          </p>
+        )}
+        {recovery.conflict && (
+          <p className="error" role="alert">
+            This program changed elsewhere. Your recovered edits are kept.
+            Discard them to load the saved program.
+          </p>
+        )}
+        <fieldset
+          className="form-stack"
+          disabled={save.isPending || recovery.conflict}
+        >
           <label className="field">
             Program name
             <input
               required
               maxLength={160}
+              aria-invalid={!!fields.title}
+              aria-describedby={
+                fields.title ? "program-title-error" : undefined
+              }
               value={draft.title}
               onChange={(e) => change({ title: e.target.value })}
             />
           </label>
+          {fields.title && (
+            <p className="error" role="alert" id="program-title-error">
+              {fields.title}
+            </p>
+          )}
           <label className="field">
             Start date
             <input
               required
               type="date"
+              aria-invalid={!!fields.startDate}
+              aria-describedby={
+                fields.startDate ? "program-startDate-error" : undefined
+              }
               value={draft.startDate}
               onChange={(e) => change({ startDate: e.target.value })}
             />
           </label>
+          {fields.startDate && (
+            <p className="error" role="alert" id="program-startDate-error">
+              {fields.startDate}
+            </p>
+          )}
           <fieldset className="form-stack">
             <legend>Preferred training days</legend>
-            <p className="muted">
-              Leave every day unchecked for a flexible rotation. Days suggest
-              when to train; they do not create Calendar entries.
+            <p className="muted text-small">
+              Optional. Leave blank to train whenever you’re ready. Choosing
+              days does not schedule workouts.
             </p>
             <div className="fitness-program-days">
               {[1, 2, 3, 4, 5, 6, 0].map((day) => (
@@ -168,10 +288,8 @@ function ProgramEditor({
             aria-labelledby="program-workouts-heading"
           >
             <h2 id="program-workouts-heading">Workout sequence</h2>
-            <p className="muted">
-              Finishing or skipping a workout moves to the next one. After the
-              last workout, the sequence repeats. Add up to 20 steps, including
-              repeats of the same workout.
+            <p className="muted text-small">
+              Add workouts in order. The sequence repeats after the last one.
             </p>
             <ol className="fitness-program-steps">
               {draft.steps.map((step, index) => {
@@ -190,27 +308,30 @@ function ProgramEditor({
                       )}
                     </div>
                     <div className="fitness-program-step-actions">
-                      <button
+                      <TooltipButton
                         type="button"
-                        className="button"
+                        className="icon-button"
+                        tooltip="Move earlier"
                         aria-label={`Move step ${index + 1} up`}
                         disabled={index === 0}
                         onClick={() => move(index, -1)}
                       >
-                        ↑
-                      </button>
-                      <button
+                        <ArrowUp size={16} aria-hidden="true" />
+                      </TooltipButton>
+                      <TooltipButton
                         type="button"
-                        className="button"
+                        className="icon-button"
+                        tooltip="Move later"
                         aria-label={`Move step ${index + 1} down`}
                         disabled={index === draft.steps.length - 1}
                         onClick={() => move(index, 1)}
                       >
-                        ↓
-                      </button>
-                      <button
+                        <ArrowDown size={16} aria-hidden="true" />
+                      </TooltipButton>
+                      <TooltipButton
                         type="button"
-                        className="button"
+                        className="icon-button"
+                        tooltip="Remove workout"
                         aria-label={`Remove step ${index + 1}`}
                         onClick={() =>
                           change({
@@ -218,8 +339,8 @@ function ProgramEditor({
                           })
                         }
                       >
-                        Remove
-                      </button>
+                        <Trash2 size={16} aria-hidden="true" />
+                      </TooltipButton>
                     </div>
                   </li>
                 );
@@ -237,6 +358,11 @@ function ProgramEditor({
               <>
                 <FitnessSelect
                   label="Saved workout"
+                  error={
+                    fields.steps
+                      ? "Add at least one workout to the sequence."
+                      : undefined
+                  }
                   value={selected}
                   onChange={setSelected}
                   options={[
@@ -276,29 +402,40 @@ function ProgramEditor({
               </>
             )}
           </section>
-          <label className="field">
-            Program notes
-            <textarea
-              maxLength={4000}
-              value={draft.notes ?? ""}
-              onChange={(e) => change({ notes: e.target.value || null })}
-            />
-          </label>
+          <NotesEditor
+            label="Program notes"
+            open={notesOpen || !!fields.notes}
+            onOpenChange={setNotesOpen}
+            value={draft.notes}
+            error={fields.notes}
+            onChange={(notes) => change({ notes })}
+          />
           {program?.next.occurrence && (
             <p className="muted">
               Changes apply to future workouts. Your current workout keeps its
               saved exercises and targets.
             </p>
           )}
-          <div className="row">
-            <button className="button primary">
-              {save.isPending ? "Saving…" : "Save program"}
-            </button>
-            <Link className="button" href={back}>
-              Cancel
-            </Link>
-          </div>
         </fieldset>
+        <div className="fitness-program-save-bar">
+          <button
+            type="button"
+            className="button"
+            disabled={save.isPending}
+            onClick={() => {
+              if (dirty) setCancelling(true);
+              else router.push(back);
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            className="button primary"
+            disabled={save.isPending || recovery.conflict}
+          >
+            {save.retrying ? "Saving…" : "Save program"}
+          </button>
+        </div>
         {error && (
           <p className="error" role="alert">
             {error}
@@ -306,6 +443,22 @@ function ProgramEditor({
         )}
         <CommandError command={save} />
       </form>
+      {cancelling && (
+        <FitnessConfirm
+          title="Discard program changes?"
+          action="Discard changes"
+          danger
+          busy={save.isPending}
+          onCancel={() => setCancelling(false)}
+          onConfirm={() => {
+            if (recovery.discard()) router.push(back);
+            else setCancelling(false);
+          }}
+        />
+      )}
+      {notice && (
+        <Toast key={notice.id} {...notice} onDismiss={() => dismiss()} />
+      )}
     </div>
   );
 }

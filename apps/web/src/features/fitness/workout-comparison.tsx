@@ -1,4 +1,5 @@
 "use client";
+import { formatFitnessDuration } from "./rest-duration";
 import { measurementsFor } from "@168hours/contracts";
 import { useState } from "react";
 import Link from "next/link";
@@ -25,7 +26,7 @@ export function WorkoutComparison({
 }) {
   const [open, setOpen] = useState(false);
   const {
-    preferences: { timezone, weightUnit: unit, distanceUnit },
+    preferences: { timezone, weightUnit: unit, distanceUnit, durationUnit },
   } = useMe();
   const q = useQuery({
     queryKey: ["fitness", "comparison", id, version],
@@ -46,15 +47,16 @@ export function WorkoutComparison({
           <ErrorState error={q.error} retry={() => void q.refetch()} />
         ) : !q.data.previous ? (
           <p>
-            No earlier finished workout with the same exercises, order and
-            tracking types yet. Repeat this workout to build a comparison.
+            No earlier finished workout with the same exercises and measurement
+            selections yet. Repeat this workout to build a comparison.
           </p>
         ) : (
           <div className="form-stack">
             <p className="muted text-small">
               Saved results compared with the most recent earlier finished
-              workout with the same exercises, order and tracking types. Targets
-              and unfinished sets are excluded.
+              workout with the same exercises and measurement selections.
+              Repeated exercises match by occurrence. Targets and unfinished
+              sets are excluded.
             </p>
             <Link href={`/fitness/session/${q.data.previous.id}`}>
               Previous: {sessionDate(q.data.previous.startedAt, timezone)} ·{" "}
@@ -88,6 +90,7 @@ export function WorkoutComparison({
                     modes={exercise.measurementTypes}
                     unit={unit}
                     distanceUnit={distanceUnit}
+                    durationUnit={durationUnit}
                   />
                   <ComparisonValues
                     label="Previous workout"
@@ -96,6 +99,7 @@ export function WorkoutComparison({
                     modes={exercise.measurementTypes}
                     unit={unit}
                     distanceUnit={distanceUnit}
+                    durationUnit={durationUnit}
                   />
                 </div>
               </section>
@@ -112,13 +116,15 @@ function ComparisonValues({
   modes,
   unit,
   distanceUnit,
+  durationUnit,
 }: {
   label: string;
   metrics: StrengthMetrics;
   mode: ExerciseLoggingType;
   modes?: ExerciseLoggingType[];
   unit: "kg" | "lb";
-  distanceUnit: "km" | "mi";
+  distanceUnit: "m" | "km" | "yd" | "mi";
+  durationUnit: import("@168hours/domain-utils").DurationUnit;
 }) {
   const fields = [...new Set((modes ?? [mode]).flatMap(measurementsFor))];
   return (
@@ -145,7 +151,7 @@ function ComparisonValues({
             <dd>
               {m.maxDurationSeconds === null
                 ? "Not recorded"
-                : `${m.maxDurationSeconds} sec`}
+                : formatFitnessDuration(m.maxDurationSeconds, durationUnit)}
             </dd>
           </>
         )}

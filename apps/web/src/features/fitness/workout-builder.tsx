@@ -1,4 +1,6 @@
 "use client";
+import { FitnessConfirm } from "./fitness-confirm";
+import { TooltipButton } from "@/components/ui/tooltip-button";
 import { useMe } from "@/features/identity/me";
 import { useWorkoutBuilderRecovery } from "./workout-builder-recovery";
 import { NotesEditor } from "./notes-editor";
@@ -78,6 +80,7 @@ function WorkoutBuilder({
         ]
       : planExercises(plan),
   );
+  const [deleting, setDeleting] = useState(false);
   const [notesOpen, setNotesOpen] = useState(!!plan?.notes);
   const [cancelling, setCancelling] = useState(false);
   const [baseline] = useState(() =>
@@ -200,10 +203,11 @@ function WorkoutBuilder({
                 : "Create workout"}
             </h1>
             <div className="fitness-builder-heading-actions">
-              {recovery.recovered && !recovery.conflict && (
-                <button
+              {(plan || (recovery.recovered && !recovery.conflict)) && (
+                <TooltipButton
                   type="button"
                   className="icon-button"
+                  tooltip="Workout actions"
                   aria-label="Workout actions"
                   aria-haspopup="menu"
                   aria-expanded={!!actionsMenu}
@@ -219,7 +223,7 @@ function WorkoutBuilder({
                   }}
                 >
                   <MoreHorizontal size={18} aria-hidden="true" />
-                </button>
+                </TooltipButton>
               )}
               <button
                 type="button"
@@ -300,36 +304,18 @@ function WorkoutBuilder({
           >
             <StrengthExercises
               value={exercises}
+              initiallyCollapsed={!!plan}
               onChange={(exercises) => recovery.change({ exercises })}
               onNotice={(message) => show({ message, kind: "success" })}
               errors={errors}
               disabled={busy}
               building
             />
-            {plan && (
-              <>
-                <button
-                  type="button"
-                  className="fitness-text-action danger"
-                  disabled={busy}
-                  onClick={() => {
-                    if (
-                      confirm(
-                        "Delete this reusable workout? Scheduled workouts and recorded workouts will remain.",
-                      )
-                    )
-                      remove.mutate();
-                  }}
-                >
-                  Delete {plan.isDraft ? "draft" : "workout"}
-                </button>
-                <CommandError command={remove} />
-              </>
-            )}
           </div>
         </div>
         <footer className="fitness-builder-footer">
           {!cancelling && <CommandError command={save} />}
+          {!deleting && <CommandError command={remove} />}
           <div className="fitness-builder-save-actions">
             <button
               type="button"
@@ -359,20 +345,51 @@ function WorkoutBuilder({
           onDismiss={() => dismiss(notice.id)}
         />
       )}
-      {actionsMenu && recovery.recovered && !recovery.conflict && (
+      {actionsMenu && (
         <ContextMenu
           {...actionsMenu}
           label="Workout actions"
           actions={[
-            {
-              label: "Discard recovered changes",
-              disabled: busy,
-              destructive: true,
-              run: discardRecovered,
-            },
+            ...(recovery.recovered && !recovery.conflict
+              ? [
+                  {
+                    label: "Discard recovered changes",
+                    disabled: busy,
+                    destructive: true,
+                    run: discardRecovered,
+                  },
+                ]
+              : []),
+            ...(plan
+              ? [
+                  ...(recovery.recovered && !recovery.conflict
+                    ? [{ separator: true as const }]
+                    : []),
+                  {
+                    label: plan.isDraft ? "Delete draft" : "Delete workout",
+                    disabled: busy,
+                    destructive: true,
+                    run: () => setDeleting(true),
+                  },
+                ]
+              : []),
           ]}
           onClose={closeActions}
         />
+      )}
+      {deleting && (
+        <FitnessConfirm
+          title={plan?.isDraft ? "Delete draft?" : "Delete reusable workout?"}
+          description="Scheduled workouts and recorded results will stay."
+          action={plan?.isDraft ? "Delete draft" : "Delete workout"}
+          cancel="Cancel"
+          danger
+          busy={busy}
+          onCancel={() => setDeleting(false)}
+          onConfirm={() => remove.mutate()}
+        >
+          <CommandError command={remove} />
+        </FitnessConfirm>
       )}
       {cancelling && (
         <Dialog

@@ -247,15 +247,27 @@ export function strengthProgressRepository(db: Database) {
     ) {
       return db.transaction(
         async (tx) => {
-          const filter = and(
+          const baseFilter = and(
             scope(u),
             eq(entries.exerciseId, id),
-            sql`${effectiveType} = ${mode}`,
             q.excludeWorkoutId
               ? ne(workouts.id, q.excludeWorkoutId)
               : undefined,
             q.before ? lt(workouts.startedAt, new Date(q.before)) : undefined,
           );
+          const filter = and(
+            baseFilter,
+            q.allMeasurements === "true"
+              ? undefined
+              : sql`${effectiveType} = ${mode}`,
+          );
+          const available = await tx
+            .selectDistinct({ loggingType: effectiveType })
+            .from(sets)
+            .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+            .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+            .where(baseFilter)
+            .orderBy(effectiveType);
           const rows = await tx
             .select({
               id: workouts.id,
@@ -279,7 +291,7 @@ export function strengthProgressRepository(db: Database) {
           if (fields.includes("reps") && fields.includes("load"))
             measures.push("setVolume");
           const records = [];
-          for (const metric of measures) {
+          for (const metric of q.allMeasurements === "true" ? [] : measures) {
             const value =
               metric === "load"
                 ? sets.weightKg
@@ -326,6 +338,7 @@ export function strengthProgressRepository(db: Database) {
             ? await tx
                 .select({
                   workoutId: workouts.id,
+                  loggingType: effectiveType,
                   position: sets.position,
                   id: sets.id,
                   reps: sets.reps,
@@ -349,6 +362,7 @@ export function strengthProgressRepository(db: Database) {
                 .orderBy(asc(entries.position), asc(sets.position))
             : [];
           return {
+            availableMeasurementTypes: available.map((row) => row.loggingType),
             records,
             sessions: {
               ...page,
@@ -363,9 +377,10 @@ export function strengthProgressRepository(db: Database) {
       );
     },
     async previousMatching(u: string, id: string, startedAt: Date) {
-      // Match the ordered exercise identities and captured tracking modes, never titles.
+      // Match the multiset of exercise identities and captured measurements; order may change.
+      const entrySignature = sql`${entries.exerciseId}::text || ':' || ${entries.loggingType} || coalesce((select ':' || string_agg(coalesce(${sets.measurementOverride}, ${entries.loggingType}), ';' order by ${sets.position}) from ${sets} where ${sets.workoutExerciseId} = ${entries.id} and ${sets.userId} = ${u} having bool_or(${sets.measurementOverride} is not null)), '')`;
       const signature = (workout: typeof workouts.id | string) =>
-        sql`(select string_agg(${entries.exerciseId}::text || ':' || ${entries.loggingType} || coalesce((select ':' || string_agg(coalesce(${sets.measurementOverride}, ${entries.loggingType}), ';' order by ${sets.position}) from ${sets} where ${sets.workoutExerciseId} = ${entries.id} and ${sets.userId} = ${u} having bool_or(${sets.measurementOverride} is not null)), ''), ',' order by ${entries.position}) from ${entries} where ${entries.workoutId} = ${workout} and ${entries.userId} = ${u})`;
+        sql`(select string_agg(${entrySignature}, ',' order by ${entrySignature}) from ${entries} where ${entries.workoutId} = ${workout} and ${entries.userId} = ${u})`;
       const [previous] = await db
         .select({ id: workouts.id })
         .from(workouts)

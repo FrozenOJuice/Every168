@@ -49,12 +49,12 @@ test("custom exercise settings reset with confirmation and can be adjusted after
     exact: true,
   });
   await expect(reset).toHaveAttribute("aria-expanded", "true");
-  await card
-    .getByRole("button", {
-      name: "Collapse Reset practice exercise",
+  await expect(
+    card.getByRole("button", {
+      name: "Expand Reset practice exercise",
       exact: true,
-    })
-    .click();
+    }),
+  ).toHaveAttribute("aria-expanded", "false");
   await card
     .getByRole("button", {
       name: "Expand Reset practice exercise",
@@ -88,7 +88,7 @@ test("custom exercise settings reset with confirmation and can be adjusted after
   await expect(card.getByLabel("Sets", { exact: true })).toHaveValue("2");
   await expect(card.getByLabel("Target reps", { exact: true })).toBeEmpty();
   await card.getByLabel("Target reps", { exact: true }).fill("6");
-  await card.getByLabel(/Target load/).fill("25");
+  await card.getByRole("spinbutton", { name: /^Target load/ }).fill("25");
   await card
     .getByRole("button", { name: "Rest between sets", exact: true })
     .click();

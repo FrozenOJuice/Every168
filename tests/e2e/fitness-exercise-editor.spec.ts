@@ -130,7 +130,7 @@ test("exercise creation validates, protects changes and adds directly to a worko
     includeHidden: true,
   });
   await workout
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Custom workout");
   const addExercises = page.getByRole("button", {
     name: "Add exercises",
@@ -145,9 +145,9 @@ test("exercise creation validates, protects changes and adds directly to a worko
     .getByRole("button", { name: "Create and add to workout", exact: true })
     .click();
   await expect(editor).toHaveCount(0);
-  await expect(
-    workout.getByLabel("Workout title", { exact: true }),
-  ).toHaveValue("Custom workout");
+  await expect(workout.getByLabel("Workout name", { exact: true })).toHaveValue(
+    "Custom workout",
+  );
   await expect(
     workout.getByRole("heading", { name: "Workout variation", exact: true }),
   ).toBeVisible();

@@ -64,10 +64,18 @@ test("custom exercise settings reset with confirmation and can be adjusted after
   await expect(reset).toBeVisible();
   await reset.click();
   const dialog = page.getByRole("dialog", {
-    name: "Reset Reset practice to basic?",
+    name: "Reset to basic?",
     exact: true,
   });
   await expect(dialog.getByRole("spinbutton")).toHaveCount(0);
+  await expect(page.locator(".assistant-launcher")).toBeHidden();
+  await expect(dialog).toContainText(
+    "Will clear: reps, load, duration targets.",
+  );
+  await expect(dialog).toContainText(
+    "Custom measurements will return to exercise defaults.",
+  );
+  await expect(dialog.getByText("Rest times", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(
     card.getByLabel("Target duration (seconds)", { exact: true }),
@@ -125,4 +133,74 @@ test("custom exercise settings reset with confirmation and can be adjusted after
   await expect(
     card.getByRole("button", { name: "Advanced editor", exact: true }),
   ).toHaveAttribute("aria-expanded", "false");
+});
+
+test("reset summary stays compact with every target category and many sets", async ({
+  page,
+}, info) => {
+  const post = async (path: string, data: object) => {
+    const response = await page.request.post(path, {
+      headers: {
+        Origin: "http://localhost:3100",
+        "Idempotency-Key": randomUUID(),
+      },
+      data,
+    });
+    expect(response.ok()).toBe(true);
+    return response.json();
+  };
+  await post("/api/auth/sign-up/email", {
+    name: "Compact reset",
+    email: `compact-reset-${randomUUID()}@example.com`,
+    password: "Synthetic-basic-password-123",
+  });
+  const exercise = await post("/api/v1/exercises", {
+    name: "Long exercise name for compact reset confirmation",
+  });
+  const plan = await post("/api/v1/strength-plans", {
+    title: "Every target",
+    exercises: [
+      {
+        exerciseId: exercise.id,
+        sets: Array.from({ length: 100 }, (_, index) => ({
+          targetReps: index + 1,
+          targetWeightKg: index + 1,
+          targetDurationSeconds: index + 1,
+          targetDistanceMeters: index + 1,
+          targetLaps: index + 1,
+          restSeconds: index + 1,
+          measurementOverride: "duration",
+        })),
+      },
+    ],
+  });
+  await page.goto(`/fitness/workout/${plan.id}`);
+  await page
+    .getByRole("button", { name: "Reset to basic", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Reset to basic?",
+    exact: true,
+  });
+  await expect(dialog).toContainText(
+    "Will clear: reps, load, duration, distance, laps targets; rest times.",
+  );
+  await expect(dialog.locator(".fitness-reset-confirmation > p")).toHaveCount(
+    3,
+  );
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.height).toBeLessThan(360);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+    page.viewportSize()!.height,
+  );
+  await expect(
+    dialog.getByRole("button", { name: "Reset to basic", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    dialog.getByRole("button", { name: "Cancel", exact: true }),
+  ).toBeInViewport();
+  await page.screenshot({
+    path: info.outputPath("compact-reset-all-targets.png"),
+  });
 });

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useLayoutEffect, useCallback, useId, useState } from "react";
 import { Plus } from "lucide-react";
+import type { ToastNotice } from "@/components/ui/toast";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { emptySet, type ExerciseDraft } from "./strength-draft";
@@ -14,6 +15,7 @@ export function StrengthExercises({
   sessionId,
   building = false,
   initiallyCollapsed = false,
+  focusKey,
   errors = {},
   onRest,
   onNotice,
@@ -25,26 +27,30 @@ export function StrengthExercises({
   sessionId?: string;
   building?: boolean;
   initiallyCollapsed?: boolean;
+  focusKey?: string;
   errors?: Record<string, string>;
   onRest?: (seconds: number) => void;
-  onNotice?: (message: string) => void;
+  onNotice?: (message: string, action?: ToastNotice["action"]) => void;
   disabled?: boolean;
 }) {
   const errorId = useId();
+  const [focusRequest, setFocusRequest] = useState<{ key: string }>();
+  const activeFocusKey = focusRequest?.key ?? focusKey;
   const [addedExerciseKeys, setAddedExerciseKeys] = useState<Set<string>>(
     () => new Set(),
   );
   const { register, pick } = useFitnessExercisePanel();
-  const current = useRef({ value, onChange, disabled });
+  const current = useRef({ value, onChange, disabled, building, onNotice });
   useLayoutEffect(() => {
-    current.current = { value, onChange, disabled };
-  }, [value, onChange, disabled]);
+    current.current = { value, onChange, disabled, building, onNotice };
+  }, [value, onChange, disabled, building, onNotice]);
   const addExercise = useCallback(
     (exercise: import("@168hours/contracts").Exercise) => {
       const latest = current.current;
       if (latest.disabled || latest.value.length >= 50) return false;
       const clientKey = crypto.randomUUID();
       setAddedExerciseKeys((keys) => new Set(keys).add(clientKey));
+      if (latest.building) setFocusRequest({ key: clientKey });
       latest.onChange([
         ...latest.value,
         {
@@ -70,17 +76,31 @@ export function StrengthExercises({
     handle,
     feedback,
   } = useReorderList(value, onChange, disabled);
+  useLayoutEffect(() => {
+    if (activeFocusKey === undefined) return;
+    const frame = requestAnimationFrame(() => {
+      const rows = exerciseListRef.current?.querySelectorAll<HTMLElement>(
+        "[data-exercise-occurrence]",
+      );
+      const target = Array.from(rows ?? []).find(
+        (row) => row.dataset.exerciseOccurrence === activeFocusKey,
+      );
+      target?.scrollIntoView({ block: "start", inline: "nearest" });
+      target?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeFocusKey, focusRequest, exerciseListRef]);
   return (
     <div className="fitness-workout-exercises">
       {building && workoutCreationExperiment && !value.length && (
-        <div
-          className="fitness-builder-empty fitness-builder-library-hint"
+        <p
+          className="fitness-builder-library-hint"
           tabIndex={-1}
           data-validation-error={!!errors.exercises}
           aria-describedby={errors.exercises ? errorId : undefined}
         >
-          Choose exercises from the library to add them to your workout.
-        </div>
+          Add exercises from the library to build your workout.
+        </p>
       )}
       {building && !workoutCreationExperiment && !value.length && (
         <button
@@ -111,6 +131,12 @@ export function StrengthExercises({
               `${exercise.exerciseId}:${index}`
             }
             className={`fitness-exercise fitness-compact-exercise ${rowProps(index).className ?? ""}`}
+            data-exercise-occurrence={exercise.clientKey}
+            tabIndex={
+              activeFocusKey && exercise.clientKey === activeFocusKey
+                ? -1
+                : undefined
+            }
             aria-label={`${exercise.name} exercise ${index + 1}`}
           >
             <WorkoutExerciseCard
@@ -118,6 +144,7 @@ export function StrengthExercises({
               collapsible={building}
               initiallyCollapsed={
                 initiallyCollapsed &&
+                (!focusKey || exercise.clientKey !== focusKey) &&
                 !addedExerciseKeys.has(exercise.clientKey ?? "")
               }
               errors={errors}
@@ -130,6 +157,53 @@ export function StrengthExercises({
               handle={handle(index, `exercise ${index + 1}: ${exercise.name}`)}
               onChange={(next) => update(index, next)}
               onRemove={() => {
+                if (disabled) return;
+                if (building && !sessionId && onNotice) {
+                  const removed = structuredClone(exercise);
+                  removed.clientKey ??= crypto.randomUUID();
+                  const previousKey = value[index - 1]?.clientKey;
+                  const nextKey = value[index + 1]?.clientKey;
+                  let restored = false;
+                  const undo = () => {
+                    const latest = current.current;
+                    if (latest.disabled || restored) return;
+                    if (latest.value.length >= 50) {
+                      latest.onNotice?.(
+                        "Workout is full. Remove an exercise before undoing.",
+                        { label: "Undo", onClick: undo },
+                      );
+                      return;
+                    }
+                    const nextIndex = nextKey
+                      ? latest.value.findIndex(
+                          (item) => item.clientKey === nextKey,
+                        )
+                      : -1;
+                    const previousIndex = previousKey
+                      ? latest.value.findIndex(
+                          (item) => item.clientKey === previousKey,
+                        )
+                      : -1;
+                    const insertAt =
+                      nextIndex >= 0
+                        ? nextIndex
+                        : previousIndex >= 0
+                          ? previousIndex + 1
+                          : Math.min(index, latest.value.length);
+                    const exercises = [...latest.value];
+                    exercises.splice(insertAt, 0, removed);
+                    restored = true;
+                    setAddedExerciseKeys((keys) =>
+                      new Set(keys).add(removed.clientKey!),
+                    );
+                    latest.onChange(exercises);
+                    setFocusRequest({ key: removed.clientKey! });
+                  };
+                  onNotice(`${exercise.name} removed from workout.`, {
+                    label: "Undo",
+                    onClick: undo,
+                  });
+                }
                 onChange(value.filter((_, i) => i !== index));
                 requestAnimationFrame(() => {
                   const rows =
@@ -150,6 +224,11 @@ export function StrengthExercises({
                       ?.closest("form")
                       ?.querySelector<HTMLInputElement>("input")
                   )?.focus({ preventScroll: true });
+                  if (building && !sessionId) {
+                    target
+                      ?.closest(".fitness-exercise")
+                      ?.scrollIntoView({ block: "start", inline: "nearest" });
+                  }
                 });
               }}
             />

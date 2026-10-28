@@ -19,14 +19,16 @@ export function RestTimer({
   const remaining = Math.max(0, Math.ceil((until - now) / 1000));
   return (
     <div className="fitness-rest" role="timer" aria-label="Rest timer">
-      {label && <span>{label}</span>}
-      <strong>
-        {remaining
-          ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")} rest remaining`
-          : "Rest finished"}
-      </strong>
+      <div className="fitness-rest-copy">
+        {label && <span>{label}</span>}
+        <strong>
+          {remaining
+            ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")} rest remaining`
+            : "Rest finished"}
+        </strong>
+      </div>
       <button className="button" onClick={onCancel}>
-        Dismiss timer
+        {remaining ? "Skip rest" : "Dismiss timer"}
       </button>
     </div>
   );

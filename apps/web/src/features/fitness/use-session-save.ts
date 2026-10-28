@@ -59,6 +59,7 @@ export function useSessionSave({
     isPending: mutation.isPending || needsRetry,
     retrying: mutation.isPending,
     needsRetry,
+    reset: mutation.reset,
     conflict:
       mutation.error instanceof ApiError &&
       mutation.error.code === "STALE_REVISION",

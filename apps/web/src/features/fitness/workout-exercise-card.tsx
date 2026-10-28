@@ -1,10 +1,17 @@
 "use client";
 import { normalizeMeasurementOverride } from "@168hours/contracts";
+import type { ToastNotice } from "@/components/ui/toast";
+import { useSetRemovalUndo } from "./use-set-removal-undo";
 import { hasCustomSetSettings } from "./workout-basic-settings";
 import { ResetWorkoutExercise } from "./reset-workout-exercise";
 import { TooltipButton } from "@/components/ui/tooltip-button";
-import { copyFollowingSets } from "./copy-following-sets";
-import { Trash2, Plus, ChevronDown, SlidersHorizontal } from "lucide-react";
+import {
+  Trash2,
+  Plus,
+  ChevronDown,
+  SlidersHorizontal,
+  Info,
+} from "lucide-react";
 import { WorkoutMeasurementsEditor } from "./workout-measurements-editor";
 import { ExerciseRecall } from "./exercise-recall";
 import { useState, useId, type CSSProperties, type ReactNode } from "react";
@@ -18,7 +25,14 @@ import { IntentTagsField } from "./intent-tags-field";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { WorkoutQuickTargets } from "./workout-quick-targets";
 import { WorkoutSetRow } from "./workout-set-row";
+import { actualExerciseSummary } from "./workout-review-summary";
 import { workoutExerciseSummary } from "./workout-exercise-summary";
+import {
+  WorkoutDisplayUnitsContext,
+  WorkoutUnitScope,
+  setUnitKey,
+  useExerciseDisplayUnits,
+} from "./workout-display-units";
 import { useMe } from "@/features/identity/me";
 
 export function WorkoutExerciseCard({
@@ -46,12 +60,13 @@ export function WorkoutExerciseCard({
   disabled: boolean;
   handle: ReactNode;
   onRest?: (seconds: number) => void;
-  onNotice?: (message: string) => void;
+  onNotice?: (message: string, action?: ToastNotice["action"]) => void;
   onChange: (exercise: ExerciseDraft) => void;
   onRemove: () => void;
 }) {
   const quick = workoutCreationExperiment && collapsible && !session;
   const { preferences } = useMe();
+  const displayUnits = useExerciseDisplayUnits(preferences);
   const custom = hasCustomSetSettings(exercise);
   const [detailed, setDetailed] = useState(() => custom);
   const [resetting, setResetting] = useState(false);
@@ -69,14 +84,6 @@ export function WorkoutExerciseCard({
   if (!notesOpen && errors[`${errorPrefix}.notes`]) setNotesOpen(true);
   const loggingType = exercise.loggingType ?? "reps_load";
   const mainFields = exerciseTrackingFields[loggingType];
-  const measurementColumns = Math.max(
-    mainFields.reduce((sum, field) => sum + (field === "duration" ? 2 : 1), 0),
-    ...exercise.sets.map((set) =>
-      exerciseTrackingFields[set.measurementOverride ?? loggingType]
-        .filter((field) => !mainFields.includes(field))
-        .reduce((sum, field) => sum + (field === "duration" ? 2 : 1), 0),
-    ),
-  );
   const {
     root: setListRef,
     rowProps,
@@ -87,8 +94,20 @@ export function WorkoutExerciseCard({
     (value) => onChange({ ...exercise, sets: value }),
     disabled,
   );
+  const offerSetUndo = useSetRemovalUndo({
+    exercise,
+    disabled,
+    enabled: quick && !sessionId,
+    onChange,
+    onNotice,
+    onRestore: () => {
+      setDetailed(true);
+      setCollapsed(false);
+    },
+    list: setListRef,
+  });
   return (
-    <>
+    <WorkoutDisplayUnitsContext.Provider value={displayUnits.context}>
       {resetting && (
         <ResetWorkoutExercise
           exercise={exercise}
@@ -101,24 +120,76 @@ export function WorkoutExerciseCard({
           }}
         />
       )}
-      <div className="fitness-workout-exercise-heading">
+      <div
+        className="fitness-workout-exercise-heading"
+        data-collapsible={collapsible || undefined}
+        onClick={(event) => {
+          if (
+            collapsible &&
+            event.target instanceof Element &&
+            !event.target.closest(
+              'button, a, input, select, textarea, [role="button"]',
+            )
+          )
+            setCollapsed((value) => !value);
+        }}
+      >
         {handle}
         <div className="fitness-exercise-heading-copy">
           <h2 aria-label={exercise.name}>
             <button
               type="button"
-              className="fitness-exercise-name"
-              aria-label={`Help with ${exercise.name}`}
-              title="Exercise details"
-              onClick={() => panel.help(exercise.exerciseId)}
+              className={`fitness-exercise-name${collapsible ? " fitness-exercise-toggle" : ""}`}
+              aria-label={
+                collapsible
+                  ? `${collapsed ? "Expand" : "Collapse"} ${exercise.name} exercise`
+                  : `Help with ${exercise.name}`
+              }
+              aria-expanded={collapsible ? !collapsed : undefined}
+              aria-controls={collapsible ? contentId : undefined}
+              onClick={() =>
+                collapsible
+                  ? setCollapsed(!collapsed)
+                  : panel.help(exercise.exerciseId)
+              }
             >
-              {exercise.name}
+              <span>{exercise.name}</span>
+              {collapsible && <ChevronDown size={16} aria-hidden="true" />}
             </button>
           </h2>
-          {!session && (
+          {session && (
             <span className="fitness-exercise-target-summary">
-              {workoutExerciseSummary(exercise, preferences)}
+              Recorded:{" "}
+              {actualExerciseSummary(
+                exercise,
+                displayUnits.units,
+                exercise.sets.map(displayUnits.forSet),
+              )}
             </span>
+          )}
+          {!session && (
+            <>
+              <span
+                className={`fitness-exercise-target-summary${quick ? " fitness-summary-full" : ""}`}
+              >
+                {workoutExerciseSummary(
+                  exercise,
+                  displayUnits.units,
+                  false,
+                  exercise.sets.map(displayUnits.forSet),
+                )}
+              </span>
+              {quick && (
+                <span className="fitness-exercise-target-summary fitness-summary-compact">
+                  {workoutExerciseSummary(
+                    exercise,
+                    displayUnits.units,
+                    true,
+                    exercise.sets.map(displayUnits.forSet),
+                  )}
+                </span>
+              )}
+            </>
           )}
         </div>
         {quick && (
@@ -146,14 +217,12 @@ export function WorkoutExerciseCard({
         {collapsible && (
           <TooltipButton
             type="button"
-            className="icon-button fitness-exercise-collapse"
-            aria-label={`${collapsed ? "Expand" : "Collapse"} ${exercise.name} exercise`}
-            aria-expanded={!collapsed}
-            aria-controls={contentId}
-            tooltip={collapsed ? "Expand exercise" : "Collapse exercise"}
-            onClick={() => setCollapsed(!collapsed)}
+            className="icon-button fitness-exercise-details-control"
+            aria-label={`Exercise details for ${exercise.name}`}
+            tooltip="Exercise details"
+            onClick={() => panel.help(exercise.exerciseId)}
           >
-            <ChevronDown size={18} aria-hidden="true" />
+            <Info size={18} aria-hidden="true" />
           </TooltipButton>
         )}
         <TooltipButton
@@ -206,15 +275,17 @@ export function WorkoutExerciseCard({
                 }
               />
             </div>
-            <ExerciseRecall
-              quietEmpty={quick}
-              id={exercise.exerciseId}
-              mode={loggingType}
-              excludeWorkoutId={sessionId}
-              onHistory={() =>
-                panel.help(exercise.exerciseId, true, loggingType)
-              }
-            />
+            {!session && (
+              <ExerciseRecall
+                quietEmpty={quick}
+                id={exercise.exerciseId}
+                mode={loggingType}
+                excludeWorkoutId={sessionId}
+                onHistory={() =>
+                  panel.help(exercise.exerciseId, true, loggingType)
+                }
+              />
+            )}
             {quick && !detailed && (
               <WorkoutQuickTargets
                 exercise={exercise}
@@ -224,112 +295,91 @@ export function WorkoutExerciseCard({
             )}
             {(!quick || detailed) && (
               <>
-                <div
-                  ref={setListRef}
-                  className={`fitness-workout-set-list${session ? " is-session" : ""}`}
-                  style={
-                    !session
-                      ? ({
-                          "--fitness-measurement-grid": mainFields
-                            .map(
-                              (field) =>
-                                `minmax(0, ${field === "duration" ? 2 : 1}fr)`,
-                            )
-                            .join(" "),
-                          "--fitness-measurement-min-columns":
-                            measurementColumns,
-                        } as CSSProperties)
-                      : undefined
-                  }
-                >
+                <div ref={setListRef} className="fitness-workout-set-list">
                   {exercise.sets.map((set, index) => (
                     <div
                       {...rowProps(index)}
+                      style={
+                        {
+                          ...rowProps(index).style,
+                          "--fitness-measurement-grid": exerciseTrackingFields[
+                            set.measurementOverride ?? loggingType
+                          ]
+                            .map(() => `minmax(0, 1fr)`)
+                            .join(" "),
+                          "--fitness-measurement-min-columns":
+                            exerciseTrackingFields[
+                              set.measurementOverride ?? loggingType
+                            ].length,
+                        } as CSSProperties
+                      }
                       key={set.clientKey ?? set.id ?? index}
-                      className={`fitness-workout-set${session ? " is-session" : ""}${set.completed ? " is-complete" : ""} ${rowProps(index).className ?? ""}`}
+                      className={`fitness-workout-set ${rowProps(index).className ?? ""}`}
                       role="group"
                       aria-label={`Set ${index + 1}`}
+                      data-set-occurrence={set.clientKey}
+                      tabIndex={-1}
                     >
-                      <WorkoutSetRow
-                        set={set}
-                        index={index}
-                        loggingType={loggingType}
-                        hasNextSet={index < exercise.sets.length - 1}
-                        session={session}
-                        disabled={disabled}
-                        canRemove={exercise.sets.length > 1}
-                        errors={errors}
-                        errorPrefix={`${errorPrefix}.sets.${index}`}
-                        handle={setHandle(
-                          index,
-                          `set ${index + 1}`,
-                          session ? `Set ${index + 1}` : index + 1,
-                        )}
-                        onRest={onRest}
-                        canCopyTargets={
-                          !session &&
-                          copyFollowingSets(exercise, index, "targets").count >
-                            0
-                        }
-                        canCopyRest={
-                          !session &&
-                          copyFollowingSets(exercise, index, "rest").count > 0
-                        }
-                        onCopy={
-                          !session
-                            ? (kind) => {
-                                const result = copyFollowingSets(
-                                  exercise,
-                                  index,
-                                  kind,
+                      <WorkoutUnitScope id={setUnitKey(set, index)}>
+                        <WorkoutSetRow
+                          set={set}
+                          index={index}
+                          loggingType={loggingType}
+                          hasNextSet={index < exercise.sets.length - 1}
+                          session={session}
+                          disabled={disabled}
+                          canRemove={exercise.sets.length > 1}
+                          errors={errors}
+                          errorPrefix={`${errorPrefix}.sets.${index}`}
+                          handle={setHandle(
+                            index,
+                            `set ${index + 1}`,
+                            index + 1,
+                          )}
+                          onRest={onRest}
+                          onChange={(next) =>
+                            onChange({
+                              ...exercise,
+                              sets: exercise.sets.map((item, i) =>
+                                i === index ? next : item,
+                              ),
+                            })
+                          }
+                          onRemove={() => {
+                            if (disabled || exercise.sets.length <= 1) return;
+                            offerSetUndo(index);
+                            onChange({
+                              ...exercise,
+                              sets: exercise.sets.filter((_, i) => i !== index),
+                            });
+                            requestAnimationFrame(() => {
+                              const rows =
+                                setListRef.current?.querySelectorAll<HTMLElement>(
+                                  ":scope > [data-reorder-item]",
                                 );
-                                if (!result.count) return;
-                                onChange(result.exercise);
-                                onNotice?.(
-                                  `${kind === "targets" ? "Targets" : "Rest"} applied to ${result.count} following ${result.count === 1 ? "set" : "sets"}.`,
-                                );
-                              }
-                            : undefined
-                        }
-                        onChange={(next) =>
-                          onChange({
-                            ...exercise,
-                            sets: exercise.sets.map((item, i) =>
-                              i === index ? next : item,
-                            ),
-                          })
-                        }
-                        onRemove={() => {
-                          if (exercise.sets.length <= 1) return;
-                          onChange({
-                            ...exercise,
-                            sets: exercise.sets.filter((_, i) => i !== index),
-                          });
-                          requestAnimationFrame(() => {
-                            const rows =
-                              setListRef.current?.querySelectorAll<HTMLElement>(
-                                ":scope > [data-reorder-item]",
+                              const row =
+                                rows?.[
+                                  Math.min(index, (rows?.length ?? 0) - 1)
+                                ];
+                              const target = Array.from(
+                                row?.querySelectorAll<HTMLInputElement>(
+                                  "input",
+                                ) ?? [],
+                              ).find(
+                                (input) =>
+                                  input.getClientRects().length &&
+                                  !input.disabled,
                               );
-                            const row =
-                              rows?.[Math.min(index, (rows?.length ?? 0) - 1)];
-                            const target = Array.from(
-                              row?.querySelectorAll<HTMLInputElement>(
-                                "input",
-                              ) ?? [],
-                            ).find(
-                              (input) =>
-                                input.getClientRects().length &&
-                                !input.disabled,
-                            );
-                            (
-                              target ??
-                              setListRef.current?.parentElement?.querySelector<HTMLButtonElement>(
-                                "[data-add-set]",
-                              )
-                            )?.focus({ preventScroll: true });
-                          });
-                        }}
-                      />
+                              (
+                                target ??
+                                setListRef.current?.parentElement?.querySelector<HTMLButtonElement>(
+                                  "[data-add-set]",
+                                )
+                              )?.focus({ preventScroll: true });
+                            });
+                          }}
+                        />
+                      </WorkoutUnitScope>
                     </div>
                   ))}
                 </div>
@@ -376,25 +426,7 @@ export function WorkoutExerciseCard({
                 {errors[`${errorPrefix}.sets`]}
               </p>
             )}
-            {session && exercise.sets.length > 0 && (
-              <button
-                type="button"
-                className="fitness-text-action"
-                disabled={disabled}
-                onClick={() =>
-                  onChange({
-                    ...exercise,
-                    sets: exercise.sets.map((set) => ({
-                      ...set,
-                      skipped: !set.completed,
-                    })),
-                  })
-                }
-              >
-                Skip remaining sets
-              </button>
-            )}
-            {(!quick || detailed) && (
+            {!session && (!quick || detailed) && (
               <div className="fitness-exercise-intent">
                 <IntentTagsField
                   label={`Intent for ${exercise.name}`}
@@ -409,6 +441,6 @@ export function WorkoutExerciseCard({
           </div>
         </div>
       </div>
-    </>
+    </WorkoutDisplayUnitsContext.Provider>
   );
 }

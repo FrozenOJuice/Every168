@@ -215,6 +215,9 @@ test("saved corrections and deletions update progress, and training shows the pr
     })
     .click();
   await page.getByLabel("Actual load (kg)", { exact: true }).first().fill("60");
+  await page
+    .getByRole("button", { name: "Save corrections", exact: true })
+    .click();
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   await page.goto(`/fitness/exercises/${exercise.id}`);
   await expect(page.locator(".fitness-recall-section")).toContainText("60 kg");
@@ -241,12 +244,12 @@ test("saved corrections and deletions update progress, and training shows the pr
     previous.version,
   );
   await page.goto(`/fitness/session/${active.id}`);
-  await page
-    .getByRole("button", {
-      name: "Expand Progress squat exercise",
+  await expect(
+    page.getByRole("button", {
+      name: "Collapse Progress squat exercise",
       exact: true,
-    })
-    .click();
+    }),
+  ).toBeVisible();
   await expect(page.locator(".fitness-previous-set")).toContainText(
     "Last time · Oct 12, 2026",
   );

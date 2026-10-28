@@ -10,6 +10,7 @@ import { useMe } from "@/features/identity/me";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 
 import { FitnessSelect } from "./fitness-select";
+import { WorkoutSearch, useWorkoutSearch } from "./workout-search";
 import { PlanCard } from "./workout-actions";
 export function FitnessPage() {
   return (
@@ -23,7 +24,11 @@ export function FitnessPage() {
 function WorkoutsOverview() {
   return (
     <div className="fitness-my-workouts">
-      <section id="my-workouts" aria-labelledby="my-workouts-heading">
+      <section
+        id="my-workouts"
+        tabIndex={-1}
+        aria-labelledby="my-workouts-heading"
+      >
         <div className="fitness-section-heading">
           <div>
             <h2 id="my-workouts-heading">My workouts</h2>
@@ -39,29 +44,25 @@ function WorkoutsOverview() {
             </Link>
           </div>
         </div>
-        <PlanList kind="workout" />
+        <PlanList />
       </section>
     </div>
   );
 }
-function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
-  const q = useInfiniteQuery({
-    queryKey: ["fitness", "plans", kind],
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      api.getStrengthPlans({ kind, cursor: pageParam, limit: 3 }),
-    getNextPageParam: (p) => p.nextCursor ?? undefined,
-  });
-  if (q.isPending) return <Loading />;
-  if (q.error)
-    return <ErrorState error={q.error} retry={() => void q.refetch()} />;
+function PlanList() {
+  const { search, setSearch, query: q } = useWorkoutSearch(true, 6);
   return (
     <>
-      {!q.data.pages[0]?.items.length ? (
+      <WorkoutSearch value={search} onChange={setSearch} />
+      {q.isPending ? (
+        <Loading />
+      ) : q.error ? (
+        <ErrorState error={q.error} retry={() => void q.refetch()} />
+      ) : !q.data.pages[0]?.items.length ? (
         <p className="fitness-overview-empty">
-          {kind === "workout"
-            ? "No saved workouts yet."
-            : "No planned workouts."}
+          {search.trim()
+            ? "No workouts match your search."
+            : "No saved workouts yet."}
         </p>
       ) : (
         <div className="fitness-cards">
@@ -74,11 +75,13 @@ function PlanList({ kind }: { kind: "workout" | "scheduled" }) {
       )}
       {q.hasNextPage && (
         <button
-          className="fitness-text-action"
+          type="button"
+          className="button fitness-load-more-workouts"
           disabled={q.isFetchingNextPage}
+          aria-busy={q.isFetchingNextPage}
           onClick={() => void q.fetchNextPage()}
         >
-          Show more workouts
+          {q.isFetchingNextPage ? "Loading…" : "Load more workouts"}
         </button>
       )}
     </>

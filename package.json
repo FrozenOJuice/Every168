@@ -27,6 +27,7 @@
     "test": "vitest run --config vitest.config.ts && node --test scripts/boundaries.test.mjs",
     "test:integration": "pnpm --filter @168hours/api test:integration",
     "test:e2e": "playwright test",
+    "test:e2e:release": "playwright test --config playwright.release.config.ts",
     "build": "pnpm -r build",
     "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e",
     "setup:env": "node scripts/setup-env.mjs",

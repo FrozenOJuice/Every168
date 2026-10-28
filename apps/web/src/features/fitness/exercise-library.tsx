@@ -6,6 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import {
   type Exercise,
   type ExerciseLibraryQuery,
@@ -29,8 +30,10 @@ export function ExerciseLibrary({
   mainContent,
   detailContent,
   resetKey,
+  filterContext,
   onEditorOpen,
   onEditorClose,
+  workoutLabel = "Your workout",
   pickerOpen = false,
   onDismissPicker,
   onShowPicker,
@@ -40,12 +43,17 @@ export function ExerciseLibrary({
   mainContent?: ReactNode;
   detailContent?: ReactNode;
   resetKey?: string;
+  filterContext?: string;
   onEditorOpen: () => void;
   onEditorClose: () => void;
+  workoutLabel?: string;
   pickerOpen?: boolean;
   onDismissPicker?: () => void;
   onShowPicker?: () => void;
 }) {
+  const router = useRouter();
+  const returnToTraining = useRef(false);
+  const returnExerciseName = useRef("");
   const root = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
@@ -139,6 +147,16 @@ export function ExerciseLibrary({
     pageScroll.current = window.scrollY;
   };
   const [lastContext, setLastContext] = useState(resetKey);
+  const [lastFilterContext, setLastFilterContext] = useState(filterContext);
+  if (lastFilterContext !== filterContext) {
+    setLastFilterContext(filterContext);
+    setSearch("");
+    setEquipment([]);
+    setMuscle([]);
+    setFavourites(false);
+    setArchived(false);
+    setSort("name_asc");
+  }
   const choosing = !!onChoose;
   const [wasChoosing, setWasChoosing] = useState(choosing);
   if (lastContext !== resetKey) {
@@ -250,10 +268,28 @@ export function ExerciseLibrary({
     );
     return () => cancelAnimationFrame(frame);
   }, [pickerOpen, showingDetails]);
+  useLayoutEffect(() => {
+    if (view !== "training" || !returnToTraining.current) return;
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: pageScroll.current });
+      const target = Array.from(
+        root.current?.querySelectorAll<HTMLButtonElement>(
+          ".fitness-library-card",
+        ) ?? [],
+      ).find(
+        (button) =>
+          button.getAttribute("aria-label") === returnExerciseName.current,
+      );
+      target?.focus({ preventScroll: true });
+      returnToTraining.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [view]);
   const exercisePanel = (
     <aside
       ref={panel}
       id="exercises"
+      tabIndex={-1}
       className="fitness-exercise-panel"
       aria-label="Exercise library panel"
       hidden={!!editor}
@@ -343,6 +379,16 @@ export function ExerciseLibrary({
                 onDetails={(target) => {
                   opener.current = target;
                   captureScroll();
+                  if (view === "training") {
+                    returnToTraining.current = true;
+                    returnExerciseName.current = exercise.name;
+                    router.push(
+                      exercise.definition
+                        ? `/fitness/exercises/catalog/${encodeURIComponent(exercise.definition.key)}`
+                        : `/fitness/exercises/${exercise.exercise!.id}`,
+                    );
+                    return;
+                  }
                   setSelected(exercise.key);
                 }}
               >
@@ -402,7 +448,7 @@ export function ExerciseLibrary({
             aria-pressed={!pickerOpen}
             onClick={onDismissPicker}
           >
-            Your workout
+            {workoutLabel}
           </button>
           <button
             type="button"

@@ -80,27 +80,52 @@ export function PlanCard({
   });
   const blockData = scheduledBlock ?? block.data;
   return (
-    <section className="fitness-workout-card panel">
+    <section className="fitness-workout-card panel" data-draft={plan.isDraft}>
+      {plan.isDraft && (
+        <svg
+          className="fitness-workout-draft-border"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect
+            x="0.5"
+            y="0.5"
+            rx="8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray="5 4"
+          />
+        </svg>
+      )}
       <div className="fitness-workout-card-heading">
         <div className="fitness-workout-card-heading-copy">
           <div className="fitness-workout-card-title">
             <h3>{blockData?.title ?? plan.title}</h3>
-            {plan.isDraft && <span className="fitness-state">Draft</span>}
           </div>
           <p className="fitness-workout-exercise-count">
             {plan.exercises.length}{" "}
             {plan.exercises.length === 1 ? "exercise" : "exercises"}
           </p>
         </div>
+        {plan.isDraft && <p className="fitness-workout-draft-status">Draft</p>}
       </div>
       {plan.exercises.length ? (
-        <ul className="fitness-workout-preview" aria-label="Workout exercises">
-          {plan.exercises.map((exercise, index) => (
-            <li key={`${exercise.exerciseId}:${index}`}>
-              <span>{exercise.name}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="fitness-workout-card-preview">
+          <ul
+            className="fitness-workout-preview"
+            aria-label="Workout exercises"
+          >
+            {plan.exercises.slice(0, 4).map((exercise, index) => (
+              <li key={`${exercise.exerciseId}:${index}`}>
+                <span>{exercise.name}</span>
+              </li>
+            ))}
+          </ul>
+          {plan.exercises.length > 4 && (
+            <p className="muted">+{plan.exercises.length - 4} more</p>
+          )}
+        </div>
       ) : null}
       {blockData && (
         <p>

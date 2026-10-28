@@ -2,6 +2,490 @@
 
 Core C0–C6 and the owner-authorized foundation, authentication, data-integrity, UI, Calendar, Food, Exercise, Admin and Fitness workouts, progress, Training Programs and general activity-model passes, plus Everyday Food, the shared domain Calendar day panel, Everyday Tasks and the Assistant workspace/quick-chat preview, are complete. The owner-authorized Admin pass adds permanent account types, account management, aggregate statistics, operational health and an immutable action log. Remaining work in this authorized scope: none. Genuine blockers: none. CI remains removed; checks run locally. No AI integration, external integrations, native app, social features, notification delivery or background jobs were added.
 
+## Compact Fitness toolbar section menu, complete (2026-10-27)
+
+- Replaced the separate small-screen section panel with a compact Jump to… dropdown beside Day in the Training toolbar. Reused the shared context menu for My workouts, Programs and Exercise library; selection scrolls and focuses the existing section. The control supports click-to-toggle, ArrowDown opening, menu keyboard navigation and Escape focus return. It is hidden above 600px and during workout, library-picker and exercise-editor contexts. Updated FEATURES and UI standards.
+- Adjusted toolbar spacing so Training, History, Jump to… and Day all fit at 320px without clipping navigation. Kept the menu within the main landmark. Reviewed the 320px open-menu screenshot.
+- Checks passed: web typecheck, focused ESLint, formatting and whitespace; desktop overview flow and phone overview rerun, covering hidden desktop control, all destinations, keyboard opening/dismissal/focus, click toggle, 320px toolbar fit, open-menu accessibility, pagination and retained/reset filters. Initial checks caught shared-button CSS overriding hidden/compact styles and the body-portalled menu lacking a landmark; corrected specificity and supplied the main portal container before the passing reruns.
+
+## Grouped small-screen Fitness navigation, complete (2026-10-27)
+
+- Grouped the three section links into one bordered, muted navigation area with a visible Jump to section label and subtle separators. Removed individual button styling, retained 44px targets, native same-page links and the 600px visibility breakpoint. Updated FEATURES and UI standards.
+- Checks passed: desktop overview flow and phone overview rerun, including navigation visibility, label, destination scrolling/focus, pagination, accessibility and overflow; focused ESLint, formatting and whitespace. The first phone accessibility scan found 4.46:1 label contrast against the muted background; changed the label to the semantic foreground color and the rerun passed. Reviewed the phone navigation screenshot.
+
+## Fitness shortcuts on small screens only, complete (2026-10-27)
+
+- Limited Training section shortcuts to browser widths of 600px and below, matching the single-column workout-card breakpoint. Wider layouts omit the extra row. Updated FEATURES and UI standards.
+- Checks passed: desktop/phone overview browser flows 2/2, verifying desktop shortcuts are hidden and phone shortcuts retain scrolling/focus behavior, plus existing pagination, card sizing, filters, accessibility and overflow checks. Focused ESLint, formatting and whitespace passed.
+
+## Fitness section shortcut styling, complete (2026-10-27)
+
+- Replaced underlined shortcut text with equal-width outlined controls using the shared button style. Retained native same-page links, focusable targets and scroll clearance; controls shrink and wrap labels within narrow browser widths. Updated FEATURES and UI standards.
+- Checks passed: desktop/phone overview browser flows 2/2, including section navigation/focus, pagination, equal desktop card heights, accessibility and overflow; focused ESLint, formatting and whitespace. Reviewed the updated desktop layout.
+
+## Fitness card height consistency, complete (2026-10-27)
+
+- Removed the draft-specific natural-height exception. Draft and ready workout cards now share the height of their row, with primary actions aligned at the bottom; retained compact previews, six-item pagination and section shortcuts. Updated FEATURES and UI standards.
+- Checks passed: desktop/phone overview browser flows 2/2, including equal desktop draft/ready heights, shortcut scrolling/focus, pagination, filter retention/reset, accessibility and overflow; focused ESLint, formatting and whitespace.
+
+## Fitness main-page navigation and density, complete (2026-10-27)
+
+- Added compact same-page My workouts, Programs and Exercise library shortcuts, with focusable destinations and scroll clearance. My workouts now requests six items per page; the shared destination chooser retains twelve, with page size included in its query identity. Search continues to cover all saved workout titles.
+- Tightened preview line spacing and grouped the non-expanding remaining count beneath the preview. Ready cards retain aligned action rows; drafts fit their content rather than stretching to their tallest neighbor. The program empty state explains that programs organize workouts into a repeating training plan. Updated FEATURES and UI standards in place.
+- Checks passed: web typecheck, focused ESLint, formatting and whitespace. Six desktop/phone browser checks passed across the overview and Add from details flows, including six-item initial loading, appending remaining cards, shorter drafts, shortcut scrolling/focus, empty-state guidance, search beyond loaded pages, independent chooser pagination/selection, retained/reset library filters, accessibility and overflow. Reviewed desktop overview and phone library-shortcut screenshots. Physical-device testing was not performed.
+
+## Fitness toolbar unit control removal, complete (2026-10-27)
+
+- Removed the persistent Units button, its unused popup component and dedicated styles. Account defaults remain in Settings; measurement fields retain their local unit selectors. Updated FEATURES and UI standards to match.
+- Replaced obsolete popup browser coverage with Settings-based checks for display conversion, recovered unsaved workout edits, unchanged canonical saved measurements and safe preference-save retries. Desktop/phone checks passed 4/4, including accessibility. The initial phone retry test selected a native field before hydration completed; synchronized it through the working timezone action and reran successfully.
+- Checks passed: web typecheck, focused ESLint, formatting and whitespace.
+
+## First-release domain boundary, complete (2026-10-27)
+
+- Added a shared core/preview release policy. Core is the default for web and API: main navigation exposes Calendar, Fitness and Tasks; Food and Assistant direct pages return not found, and the Assistant provider/navigation/launcher do not mount. Food, preparation, meal-log, nutrition, hydration, body-weight and legacy food-bearing dashboard endpoints are not registered in core scope. Food/water/weight Calendar providers and measurement quick tools/grid shortcuts are disabled there.
+- Retained all deferred feature implementations, schemas, source records and test coverage. `RELEASE_SCOPE=preview` explicitly enables those features; both app example environment files and README document matching scope plus restart/rebuild requirements. Updated FEATURES in place to distinguish default release behaviour from retained preview functionality. This cleanup does not approve public deployment or implement Tasks/security readiness work.
+- Existing API integration fixtures explicitly use preview unless a test requests core. The retained-feature Playwright suite also explicitly starts preview services; a separate `playwright.release.config.ts` / `pnpm test:e2e:release` verifies the default core boundary. No production data was seeded or deleted and no deployment occurred.
+- Checks passed: workspace typechecks, focused ESLint, boundaries, formatting and whitespace; 6 environment unit tests; 15 API integration tests across release gating, Calendar activity, retained Food and Tasks. Core desktop/phone browser checks passed 2/2, covering three-domain navigation, missing Assistant/measurement entry points, blocked direct pages/APIs, working Fitness navigation/Tasks capture, accessibility and overflow. Preview desktop/phone checks passed 6/6 for retained Food/recipes/meals, Assistant round-trip with workout recovery, and Calendar quick tools. An initial desktop release test used an ambiguous Add task locator; scoped it to capture and both devices passed on rerun.
+
+## Tasks release-scope review, complete (2026-10-27)
+
+- Reviewed Tasks capture/list views, project organization, task/time forms, repeating occurrences, Calendar reservations and actual-time accounting, validation, revision/ownership checks and pending-save handling. Reviewed desktop/phone captures. No product changes were made; release-review findings are recorded under Tasks Needs work in FEATURES.
+- Recommendation: Tasks is a viable first-release domain after a focused reliability/consistency pass. Existing capture, project, recurrence and Calendar integration work; a large redesign or new task features are not required to assess inclusion. This is a scope recommendation, not public deployment/security approval.
+- Required reliability work: task/project create/update, quick capture and schedule/time commands use in-memory retry intent without persisted refresh recovery. TaskDialog's navigation guard omits the busy blocking argument, so confirming navigation can abandon an unresolved operation even though closing the dialog itself is blocked. This leaves a similar retry/recovery risk to the Fitness issue just fixed; it was identified by source review, not a new fault-injection browser probe.
+- Consistency/accessibility work: native browser confirmation prompts remain throughout Tasks, and time-entry validation uses a general alert rather than field-specific invalid/error association and focus. Ordinary unsaved-draft loss on refresh is already documented separately from unresolved writes.
+- Checks passed: 3 recurrence unit tests, 7 Tasks API integration tests, 6 desktop/phone browser scenarios and focused Tasks ESLint. Browser coverage includes capture, projects, scheduling, time correction, repetition/history, validation, stale edits, same-key retry and quick-capture day/navigation protection. The existing browser suite includes accessibility checking in the main workflow; it does not establish complete accessibility or refresh recovery.
+
+## Fitness audit fixes, complete (2026-10-27)
+
+- Workout creation/editing now persists each save's payload, original revision, copy intent and request key under an owner/workout-scoped key. Refresh restores Retry same change and blocks a second save until the original outcome is confirmed. Replaying a committed create produces one workout; replaying an update uses its original revision without updating twice. Storage failure blocks sending an unrecoverable save. Shared command recovery now runs after hydration and before interaction, avoiding mismatched server/client recovery UI.
+- History sorting and cursor boundaries now use startedAt plus ID, while wire createdAt remains the actual creation timestamp. Timing corrections reposition sessions. Added integration coverage for backdated entries, tied dates across pages, corrected dates and owner isolation.
+- Removed the empty final-Live handoff target and gave actual handoff groups a supported role; final-set focus can fall back to Finish workout. Recorded correction summaries now use each completed set's selected display units, with unit alignment retained when skipped/unfinished sets are filtered out. Added mixed-unit and browser coverage.
+- Updated Progress tests for explicit Save corrections and expanded Live exercises; updated Program lifecycle assertions for the expanded exercise and current Summary heading. Their later correction/deletion, repeat/recall, completion, pause/resume and retained-session assertions now execute and pass.
+- Updated FEATURES and removed all five addressed audit notes. Relevant ESLint, workspace typechecks, boundaries, formatting and whitespace checks passed. Fitness unit tests passed 53/53 across 12 files. Four API integration files passed 29/29 tests. The final targeted desktop/phone browser run passed 12/12 cases, including original-key/payload/revision replay after refresh, no duplicates or hydration errors, final-set accessibility and finish failure/retry, per-set unit headers, saved corrections/deletions and the full Program lifecycle. Final-set focus follow-up passed 2/2 desktop/phone checks.
+- Initial checks caught a new expectation using three decimal places where the established load formatter uses two, the Program test's remaining old review label, and the recovered-command hydration mismatch. Corrected these and reran the affected checks successfully.
+
+## Fitness domain audit, review complete (2026-10-27)
+
+- Reviewed the Fitness workspace/library, custom and built-in definitions, reusable-workout editor/recovery, Live session state/rest/saving, summary/corrections, History/progress, Programs, scheduling/Calendar integration, contracts, domain services and owner-scoped repositories. No product implementation changes were made; findings are recorded under Fitness Needs work in FEATURES.
+- Confirmed a new-workout recovery defect with a synthetic browser probe: server save succeeded, response was aborted, refresh restored the local draft but no pending-command key, and a second Save draft created a second workout (one saved record became two; request keys differed). WorkoutBuilder uses an unpersisted useCommand, unlike Program saving and scheduling. In-page retry remains keyed; refresh is the failing case.
+- Confirmed History ordering with synthetic sessions: an October 20 workout created after an October 26 workout appeared first because listing/cursors use createdAt. Confirmed correction-unit mismatch: changing the set to lb displayed 44.09 lb while the recorded header still showed 20 kg; the planned reference correctly used lb.
+- Confirmed an accessibility regression after completing the final Live set: the empty fitness-live-handoff div retains tabindex and aria-label without a supported role. The existing Axe check reports aria-prohibited-attr on desktop and phone.
+- Broad browser audit: 28/34 passed across desktop and phone. Six failures comprised the same three cases on each device: the actual final-Live accessibility defect, a Progress test still waiting for autosave instead of Save corrections, and a Program lifecycle test waiting for Expand while its first Live exercise is already expanded. The latter two are stale test assumptions, not evidence of broken progress or Program APIs. Their later assertions remain unverified in this run.
+- Fitness unit tests: 12 files / 52 tests passed. API integration audit: 7 files / 39 tests passed (exercise/catalog, general Fitness, strength, progress, Programs and authorization). Focused Fitness/API ESLint, workspace typechecks and boundary checks passed. Synthetic browser probes additionally verified the duplicate-save, date ordering and local-unit cases. No owner data was used for probes; no commits, deployment or production seeding occurred.
+- Priorities: preserve pending workout-save intent across refresh first, resolve the final-set accessibility failure, then align History chronology and correction display units; repair the stale browser expectations so downstream progress/Program assertions execute again. Existing intentional limitations (placeholder illustrations, archived-exercise reuse rules and local-only recovery) were kept separate from defects.
+
+## Shared expanded exercise rows for corrections, complete
+
+- Removed the separate legacy recorded-set layout. Correction exercises now render the same set-row structure/styles as the shared advanced editor: numbered drag handles, compact measurement fields, unit selectors/steppers, measurement/remove controls and responsive phone layout. Recorded fields retain Actual accessible labels; their compact visual labels match the shared editor. Planned values and the status selector sit beneath each row; large completion-tinted blocks are gone. Planned references respect the selected display units.
+- Added a floating option to the shared select for recorded-set status so the horizontal set-list scroll container cannot clip its menu, including on the final set. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Clean desktop/phone summary/correction and normal measurement-control tests passed 4/4, including final-set status selection, actual values, save/cancel/retry, compact-field controls, accessibility and overflow. Reviewed desktop/phone correction captures. An initial development run exposed menu clipping; fixed it and reran the checks. Final dropdown-width state cleanup passed typecheck and ESLint.
+
+## Shared Fitness confirmation styling, complete
+
+- Moved the workout editor's unsaved-exit prompt onto FitnessConfirm with its existing Keep editing, Discard and Save draft choices. Consolidated dialog width, padding, heading typography, action spacing and phone layout into the shared confirmation styles also used by Back to summary. Two-choice confirmations use the same layout; the optional third save action spans the phone row. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone workout-exit and summary/correction tests passed 4/4, covering keep/discard/draft saving, correction cancellation, focus, touch sizing, accessibility and save/retry. Reviewed the phone confirmation capture.
+
+## Cancel recorded-workout corrections, complete
+
+- Added Cancel at the correction footer's left and changed Back to summary to the same non-saving exit. Clean corrections return directly; unsaved corrections require Discard corrections confirmation with Keep editing. Discard restores the latest saved workout, clears local recovery and save-error state, and refetches current saved data. Invalid fields do not prevent cancellation; pending/uncertain saves do. Save corrections remains the explicit saving action. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone summary and Live save regression checks passed 4/4, covering clean cancellation, keeping edits, discarding without a version change, reload after discard, cancelling invalid fields after a successful save, and existing save/retry and accessibility checks.
+
+## Repeat workout confirmation, complete
+
+- Added the shared confirmation dialog before repeating a recorded workout, naming the workout and explaining that Start workout begins a new session with the same exercises and targets. Cancel stays on the summary without creating anything; the existing active-session check still runs after confirmation. Updated FEATURES and the older repeat browser expectation.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone summary checks passed 2/2, including cancel with no repeat request, confirmed creation of a fresh unfinished session with no recorded reps/completion, and unchanged original recorded workout.
+
+## Correction editor empty scroll-space fix, complete
+
+- Reproduced roughly 900 px of excess scroll range from positioned controls inside collapsed exercise bodies. Made the animated clipping container their positioning boundary so hidden controls no longer extend the outer scroll area. This shared fix preserves exercise expansion and editor controls. Updated FEATURES.
+- Desktop/phone summary/correction checks passed 2/2, with regression assertions that scrolling ends at the last card both initially and after expanding/collapsing an exercise, plus existing save/retry, accessibility and overflow checks. Focused ESLint, formatting and whitespace checks passed.
+
+## Recorded-result labels and explicit correction saving, complete
+
+- Renamed the correction view's phone tab to Recorded results and its primary action to Save corrections. Finished-session corrections now remain in the recoverable local draft until Save corrections or Back to summary explicitly saves and returns; unsaved navigation prompts before leaving. Live workouts retain autosave. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone summary and Live save regression checks passed 4/4, covering unchanged server data before correction save, renamed controls, save failure/retry, persistence, accessibility and overflow.
+
+## Summary date/time vertical alignment, complete
+
+- Vertically centered the date/time beside the summary title within the overview card. Updated FEATURES. Prettier and whitespace checks passed; no browser rerun for this single alignment change.
+
+## Summary title inside overview card, complete
+
+- Moved the workout name - Summary heading into the white overview card beside the completion icon, with date/time aligned to its right and wrapping below on narrow screens. The top row retains Back to history and Correct results. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Existing desktop/phone summary checks passed 2/2, including accessibility and overflow. Reviewed the desktop capture.
+
+## Summary action-row alignment, complete
+
+- Moved the summary title below a single top action row: Back to history on the left and Correct results on the right. This removes the extra navigation row that pushed correction below the usual editor action position. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Existing desktop/phone summary checks passed 2/2, including accessibility and overflow; reviewed the phone capture.
+
+## Summary and recorded-result correction pass, complete
+
+- Finished sessions now select History in domain navigation; the summary puts the primary Back to training exit after Repeat workout. Kept the established name - Summary heading, inline date/time, actual-result overview and read-only expansion.
+- Correct results now uses the shared focused editor and exercise library, responsive phone tabs, compact recorded measurements with unit selectors/steppers, read-only planned values, and one status dropdown per set. Removed rest planning, exercise recall, intent controls and reuse actions from the main correction flow. Shared custom date/time pickers handle both start and finish under Adjust workout time.
+- Bottom Done correcting and Back to summary flush pending saves before leaving, retaining edits and consistent Retry save feedback on failure. Existing revision checks, uncertain same-key retries and local recovery remain in use. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries and 12 summary unit tests passed. Desktop/phone summary plus Live Done editing regression passed 4/4; final summary rerun passed 2/2 after spacing/status refinements. Browser checks cover actual corrections, status changes preserving values, save failure/retry, reload, correct History navigation, picker dismissal, accessibility and overflow. Reviewed desktop/phone captures. Formatting and whitespace checks passed.
+
+## Summary heading separator, complete
+
+- Replaced the summary heading’s em dash with a normal hyphen and updated browser expectations. Formatting and whitespace checks passed.
+
+## Summary heading and date/time hierarchy, complete
+
+- Replaced the small Workout summary eyebrow with the main heading “Workout name - Summary”. Date and time now share a baseline and wrap only as space requires; correction mode retains its existing heading. Updated FEATURES and affected browser expectations.
+- Focused ESLint, formatting and whitespace checks passed. Desktop/phone History summary checks passed 2/2, including correction, reload and accessibility. Reviewed the desktop layout.
+
+## Remove final Live completion message, complete
+
+- Removed “All sets handled. Finish workout below.” while retaining Finish workout and the empty/all-skipped guidance. Updated FEATURES and the existing browser expectation. Focused ESLint, formatting and whitespace checks passed; no browser rerun for this copy removal.
+
+## Styled scrolling time picker, complete
+
+- Replaced typed hour/minute fields with scrollable Hour, Minute and AM/PM columns. Existing values open centred in the highlighted row, scroll snapping selects values, and clicking or Arrow/Home/End/Page keys also work. Set time remains explicit; dismissal preserves the saved value. The popup stays within the viewport and above fixed mobile controls. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone session checks passed 2/2, covering scroll selection, keyboard/click selection, noon/midnight persistence, dismissal and accessibility. Phone placement follow-up passed after reviewing the first capture and adjusting popup placement/stacking.
+
+## Custom start-time dropdown and handoff alignment, complete
+
+- Made the entire live start-time field a custom dropdown trigger. Its anchored popup offers hour/minute entry, AM/PM and explicit Set time, preserving the date/timezone and handling noon/midnight. Invalid entries cannot be applied; dismissal leaves the saved time unchanged. Escape restores focus, the trigger toggles closed, and the date/time controls share the available row width.
+- Moved Next exercise after Choose exercise and aligned the action group right, matching Complete set. Phone actions stack with the primary Next exercise last. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone checks passed 4/4, including full-field opening, noon/midnight persistence, invalid entry, dismissal/toggle, reload, action placement, exercise handoff and accessibility. Reviewed desktop/phone time dropdown captures.
+
+## Custom Adjust start time calendar, complete
+
+- Replaced the live editor's native datetime calendar with the shared custom month/day popup and a separate time input. Date changes retain the entered time; account timezone conversion, week-start preference, invalid-time recovery and existing autosave remain in place. Trigger toggling, Escape and outside dismissal use the shared picker. Recorded-workout correction retains its existing timing controls. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone session-editor checks passed 2/2, including month navigation, date selection, retained time, Escape/focus, trigger toggle, invalid-time recovery and accessibility. Reviewed the phone picker capture and increased the time field's minimum width for its native clock control.
+
+## Shared workout summary, complete
+
+- Promoted the existing recorded-workout view to Workout summary, shared after confirmed completion and when opening from History. Added a timezone-aware date/time overview (including cross-midnight dates), elapsed duration including rest, performed-exercise and completed-set totals, separate skipped/unfinished counts and workout notes.
+- Exercise cards show recorded aggregates, completed counts and individually expandable set details, plus Show all sets/Hide all sets. Actual-only rows preserve unknowns and zero, with completion/skip icons; skipped/unfinished rows never borrow targets. Chevron placement matches Live/editor. Back to training is the primary exit, with Back to history, correction, repeat, comparison and existing additional actions retained. Updated FEATURES. No API/schema changes or new stored metrics.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed; twelve summary unit tests passed. Desktop/phone completion checks passed 2/2. New History summary checks passed 2/2 after correcting a fixture's measurement identifier, covering cross-midnight timing, mixed measurements, missing/zero values, no writes on inspection, expansion, correction, reload and accessibility. Final phone layout rerun passed. Reviewed desktop/phone summary captures.
+
+## Confirm finishing and clarify skipped sets, complete
+
+- Live now remains mounted while a requested finish saves, showing Finishing and blocking further changes until confirmed. Successful persistence opens review; known rejection and uncertain confirmation stay in the sticky Retry save flow, retaining the finish timestamp and same-key uncertain retries. Skipped rows show status and Undo without target/result numbers. Updated FEATURES. No backend/schema changes.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone Live checks passed 6/6, covering skipped presentation, normal/early finish, a held finish request, known rejection, lost confirmation after persistence, and same-key retry before review opens, plus accessibility. Reviewed finish-failure presentation.
+
+## Live workout review
+
+- Reviewed starting/resuming, set recording and correction, skipping, rest, exercise navigation, session editing, restore/copy, save recovery and finishing. Existing Live and session-editor browser checks passed 12/12 across desktop and phone, including accessibility. No application behavior changed during this review.
+- The two review findings (skipped-row numbers and premature review before finish confirmation) were addressed by the subsequent authorized completion pass above.
+
+## Choose exercise trigger toggle, complete
+
+- Clicking or tapping Choose exercise again closes its dropdown. The shared menu optionally leaves anchor pointer events to the trigger, preventing outside dismissal from reopening it on the following click. Other menu callers retain existing behavior. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone Live checks passed 2/2, covering close/reopen, expanded state, exercise selection, focus and accessibility.
+
+## Live exercise-header consistency, complete
+
+- Moved the Live disclosure chevron beside the exercise name, matching the editor. Planned summaries stay beside the name when space permits and wrap as a readable group on narrow screens; the full header toggle remains available. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone normal-flow checks passed 2/2 including accessibility; the phone rerun after grouped-summary wrapping passed. Reviewed header captures.
+
+## Live exercise-selection dropdown, complete
+
+- Replaced the inline choices with the shared anchored menu, adding a chevron to Choose exercise. Options show exercise names and planned set/measurement summaries in account units instead of remaining-set counts. The bounded overlay preserves page layout, selection handoff and saved order, with existing outside-click, Escape and arrow-key controls. Shared menu actions support optional secondary descriptions and repeated labels. Updated FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone Live checks passed 2/2, including planned summaries, selection, Escape, focus, unchanged order and accessibility. The initial accessibility run caught the portal outside a page landmark; mounting it in main corrected that. Reviewed dropdown captures.
+
+## Live next-exercise selection, complete
+
+- Removed the redundant completed/skipped/ready sentence from the exercise handoff. Added secondary Choose exercise beside Next exercise, stacked on phones. Its bounded inline list shows unfinished exercises and remaining sets; selection opens/focuses that exercise and closes the departing card without changing saved order. Escape closes the list and restores button focus. Retained final-workout and empty-exercise guidance. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone Live flow checks passed 2/2, including out-of-order selection, unchanged saved order, focus, Escape and accessibility. Reviewed both selection captures.
+
+## Live completed-set visual treatment, complete
+
+- Completed set rows now show a green circled checkmark, subtle semantic-primary tint and border, with stronger recorded-value text. Skipped rows retain neutral styling and add a skip icon. Both retain their text status, compact layout and existing correction/Undo actions. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Existing normal-flow desktop/phone browser checks passed 2/2, including accessibility. Reviewed the phone completion capture.
+
+## Normal Live workout flow, complete
+
+- Explicitly labelled exercise-header and current-set targets Planned. Actual reps/load edits remain independent; recorded rows show actual results and local units still convert planned displays.
+- Added a named Next exercise action after an exercise is handled. It opens and focuses the next unfinished exercise, wrapping to earlier unfinished exercises, and collapses the departing card. Manual exercise selection remains available. Set advancement and Undo keep active controls visible below the sticky status; handoff focus waits for card animations. Completion copy points to Finish workout, or explains the completed-set requirement if everything was skipped.
+- Running rest timers now offer Skip rest; expired timers retain Rest finished and Dismiss timer. Updated FEATURES. No backend/schema changes.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Four desktop/phone Live regression cases passed, covering planned/actual separation, handoff, rest, corrections, recovery and early finishing. Two additional desktop/phone normal-flow cases passed through final persisted completion and accessibility; their initial assertion read before the finish save settled, corrected by waiting for Saved. Reviewed desktop/phone handoff captures.
+
+## Live workout units, rest ownership and save recovery, complete
+
+- Live targets, exercise headers and recorded-set summaries now follow each set's selected display units, with compact converted values. Unit selection remains local and does not change canonical measurements.
+- Rest timers track their originating exercise and set. Skipping or undoing unrelated sets preserves the timer; undoing its source cancels it. Source identities reconcile after saving, and deleting the source clears its timer. Another timed completion replaces the active timer.
+- Reused the editor's compact save feedback in the sticky Live status area, with primary Retry save and conflict reload handling. Uncertain retries retain their original request key. Only the active view renders feedback. Updated FEATURES.
+- Twelve focused rest/summary unit tests passed. Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. The initial desktop/phone browser run passed 9/10 and caught duplicate feedback in the hidden Live view; corrected that rendering and the final four-case rerun passed. The runs cover unit summaries, unrelated skip/undo, known and uncertain retry paths, editor completion and accessibility. Reviewed desktop/phone Live failure captures. No backend/schema changes.
+
+## Prevent unchanged session workout copies, complete
+
+- Disabled Save as new workout when reusable setup matches the starting snapshot or the last successful copy from that session. Compare name, notes, ordered exercises/sets, measurements, intent, targets and rest, ignoring occurrence IDs, logged results, timing and display units. Remember the last successful copy in owner/session-scoped session storage across same-tab navigation/refresh; clear it when discarding the session. Updated FEATURES.
+- Web typecheck, focused ESLint and three signature unit tests passed. Desktop/phone session checks passed 2/2, covering results-only changes, saving and reopening, restore to starting setup, Undo with recreated IDs, and enabling after a subsequent name change. Formatting, boundaries and whitespace checks passed. No backend/schema changes.
+
+## Live editor completion and save feedback, complete
+
+- Added primary Done editing to the pinned footer. It and Back to workout flush pending changes and return only after success; validation and save failures retain the editor. While returning, inputs are disabled and the button shows Saving. Pending-save reconciliation retains queued changes and never exits with invalid recovery state.
+- Save as new workout and Restore starting workout remain grouped left. Moved confirmed Discard workout into the top-right Workout actions menu. Simplified the scope note. Known/uncertain failures use a compact footer panel and the same primary button becomes Retry save; uncertain retries retain their original key/payload, while conflicts offer confirmed reload. Phone primary action is full width. Updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, formatting, boundaries and whitespace checks passed. Desktop/phone session checks passed 6/6, including immediate save-and-return, delayed response, known rejection, lost confirmation with same-key retry, clean return without writing, invalid-field focus, menu access, restore/Undo, session isolation and accessibility. Reviewed desktop/phone failure captures. No backend/schema changes.
+
+## Exercise summaries follow selected units, complete
+
+- Shared local display-unit state between exercise inputs and their header summaries. Basic/shared choices apply across the exercise; Advanced set choices remain independent and keyed to their occurrence. Collapsing and mode switching retain selections. Mixed units group separately in full summaries; compact matching targets label mixed units. Load summaries match the input's two-decimal display. Canonical targets and account defaults are unchanged by local unit selection. Updated FEATURES.
+- Web typecheck, focused ESLint and nine summary unit tests passed. Desktop/phone measurement checks passed 2/2, covering converted summary values, independent set units, duration/distance choices, 225 lb after collapsing, canonical saved kilograms and accessibility. Formatting, boundaries and whitespace checks passed. No backend/schema changes.
+
+## Live editor footer action order, complete
+
+- Follow-up: grouped Save as new workout and Restore starting workout in a dedicated flex container with a fixed 10px gap, preventing the outer footer from distributing space between them.
+- Desktop/phone browser checks passed 2/2, measuring both buttons on the same row with a 10px gap and exercising restore confirmation/Undo. Focused ESLint, formatting and whitespace passed.
+- Kept Save as new workout at the left and placed Restore starting workout immediately after it with matching neutral styling. Discard workout remains red and aligns right; actions wrap at narrow widths. Updated FEATURES.
+- Focused ESLint, formatting and whitespace checks passed.
+
+## Start-time label alignment, complete
+
+- Placed Started at and the right-aligned timezone on one row in the live editor's expanded Adjust start time control, preserving the input's label association and existing finished-workout layout.
+- Focused ESLint, formatting and whitespace checks passed.
+
+## Restore starting workout, complete
+
+- Added an owner-scoped starting-setup JSON snapshot to sessions (migration 0037), captured for empty starts, reusable/scheduled/program starts and repeats. Normal saves preserve it; original occurrence IDs can be restored only from that session's snapshot. Snapshot-only exercise references prevent permanent definition deletion. No baseline is invented for pre-existing sessions.
+- Added Restore starting workout when an active session's setup differs. Restores name, notes, exercises, measurements, sets and targets while retaining timing and matching actual results. Logged removals require a count-based confirmation. Eight-second shared Undo pauses on hover/focus and retires on a subsequent edit; removed non-starting occurrences receive fresh IDs when undone. Updated FEATURES/UI standards.
+- Workspace typechecks, focused ESLint and boundaries passed. Nine restore/recovery unit tests and eight Strength integration tests passed; the added snapshot-only deletion guard rerun passed. Local development and test migrations applied. Initial desktop browser run exceeded its overall time limit during an API read; phone passed. The final expanded desktop/phone run passed 4/4 with a longer local timeout, covering reset, preserved actuals/timing, logged-removal cancel/confirm, Undo after saving and refresh. Reviewed desktop/phone captures. Formatting and whitespace checks passed. No commit or deployment.
+
+## Live autosave action cleanup, complete
+
+- Removed the transient Save changes button from active-session training and editing. Known failed saves offer Retry save; uncertain saves retain the existing same-change retry and revision conflicts retain reload handling. Finished-workout correction remains unchanged. Updated FEATURES. No restore/reset behavior was added.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone session-editing checks passed 2/2, including absence of Save changes during normal edits and successful autosaving.
+
+## Save session setup as a new workout, complete
+
+- Renamed the session action to Save as new workout. It copies the current setup and planned targets without substituting actual results for blank targets. Success keeps the session open and shows the shared hover/focus-paused Workout saved toast with an explicit Edit workout action. Navigation through that action is disabled while changes are unsaved or writes are pending. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone session checks passed 2/2, verifying blank planned targets stay blank despite recorded results, new workout creation, unchanged live session/source workout, staying in the session and explicit toast navigation.
+
+## Collapsed live-session start correction, complete
+
+- Aligned the expanded live-session timezone label to the right at the owner's request; focused ESLint, formatting and whitespace checks passed.
+- Replaced the live editor's prominent Timing section with a collapsed Adjust start time disclosure using the existing inline editor styling. Invalid/recovered time values expand it automatically. Finished-workout correction retains its open Timing section and start/end fields. Updated FEATURES.
+- Web typecheck, focused ESLint, formatting and whitespace checks passed. Desktop/phone session-editing checks passed 2/2, including initially hidden start time, explicit expansion, invalid-time recovery, autosave and accessibility.
+
+## Live editor footer divider, complete
+
+- Removed the nested session action row's legacy border and top margin inside the shared editor footer. A single shared footer divider now separates the editor from Save as reusable workout and Discard workout.
+- Formatting and diff whitespace checks passed. No action behavior changed.
+
+## Live editor back label, complete
+
+- Changed the active-session editor's return action to Back to workout, distinguishing it from navigation to the Training overview. Updated the existing browser-test selector and feature/UI documentation, including stale visible-heading descriptions.
+- Focused ESLint, formatting and diff whitespace checks passed. Navigation behavior is unchanged.
+
+## Workout editor title removal, complete
+
+- Removed the visible Edit workout/Edit draft heading from the shared editor, matching creation. Retained the screen-reader heading, back navigation, save status and session-only context. Updated FEATURES.
+- Focused ESLint, formatting and diff whitespace checks passed. No behavior or persistence changes.
+
+## Shared workout editor across contexts, complete
+
+- Extracted WorkoutEditor for create, saved-workout editing and active-session editing. It owns the same header/back placement, setup, Notes, exercise heading/Add exercise, cards, scroll area and footer. WorkoutEditorSetup also supplies name/notes/timing to recorded-result correction. Removed the separate SessionPlanEditor.
+- Kept controller-owned save, revision, recovery and validation behavior intact. Context slots provide saved-workout actions or session Timing/rest/autosave and Back to training. Live remains mounted, and session edits remain isolated from the reusable workout. Session editing now uses the creator's scroll/footer structure instead of a parallel layout.
+- Shared empty-workout validation focuses Add exercise. Updated retired Notes, set-detail and final-set-removal expectations in focused tests to current controls. Updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace passed. All 12 distinct targeted desktop/phone scenarios passed across the runs: session editing, builder validation, draft saving/pinned footers, unchanged/dirty exit, recovery and advanced set targets. Corrected stale control selectors and the expected measurementOverride snapshot; the final builder/session rerun passed 4/4. Reviewed desktop and phone captures. No backend/schema change, commit or deployment.
+
+## Session editor library layout, complete
+
+- Reused the creator workspace while editing an active session: desktop editor/library panes replace Day, and phones use Your workout / Add exercises tabs. Added a path-scoped layout registration with cleanup, keeping the session mounted. Back to training restores Day, results, open exercises and the existing rest deadline. Session additions and target changes leave the reusable workout untouched.
+- Added scroll containment for the session editor and corrected rest-label contrast exposed by the expanded running-timer accessibility check. Updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone session checks passed 2/2 after the contrast fix, covering library placement, tabs, additions, unchanged source plan, Day restoration, exact rest-deadline preservation, invalid timing recovery and accessibility. Reviewed desktop and phone captures. No backend/schema change, commit or deployment.
+
+## Match session setup to the regular workout editor, complete
+
+- Removed the session settings card/background and redundant heading. Matched the regular name-field layout and reused NotesEditor, with saved notes initially expanded and note errors exposed. Timing remains a separate divided section. Preserved autosave, validation/recovery and session-only edits; updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Phone session-editing check passed; desktop accessibility caught the skipped heading level after removing the card title. Corrected Timing to h2 and the desktop rerun passed. Both cover notes, invalid timing recovery and return to training. Reviewed the final desktop capture.
+
+## Session settings without the Workout details dropdown, complete
+
+- Removed the Live Workout details disclosure. Edit workout now shows an open Workout settings form for name, notes and timing above the exercise editor, with reuse/discard actions below it. Recorded-workout correction uses the same form. Retained confirmed discard, autosave and session-only changes.
+- Invalid metadata or recovered invalid timing automatically opens the relevant editing view. Kept Live mounted so its current set and open cards survive switching modes. Removed unused disclosure styles and updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, boundaries, Prettier and diff whitespace passed. Desktop/phone session-editing checks passed 2/2, covering settings visibility, note persistence, invalid timing recovery, editor handoff, exercise changes, accessibility and return to training. Reviewed both settings captures. No backend/schema change, commit or deployment.
+
+## Live workout usability pass, complete
+
+- Open the first unfinished exercise and make current-set results immediately editable, with a separate planned target, visible set position and prominent Complete set action. Preserve explicit confirmation, blank/zero values, per-set measurements and skipped-set semantics.
+- Add direct completed-set corrections preserving completion and the active rest timer. Keep Undo separate; invalid corrected results reopen after refresh. Existing autosave, retry, occurrence identity and recovery remain canonical.
+- Add a sticky elapsed-time/progress/rest area with separate completed/skipped/remaining counts, offset below the mobile header. Dock the phone Assistant launcher in the top app bar and use semantic progress colors. Updated FEATURES and UI standards in place.
+- Web typecheck, focused ESLint and boundaries passed. Result/recovery/removal unit checks passed 15/15. Initial desktop/phone Live flows passed 4/4. Added explicit pinned-rest, launcher-position and invalid-correction recovery coverage; a later flow hit a stale collapse action after the added reload, corrected in the test. Final desktop/phone Live, session-editor handoff and custom-measurement checks passed 8/8, including pinned rest, launcher placement, direct correction, invalid correction recovery, accessibility, save retry and finishing. Reviewed final desktop/phone captures; formatting and whitespace checks passed. No backend/schema changes, commit or deployment.
+
+## Shorter measurement displays and Live workout review
+
+- Load input displays now use up to two decimals, distance up to three, with trailing zeros omitted. Unit switching still leaves canonical values untouched; the conversion test verifies 20 kg → 44.09 lb → 20 kg and saved values.
+- Reviewed Live workout source and desktop/phone captures, including initial exercise list, active-set layout, completion, rest, corrections and finishing. No Live UX redesign implemented. Captured review areas under Fitness Needs work in FEATURES.
+- Web typecheck, focused ESLint, boundaries, formatting and whitespace checks passed. Desktop/phone measurement controls and skipped-set checks passed 4/4. The longer Live flow exposed a stale expectation of two duration inputs; updated it to the current single amount field before rerunning. Both full Live flows then passed (2/2), including reorder, target confirmation, edited results, refresh recovery, uncertain-save retry, corrections and finishing. All six targeted scenarios passed across the runs.
+
+## Stable workout editor mode-button width, complete
+
+- Advanced editor and Reset to basic now share a centered 156px desktop button; the existing 44px phone override remains. Updated FEATURES.
+- Prettier and diff whitespace checks passed. CSS-only sizing change; no application logic changed.
+
+## Workout control spacing and header interaction, complete
+
+- Balanced Advanced measurement widths and left-aligned numeric values. Added a desktop minimum width to keep numbers readable beside units/arrows; phone wrapping remains. Set measurement/remove actions now match the 48px numeric controls.
+- Reused FitnessSelect for flush custom unit segments, including keyboard selection/Escape, outside dismissal and a positioned portal that follows scrolling without clipping. Portals remain inside a containing dialog when applicable. Unit conversion and canonical values are unchanged.
+- Exercise header background and summary now toggle expansion while interactive controls retain their actions; the existing semantic title button retains keyboard access. Updated FEATURES and UI standards.
+- Web typecheck, focused ESLint, formatting, boundary and whitespace checks passed. Desktop/phone control and persistence checks passed 4/4 before the final minimum-width refinement. Initial checks exposed scroll dismissal and stale native-select assertions, both corrected; the added width assertion caught insufficient numeric space and prompted a further width adjustment. Final desktop/phone controls checks passed 2/2, including keyboard dropdown handling, equal action/input height, readable numeric width, conversions, accessibility and saved values. Reviewed the final desktop/phone captures.
+
+## Integrated per-field units and independent set layout, complete
+
+- Fixed the empty-column regression: each set now renders and sizes only its selected measurements in the standard order. A custom field no longer reserves space in neighboring sets. Preserved drag transforms and phone wrapping; updated geometry checks and FEATURES/UI standards.
+- Confirmed the owner's preference for one duration amount/unit per set. Integrated duration, distance and load selectors inside the shared numeric field before desktop arrows. Local sec/min/hr, m/km/yd/mi and kg/lb changes convert display without rewriting canonical values or account preferences; typing/stepping then uses the selected unit. Explicit global preference changes still update fields. Phone direct-entry controls retain the same integrated units without arrow buttons.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Desktop/phone independent-layout checks passed (4/4) before unit integration. Final measurement, set-target, inheritance/recovery/training and global-unit checks passed (10/10), covering missing-slot absence, local kg/lb and km/m conversion, other-set independence, duration conversion, persisted values, accessibility and 320px layouts. Reviewed desktop/phone integrated-control captures. No backend/schema change, commit or deployment.
+
+## Consistent workout measurements, duration and numeric controls, complete
+
+- Exercise-wide and per-set measurements share ordered Reps/Load/Duration/Distance/Laps columns. Desktop aligns the union of selected fields across sets; custom selections no longer get a separate lower row. Phone wrapping and hidden-value preservation remain.
+- Replaced paired duration inputs with one numeric amount plus sec/min/hr selection in the shared Basic/Advanced/live field. Unit changes convert only the display, preserving canonical seconds without rounding drift; decimal hours/minutes, blank and explicit zero are retained. Account preferences initialize/update the displayed unit; minutes-and-seconds uses a suitable initial single unit. Existing whole-second validation, rest controls and summary/history formatting remain.
+- Advanced uses the same flush custom desktop steppers as Basic. Shared number styling suppresses native spinners and hides arrow controls on phones/coarse pointers while retaining keyboard stepping and direct entry. Updated FEATURES/UI standards and relevant duration/placement regression expectations.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Focused desktop/phone measurement, set-target, removal and reset checks passed (10/10); account-unit preference, inheritance/recovery and live-result/history checks passed (6/6). Coverage includes hours/minutes/seconds conversion, nonterminating display conversion without stored drift, blank/zero, shared versus per-set placement, flush arrow geometry, phone layout, accessibility and persisted values. Reviewed desktop/phone captures and refined unit-selector padding. No backend/schema change, commit or deployment.
+
+## Phone Advanced workout layout, complete
+
+- At phone widths, Advanced set cards use a number/actions header with 44px controls above a wrapping two-column measurement grid. Duration spans both columns, hidden default slots disappear, and extra measurements join the same grid. Removed phone horizontal set scrolling/sticky overlays; rest stays between cards. Desktop/tablet rows retain their existing layout.
+- Phone exercise summaries use set count plus Mixed targets for differing active targets/selections, or measurement count for matching sets with more than two fields. Simple matching summaries retain values/units; hidden values, rest and recorded results do not affect classification. Desktop keeps the detailed summary.
+- Docked the phone workout editor’s Ask Assistant button in the top app bar instead of over the editor. Quick chat opening/closing and focus restoration remain available. Updated FEATURES/UI standards.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Summary unit tests passed (8/8). Desktop/phone set-target and Undo regressions passed (4/4), including 390px and 320px field containment/no horizontal overflow, controls above inputs, Assistant opening/closing, compact summaries, accessibility, persistence and recovery. Reviewed narrow-phone all-measurement and mixed-header screenshots. No backend/schema change, commit or deployment.
+
+## Remove workout set copying controls, complete
+
+- Removed Copy between sets, its inline section, unused styles and copy helpers/tests. Retained the single Add set action, which already appends a fresh set using the bottom set’s measurements, targets and rest without recorded results. No separate Duplicate action was added. Measurement controls, removal Undo and the compact Basic reset warning remain. Updated FEATURES/UI standards and retained numeric-entry/recovery coverage in the renamed set-targets browser test.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Draft helper tests passed (6/6); desktop/phone set-target regressions passed (2/2), including copying bottom-set targets/measurements/rest through Add set, unchanged existing sets, accessibility, recovery and saved values. No backend/schema change, commit or deployment.
+
+## Inline copying between workout sets, complete
+
+- Removed repeated Apply controls from set rows and reclaimed their column space. Copy between sets now sits beside Add set and opens an inline source-set / Targets, Rest, or Targets and rest section with one Copy to following sets action. Opening scrolls the section into view and focuses Source set; copying closes it, returns focus and confirms affected-set count. No-op copying is disabled. Source selection follows occurrence identity and becomes unset if that occurrence disappears.
+- Reused selective target/rest behavior, preserving hidden/blank destination values, measurement overrides, earlier sets and recorded results. Added combined copying with unique affected-set counts; final rest remains excluded. The compact Basic reset warning is retained. Updated FEATURES/UI standards.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Copy helper unit tests passed (4/4). Desktop/phone set Undo tests passed (2/2); revised inline-copy tests passed (2/2), covering targets/rest/both, source removal/Undo, no-op states, focus, accessibility, recovery and saved values. Initial native-select test selectors were corrected to use accessible combobox roles. Reviewed desktop/phone captures and refined opening scroll after the first phone capture. No backend/schema change, commit or deployment.
+
+## Labeled set Apply control and compact reset warning, complete
+
+- Replaced the ambiguous per-set dots with a visible outlined Apply button, retaining explicit following-set target/rest menu actions and keyboard access. Adjusted the pinned action column and minimum field sizing to accommodate the label without adding row height.
+- Reset to basic uses a fixed short title, names each affected target category/rest once, and briefly explains measurement defaults and retained matching values. Its length is independent of exercise-name length and set count. Updated FEATURES/UI standards.
+- Web typecheck, focused zero-warning ESLint, boundary checks, formatting and diff whitespace passed. Desktop/phone reset and following-set tests passed (6/6), including a new worst-case 100-set/all-target-category warning test checking compact height and visible actions. Reviewed phone warning/menu screenshots. No backend/schema change, commit or deployment.
+
+## Advanced workout set controls, complete
+
+- Replaced the per-set + with a ruler measurement control and the copy icon with a ⋯ actions menu. Retained explicit filled-target/rest actions, keyboard access and selective-copy behavior. Reset to basic now names the actual target categories/rest that will be cleared and explains measurement inheritance changes, using the same proposal applied on confirmation. Shortened the warning after phone screenshot review and hide the floating Assistant launcher during this confirmation to prevent action overlap, matching Units.
+- Reusable-workout set deletion offers the existing eight-second Undo toast with hover/focus pausing. It restores the exact set, including hidden targets, measurement overrides and rest, near surviving neighbors while retaining subsequent edits. Undo opens Advanced and focuses the restored set, respects the 100-set limit and disabled writes, and becomes inert after the occurrence unmounts. Consecutive removals replace the offer. Updated FEATURES and UI standards.
+- Web typecheck, focused zero-warning ESLint and boundary checks passed. Focused desktop/phone reset, following-set copying and new set-removal flows passed (6/6), including accessibility, keyboard menu behavior, custom values, later edits, persistence, repeated removals and minimum-set protection. Reset checks were rerun on both sizes after the final confirmation refinements (2/2); formatting and diff whitespace passed. No backend/schema change, commit or deployment.
+
+## Basic exercise-card controls, complete
+
+- Basic target inputs now use compact direct entry at phone widths and on touch/coarse-pointer devices, hiding the stacked arrow controls while retaining desktop steppers, select-on-focus and native keyboard stepping. Set count requests a numeric keyboard. Rest/Notes and advanced measurement editing remain unchanged.
+- Collapsible exercise cards now use the exercise name and adjacent chevron as one expand/collapse control. A separate info control with an Exercise details tooltip/accessibility label opens help. This replaces the former standalone collapse icon without increasing header action count; noncollapsible session names retain their help behavior. Updated FEATURES/UI standards and affected test expectations.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Four distinct desktop/phone creation and removal-Undo scenarios passed across final runs. Creation coverage verifies name toggling, separate details/return, compact phone fields, native keyboard stepping, numeric targets, existing rest/advanced behavior, saving and accessibility. Initial creation assertions expected the former header order and visible phone steppers; updated them and reran successfully. Reviewed the phone basic-card capture. No backend/schema change, commit or deployment.
+
+## Reusable-workout exercise removal Undo, complete
+
+- Removing an exercise now offers the shared eight-second Undo toast, pausing while hovered/focused. Undo captures the full occurrence and restores it near its original neighbors without replacing later edits to other exercises. Restored cards expand, scroll into view and receive focus, including duplicate exercises and repeated restore cycles. The latest removal replaces the previous offer; pending writes block Undo, and the 50-exercise limit is preserved. Session removal behavior is unchanged.
+- An initial phone regression exposed the notice covering the next remove control. Added temporary bottom scrolling space while a builder toast is visible and scroll the next exercise into view after removal. Updated FEATURES/UI standards. Reviewed desktop and phone basic cards; further basic-control changes remain for owner review, with advanced editing deferred.
+- Web typecheck, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Final desktop/phone removal and existing recovery-toast regressions passed (4/4), covering duplicate identity, targets/rest/tags/notes, preserving other edits, saved results, repeated removals, last-item removal, focus, pause behavior and accessibility. Reviewed restored-card captures. No backend/schema change, commit or deployment.
+
+## Compact workout save footer, complete
+
+- Removed the descriptions beneath Save draft and Save workout at the owner's request. Retained outlined/primary action styling and existing save/draft consequences without additional confirmation. Removed unused description IDs/styles and restored compact phone toast/Assistant clearance. Updated FEATURES/UI standards and removed obsolete description assertions.
+- Web typecheck, focused ESLint, formatting and diff whitespace passed. Four desktop/phone creation and shared-toast regressions passed, including targets/save, recovery, pause/expiry and footer clearance. No backend or data changes.
+
+## Draft border dash spacing, complete
+
+- Replaced browser-sized draft dashes with a decorative, noninteractive SVG outline so spacing is independent of border thickness. Final pattern uses 5px dashes and 4px gaps after owner feedback to reduce the initial 8px/6px treatment. Preserved the thin stroke, rounded corners and semantic border color. Updated FEATURES/UI standards.
+- Web typecheck, focused ESLint, formatting and diff whitespace passed. Existing desktop/phone search flows passed (2/2) with the custom outline before the final dash-length reduction; the final numeric spacing adjustment passed formatting/diff checks.
+
+## Workout card border contrast, complete
+
+- Increased all workout-card border contrast using 35% semantic muted-foreground mixed with the existing border token. Kept existing thin border width, solid ready-workout borders and dashed draft borders. Updated FEATURES and UI standards.
+- Formatting and diff whitespace checks passed. Browser tests were not rerun for this border-color-only change; behavior and geometry are unchanged.
+
+## Draft card status placement and border, complete
+
+- Moved Draft to the heading's top right beside the workout name and applied a dashed border only to draft cards. Preserved normal colors/opacity, exercise previews and the full-width Continue editing action. Updated FEATURES and UI standards.
+- Existing desktop/phone workout-search flows passed (2/2). Focused ESLint, formatting and diff whitespace passed. Presentation-only change; no data or action changes.
+
+## Draft workout card hierarchy, complete
+
+- Moved Draft from the badge beside the workout title to a small, quiet status line above it. Kept normal name and exercise-preview styling and the existing single full-width Continue editing action; drafts remain in My workouts. Updated FEATURES and UI standards.
+- Existing desktop/phone workout-search flows with draft cards passed (2/2). Focused ESLint, formatting and diff whitespace passed. No persistence or action changes.
+
+## Workout editor guidance and addition feedback, complete
+
+- Renamed the visible Workout title field to Workout name without a placeholder. Replaced the oversized dotted creation hint with a compact unboxed instruction. Added visible descriptions associated with the pinned save buttons: drafts can be incomplete and cannot start/schedule, while saved workouts are ready to use. Increased phone toast/Assistant clearance for the taller footer. Updated FEATURES/UI standards and existing test label selectors.
+- Builder additions now expand, scroll to and focus the exact new exercise occurrence, including duplicates in long workouts. Focus targets the card rather than a field, avoiding an automatic phone keyboard; editing targets afterward does not refocus it. Existing exercise-detail entry focus and session addition behavior remain intact.
+- Web typecheck, focused zero-warning ESLint, boundary checks, formatting and diff whitespace passed. Eight desktop/phone editor scenarios passed for creation/target editing/saving, long-workout additions, contextual detail additions and draft exits. Two shared-toast recovery scenarios passed, including phone clearance above the taller footer, focus/hover pause, expiry and discard. Reviewed phone empty-editor and long-workout screenshots. No backend/schema change, commit or deployment.
+
+## Workout chooser secondary buttons, complete
+
+- Create new workout and Cancel now use equal-width outlined buttons in one row beneath the full-width primary Add action. Labels can wrap on narrow screens; pending-write guards and actions remain unchanged. Updated FEATURES and UI standards.
+- Existing desktop/phone chooser regressions passed (2/2), including search, selection, pagination and accessibility. Reviewed the phone capture. Focused ESLint, formatting and diff whitespace passed. No backend or data changes.
+
+## Two-column exercise-detail workout chooser, complete
+
+- Widened the inline chooser to 640px and display destinations in two equal columns when its own available width permits; phones/narrow panes retain one column. Search fills the chooser width. Kept bounded scrolling and Add/Create/Cancel outside the result list. Updated FEATURES and UI standards.
+- Desktop/phone search regressions passed (2/2), including actual two-column/one-column geometry, selection retention, stationary Add during pagination and accessibility. Reviewed the desktop viewport capture. Focused ESLint, formatting and diff whitespace passed. No data, backend or schema changes.
+
+## Shared workout search and bounded destination list, complete
+
+- Added one Search workouts field/query implementation to My workouts and the exercise-detail chooser, with independent input state. Shared contracts and the owner-scoped plan repository now support trimmed, case-insensitive literal title search across all saved workouts before cursor pagination, including drafts. Existing service/routes/client retain their contract boundary; no schema migration.
+- The chooser results scroll within a viewport-bounded area while Add and the separate Create new workout/Cancel controls remain outside it. Selection persists across filtering and pagination, with the destination named in the Add button. Search changes reset the list scroll position; opening the chooser starts with empty search and no selection. Updated FEATURES and UI standards.
+- Workspace typechecks, focused zero-warning ESLint, boundaries, formatting and diff whitespace passed. Seven Fitness PostgreSQL integration tests passed, including new search pagination, case/whitespace normalization, literal percent/underscore/backslash, empty results, length validation and account isolation. The initial length-validation test expected 400; corrected it to the existing 422 API convention. Six desktop/phone browser scenarios passed for overview, add flow and search, including unloaded results, independent search, retained selections, bounded scrolling, stationary Add after pagination and accessibility. Two search scenarios passed again for viewport captures; reviewed phone and desktop layout captures. No commit or deployment.
+
+## Inline workout chooser and actionable confirmation, complete
+
+- Replaced the exercise-detail destination modal with an inline chooser beneath Add to workout, retaining separate existing/new paths, no preselection, safe retries and contextual editor navigation. Cancel, Escape and completed additions return focus to the trigger; pending/uncertain additions prevent closing. A shared success toast names the exercise and workout and provides Edit workout instead of plain confirmation/link text.
+- Added an optional shared-toast duration override and gave this action eight seconds of unpaused time. All existing shared toasts already pause during hover or keyboard focus; retained that behavior and the existing default timings for other notices. Updated FEATURES and UI standards.
+- Web typecheck, focused zero-warning ESLint, boundary checks, formatting and diff whitespace passed. Final desktop/phone regressions passed (2/2), covering inline semantics, chooser/toast accessibility, focus return, hover/focus timer pauses and resumed expiry, saved confirmation, same-payload retries without duplicates, exact added-entry focus and unsaved new-workout navigation. Timer tests now initialize the clock after hydration at the current date and request reduced motion to avoid scanning a partially animated toast. Reviewed phone chooser and final toast screenshots. No backend/schema changes, commit or deployment.
+
+## Add to workout from exercise details, complete
+
+- Replaced the default-new dropdown with a dialog listing saved workouts with no preselection and a separate Create new workout action. Existing additions save in place, name the exercise/workout in confirmation and offer Edit workout. The editor expands, scrolls to and focuses the added occurrence, including duplicate exercises, and returns to the source details. New workouts identify their unsaved state and retain existing draft/discard protection. Return destinations are restricted to exercise detail routes.
+- Retained the exact payload and revision for lost-response retries so a retry cannot append another occurrence. Existing draft status and targets remain intact. Updated FEATURES and UI standards.
+- Web typecheck, focused zero-warning ESLint, import boundary checks, formatting and diff whitespace passed. Four desktop/phone browser checks passed: new addition flow and existing Back to Training behavior. Coverage includes no default selection, accessibility, saved confirmation, duplicate-occurrence focus, simulated lost-response retry, contextual return, and new-workout keep-editing/discard. An initial phone accessibility scan caught selected-row text contrast; corrected it and reran successfully. Reviewed phone chooser and desktop editor screenshots. No backend/schema change, commit or deployment.
+
+## Exercise detail action hierarchy, complete
+
+- Made the initial Add to workout button normal-width and left-aligned on desktop, retaining full width on phones. Moved management controls into an Exercise actions overflow menu beside the direct favourite star. Built-ins offer Duplicate exercise and Hide from library/Show in library; custom exercises offer Edit, Duplicate, Archive/Restore and eligible Delete with its existing confirmation. The add chooser and History behavior remain unchanged. Updated FEATURES and UI standards.
+- Reused the shared keyboard menu with an optional portal container so this menu stays within the page landmark while preserving existing callers. Initial menu-open accessibility scans found the body portal outside landmarks; the scoped container fixed it. Both desktop/phone detail regressions passed (2/2), including menu keyboard movement, Escape/focus return, custom edit/cancel and accessibility. Web typecheck, focused zero-warning ESLint, boundary checks, formatting and diff whitespace passed. Reviewed the desktop detail capture.
+
+## Dedicated exercise details and clearer information layout, complete
+
+- Training library cards now open dedicated exercise routes: built-ins resolve through a catalog-key route without importing a private exercise, and existing exercise IDs resolve through the scoped API. The page has Back to Fitness, a page-level name/favourite header, illustration and equipment/muscle overview (side-by-side when room permits), instructions and Your history below secondary management actions. Custom editing, duplication, archive/restore and eligible deletion remain available. Loading, missing-catalog and API-error states retain a return action.
+- Kept the library mounted in the Fitness layout and preserve its filters, scroll and card focus when returning from details with either Back to Fitness or browser Back. Other workout/page changes still reset filters. Workout builders and live sessions retain inline help, with last-session recall below the instructions and existing Details/History switching. Updated FEATURES and UI standards.
+- Web typecheck, focused zero-warning ESLint and boundary checks passed. Four desktop/phone scenarios passed across final runs: existing creation/add/save flows and new dedicated-route checks covering built-ins, custom deep links/reload, edit/cancel, library search/scroll/focus restoration, browser Back and accessibility. Initial accessibility checks found skipped heading levels; corrected dedicated section headings. A browser-Back test raced its preceding navigation; awaiting the route transition fixed the test. Reviewed desktop and phone detail renders. Formatting/diff checks passed. No backend/schema changes, commit or deployment.
+
+## Fixed workout card previews, complete
+
+- Removed the workout card expansion state, disclosure button and styling. Cards always show the first four exercises; +N more is muted, noninteractive text. Edit remains the route to the full workout. Updated FEATURES/UI standards and replaced the existing expansion test expectations with static-summary checks.
+- Desktop and phone overview/filter regressions passed (2/2), including accessibility scans and confirmation that overflow summaries are not buttons. Web typecheck, focused zero-warning ESLint, boundary checks, formatting and diff whitespace checks passed.
+
+## Workout pagination button, complete
+
+- Replaced the quiet Show more workouts text action with an outlined Load more workouts button, centered below cards on desktop and full-width at phone sizes. It shows Loading… with disabled/busy state while fetching, retains its minimum width, and uses the existing append behavior without explicit scrolling. Updated FEATURES, UI standards and the existing overview test selector.
+- Web typecheck, focused zero-warning ESLint, boundary checks, changed-file formatting and diff whitespace checks passed. Browser tests were not rerun for this presentation-only change; the pagination query and append behavior are unchanged.
+
+## Compact illustrated exercise cards, complete
+
+- Library cards reserve an 80px illustration area on desktop. Phones use full-width rows with a 72px thumbnail beside the name, equipment and muscle tags. Favourite stars stay visible, and workout pickers show a separate Add to workout button beneath the information without hiding metadata on hover or touch. Detail illustrations remain larger placeholders pending actual assets. Updated FEATURES and UI standards.
+- Four existing desktop/phone browser checks passed: workout creation/additions/saving and long-name/equipment layout across 1280/768/390/320px widths, including accessibility scans. Reviewed the desktop library live, desktop picker screenshot and narrow-phone card screenshot. Changed-file formatting and diff whitespace passed. CSS-only change; no new tests, backend changes or deployment.
+
+## Phone workout card width, complete
+
+- At viewport widths of 600px and below, My workouts cards fill the available content width rather than retaining the 280px desktop basis. Updated FEATURES and UI standards.
+- The existing phone overview/filter regression passed (1/1), including accessibility. Reviewed its phone screenshot; cards span the content column with page gutters intact. Changed-file formatting and diff whitespace checks passed. CSS-only change; no new tests or backend changes.
+
+## Compact saved workouts and fresh library filters, complete
+
+- Saved workout cards preview four exercise names, with an accessible +N more / Show fewer exercises disclosure. Existing aligned Edit/Schedule and primary Start/Continue actions remain closer to the top. My workouts fetches 12 items per page instead of three, so small collections appear without Show more.
+- Library search, equipment/muscle filters, favourites/hidden toggles and sorting reset when the route context changes. Picker/help navigation within the same workout retains those selections; a new workout starts unfiltered. Kept the separate inspector reset for picker requests. Updated FEATURES and UI standards.
+- Web typecheck, focused zero-warning ESLint and boundary checks passed. Reviewed the owner’s four compact cards live. Added a desktop/phone regression for four initial cards, long-preview expansion/collapse, accessibility, filter retention within a workout and filter reset on a new workout. Initial phone runs exposed outdated test navigation labels; updated the test to the creator’s Your workout / Add exercises tabs. Final desktop and phone checks passed (2/2 across the final runs), including accessibility scans. Formatting and diff whitespace checks passed. No backend/schema changes, commit or deployment.
+
+## Fitness overview spacing and hierarchy, complete
+
+- Removed oversized dashed empty-state boxes, tightened Training section and library spacing, kept Create workout primary and made the overview Create program action outlined. Units uses a quieter text action with its existing touch target. The Training library toolbar responds to panel width, sharing one row above 540px and wrapping below it. Shared Day layout and creation flows remain unchanged. Updated FEATURES.
+- Web typecheck, focused zero-warning ESLint and boundary checks passed. Four existing desktop/phone browser scenarios passed: program creation/reorder/rescheduling/completion/pause and Units write retry. Reviewed the empty desktop overview live. No new tests or backend/schema changes.
+
+## Workout builder return navigation, complete
+
+- Follow-up: kept Back to Training on the left and made the new-workout Create workout heading screen-reader-only. Existing workout/draft edit headings remain visible. Updated FEATURES and UI standards. Web typecheck, focused zero-warning ESLint, boundary checks, changed-file formatting and diff whitespace passed. Browser tests were not rerun for this heading-only presentation change.
+- Replaced the upper-right Cancel action with an arrow-labelled Back to Training control at the upper left above Create workout/Edit workout/Edit draft. The available ⋯ Workout actions menu stays at the upper right; Save draft and Save workout remain in the footer. Reused the existing exit handler, unsaved-change choices, focus restoration and pending/uncertain-write protection.
+- Updated FEATURES, UI standards and existing browser selectors. Web typecheck, focused zero-warning ESLint, domain/persistence boundary checks, changed-file formatting and diff whitespace checks passed. The existing exit flow passed on desktop and phone (2/2), covering unchanged exits, Keep editing, Discard, Save draft, Escape/focus return and accessibility. Reviewed both captured renders. The initial sandboxed browser run could not open its local server socket; the rerun with local-server access passed against the isolated test database. No new tests, backend/schema changes, commit, push or deployment.
+
 ## Global Fitness unit preferences, complete
 
 - Added Units to the persistent Fitness toolbar, available while browsing, creating, training and reviewing. The shared dialog saves one account-wide default for load (kg/lb), distance (m/km/yd/mi) and duration (minutes-and-seconds, seconds, minutes or hours). Settings exposes the same options; weight remains the shared account preference used by body-weight entries. The Assistant launcher stays out of the Units dialog on phones.

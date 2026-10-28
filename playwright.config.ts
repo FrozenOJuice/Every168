@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+const releaseScope = "preview";
 export default defineConfig({
+  metadata: { releaseScope },
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,
@@ -25,6 +27,7 @@ export default defineConfig({
   webServer: [
     {
       command: "pnpm --filter @168hours/api exec tsx tests/e2e-server.ts",
+      env: { RELEASE_SCOPE: releaseScope },
       url: "http://127.0.0.1:3101/api/ready",
       reuseExistingServer: false,
       timeout: 30000,
@@ -34,7 +37,11 @@ export default defineConfig({
       url: "http://localhost:3100/login",
       reuseExistingServer: false,
       timeout: 90000,
-      env: { API_URL: "http://127.0.0.1:3101", NEXT_DIST_DIR: ".next-e2e" },
+      env: {
+        RELEASE_SCOPE: releaseScope,
+        API_URL: "http://127.0.0.1:3101",
+        NEXT_DIST_DIR: ".next-e2e",
+      },
     },
   ],
 });

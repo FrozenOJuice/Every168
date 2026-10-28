@@ -12,6 +12,7 @@ if (
   throw new Error("E2E requires an isolated database ending in _test");
 const deps = compose({
   NODE_ENV: "test",
+  RELEASE_SCOPE: process.env.RELEASE_SCOPE === "preview" ? "preview" : "core",
   PORT: 3101,
   DATABASE_URL: url,
   BETTER_AUTH_SECRET: "synthetic-e2e-local-secret-at-least-32-characters",

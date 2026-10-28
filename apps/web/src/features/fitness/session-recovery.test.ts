@@ -9,6 +9,7 @@ import {
 import { acceptSessionSave, recoverSession } from "./session-recovery";
 
 const session = workoutSchema.parse({
+  startingSetup: null,
   id: "00000000-0000-4000-8000-000000000001",
   version: 3,
   createdAt: "2026-10-23T12:00:00Z",

@@ -1,3 +1,4 @@
+import { features } from "@/lib/release";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { useId, useRef, type PointerEvent } from "react";
 import { Plus } from "lucide-react";
@@ -141,48 +142,51 @@ export function CalendarHourSlot({
           {String(hour).padStart(2, "0")}:00
         </span>
       </span>
-      <button
-        ref={quickAdd}
-        className="slot-quick-add"
-        type="button"
-        style={{
-          top: `${(((active ? selectedMinute % 60 : 0) + 2.5) / 60) * 100}%`,
-        }}
-        aria-label={`Quick actions on ${date} at ${String(hour).padStart(2, "0")}:${String(active ? selectedMinute % 60 : 0).padStart(2, "0")}`}
-        onPointerDown={(event) => {
-          event.stopPropagation();
-          quickPress.current = {
-            pointer: event.pointerId,
-            x: event.clientX,
-            y: event.clientY,
-            dragged: false,
-          };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const press = quickPress.current;
-          if (press?.pointer === event.pointerId)
-            press.dragged ||=
-              Math.hypot(event.clientX - press.x, event.clientY - press.y) > 5;
-        }}
-        onPointerCancel={() => {
-          quickPress.current = null;
-        }}
-        onClick={(event) => {
-          event.stopPropagation();
-          const dragged = quickPress.current?.dragged;
-          quickPress.current = null;
-          if (!dragged && interaction?.quickActionsAvailable)
-            onQuickAction(
-              date,
-              event.detail === 0 && active
-                ? selectedMinute
-                : hour * 60 + previewMinute.current,
-            );
-        }}
-      >
-        <Plus size={14} aria-hidden="true" />
-      </button>
+      {features.food && (
+        <button
+          ref={quickAdd}
+          className="slot-quick-add"
+          type="button"
+          style={{
+            top: `${(((active ? selectedMinute % 60 : 0) + 2.5) / 60) * 100}%`,
+          }}
+          aria-label={`Quick actions on ${date} at ${String(hour).padStart(2, "0")}:${String(active ? selectedMinute % 60 : 0).padStart(2, "0")}`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            quickPress.current = {
+              pointer: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+              dragged: false,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const press = quickPress.current;
+            if (press?.pointer === event.pointerId)
+              press.dragged ||=
+                Math.hypot(event.clientX - press.x, event.clientY - press.y) >
+                5;
+          }}
+          onPointerCancel={() => {
+            quickPress.current = null;
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            const dragged = quickPress.current?.dragged;
+            quickPress.current = null;
+            if (!dragged && interaction?.quickActionsAvailable)
+              onQuickAction(
+                date,
+                event.detail === 0 && active
+                  ? selectedMinute
+                  : hour * 60 + previewMinute.current,
+              );
+          }}
+        >
+          <Plus size={14} aria-hidden="true" />
+        </button>
+      )}
     </div>
   );
 }

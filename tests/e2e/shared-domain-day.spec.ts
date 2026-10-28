@@ -109,12 +109,12 @@ test("Food and Fitness share the selected day while workouts retain their own to
     .getByRole("link", { name: "Training", exact: true })
     .click();
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
-  await page.getByLabel("Workout title", { exact: true }).fill("Keep my draft");
+  await page.getByLabel("Workout name", { exact: true }).fill("Keep my draft");
   if (mobile) await dayButton.click();
   await panel.getByRole("button", { name: "Fitness", exact: true }).click();
   await panel.getByRole("button", { name: "Next day", exact: true }).click();
   if (mobile) await panel.getByRole("button", { name: "Close dialog" }).click();
-  await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Keep my draft",
   );
   await expect(

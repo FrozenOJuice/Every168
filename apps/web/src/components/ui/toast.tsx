@@ -31,8 +31,10 @@ export function Toast({
   kind = "info",
   action,
   onDismiss,
-}: Omit<ToastNotice, "id"> & { onDismiss: () => void }) {
-  const duration = action ? 5000 : kind === "success" ? 2400 : 4000;
+  durationMs,
+}: Omit<ToastNotice, "id"> & { onDismiss: () => void; durationMs?: number }) {
+  const duration =
+    durationMs ?? (action ? 5000 : kind === "success" ? 2400 : 4000);
   const remaining = useRef(duration);
   const dismiss = useRef(onDismiss);
   const [hovered, setHovered] = useState(false);

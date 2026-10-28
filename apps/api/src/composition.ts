@@ -1,3 +1,4 @@
+import { releaseFeatures } from "@168hours/contracts";
 import { tasksRepository } from "./modules/tasks/tasks.repository.js";
 import { tasksService } from "./modules/tasks/tasks.service.js";
 import { trainingProgramsRepository } from "./modules/exercise/training-programs.repository.js";
@@ -55,6 +56,7 @@ import { identityRepository } from "./modules/identity/identity.repository.js";
 import { identityService } from "./modules/identity/identity.service.js";
 export function compose(input: ConfigInput) {
   const config = envSchema.parse(input);
+  const features = releaseFeatures(config.RELEASE_SCOPE);
   const logger = createLogger(config.LOG_LEVEL);
   const { db, pool } = createDatabase(config.DATABASE_URL, config, logger);
   const runInTransaction = transactionRunner(db);
@@ -163,9 +165,13 @@ export function compose(input: ConfigInput) {
   const cardio = cardioService(runInTransaction, cardioRepo, planning);
   const calendarActivity = calendarActivityService(identity, [
     tasks.calendarActivity,
-    nutrition.calendarActivity,
-    hydration.calendarActivity,
-    body.calendarActivity,
+    ...(features.food
+      ? [
+          nutrition.calendarActivity,
+          hydration.calendarActivity,
+          body.calendarActivity,
+        ]
+      : []),
     strength.calendarActivity,
     cardio.calendarActivity,
   ]);

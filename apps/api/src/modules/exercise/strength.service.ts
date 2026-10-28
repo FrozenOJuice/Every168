@@ -6,6 +6,7 @@ import {
 import { assertRevision } from "../../shared/errors/revision.js";
 import {
   workoutUpdateInput,
+  workoutStartingSetupSchema,
   type WorkoutStartInput,
   type WorkoutUpdateInput,
 } from "@168hours/contracts";
@@ -63,6 +64,31 @@ export function strengthService(
       const row = await repo.start(u, v, context);
       return { ...row, exercises: [] };
     },
+    async captureStartingSetup(
+      u: string,
+      id: string,
+      context: TransactionContext,
+    ) {
+      const workout = found(await repo.get(u, id, context, true));
+      const setup = workoutStartingSetupSchema.parse({
+        title: workout.title,
+        notes: workout.notes,
+        exercises: workout.exercises.map((e) => ({
+          ...e,
+          sets: e.sets.map((s) => ({
+            id: s.id,
+            measurementOverride: s.measurementOverride,
+            targetReps: s.targetReps,
+            targetWeightKg: s.targetWeightKg,
+            targetDurationSeconds: s.targetDurationSeconds,
+            targetDistanceMeters: s.targetDistanceMeters,
+            targetLaps: s.targetLaps,
+            restSeconds: s.restSeconds,
+          })),
+        })),
+      });
+      return found(await repo.setStartingSetup(u, id, setup, context));
+    },
     async save(
       u: string,
       id: string,
@@ -93,8 +119,11 @@ export function strengthService(
               );
             seen.add(e.id);
           }
+          const starting = old.startingSetup?.exercises.find(
+            (x) => x.id === e.id && x.exerciseId === e.exerciseId,
+          );
           const existing = e.id
-            ? found(old.exercises.find((x) => x.id === e.id))
+            ? found(old.exercises.find((x) => x.id === e.id) ?? starting)
             : undefined;
           const seenSets = new Set<string>();
           for (const set of e.sets) {
@@ -106,7 +135,10 @@ export function strengthService(
                 "Each set must have a unique identifier.",
               );
             seenSets.add(set.id);
-            found(existing?.sets.find((s) => s.id === set.id));
+            found(
+              existing?.sets.find((s) => s.id === set.id) ??
+                starting?.sets.find((s) => s.id === set.id),
+            );
           }
           const definition = found(await exercises.get(u, e.exerciseId, tx));
           if (definition.archivedAt && existing?.exerciseId !== e.exerciseId)
@@ -172,7 +204,7 @@ export function strengthService(
         },
         context,
       );
-      return service.save(
+      await service.save(
         u,
         start.id,
         {
@@ -209,6 +241,7 @@ export function strengthService(
         start.version,
         context,
       );
+      return service.captureStartingSetup(u, start.id, context);
     },
     async remove(
       u: string,

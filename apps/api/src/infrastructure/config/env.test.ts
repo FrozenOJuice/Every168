@@ -66,3 +66,13 @@ it("defaults to no proxy trust and accepts explicit address ranges", () => {
       .TRUSTED_PROXY_CIDRS,
   ).toEqual(["127.0.0.1/32", "::1/128"]);
 });
+
+it("defaults to first-release scope and requires an explicit preview opt-in", () => {
+  expect(readConfig(valid).RELEASE_SCOPE).toBe("core");
+  expect(readConfig({ ...valid, RELEASE_SCOPE: "preview" }).RELEASE_SCOPE).toBe(
+    "preview",
+  );
+  expect(() => readConfig({ ...valid, RELEASE_SCOPE: "true" })).toThrow(
+    "RELEASE_SCOPE",
+  );
+});

@@ -137,3 +137,43 @@ it("keeps empty targets distinct from an explicit zero load", () => {
   ).toBe("1 set | 0 kg");
   expect(workoutExerciseSummary(exercise([]), metric)).toBe("0 sets");
 });
+
+it("keeps phone summaries short while ignoring hidden values and actual results", () => {
+  const draft = exercise([
+    { targetReps: 8, targetWeightKg: 20, targetDurationSeconds: 90 },
+    { targetReps: 8, targetWeightKg: 20, reps: 6 },
+  ]);
+  expect(workoutExerciseSummary(draft, metric, true)).toBe("2×8 | 20 kg");
+  draft.sets[1]!.targetReps = null;
+  expect(workoutExerciseSummary(draft, metric, true)).toBe(
+    "2 sets · Mixed targets",
+  );
+  draft.sets[1]!.measurementOverride = "duration";
+  expect(workoutExerciseSummary(draft, metric, true)).toBe(
+    "2 sets · Mixed targets",
+  );
+  expect(
+    workoutExerciseSummary(
+      exercise([{}], "reps_distance_laps_duration_load"),
+      metric,
+      true,
+    ),
+  ).toBe("1 set · 5 measurements");
+});
+
+it("uses selected units per set and rounds load like its input", () => {
+  const draft = exercise([
+    { targetReps: 12, targetWeightKg: 20 },
+    { targetReps: 12, targetWeightKg: 20 },
+  ]);
+  const pounds = { ...metric, weightUnit: "lb" as const };
+  expect(workoutExerciseSummary(draft, metric, false, [pounds, pounds])).toBe(
+    "2×12 | 44.09 lb",
+  );
+  expect(workoutExerciseSummary(draft, metric, false, [pounds, metric])).toBe(
+    "1×12 | 44.09 lb / 1×12 | 20 kg",
+  );
+  expect(workoutExerciseSummary(draft, metric, true, [pounds, metric])).toBe(
+    "2 sets · Mixed units",
+  );
+});

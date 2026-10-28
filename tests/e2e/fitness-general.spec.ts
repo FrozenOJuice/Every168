@@ -178,9 +178,7 @@ test("mixed activities retain independent intent, measurements, recovery and pro
   await expect(page.locator(".fitness-progress-records")).toContainText(
     "0.5 mi",
   );
-  await expect(page.locator(".fitness-progress-records")).toContainText(
-    "15m",
-  );
+  await expect(page.locator(".fitness-progress-records")).toContainText("15m");
   const repeated = await write(
     `/api/v1/strength-workouts/${w.id}/repeat`,
     {},

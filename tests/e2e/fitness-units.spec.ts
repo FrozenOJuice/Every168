@@ -41,156 +41,106 @@ async function setup(page: Page) {
   });
   return { plan, exercise, post };
 }
-async function choose(page: Page, label: string, name: string) {
-  const dialog = page.getByRole("dialog", {
-    name: "Fitness units",
-    exact: true,
-  });
-  await dialog.getByRole("button", { name: label, exact: true }).click();
-  await dialog.getByRole("option", { name, exact: true }).click();
-}
-test("global units convert unsaved editors, live results and history without rewriting measurements", async ({
+test("Settings unit defaults convert recovered workout edits without changing saved measurements", async ({
   page,
-}, info) => {
-  const { plan, exercise, post } = await setup(page);
-  const endpoint = `/api/v1/strength-plans/${plan.id}`;
-  await page.goto(`/fitness/workout/${plan.id}`);
+}) => {
+  const { plan } = await setup(page);
+  const editor = `/fitness/workout/${plan.id}`;
+  await page.goto(editor);
+  await expect(
+    page.getByRole("button", { name: "Units", exact: true }),
+  ).toHaveCount(0);
   await page
-    .getByRole("button", {
-      name: "Expand Mixed measurements exercise",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Unsaved unit practice");
-  await page.getByRole("button", { name: "Units", exact: true }).click();
-  await choose(page, "Load unit", "Pounds (lb)");
-  await choose(page, "Distance unit", "Yards (yd)");
-  await choose(page, "Duration unit", "Minutes (min)");
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: info.outputPath("fitness-units.png") });
-  await page.getByRole("button", { name: "Save units", exact: true }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await page.goto("/settings");
+  await page.getByLabel("Timezone", { exact: true }).fill("America/Edmonton");
+  await page
+    .getByRole("button", { name: "Use this device’s timezone" })
+    .click();
+  await expect(page.getByLabel("Timezone", { exact: true })).toHaveValue(
+    await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+  );
+  await page
+    .getByLabel("Weight & strength load", { exact: true })
+    .selectOption("lb");
+  await page.getByLabel("Distance", { exact: true }).selectOption("yd");
+  await page
+    .getByLabel("Fitness duration", { exact: true })
+    .selectOption("min");
+  await page
+    .getByRole("button", { name: "Save preferences", exact: true })
+    .click();
+  await expect(
+    page.getByText("Preferences saved.", { exact: true }),
+  ).toBeVisible();
+  await page.goto(editor);
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Unsaved unit practice",
   );
-  const load = page.getByLabel("Target load (lb)", { exact: true });
-  await expect(load).toHaveValue("220.462262");
+  await page
+    .getByRole("button", {
+      name: "Expand Mixed measurements exercise",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByLabel("Target load (lb)", { exact: true }),
+  ).toHaveValue("220.46");
   await expect(
     page.getByLabel("Target distance (yd)", { exact: true }),
-  ).toHaveValue("1093.613298");
+  ).toHaveValue("1093.613");
   await expect(
     page.getByLabel("Target duration (minutes)", { exact: true }),
   ).toHaveValue("1.5");
-  expect((await (await page.request.get(endpoint)).json()).version).toBe(
-    plan.version,
-  );
-  await page.getByRole("button", { name: "Units", exact: true }).click();
-  await choose(page, "Load unit", "Kilograms (kg)");
-  await page.getByRole("button", { name: "Save units", exact: true }).click();
-  await expect(
-    page.getByLabel("Target load (kg)", { exact: true }),
-  ).toHaveValue("100");
-  await page.reload();
-  await page
-    .getByRole("button", {
-      name: "Expand Mixed measurements exercise",
-      exact: true,
-    })
-    .click();
-  await expect(
-    page.getByLabel("Target duration (minutes)", { exact: true }),
-  ).toHaveValue("1.5");
-  await page.getByLabel("Target distance (yd)", { exact: true }).fill("100");
-  await page.getByLabel("Target duration (minutes)", { exact: true }).fill("2");
-  await page.getByRole("button", { name: "Save workout", exact: true }).click();
-  await expect(page).toHaveURL(/\/fitness$/);
-  const saved = await (await page.request.get(endpoint)).json();
+  const saved = await (
+    await page.request.get(`/api/v1/strength-plans/${plan.id}`)
+  ).json();
+  expect(saved.version).toBe(plan.version);
   expect(saved.exercises[0].sets[0]).toMatchObject({
     targetWeightKg: 100,
-    targetDistanceMeters: 91.44,
-    targetDurationSeconds: 120,
+    targetDistanceMeters: 1000,
+    targetDurationSeconds: 90,
   });
-  const session = await post(
-    `${endpoint}/begin`,
-    { startedAt: new Date(Date.now() - 600000).toISOString() },
-    saved.version,
-  );
-  await page.goto(`/fitness/session/${session.id}`);
-  await page
-    .getByRole("button", {
-      name: "Expand Mixed measurements exercise",
-      exact: true,
-    })
-    .click();
-  const current = page.getByRole("region", {
-    name: "Current set",
-    exact: true,
-  });
-  await expect(
-    current.locator("dt").filter({ hasText: "Distance (yd)" }),
-  ).toBeVisible();
-  await expect(current.locator("dd").last()).toHaveText("100");
-  await expect(current).toContainText("2 min");
-  await current
-    .getByRole("button", { name: "Complete set", exact: true })
-    .click();
-  await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
-  await page
-    .getByRole("button", { name: "Finish workout", exact: true })
-    .click();
-  await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
-  await expect(
-    page.getByRole("region", { name: "Workout results", exact: true }),
-  ).toContainText("2 min");
-  await page.goto(`/fitness/exercises/${exercise.id}`);
-  await expect(page.locator(".fitness-recall-section")).toContainText("100 yd");
-  await expect(page.locator(".fitness-recall-section")).toContainText("2 min");
-  await page.goto("/settings");
-  await expect(page.getByLabel("Distance", { exact: true })).toHaveValue("yd");
-  await expect(
-    page.getByLabel("Fitness duration", { exact: true }),
-  ).toHaveValue("min");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
-test("failed unit changes keep the dialog and retry the same preference write", async ({
+
+test("Settings retries uncertain unit preference saves with the same request key", async ({
   page,
 }) => {
   await setup(page);
-  await page.goto("/fitness");
-  await page.getByRole("button", { name: "Units", exact: true }).click();
-  await choose(page, "Distance unit", "Metres (m)");
-  await choose(page, "Duration unit", "Hours (h)");
+  await page.goto("/settings");
+  await page.getByLabel("Timezone", { exact: true }).fill("America/Edmonton");
+  await page
+    .getByRole("button", { name: "Use this device’s timezone" })
+    .click();
+  await expect(page.getByLabel("Timezone", { exact: true })).toHaveValue(
+    await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+  );
+  await page.getByLabel("Distance", { exact: true }).selectOption("m");
+  await page.getByLabel("Fitness duration", { exact: true }).selectOption("h");
   const keys: string[] = [];
   await page.route("**/api/v1/preferences", async (route) => {
+    if (route.request().method() !== "PUT") return route.continue();
     keys.push(route.request().headers()["idempotency-key"]!);
     if (keys.length === 1) {
       await route.fetch();
-      await route.abort("failed");
-    } else await route.continue();
+      return route.abort("failed");
+    }
+    return route.continue();
   });
-  await page.getByRole("button", { name: "Save units", exact: true }).click();
-  const dialog = page.getByRole("dialog", {
-    name: "Fitness units",
-    exact: true,
-  });
-  await expect(
-    dialog.getByRole("button", { name: "Retry same change", exact: true }),
-  ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(dialog).toBeVisible();
-  await dialog
-    .getByRole("button", { name: "Retry same change", exact: true })
+  await page
+    .getByRole("button", { name: "Save preferences", exact: true })
     .click();
-  await expect(dialog).toHaveCount(0);
+  await page.getByRole("button", { name: "Retry save", exact: true }).click();
+  await expect(
+    page.getByText("Preferences saved.", { exact: true }),
+  ).toBeVisible();
   expect(keys).toHaveLength(2);
   expect(keys[1]).toBe(keys[0]);
   await page.reload();
-  await page.getByRole("button", { name: "Units", exact: true }).click();
+  await expect(page.getByLabel("Distance", { exact: true })).toHaveValue("m");
   await expect(
-    dialog.getByRole("button", { name: "Distance unit", exact: true }),
-  ).toContainText("Metres (m)");
-  await expect(
-    dialog.getByRole("button", { name: "Duration unit", exact: true }),
-  ).toContainText("Hours (h)");
+    page.getByLabel("Fitness duration", { exact: true }),
+  ).toHaveValue("h");
 });

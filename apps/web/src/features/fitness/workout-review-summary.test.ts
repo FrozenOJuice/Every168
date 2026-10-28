@@ -73,3 +73,27 @@ it("formats duration boundaries without raw long second values", () => {
     "1h 1m 1s",
   ]);
 });
+
+it("keeps recorded summary units aligned with completed sets after skipped rows are filtered", () => {
+  const first = {
+    ...emptySet(),
+    completed: false,
+    skipped: true,
+    weightKg: 100,
+  };
+  const second = { ...emptySet(), completed: true, reps: 8, weightKg: 20 };
+  const result = actualExerciseSummary(
+    { ...exercise, sets: [first, second] },
+    units,
+    [units, { ...units, weightUnit: "lb" }],
+  );
+  expect(result).toContain("44.09 lb");
+  expect(result).not.toContain("kg");
+  const mixed = actualExerciseSummary(
+    { ...exercise, sets: [second, second] },
+    units,
+    [units, { ...units, weightUnit: "lb" }],
+  );
+  expect(mixed).toContain("20 kg");
+  expect(mixed).toContain("44.09 lb");
+});

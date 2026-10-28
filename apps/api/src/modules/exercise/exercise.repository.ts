@@ -79,7 +79,7 @@ export function exerciseRepository(db: Database) {
   // Nest correlated expressions so Drizzle retains outer table qualification in single-table selections.
   const favourite = sql<boolean>`${sql`coalesce((select ${exercisePreferences.favourite} from ${exercisePreferences} where ${exercisePreferences.userId}=${exercises.userId} and ${exercisePreferences.exerciseId}=${exercises.id}), false)`}`;
   const hidden = sql<boolean>`${sql`coalesce((select ${exercisePreferences.hidden} from ${exercisePreferences} where ${exercisePreferences.userId}=${exercises.userId} and ${exercisePreferences.exerciseId}=${exercises.id}), false)`}`;
-  const used = sql<boolean>`exists(select 1 from ${workoutExercises} where ${workoutExercises.userId}=${exercises.userId} and ${workoutExercises.exerciseId}=${exercises.id}) or exists(select 1 from ${strengthPlans}, jsonb_array_elements(${strengthPlans.exercises}) entry where ${strengthPlans.userId}=${exercises.userId} and entry->>'exerciseId'=${exercises.id}::text)`;
+  const used = sql<boolean>`exists(select 1 from ${workoutExercises} where ${workoutExercises.userId}=${exercises.userId} and ${workoutExercises.exerciseId}=${exercises.id}) or exists(select 1 from ${strengthPlans}, jsonb_array_elements(${strengthPlans.exercises}) entry where ${strengthPlans.userId}=${exercises.userId} and entry->>'exerciseId'=${exercises.id}::text) or exists(select 1 from ${strengthWorkouts}, jsonb_array_elements(${strengthWorkouts.startingSetup}->'exercises') entry where ${strengthWorkouts.userId}=${exercises.userId} and entry->>'exerciseId'=${exercises.id}::text)`;
   const columns = {
     ...getTableColumns(exercises),
     name,

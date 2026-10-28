@@ -45,7 +45,9 @@ test("exercise editors keep one editable set through removal, mode changes and r
   await expect(
     workout.getByLabel("Target reps", { exact: true }),
   ).toBeEnabled();
-  await workout.getByRole("button", { name: "Cancel", exact: true }).click();
+  await workout
+    .getByRole("button", { name: "Back to Training", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/fitness$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.goto(`/fitness/workout/${plan.id}`);

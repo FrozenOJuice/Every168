@@ -1,4 +1,5 @@
 "use client";
+import { features } from "@/lib/release";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Dumbbell, Utensils, CheckSquare } from "lucide-react";
@@ -30,7 +31,7 @@ export function AppShell({
   return (
     <MeProvider me={me}>
       <DomainDayProvider>
-        <AssistantProvider key={me.user.id}>
+        <ReleaseAssistant key={me.user.id}>
           <a className="skip-link" href="#main">
             Skip to content
           </a>
@@ -41,34 +42,44 @@ export function AppShell({
             </Link>
             <p className="nav-caption">Your week, your way</p>
             <nav aria-label="Main navigation">
-              {links.map(([href, label, Icon]) => (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={
-                    (
-                      href === "/"
-                        ? path === "/"
-                        : path === href || path.startsWith(href + "/")
-                    )
-                      ? "page"
-                      : undefined
-                  }
-                >
-                  <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
-                  <span>{label}</span>
-                </Link>
-              ))}
-              <AssistantNavigationLink />
+              {links
+                .filter(([href]) => href !== "/food" || features.food)
+                .map(([href, label, Icon]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={
+                      (
+                        href === "/"
+                          ? path === "/"
+                          : path === href || path.startsWith(href + "/")
+                      )
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    <Icon size={20} strokeWidth={1.7} aria-hidden="true" />
+                    <span>{label}</span>
+                  </Link>
+                ))}
+              {features.assistant && <AssistantNavigationLink />}
             </nav>
             <AccountMenu user={me.user} />
           </aside>
           <main id="main" className="main-content" tabIndex={-1}>
             {children}
           </main>
-          <AssistantLauncher />
-        </AssistantProvider>
+          {features.assistant && <AssistantLauncher />}
+        </ReleaseAssistant>
       </DomainDayProvider>
     </MeProvider>
+  );
+}
+
+function ReleaseAssistant({ children }: { children: React.ReactNode }) {
+  return features.assistant ? (
+    <AssistantProvider>{children}</AssistantProvider>
+  ) : (
+    children
   );
 }

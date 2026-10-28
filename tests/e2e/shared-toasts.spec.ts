@@ -16,7 +16,7 @@ test("recovery toast pauses for interaction, expires without losing edits and ke
   expect(response.ok()).toBe(true);
   await page.clock.install();
   await page.goto("/fitness/workout/new");
-  const title = page.getByLabel("Workout title", { exact: true });
+  const title = page.getByLabel("Workout name", { exact: true });
   const toast = page.locator(".app-toast");
   await title.fill("Recovered workout");
   await page.reload();

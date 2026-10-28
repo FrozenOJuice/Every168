@@ -1,5 +1,5 @@
 import { exerciseLoggingTypeSchema } from "@168hours/contracts";
-import { ExerciseHistoryPage } from "@/features/fitness/exercise-history-page";
+import { ExerciseDetailPage } from "@/features/fitness/exercise-detail-page";
 export default async function Page({
   params,
   searchParams,
@@ -10,7 +10,7 @@ export default async function Page({
   const { id } = await params;
   const mode = exerciseLoggingTypeSchema.safeParse((await searchParams).mode);
   return (
-    <ExerciseHistoryPage
+    <ExerciseDetailPage
       key={id}
       id={id}
       mode={mode.success ? mode.data : undefined}

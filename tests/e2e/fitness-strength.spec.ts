@@ -47,7 +47,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
     page.getByRole("navigation", { name: "Main navigation" }).getByRole("link"),
   ).toHaveText(["Calendar", "Fitness", "Food", "Tasks", "Assistant"]);
   await page.getByRole("link", { name: "Create workout", exact: true }).click();
-  await page.getByLabel("Workout title", { exact: true }).fill("Strength A");
+  await page.getByLabel("Workout name", { exact: true }).fill("Strength A");
   if (testInfo.project.name !== "desktop")
     await page
       .getByRole("button", { name: "Add exercise", exact: true })
@@ -197,7 +197,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
     .click();
   await saved(page);
   await expect(
-    page.getByRole("heading", { name: "Workout review", exact: true }),
+    page.getByRole("heading", { name: / - Summary$/, level: 1 }),
   ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({
@@ -213,6 +213,10 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   expect(plans.items[0].exercises[0].sets[0].targetReps).toBe(8);
   await page
     .getByRole("button", { name: "Repeat workout", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Repeat this workout?", exact: true })
+    .getByRole("button", { name: "Start workout", exact: true })
     .click();
   await expect(page).not.toHaveURL(new RegExp(id));
   await expect(

@@ -542,3 +542,15 @@ body:has(.app-toast) {
     min-height: calc(100dvh - 64px - 76px);
   }
 }
+
+@media (max-width: 600px) {
+  body:has(.fitness-creation-experiment, .fitness-session-workspace)
+    .assistant-launcher {
+    top: calc(12px + env(safe-area-inset-top));
+    right: 76px;
+    bottom: auto;
+    width: 40px;
+    height: 40px;
+    box-shadow: none;
+  }
+}

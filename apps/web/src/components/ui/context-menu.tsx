@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 export type ContextMenuAction =
   | {
       label: string;
+      description?: string;
       shortcut?: string;
       disabled?: boolean;
       destructive?: boolean;
@@ -20,6 +21,9 @@ export function ContextMenu({
   actions,
   onClose,
   label = "Calendar actions",
+  portalContainer,
+  className,
+  anchorToggles = false,
 }: {
   x: number;
   y: number;
@@ -27,6 +31,9 @@ export function ContextMenu({
   actions: ContextMenuAction[];
   onClose: () => void;
   label?: string;
+  portalContainer?: Element;
+  className?: string;
+  anchorToggles?: boolean;
 }) {
   const menu = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -38,6 +45,7 @@ export function ContextMenu({
       .querySelector<HTMLButtonElement>("button:not(:disabled)")
       ?.focus({ preventScroll: true });
     function outside(event: PointerEvent) {
+      if (anchorToggles && anchor.contains(event.target as Node)) return;
       if (!element.contains(event.target as Node)) onClose();
     }
     function dismiss() {
@@ -51,7 +59,7 @@ export function ContextMenu({
       window.removeEventListener("resize", dismiss);
       window.removeEventListener("blur", dismiss);
     };
-  }, [x, y, anchor, onClose]);
+  }, [x, y, anchor, onClose, anchorToggles]);
   function closeAndFocus() {
     onClose();
     if (anchor.isConnected) anchor.focus({ preventScroll: true });
@@ -61,7 +69,7 @@ export function ContextMenu({
       ref={menu}
       role="menu"
       aria-label={label}
-      className="context-menu"
+      className={`context-menu${className ? ` ${className}` : ""}`}
       style={{ left: x, top: y }}
       onContextMenu={(event) => event.preventDefault()}
       onKeyDown={(event) => {
@@ -140,7 +148,7 @@ export function ContextMenu({
           <div role="separator" key={`separator-${index}`} />
         ) : (
           <button
-            key={action.label}
+            key={`${index}-${action.label}`}
             type="button"
             role="menuitem"
             tabIndex={-1}
@@ -155,12 +163,19 @@ export function ContextMenu({
               action.run();
             }}
           >
-            <span>{action.label}</span>
+            <span>
+              {action.label}
+              {action.description && (
+                <span className="context-menu-description">
+                  {action.description}
+                </span>
+              )}
+            </span>
             {action.shortcut && <kbd aria-hidden="true">{action.shortcut}</kbd>}
           </button>
         ),
       )}
     </div>,
-    anchor.closest("dialog[open]") ?? document.body,
+    anchor.closest("dialog[open]") ?? portalContainer ?? document.body,
   );
 }

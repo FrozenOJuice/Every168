@@ -56,7 +56,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
   const origin = `/fitness/workout/new?exercise=${exercise.id}&date=2026-10-24`;
   await page.goto(origin);
   await page
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Keep this unsaved workout");
   await page.getByLabel("Sets", { exact: true }).fill("3");
   await page.getByLabel("Target reps", { exact: true }).fill("12");
@@ -118,7 +118,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
   await page.keyboard.press("Escape");
   await expect(popup(page)).toHaveCount(0);
   await expect(launcher(page)).toBeFocused();
-  await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Keep this unsaved workout",
   );
   await launcher(page).click();
@@ -157,7 +157,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
       `/fitness/workout/new\\?exercise=${exercise.id}&date=2026-10-24$`,
     ),
   );
-  await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Keep this unsaved workout",
   );
   await expect(page.getByLabel("Sets", { exact: true })).toHaveValue("3");
@@ -191,7 +191,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
     };
   });
   await page
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Unrecoverable edit stays here");
   await launcher(page).click();
   await popup(page)
@@ -202,7 +202,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
   await popup(page)
     .getByRole("button", { name: "Close quick chat", exact: true })
     .click();
-  await expect(page.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Unrecoverable edit stays here",
   );
 });

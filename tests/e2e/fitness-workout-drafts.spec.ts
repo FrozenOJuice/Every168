@@ -55,9 +55,11 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
     .click();
   const save = right.getByRole("button", { name: "Save workout", exact: true });
   const before = (await save.boundingBox())!;
-  await right.getByLabel("Workout title", { exact: true }).fill("Push draft");
+  await right.getByLabel("Workout name", { exact: true }).fill("Push draft");
   await expect(right.getByLabel("Workout notes", { exact: true })).toBeHidden();
-  await right.locator(".fitness-builder-notes > summary").click();
+  await right
+    .getByRole("button", { name: "Toggle workout notes", exact: true })
+    .click();
   await right
     .getByLabel("Workout notes", { exact: true })
     .fill("Keep these notes");
@@ -68,20 +70,20 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   else
     await expect(
       right.getByRole("button", { name: "Add exercise", exact: true }),
-    ).toHaveClass("fitness-builder-empty");
+    ).toBeVisible();
   const left = page.locator(".fitness-exercise-panel");
   const bench = left.getByRole("button", { name: "Bench press", exact: true });
   if (testInfo.project.name === "desktop") await bench.hover();
   for (let index = 0; index < 2; index++) {
+    if (index > 0 && testInfo.project.name === "phone")
+      await page
+        .getByRole("button", { name: "Add exercises", exact: true })
+        .click();
     await left
       .getByRole("button", { name: "Add Bench press", exact: true })
       .click();
     await expect(right.locator(".fitness-exercise")).toHaveCount(index + 1);
   }
-  if (testInfo.project.name === "phone")
-    await page
-      .getByRole("button", { name: "Back to workout", exact: true })
-      .click();
   await right.getByLabel("Target reps", { exact: true }).first().fill("8");
   const after = (await save.boundingBox())!;
   expect(Math.abs(after.y - before.y)).toBeLessThan(1);
@@ -114,6 +116,10 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   await expect(right.getByLabel("Workout notes", { exact: true })).toHaveValue(
     "Keep these notes",
   );
+  await right
+    .getByRole("button", { name: "Expand Bench press exercise", exact: true })
+    .first()
+    .click();
   await expect(
     right.getByLabel("Target reps", { exact: true }).first(),
   ).toHaveValue("8");
@@ -128,7 +134,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   ).toBeVisible();
 });
 
-test("Cancel leaves unchanged workouts and offers draft, discard and keep editing for changes", async ({
+test("Back to Training leaves unchanged workouts and offers draft, discard and keep editing for changes", async ({
   page,
 }, testInfo) => {
   test.setTimeout(90000);
@@ -152,7 +158,9 @@ test("Cancel leaves unchanged workouts and offers draft, discard and keep editin
   const create = () =>
     right.getByRole("link", { name: "Create workout", exact: true }).click();
   const cancel = () =>
-    right.getByRole("button", { name: "Cancel", exact: true }).click();
+    right
+      .getByRole("button", { name: "Back to Training", exact: true })
+      .click();
   const dialog = page.getByRole("dialog", {
     name: "Save your changes?",
     exact: true,
@@ -163,14 +171,14 @@ test("Cancel leaves unchanged workouts and offers draft, discard and keep editin
   await expect(dialog).toHaveCount(0);
   await create();
   await right
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Keep this draft");
   await cancel();
   await expect(dialog).toBeVisible();
   await expect(
     dialog.getByText(/Save this as a draft to finish later/),
   ).toHaveCount(0);
-  const choices = dialog.locator(".fitness-workout-exit-actions");
+  const choices = dialog.locator(".fitness-confirm-actions");
   await expect(choices.getByRole("button")).toHaveText([
     "Keep editing",
     "Discard",
@@ -200,13 +208,13 @@ test("Cancel leaves unchanged workouts and offers draft, discard and keep editin
   await dialog.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(
-    right.getByRole("button", { name: "Cancel", exact: true }),
+    right.getByRole("button", { name: "Back to Training", exact: true }),
   ).toBeFocused();
   await cancel();
   await dialog
     .getByRole("button", { name: "Keep editing", exact: true })
     .click();
-  await expect(right.getByLabel("Workout title", { exact: true })).toHaveValue(
+  await expect(right.getByLabel("Workout name", { exact: true })).toHaveValue(
     "Keep this draft",
   );
   await cancel();
@@ -225,7 +233,7 @@ test("Cancel leaves unchanged workouts and offers draft, discard and keep editin
     .getByRole("link", { name: "Continue editing", exact: true })
     .click();
   await right
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Discard this title");
   await cancel();
   await dialog.getByRole("button", { name: "Discard", exact: true }).click();

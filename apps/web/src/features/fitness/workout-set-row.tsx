@@ -1,16 +1,16 @@
 "use client";
+import { FitnessSelect } from "./fitness-select";
 import { formatFitnessDuration } from "./rest-duration";
 import { useId, useState, type ReactNode } from "react";
 import { TooltipButton } from "@/components/ui/tooltip-button";
-import { X, Plus, RotateCcw, Copy } from "lucide-react";
-import { ContextMenu } from "@/components/ui/context-menu";
-import type { SetCopyKind } from "./copy-following-sets";
+import { X, Ruler, RotateCcw } from "lucide-react";
 import { fromKilograms, fromMeters } from "@168hours/domain-utils";
 import {
   normalizeMeasurementOverride,
   plannedSetInput,
   type ExerciseLoggingType,
 } from "@168hours/contracts";
+import { useWorkoutDisplayUnits } from "./workout-display-units";
 import { useMe } from "@/features/identity/me";
 import { number } from "@/lib/format";
 import type { SetDraft } from "./strength-draft";
@@ -35,10 +35,6 @@ export function WorkoutSetRow({
   handle,
   onChange,
   onRemove,
-  onRest,
-  onCopy,
-  canCopyTargets = false,
-  canCopyRest = false,
 }: {
   set: SetDraft;
   index: number;
@@ -53,29 +49,25 @@ export function WorkoutSetRow({
   onChange: (set: SetDraft) => void;
   onRemove: () => void;
   onRest?: (seconds: number) => void;
-  onCopy?: (kind: SetCopyKind) => void;
-  canCopyTargets?: boolean;
-  canCopyRest?: boolean;
 }) {
-  const { weightUnit: unit, distanceUnit, durationUnit } = useMe().preferences;
+  const preferences = useMe().preferences;
+  const displayUnits = useWorkoutDisplayUnits();
+  const {
+    weightUnit: unit,
+    distanceUnit,
+    durationUnit,
+  } = { ...preferences, ...displayUnits?.units };
   const hiddenRestErrorId = useId();
   const invalidFinalRest =
     !hasNextSet &&
     !plannedSetInput.shape.restSeconds.safeParse(set.restSeconds).success;
   const [configuring, setConfiguring] = useState(false);
-  const [copyAnchor, setCopyAnchor] = useState<HTMLButtonElement | null>(null);
   const configurationId = useId();
   const override = normalizeMeasurementOverride(
     set.measurementOverride,
     loggingType,
   );
   const main = exerciseTrackingFields[override ?? loggingType];
-  const defaults = exerciseTrackingFields[loggingType];
-  const defaultSlots = defaults.slice(
-    0,
-    defaults.findLastIndex((field) => main.includes(field)) + 1,
-  );
-  const extraFields = main.filter((field) => !defaults.includes(field));
   const secondary = (
     ["reps", "load", "duration", "distance", "laps"] as const
   ).filter((field) => !main.includes(field));
@@ -122,19 +114,18 @@ export function WorkoutSetRow({
         label={`${actual ? "Actual" : "Target"} ${labels[field]}`}
         hideLabel={hideLabel}
         displayLabel={
-          !session
-            ? field === "duration"
-              ? "Time (sec)"
-              : field === "distance"
-                ? `Dist. (${distanceUnit})`
-                : labels[field][0]!.toUpperCase() + labels[field].slice(1)
-            : undefined
+          field === "duration"
+            ? "Time (sec)"
+            : field === "distance"
+              ? `Dist. (${distanceUnit})`
+              : labels[field][0]!.toUpperCase() + labels[field].slice(1)
         }
         value={set[key]}
         weight={field === "load"}
         distance={field === "distance"}
         duration={field === "duration"}
         disabled={disabled}
+        steppers
         error={errors[`${errorPrefix}.${key}`] ? messages[field] : undefined}
         onChange={(value) =>
           onChange({
@@ -159,26 +150,6 @@ export function WorkoutSetRow({
       <X size={16} aria-hidden="true" />
     </TooltipButton>
   );
-  const copy = onCopy && (
-    <TooltipButton
-      type="button"
-      className="icon-button"
-      aria-label={`Apply set ${index + 1} to following sets`}
-      tooltip={
-        !hasNextSet
-          ? "No following sets"
-          : !canCopyTargets && !canCopyRest
-            ? "Nothing to apply to following sets"
-            : "Apply to following sets"
-      }
-      aria-haspopup="menu"
-      aria-expanded={!!copyAnchor}
-      disabled={disabled || !hasNextSet || (!canCopyTargets && !canCopyRest)}
-      onClick={(event) => setCopyAnchor(event.currentTarget)}
-    >
-      <Copy size={15} aria-hidden="true" />
-    </TooltipButton>
-  );
   const addMeasurements = (
     <TooltipButton
       type="button"
@@ -200,7 +171,7 @@ export function WorkoutSetRow({
       disabled={disabled}
       onClick={() => setConfiguring(!configuring)}
     >
-      <Plus size={17} aria-hidden="true" />
+      <Ruler size={17} aria-hidden="true" />
     </TooltipButton>
   );
   const configuration = (
@@ -239,139 +210,73 @@ export function WorkoutSetRow({
   );
   return (
     <>
-      {copyAnchor && (
-        <ContextMenu
-          x={copyAnchor.getBoundingClientRect().left}
-          y={copyAnchor.getBoundingClientRect().bottom + 4}
-          anchor={copyAnchor}
-          label={`Apply set ${index + 1} to following sets`}
-          onClose={() => setCopyAnchor(null)}
-          actions={[
-            {
-              label: "Apply filled targets to following sets",
-              disabled: disabled || !canCopyTargets,
-              run: () => onCopy?.("targets"),
-            },
-            {
-              label: "Apply rest to following sets",
-              disabled: disabled || !canCopyRest,
-              run: () => onCopy?.("rest"),
-            },
-          ]}
-        />
-      )}
-      {session ? (
-        <>
-          <div className="fitness-session-set-heading">
-            {handle}
-            <div className="fitness-set-actions">
-              {addMeasurements}
-              {copy}
-              {remove}
+      <div className="fitness-set-editor-row">
+        <div className="fitness-set-number-cell">{handle}</div>
+        <div className="fitness-set-measurements">
+          {main.map((field) => (
+            <div
+              key={field}
+              className="fitness-set-measurement-slot"
+              data-measurement={field}
+            >
+              {measurement(field, !!session)}
             </div>
+          ))}
+        </div>
+        <div className="fitness-set-actions">
+          {addMeasurements}
+          {remove}
+        </div>
+        {configuration}
+      </div>
+      {session && (
+        <div className="fitness-recorded-set-footer">
+          <p className="muted text-small fitness-correction-planned">
+            Planned:{" "}
+            {targetSummary(set, unit, distanceUnit, main, durationUnit)}
+          </p>
+          <div className="fitness-correction-status">
+            <FitnessSelect
+              label={`Set ${index + 1} status`}
+              hideLabel
+              floating
+              searchable={false}
+              value={
+                set.skipped
+                  ? "skipped"
+                  : set.completed
+                    ? "completed"
+                    : "unfinished"
+              }
+              disabled={disabled}
+              error={
+                set.completed &&
+                [
+                  set.reps,
+                  set.weightKg,
+                  set.durationSeconds,
+                  set.distanceMeters,
+                  set.laps,
+                ].every((value) => value === null)
+                  ? "Enter at least one recorded measurement for a completed set."
+                  : undefined
+              }
+              options={[
+                { value: "completed", label: "Completed" },
+                { value: "skipped", label: "Skipped" },
+                { value: "unfinished", label: "Unfinished" },
+              ]}
+              onChange={(status) =>
+                onChange({
+                  ...set,
+                  completed: status === "completed",
+                  skipped: status === "skipped",
+                  resultsEdited: true,
+                })
+              }
+            />
           </div>
-          <details className="fitness-set-targets">
-            <summary>
-              Targets ·{" "}
-              {targetSummary(set, unit, distanceUnit, main, durationUnit)}
-            </summary>
-            <div className="fitness-set-fields">
-              {main.map((field) => measurement(field))}
-            </div>
-          </details>
-          <div className="fitness-set-fields is-actual">
-            {main.map((field) => measurement(field, true))}
-          </div>
-          {configuration}
-          <div className="fitness-set-completion">
-            <label className="fitness-check">
-              <input
-                type="checkbox"
-                disabled={
-                  disabled ||
-                  set.skipped ||
-                  (set.reps === null &&
-                    set.weightKg === null &&
-                    set.durationSeconds === null &&
-                    set.distanceMeters === null &&
-                    set.laps === null)
-                }
-                checked={set.completed}
-                onChange={(event) => {
-                  onChange({ ...set, completed: event.target.checked });
-                  if (event.target.checked && hasNextSet && set.restSeconds)
-                    onRest?.(set.restSeconds);
-                }}
-              />
-              Completed
-            </label>
-            <label className="fitness-check">
-              <input
-                type="checkbox"
-                disabled={disabled}
-                checked={set.skipped}
-                onChange={(event) =>
-                  onChange({
-                    ...set,
-                    skipped: event.target.checked,
-                    completed: false,
-                  })
-                }
-              />
-              Skipped
-            </label>
-            {!set.completed && !set.skipped && (
-              <span className="muted text-small">Unfinished</span>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="fitness-set-editor-row">
-            <div className="fitness-set-number-cell">{handle}</div>
-            <div className="fitness-set-measurements">
-              {defaultSlots.map((field) => (
-                <div
-                  key={field}
-                  className="fitness-set-measurement-slot"
-                  data-measurement={field}
-                  aria-hidden={!main.includes(field) || undefined}
-                >
-                  {main.includes(field) && measurement(field)}
-                </div>
-              ))}
-              {extraFields.length > 0 && (
-                <div
-                  className="fitness-set-extra-measurements"
-                  style={{
-                    gridTemplateColumns: extraFields
-                      .map(
-                        (field) =>
-                          `minmax(0, ${field === "duration" ? 2 : 1}fr)`,
-                      )
-                      .join(" "),
-                  }}
-                >
-                  {extraFields.map((field) => (
-                    <div
-                      key={field}
-                      className="fitness-set-measurement-slot"
-                      data-measurement={field}
-                    >
-                      {measurement(field)}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="fitness-set-actions">
-              {addMeasurements}
-              {copy}
-              {remove}
-            </div>
-            {configuration}
-          </div>
-        </>
+        </div>
       )}
       {secondary.some(
         (field) =>
@@ -388,7 +293,7 @@ export function WorkoutSetRow({
           measurement above to correct it.
         </p>
       )}
-      {hasNextSet && (
+      {hasNextSet && (!session || !!restError) && (
         <RestBetweenSets
           index={index}
           value={set.restSeconds}
@@ -442,5 +347,5 @@ function targetSummary(
       ? `${set.targetLaps} laps`
       : null,
   ].filter(Boolean);
-  return parts.length ? `Target: ${parts.join(" / ")}` : "No targets";
+  return parts.length ? parts.join(" / ") : "No targets";
 }

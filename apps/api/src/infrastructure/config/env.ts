@@ -18,6 +18,7 @@ export const envSchema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    RELEASE_SCOPE: z.enum(["core", "preview"]).default("core"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     DATABASE_URL: postgresUrl,
     MIGRATION_DATABASE_URL: postgresUrl.optional(),

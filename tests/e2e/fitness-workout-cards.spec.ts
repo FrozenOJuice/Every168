@@ -68,7 +68,7 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     .getByRole("link", { name: "Create workout", exact: true })
     .click();
   await right
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Compact workout");
   const touch = testInfo.project.name === "phone";
   const empty = right.getByRole("button", {

@@ -75,7 +75,7 @@ test("inline exercise library follows programs and preserves workout drafts", as
     name: "Workout workspace",
     includeHidden: true,
   });
-  await workout.getByLabel("Workout title", { exact: true }).fill("My session");
+  await workout.getByLabel("Workout name", { exact: true }).fill("My session");
   if (testInfo.project.name === "phone")
     await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
   else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
@@ -104,9 +104,9 @@ test("inline exercise library follows programs and preserves workout drafts", as
     await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
   else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
   await expect(add).toBeFocused();
-  await expect(
-    workout.getByLabel("Workout title", { exact: true }),
-  ).toHaveValue("My session");
+  await expect(workout.getByLabel("Workout name", { exact: true })).toHaveValue(
+    "My session",
+  );
   await expect(workout.locator(".fitness-inline-recall")).toContainText(
     "6 reps × 45 kg",
   );

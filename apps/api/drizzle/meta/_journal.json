@@ -260,6 +260,13 @@
       "when": 1792965304189,
       "tag": "0036_unknown_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793057325436,
+      "tag": "0037_sturdy_joshua_kane",
+      "breakpoints": true
     }
   ]
 }

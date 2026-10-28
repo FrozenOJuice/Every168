@@ -26,7 +26,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
     name: "Workout workspace",
     includeHidden: true,
   });
-  const title = workspace.getByLabel("Workout title", { exact: true });
+  const title = workspace.getByLabel("Workout name", { exact: true });
   await title.fill("Unfinished workout");
   await workspace
     .getByRole("button", { name: "Toggle workout notes", exact: true })
@@ -145,7 +145,9 @@ test("unsaved workout edits recover across navigation and refresh without overwr
     .click();
   await expect(title).toHaveValue("Newer saved workout");
   await title.fill("Deliberate discard");
-  await workspace.getByRole("button", { name: "Cancel", exact: true }).click();
+  await workspace
+    .getByRole("button", { name: "Back to Training", exact: true })
+    .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Discard", exact: true })
@@ -165,4 +167,121 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   await expect(workspace.getByRole("alert")).toHaveText(
     "Recovery storage is unavailable. Save draft before leaving.",
   );
+});
+
+test("uncertain workout creation and updates retain their original intent across refresh", async ({
+  page,
+}) => {
+  const hydrationErrors: string[] = [];
+  page.on("pageerror", (error) => {
+    if (
+      /hydration|hydrated|server rendered|server-rendered/i.test(error.message)
+    )
+      hydrationErrors.push(error.message);
+  });
+  page.on("console", (message) => {
+    if (
+      message.type() === "error" &&
+      /hydration|hydrated|server rendered|server-rendered/i.test(message.text())
+    )
+      hydrationErrors.push(message.text());
+  });
+  const signup = await page.request.post("/api/auth/sign-up/email", {
+    headers: {
+      Origin: "http://localhost:3100",
+      "Idempotency-Key": randomUUID(),
+    },
+    data: {
+      name: "Save recovery",
+      email: `save-recovery-${randomUUID()}@example.com`,
+      password: "Synthetic-recovery-password-123",
+    },
+  });
+  expect(signup.ok()).toBe(true);
+  page.on("dialog", (dialog) => dialog.accept());
+  const attempts: {
+    method: string;
+    key: string;
+    body: string;
+    version?: string;
+  }[] = [];
+  let loseNextResponse = true;
+  await page.route("**/api/v1/strength-plans{,/*}", async (route) => {
+    const request = route.request();
+    if (!["POST", "PUT"].includes(request.method())) return route.continue();
+    attempts.push({
+      method: request.method(),
+      key: request.headers()["idempotency-key"]!,
+      body: request.postData()!,
+      version: request.headers()["if-match"],
+    });
+    if (loseNextResponse) {
+      loseNextResponse = false;
+      expect((await route.fetch()).ok()).toBe(true);
+      return route.abort("failed");
+    }
+    return route.continue();
+  });
+  await page.goto("/fitness/workout/new");
+  await page
+    .getByLabel("Workout name", { exact: true })
+    .fill("Recovered save intent");
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Retry same change", exact: true }),
+  ).toBeVisible();
+  const firstSaved = (
+    await (await page.request.get("/api/v1/strength-plans")).json()
+  ).items;
+  expect(firstSaved).toHaveLength(1);
+  await page.reload();
+  await expect(page.getByLabel("Workout name", { exact: true })).toHaveValue(
+    "Recovered save intent",
+  );
+  await expect(
+    page.getByRole("button", { name: "Save draft", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Retry same change", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toEqual(attempts[0]);
+  expect(
+    (await (await page.request.get("/api/v1/strength-plans")).json()).items,
+  ).toHaveLength(1);
+
+  const original = firstSaved[0];
+  await page.goto(`/fitness/workout/${original.id}`);
+  await page
+    .getByLabel("Workout name", { exact: true })
+    .fill("Updated recovered workout");
+  loseNextResponse = true;
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Retry same change", exact: true }),
+  ).toBeVisible();
+  const committed = await (
+    await page.request.get(`/api/v1/strength-plans/${original.id}`)
+  ).json();
+  expect(committed.version).toBe(original.version + 1);
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Save draft", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "Retry same change", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/fitness$/);
+  expect(attempts).toHaveLength(4);
+  expect(attempts[3]).toEqual(attempts[2]);
+  expect(
+    await (
+      await page.request.get(`/api/v1/strength-plans/${original.id}`)
+    ).json(),
+  ).toEqual(committed);
+  expect(
+    (await (await page.request.get("/api/v1/strength-plans")).json()).items,
+  ).toHaveLength(1);
+  expect(hydrationErrors).toEqual([]);
 });

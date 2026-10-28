@@ -601,7 +601,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   await expect(
     page.getByRole("heading", { name: "Bench press", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Workout title", { exact: true }).fill("Push day");
+  await page.getByLabel("Workout name", { exact: true }).fill("Push day");
   await page.getByLabel("Target reps", { exact: true }).fill("8");
   await page.getByRole("button", { name: "Save workout", exact: true }).click();
   await expect(page).toHaveURL(/\/fitness$/);
@@ -666,7 +666,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   expect(updated.exercises[0].sets[0].targetReps).toBe(8);
   await page
     .locator(".fitness-workout-builder")
-    .getByRole("button", { name: "Cancel", exact: true })
+    .getByRole("button", { name: "Back to Training", exact: true })
     .click();
   await expect(page).toHaveURL("/fitness");
   await expect(

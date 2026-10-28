@@ -1,5 +1,4 @@
 "use client";
-import { FitnessUnits } from "./fitness-units";
 import {
   createContext,
   useCallback,
@@ -18,11 +17,14 @@ import { CalendarDays } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { FitnessDayPanel } from "./fitness-day-panel";
+import { FitnessSectionJump } from "./fitness-section-jump";
 import { restoreActionFocus } from "@/components/ui/tooltip-button";
 
 type Choose = (exercise: Exercise) => boolean | void;
 const WorkspaceContext = createContext<{
   register: (choose: Choose) => () => void;
+  setSessionEditor: (path: string | null) => void;
+  setRecordedSession: (path: string | null) => void;
   pick: () => void;
   help: (id: string, history?: boolean, mode?: ExerciseLoggingType) => void;
 } | null>(null);
@@ -38,11 +40,20 @@ export function FitnessExerciseWorkspace({
 }) {
   const pathname = usePathname();
   const trainingView = pathname === "/fitness";
+  const [recordedSessionPath, setRecordedSession] = useState<string | null>(
+    null,
+  );
   const progressView =
+    recordedSessionPath === pathname ||
     pathname.startsWith("/fitness/history") ||
     pathname.startsWith("/fitness/progress");
+  const [sessionEditorPath, setSessionEditorPath] = useState<string | null>(
+    null,
+  );
+  const editingSession = sessionEditorPath === pathname;
   const building =
-    workoutCreationExperiment && pathname.startsWith("/fitness/workout/");
+    workoutCreationExperiment &&
+    (pathname.startsWith("/fitness/workout/") || editingSession);
   const activeWorkout = /\/fitness\/(workout|session)\//.test(pathname);
   const [choose, setChoose] = useState<Choose | null>(null);
   const [helpId, setHelpId] = useState<string | null>(null);
@@ -52,6 +63,7 @@ export function FitnessExerciseWorkspace({
   const [helpMode, setHelpMode] = useState<ExerciseLoggingType>();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState(false);
+  const [exerciseEditorOpen, setExerciseEditorOpen] = useState(false);
   const [browseRequest, setBrowseRequest] = useState(0);
   const [notice, setNotice] = useState("");
   const opener = useRef<HTMLElement | null>(null);
@@ -61,9 +73,16 @@ export function FitnessExerciseWorkspace({
     setChoose(() => next);
     return () => setChoose(null);
   }, []);
+  const setSessionEditor = useCallback((path: string | null) => {
+    setSessionEditorPath(path);
+    setPickerOpen(false);
+    setHelpId(null);
+    setDayOpen(false);
+  }, []);
   const [previousPath, setPreviousPath] = useState(pathname);
   if (previousPath !== pathname) {
     setPreviousPath(pathname);
+    setExerciseEditorOpen(false);
     setHelpId(null);
     setNotice("");
     setPickerOpen(false);
@@ -96,6 +115,8 @@ export function FitnessExerciseWorkspace({
     <WorkspaceContext.Provider
       value={{
         register,
+        setSessionEditor,
+        setRecordedSession,
         pick: () => {
           opener.current =
             document.activeElement instanceof HTMLElement
@@ -125,7 +146,7 @@ export function FitnessExerciseWorkspace({
       }}
     >
       <div
-        className={`fitness-workspace fitness-library-workspace fitness-stacked-workspace domain-workspace fitness-organized-workspace${building ? " fitness-creation-experiment" : ""}`}
+        className={`fitness-workspace fitness-library-workspace fitness-stacked-workspace domain-workspace fitness-organized-workspace${building ? " fitness-creation-experiment" : ""}${editingSession ? " fitness-session-editing-workspace" : ""}`}
       >
         <div className="domain-main fitness-domain-main">
           <h1 className="sr-only">Fitness</h1>
@@ -144,7 +165,9 @@ export function FitnessExerciseWorkspace({
                 History
               </Link>
             </nav>
-            <FitnessUnits />
+            {trainingView && !pickerOpen && !exerciseEditorOpen && (
+              <FitnessSectionJump />
+            )}
             {!building && (
               <button
                 className="button domain-mobile-day"
@@ -163,6 +186,11 @@ export function FitnessExerciseWorkspace({
               </p>
             )}
             <ExerciseLibrary
+              workoutLabel={
+                recordedSessionPath === pathname
+                  ? "Recorded results"
+                  : "Your workout"
+              }
               view={
                 building
                   ? "builder"
@@ -173,14 +201,20 @@ export function FitnessExerciseWorkspace({
                       : "content"
               }
               resetKey={`${pathname}:${browseRequest}`}
+              filterContext={
+                pathname.startsWith("/fitness/exercises/")
+                  ? "/fitness"
+                  : pathname
+              }
               onEditorOpen={() => {
+                setExerciseEditorOpen(true);
                 requestAnimationFrame(() =>
                   library.current
                     ?.querySelector(".fitness-primary-pane")
                     ?.scrollIntoView({ block: "start" }),
                 );
               }}
-              onEditorClose={() => {}}
+              onEditorClose={() => setExerciseEditorOpen(false)}
               pickerOpen={pickerOpen}
               onShowPicker={() => setPickerOpen(true)}
               onDismissPicker={() => {

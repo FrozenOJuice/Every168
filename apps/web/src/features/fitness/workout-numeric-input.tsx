@@ -1,5 +1,5 @@
 "use client";
-import { useRef, type InputHTMLAttributes } from "react";
+import { useRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 type Props = Omit<
@@ -8,6 +8,7 @@ type Props = Omit<
 > & {
   controlLabel: string;
   steppers?: boolean;
+  unitControl?: ReactNode;
   onValueChange: (value: string) => void;
   onStep?: (value: string) => void;
 };
@@ -15,6 +16,7 @@ type Props = Omit<
 export function WorkoutNumericInput({
   controlLabel,
   steppers = false,
+  unitControl,
   onValueChange,
   onStep,
   ...props
@@ -28,7 +30,7 @@ export function WorkoutNumericInput({
       onChange={(event) => onValueChange(event.target.value)}
     />
   );
-  if (!steppers) return input;
+  if (!steppers && !unitControl) return input;
   const minimum = props.min === undefined ? -Infinity : Number(props.min);
   const maximum = props.max === undefined ? Infinity : Number(props.max);
   const value = props.value === "" ? NaN : Number(props.value);
@@ -45,30 +47,33 @@ export function WorkoutNumericInput({
   return (
     <div className="fitness-number-control">
       {input}
-      <div className="fitness-number-arrows">
-        {([1, -1] as const).map((direction) => {
-          const Icon = direction === 1 ? ChevronUp : ChevronDown;
-          return (
-            <button
-              key={direction}
-              type="button"
-              tabIndex={-1}
-              aria-label={`${direction === 1 ? "Increase" : "Decrease"} ${controlLabel}`}
-              disabled={
-                props.disabled ||
-                (Number.isFinite(value) &&
-                  (direction === 1 ? value >= maximum : value <= minimum))
-              }
-              // Keep typing focus and the normal input-to-input Tab order;
-              // keyboard users can also step with the input's arrow keys.
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => change(direction)}
-            >
-              <Icon size={18} aria-hidden="true" />
-            </button>
-          );
-        })}
-      </div>
+      {unitControl}
+      {steppers && (
+        <div className="fitness-number-arrows">
+          {([1, -1] as const).map((direction) => {
+            const Icon = direction === 1 ? ChevronUp : ChevronDown;
+            return (
+              <button
+                key={direction}
+                type="button"
+                tabIndex={-1}
+                aria-label={`${direction === 1 ? "Increase" : "Decrease"} ${controlLabel}`}
+                disabled={
+                  props.disabled ||
+                  (Number.isFinite(value) &&
+                    (direction === 1 ? value >= maximum : value <= minimum))
+                }
+                // Keep typing focus and the normal input-to-input Tab order;
+                // keyboard users can also step with the input's arrow keys.
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => change(direction)}
+              >
+                <Icon size={18} aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

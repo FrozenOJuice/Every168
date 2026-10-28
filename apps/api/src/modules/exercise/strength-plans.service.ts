@@ -307,7 +307,7 @@ export function strengthPlansService(
         },
         tx,
       );
-      const workout = await strength.save(
+      await strength.save(
         u,
         session.id,
         {
@@ -340,7 +340,7 @@ export function strengthPlansService(
       );
       if (plan.kind === "scheduled")
         await repo.update(u, id, { sessionId: session.id }, tx);
-      return workout;
+      return strength.captureStartingSetup(u, session.id, tx);
     },
   };
 }

@@ -1,3 +1,4 @@
+import { features } from "@/lib/release";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
@@ -26,16 +27,18 @@ export function CalendarActions({
             ["templates", "Templates", "Save and apply calendar patterns."],
             ["quick", "Quick actions", "Log water or weight."],
           ] as const
-        ).map(([id, title, description]) => (
-          <button
-            className="calendar-record"
-            key={id}
-            onClick={() => onAction(id)}
-          >
-            <strong>{title}</strong>
-            <small>{description}</small>
-          </button>
-        ))}
+        )
+          .filter(([id]) => id !== "quick" || features.food)
+          .map(([id, title, description]) => (
+            <button
+              className="calendar-record"
+              key={id}
+              onClick={() => onAction(id)}
+            >
+              <strong>{title}</strong>
+              <small>{description}</small>
+            </button>
+          ))}
       </div>
     </Dialog>
   );

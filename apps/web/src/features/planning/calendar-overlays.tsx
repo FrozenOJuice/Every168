@@ -1,3 +1,4 @@
+import { features } from "@/lib/release";
 import type { Block, CalendarItem, SearchRecord } from "@168hours/contracts";
 import {
   CalendarActions,
@@ -84,14 +85,14 @@ export function CalendarOverlays({
   if (overlay.mode === "templates")
     return <CalendarTemplates date={date} onClose={close} onSaved={onSaved} />;
   if (overlay.mode === "quick")
-    return (
+    return features.food ? (
       <CalendarQuickActions
         date={date}
         minute={overlay.minute}
         onClose={close}
         onSaved={onSaved}
       />
-    );
+    ) : null;
   return (
     <CalendarItemEditor
       key={overlay.item?.id ?? overlay.mode}

@@ -46,12 +46,14 @@ export function ProgramsPage() {
 export function ProgramsOverview() {
   return (
     <section
+      id="training-programs"
+      tabIndex={-1}
       className="fitness-program-overview"
       aria-labelledby="programs-heading"
     >
       <div className="fitness-section-heading">
         <h2 id="programs-heading">Training programs</h2>
-        <Link className="button primary" href="/fitness/programs/new">
+        <Link className="button" href="/fitness/programs/new">
           <Plus size={16} aria-hidden="true" />
           Create program
         </Link>
@@ -108,6 +110,7 @@ function ProgramList({
       {!q.data.pages[0]?.items.length && (
         <p className={compact ? "fitness-overview-empty" : "muted"}>
           No {status === "all" ? "" : status + " "}programs yet.{" "}
+          {compact && "Organize workouts into a repeating training plan."}
           {!compact && status !== "paused" && (
             <Link href="/fitness/programs/new">Create a program</Link>
           )}

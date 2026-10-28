@@ -1,3 +1,4 @@
+import { releaseFeatures } from "@168hours/contracts";
 import { tasksRoutes } from "./modules/tasks/tasks.routes.js";
 import { trainingProgramsRoutes } from "./modules/exercise/training-programs.routes.js";
 import { adminRoutes } from "./modules/identity/admin.routes.js";
@@ -53,6 +54,7 @@ export function createApp({
   trainingPrograms,
   cardio,
 }: Omit<Dependencies, "db" | "pool">) {
+  const features = releaseFeatures(config.RELEASE_SCOPE);
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.TRUSTED_PROXY_CIDRS);
@@ -108,10 +110,14 @@ export function createApp({
     routinesRoutes(routines, writes),
     tasksRoutes(tasks, writes),
     goalsRoutes(goals, writes),
-    dashboardRoutes(dashboard),
-    nutritionRoutes(nutrition, writes),
-    hydrationRoutes(hydration, writes),
-    bodyRoutes(body, writes),
+    ...(features.food
+      ? [
+          dashboardRoutes(dashboard),
+          nutritionRoutes(nutrition, writes),
+          hydrationRoutes(hydration, writes),
+          bodyRoutes(body, writes),
+        ]
+      : []),
     trainingProgramsRoutes(trainingPrograms, writes),
     exerciseRoutes(
       exercises,

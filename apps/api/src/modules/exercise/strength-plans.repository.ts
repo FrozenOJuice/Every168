@@ -1,5 +1,5 @@
 import { AppError } from "../../shared/errors/app-error.js";
-import { and, eq, desc, isNull, isNotNull, inArray } from "drizzle-orm";
+import { and, eq, desc, isNull, isNotNull, inArray, ilike } from "drizzle-orm";
 import type { Database } from "../../infrastructure/database/client.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import {
@@ -88,6 +88,12 @@ export function strengthPlansRepository(db: Database) {
           and(
             eq(plans.userId, u),
             eq(plans.kind, q.kind),
+            q.search
+              ? ilike(
+                  plans.title,
+                  "%" + q.search.replace(/[\\%_]/g, "\\$&") + "%",
+                )
+              : undefined,
             cursorCondition(q, plans.createdAt, plans.id),
           ),
         )

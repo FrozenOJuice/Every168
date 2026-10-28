@@ -26,6 +26,7 @@ import type {
   StrengthProgressQuery,
   WorkoutHistoryQuery,
   WorkoutStartInput,
+  WorkoutStartingSetup,
   WorkoutUpdateInput,
 } from "@168hours/contracts";
 import {
@@ -92,6 +93,18 @@ export function strengthRepository(db: Database) {
     });
   }
   return {
+    async setStartingSetup(
+      u: string,
+      id: string,
+      setup: WorkoutStartingSetup,
+      context: TransactionContext,
+    ) {
+      await databaseFor(db, context)
+        .update(workouts)
+        .set({ startingSetup: setup })
+        .where(owned(u, id));
+      return get(u, id, context);
+    },
     async capturePlanLinks(u: string, id: string, context: TransactionContext) {
       const rows = await databaseFor(db, context)
         .select({ id: workouts.id, version: workouts.version })
@@ -155,7 +168,12 @@ export function strengthRepository(db: Database) {
       return (
         await databaseFor(db, context)
           .insert(workouts)
-          .values({ ...v, userId: u, startedAt: new Date(v.startedAt) })
+          .values({
+            ...v,
+            userId: u,
+            startedAt: new Date(v.startedAt),
+            startingSetup: { title: v.title, notes: v.notes, exercises: [] },
+          })
           .returning()
       )[0]!;
     },
@@ -177,12 +195,16 @@ export function strengthRepository(db: Database) {
               : q.status === "completed"
                 ? isNotNull(workouts.endedAt)
                 : undefined,
-            cursorCondition(q, workouts.createdAt, workouts.id),
+            cursorCondition(q, workouts.startedAt, workouts.id),
           ),
         )
-        .orderBy(desc(workouts.createdAt), desc(workouts.id))
+        .orderBy(desc(workouts.startedAt), desc(workouts.id))
         .limit(q.limit + 1);
-      return pageResult(rows, q.limit);
+      const page = pageResult(
+        rows.map((row) => ({ id: row.id, createdAt: row.startedAt })),
+        q.limit,
+      );
+      return { items: rows.slice(0, q.limit), nextCursor: page.nextCursor };
     },
     async replace(
       context: TransactionContext,

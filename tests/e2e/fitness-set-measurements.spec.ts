@@ -77,24 +77,21 @@ test("sets inherit defaults or keep independent measurements through recovery an
   const firstReps = (await first
     .getByLabel("Target reps", { exact: true })
     .boundingBox())!;
-  const secondReps = (await second
-    .getByLabel("Target reps", { exact: true })
-    .boundingBox())!;
   const firstLoad = (await first
     .getByLabel("Target load (kg)", { exact: true })
     .boundingBox())!;
-  const secondLoad = (await second
-    .getByLabel("Target load (kg)", { exact: true })
-    .boundingBox())!;
   const duration = (await first
-    .getByLabel("Target duration (minutes)", { exact: true })
+    .getByLabel("Target duration (seconds)", { exact: true })
     .boundingBox())!;
-  expect(firstReps.x).toBeCloseTo(secondReps.x, 0);
-  expect(firstReps.width).toBeCloseTo(secondReps.width, 0);
-  expect(firstLoad.x).toBeCloseTo(secondLoad.x, 0);
-  expect(firstLoad.width).toBeCloseTo(secondLoad.width, 0);
-  expect(duration.y).toBeGreaterThan(firstReps.y + firstReps.height);
-  expect(duration.x).toBeCloseTo(firstReps.x, 0);
+  await expect(second.locator('[data-measurement="duration"]')).toHaveCount(0);
+  await expect(second.locator(".fitness-set-measurement-slot")).toHaveCount(2);
+  if (info.project.name === "phone") {
+    expect(duration.y).toBeGreaterThan(firstReps.y + firstReps.height);
+    expect(duration.x).toBeCloseTo(firstReps.x, 0);
+  } else {
+    expect(duration.y).toBeCloseTo(firstReps.y, 0);
+    expect(duration.x).toBeGreaterThan(firstLoad.x);
+  }
   await configure.click();
   await expect(selection).toBeHidden();
   await expect(configure).toHaveAttribute("data-custom", "true");
@@ -114,11 +111,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
   await selection
     .getByRole("checkbox", { name: "Reps", exact: true })
     .uncheck();
-  const retainedLoad = (await first
-    .getByLabel("Target load (kg)", { exact: true })
-    .boundingBox())!;
-  expect(retainedLoad.x).toBeCloseTo(secondLoad.x, 0);
-  expect(retainedLoad.width).toBeCloseTo(secondLoad.width, 0);
+  await expect(first.locator('[data-measurement="reps"]')).toHaveCount(0);
   await selection
     .getByRole("checkbox", { name: "Load", exact: true })
     .uncheck();
@@ -252,13 +245,9 @@ test("sets inherit defaults or keep independent measurements through recovery an
     saved.version,
   );
   await page.goto(`/fitness/session/${session.id}`);
-  await page
-    .getByRole("button", { name: "Expand Set practice exercise", exact: true })
-    .click();
+
   const active = page.getByRole("region", { name: "Current set", exact: true });
-  await active
-    .getByRole("button", { name: "Edit results", exact: true })
-    .click();
+
   await expect(
     active.getByLabel("Actual duration (seconds)", { exact: true }),
   ).toHaveValue("45");

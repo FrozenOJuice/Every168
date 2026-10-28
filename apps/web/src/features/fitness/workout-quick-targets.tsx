@@ -104,6 +104,7 @@ export function WorkoutQuickTargets({
           <WorkoutNumericInput
             id={`${restId}-sets`}
             controlLabel="Sets"
+            inputMode="numeric"
             steppers
             min={1}
             max={100}

@@ -1,4 +1,8 @@
-import type { StrengthPlan, ExerciseLoggingType } from "@168hours/contracts";
+import type {
+  StrengthPlan,
+  ExerciseLoggingType,
+  WorkoutStartingSetup,
+} from "@168hours/contracts";
 import {
   pgTable,
   uuid,
@@ -89,6 +93,7 @@ export const strengthWorkouts = pgTable(
   "strength_workouts",
   {
     ...ownedColumns(),
+    startingSetup: jsonb("starting_setup").$type<WorkoutStartingSetup>(),
     title: text("title").notNull(),
     startedAt: instant("started_at").notNull(),
     endedAt: instant("ended_at"),

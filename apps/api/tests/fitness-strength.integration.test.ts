@@ -822,3 +822,235 @@ it("projects only owned linked workouts on the local day across midnight, resche
     (await a.get("strength-plans/day-links?date=2026-11-03")).body.blockIds,
   ).toEqual([]);
 });
+
+it("searches all owned workout titles literally with stable pagination", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const create = async (owner: ReturnType<typeof client>, title: string) =>
+    (
+      await owner
+        .write("post", "strength-plans", {
+          title,
+          isDraft: true,
+          exercises: [],
+        })
+        .expect(201)
+    ).body;
+  const first = await create(a, "Leg day 100%_ready\\now");
+  const second = await create(a, "LEG day two");
+  await create(a, "Other workout");
+  await create(b, "Leg day private");
+  const page1 = (
+    await a.get("strength-plans?search=%20leg%20&limit=1").expect(200)
+  ).body;
+  expect(page1.items.map((p: { id: string }) => p.id)).toEqual([second.id]);
+  const page2 = (
+    await a
+      .get(
+        `strength-plans?search=leg&limit=1&cursor=${encodeURIComponent(page1.nextCursor)}`,
+      )
+      .expect(200)
+  ).body;
+  expect(page2.items.map((p: { id: string }) => p.id)).toEqual([first.id]);
+  expect(page2.nextCursor).toBeNull();
+  for (const term of ["%", "_", "\\"]) {
+    const results = (
+      await a
+        .get(`strength-plans?search=${encodeURIComponent(term)}`)
+        .expect(200)
+    ).body;
+    expect(results.items.map((p: { id: string }) => p.id)).toEqual([first.id]);
+  }
+  expect(
+    (await a.get("strength-plans?search=missing").expect(200)).body.items,
+  ).toEqual([]);
+  await a.get(`strength-plans?search=${"x".repeat(161)}`).expect(422);
+});
+
+it("keeps an owner-scoped starting setup and permits only its removed occurrence IDs to be restored", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const exercise = (
+    await a.write("post", "exercises", { name: "Starting squat" }).expect(201)
+  ).body;
+  const p = (
+    await a
+      .write("post", "strength-plans", {
+        title: "Starting workout",
+        exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 8 }] }],
+      })
+      .expect(201)
+  ).body;
+  const start = (
+    await a
+      .write(
+        "post",
+        `strength-plans/${p.id}/begin`,
+        { startedAt: times.startsAt },
+        p.version,
+      )
+      .expect(201)
+  ).body;
+  expect(start.startingSetup.exercises[0].id).toBe(start.exercises[0].id);
+  const clearedInput = {
+    title: "Changed",
+    notes: null,
+    startedAt: start.startedAt,
+    endedAt: null,
+    linkedTimeBlockId: null,
+    exercises: [],
+  };
+  const cleared = (
+    await a
+      .write(
+        "put",
+        `strength-workouts/${start.id}`,
+        clearedInput,
+        start.version,
+      )
+      .expect(200)
+  ).body;
+  expect(cleared.startingSetup).toEqual(start.startingSetup);
+  await a.write("delete", `strength-plans/${p.id}`, {}, p.version).expect(200);
+  await a
+    .write("delete", `exercises/${exercise.id}`, {}, exercise.version)
+    .expect(422);
+  const e = start.startingSetup.exercises[0];
+  const restoredInput = {
+    ...clearedInput,
+    title: start.startingSetup.title,
+    exercises: [
+      {
+        id: e.id,
+        exerciseId: e.exerciseId,
+        loggingType: e.loggingType,
+        notes: e.notes,
+        sets: e.sets.map((s: object) => ({ ...s, completed: false })),
+      },
+    ],
+  };
+  const restored = (
+    await a
+      .write(
+        "put",
+        `strength-workouts/${start.id}`,
+        restoredInput,
+        cleared.version,
+      )
+      .expect(200)
+  ).body;
+  expect(restored.exercises[0].sets[0].id).toBe(e.sets[0].id);
+  expect(restored.startingSetup).toEqual(start.startingSetup);
+  await b.get(`strength-workouts/${start.id}`).expect(404);
+  const another = (
+    await a
+      .write("post", "strength-workouts", {
+        title: "Other",
+        startedAt: times.startsAt,
+      })
+      .expect(201)
+  ).body;
+  await a
+    .write(
+      "put",
+      `strength-workouts/${another.id}`,
+      restoredInput,
+      another.version,
+    )
+    .expect(404);
+  await a
+    .write(
+      "put",
+      `strength-workouts/${start.id}`,
+      { ...restoredInput, startingSetup: start.startingSetup },
+      restored.version,
+    )
+    .expect(422);
+  const repeated = (
+    await a
+      .write(
+        "post",
+        `strength-workouts/${start.id}/repeat`,
+        {},
+        restored.version,
+      )
+      .expect(201)
+  ).body;
+  expect(repeated.startingSetup.exercises[0].id).toBe(repeated.exercises[0].id);
+  expect(repeated.startingSetup.exercises[0].id).not.toBe(e.id);
+});
+
+it("orders workout history by corrected start time with stable date pagination and ownership", async () => {
+  const a = client((await signUp()).cookie);
+  const other = client((await signUp()).cookie);
+  const recent = (
+    await a
+      .write("post", "strength-workouts", {
+        title: "Recent",
+        startedAt: "2026-10-26T12:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  const older = (
+    await a
+      .write("post", "strength-workouts", {
+        title: "Backdated",
+        startedAt: "2026-10-20T12:00:00Z",
+      })
+      .expect(201)
+  ).body;
+  const tie = (
+    await a
+      .write("post", "strength-workouts", {
+        title: "Same date",
+        startedAt: recent.startedAt,
+      })
+      .expect(201)
+  ).body;
+  await other
+    .write("post", "strength-workouts", {
+      title: "Private newer workout",
+      startedAt: "2026-10-28T12:00:00Z",
+    })
+    .expect(201);
+  const order = [recent, tie].sort((x, y) => y.id.localeCompare(x.id));
+  const first = (await a.get("strength-workouts?limit=1").expect(200)).body;
+  expect(first.items.map((w: { id: string }) => w.id)).toEqual([order[0].id]);
+  const second = (
+    await a
+      .get(
+        `strength-workouts?limit=1&cursor=${encodeURIComponent(first.nextCursor)}`,
+      )
+      .expect(200)
+  ).body;
+  expect(second.items.map((w: { id: string }) => w.id)).toEqual([order[1].id]);
+  const third = (
+    await a
+      .get(
+        `strength-workouts?limit=1&cursor=${encodeURIComponent(second.nextCursor)}`,
+      )
+      .expect(200)
+  ).body;
+  expect(third.items.map((w: { id: string }) => w.id)).toEqual([older.id]);
+  expect(third.nextCursor).toBeNull();
+  expect(third.items[0].createdAt).toBe(older.createdAt);
+  await a
+    .write(
+      "put",
+      `strength-workouts/${older.id}`,
+      {
+        title: older.title,
+        startedAt: "2026-10-27T12:00:00Z",
+        endedAt: null,
+        exercises: [],
+      },
+      older.version,
+    )
+    .expect(200);
+  const corrected = (await a.get("strength-workouts?limit=10").expect(200))
+    .body;
+  expect(corrected.items.map((w: { id: string }) => w.id)).toEqual([
+    older.id,
+    ...order.map((w) => w.id),
+  ]);
+});

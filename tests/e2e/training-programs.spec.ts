@@ -153,9 +153,12 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     .click();
   await expect(page).toHaveURL(/\/fitness\/session\//);
   const sessionPath = new URL(page.url()).pathname;
-  await page
-    .getByRole("button", { name: "Expand Program squat exercise", exact: true })
-    .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Collapse Program squat exercise",
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Complete set", exact: true }).click();
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   await page
@@ -205,7 +208,9 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     .click();
   await expect(page).toHaveURL(/\/fitness\/programs$/);
   await page.goto(sessionPath);
-  await expect(page.getByText("Workout review", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: / - Summary$/, level: 1 }),
+  ).toBeVisible();
 });
 test("program forms retain edits, surface read failures, recover a lost response with the same key and reject stale writes", async ({
   page,

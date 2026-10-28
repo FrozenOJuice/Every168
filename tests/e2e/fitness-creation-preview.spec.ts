@@ -27,8 +27,17 @@ test("creation preview keeps library beside draft and saves shared and individua
   await expect(
     page.getByRole("button", { name: "Day", exact: true }),
   ).toHaveCount(0);
+  await expect(
+    draft.getByLabel("Workout name", { exact: true }),
+  ).not.toHaveAttribute("placeholder");
+  await expect(
+    draft.getByText("Add exercises from the library to build your workout."),
+  ).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath("empty-workout-editor.png"),
+  });
   await draft
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Preview workout");
   if (testInfo.project.name === "phone")
     await page
@@ -49,6 +58,27 @@ test("creation preview keeps library beside draft and saves shared and individua
   await expect(
     draft.getByRole("button", { name: "Collapse Squat exercise", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    draft.getByRole("region", { name: "Squat exercise 1", exact: true }),
+  ).toBeFocused();
+  const nameToggle = draft.locator(".fitness-exercise-name");
+  await nameToggle.click();
+  await expect(nameToggle).toHaveAttribute("aria-expanded", "false");
+  await nameToggle.click();
+  await expect(nameToggle).toHaveAttribute("aria-expanded", "true");
+  await draft
+    .getByRole("button", { name: "Exercise details for Squat", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Back to exercises", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Back to exercises", exact: true })
+    .click();
+  if (testInfo.project.name === "phone")
+    await page
+      .getByRole("button", { name: "Your workout", exact: true })
+      .click();
   const quick = draft.locator(".fitness-quick-targets");
   await expect(draft.getByText("Workout targets", { exact: true })).toHaveCount(
     0,
@@ -57,6 +87,24 @@ test("creation preview keeps library beside draft and saves shared and individua
     0,
   );
   const count = quick.getByLabel("Sets", { exact: true });
+  const step = async (label: string, direction: "Increase" | "Decrease") => {
+    if (testInfo.project.name === "phone") {
+      const input = quick.getByLabel(label, { exact: true });
+      await input.press(direction === "Increase" ? "ArrowUp" : "ArrowDown");
+      await input.blur();
+    } else {
+      await quick
+        .getByRole("button", { name: `${direction} ${label}`, exact: true })
+        .click();
+    }
+  };
+  if (testInfo.project.name === "phone") {
+    await expect(
+      quick.getByRole("button", { name: "Increase Sets", exact: true }),
+    ).toBeHidden();
+    expect((await count.boundingBox())!.height).toBeLessThanOrEqual(50);
+  }
+
   const singleSetRest = quick.getByRole("button", {
     name: "Rest between sets",
     exact: true,
@@ -68,24 +116,26 @@ test("creation preview keeps library beside draft and saves shared and individua
   const increaseSets = quick.getByRole("button", {
     name: "Increase Sets",
     exact: true,
+    includeHidden: true,
   });
   const decreaseSets = quick.getByRole("button", {
     name: "Decrease Sets",
     exact: true,
+    includeHidden: true,
   });
   await expect(decreaseSets).toBeDisabled();
-  await increaseSets.click();
+  await step("Sets", "Increase");
   await expect(count).toHaveValue("2");
   await expect(singleSetRest).toBeEnabled();
-  await decreaseSets.click();
+  await step("Sets", "Decrease");
   await expect(count).toHaveValue("1");
   await expect(singleSetRest).toBeDisabled();
   await count.fill("");
-  await increaseSets.click();
+  await step("Sets", "Increase");
   await expect(count).toHaveValue("1");
   await count.fill("100");
   await expect(increaseSets).toBeDisabled();
-  await decreaseSets.click();
+  await step("Sets", "Decrease");
   await expect(count).toHaveValue("99");
   await count.fill("1");
   await expect(
@@ -108,32 +158,24 @@ test("creation preview keeps library beside draft and saves shared and individua
     0,
   );
   await quick.getByLabel("Target reps", { exact: true }).fill("8");
-  await quick
-    .getByRole("button", { name: "Increase Target reps", exact: true })
-    .click();
+  await step("Target reps", "Increase");
   await expect(quick.getByLabel("Target reps", { exact: true })).toHaveValue(
     "9",
   );
-  await quick
-    .getByRole("button", { name: "Decrease Target reps", exact: true })
-    .click();
+  await step("Target reps", "Decrease");
   const loadTarget = quick.getByLabel("Target load (kg)", { exact: true });
   await loadTarget.fill("12.5");
-  await quick
-    .getByRole("button", { name: "Increase Target load (kg)", exact: true })
-    .click();
+  await step("Target load (kg)", "Increase");
   await expect(loadTarget).toHaveValue("13.5");
-  await quick
-    .getByRole("button", { name: "Decrease Target load (kg)", exact: true })
-    .click();
+  await step("Target load (kg)", "Decrease");
   await expect(loadTarget).toHaveValue("12.5");
   await quick.getByLabel("Target reps", { exact: true }).focus();
   await page.keyboard.press("Tab");
   await expect(loadTarget).toBeFocused();
   await quick.getByLabel("Target load (kg)", { exact: true }).fill("40");
-  await expect(draft.locator(".fitness-exercise-target-summary")).toHaveText(
-    "3×8 | 40 kg",
-  );
+  await expect(
+    draft.locator(".fitness-exercise-target-summary:visible"),
+  ).toHaveText("3×8 | 40 kg");
   const restHeading = quick.getByRole("button", {
     name: "Rest between sets",
     exact: true,
@@ -258,7 +300,10 @@ test("creation preview keeps library beside draft and saves shared and individua
   const headerControls = await Promise.all(
     [
       advanced,
-      collapseExercise,
+      draft.getByRole("button", {
+        name: "Exercise details for Squat",
+        exact: true,
+      }),
       draft.getByRole("button", { name: "Remove Squat exercise", exact: true }),
     ].map((control) => control.boundingBox()),
   );
@@ -295,10 +340,10 @@ test("creation preview keeps library beside draft and saves shared and individua
   await collapseExercise.click();
   await expect(exerciseCard.locator(".fitness-exercise-body")).toBeHidden();
   await expect(
-    exerciseCard.locator(".fitness-exercise-target-summary"),
+    exerciseCard.locator(".fitness-exercise-target-summary:visible"),
   ).toBeVisible();
   await expect(
-    exerciseCard.locator(".fitness-exercise-target-summary"),
+    exerciseCard.locator(".fitness-exercise-target-summary:visible"),
   ).toHaveText("3×8 | 40 kg");
   await expect(
     exerciseCard.locator(".fitness-collapsed-exercise-summary"),
@@ -511,7 +556,7 @@ test("creation preview keeps library beside draft and saves shared and individua
       .getByLabel("Target reps", { exact: true })
       .first()
       .evaluate((input) => {
-        const label = input.parentElement!.querySelector("label")!;
+        const label = input.closest(".field")!.querySelector("label")!;
         return {
           labelWeight: getComputedStyle(label).fontWeight,
           labelSize: getComputedStyle(label).fontSize,
@@ -527,6 +572,10 @@ test("creation preview keeps library beside draft and saves shared and individua
     .getByLabel("Target duration (seconds)", { exact: true })
     .first()
     .fill("60");
+  await draft
+    .getByRole("combobox", { name: "Target duration unit", exact: true })
+    .first()
+    .selectOption("min");
   await measurementToggle.click();
   await expect(measurements).toBeHidden();
   await expect(measurementToggle).toHaveAccessibleDescription(
@@ -662,8 +711,12 @@ test("creation preview keeps library beside draft and saves shared and individua
     .getByLabel("Target load (kg)", { exact: true })
     .first()
     .fill("20");
-  await expect(draft.locator(".fitness-exercise-target-summary")).toHaveText(
-    "3 sets | 8 reps | 1m | 20–40 kg | Some targets unset",
+  await expect(
+    draft.locator(".fitness-exercise-target-summary:visible"),
+  ).toHaveText(
+    info.project.name === "phone"
+      ? "3 sets · Mixed targets"
+      : "3 sets | 8 reps | 1m | 20–40 kg | Some targets unset",
   );
   for (let i = 0; i < 3; i++)
     await draft.getByRole("button", { name: "Add set", exact: true }).click();
@@ -852,6 +905,92 @@ test("creation preview keeps library beside draft and saves shared and individua
     .nth(1)
     .getByRole("button", { name: "Remove Squat exercise", exact: true })
     .click();
-  await draft.getByRole("button", { name: "Cancel", exact: true }).click();
+  await draft
+    .getByRole("button", { name: "Back to Training", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/fitness$/);
+});
+
+test("adding to a long workout brings the exact new occurrence into view", async ({
+  page,
+}, testInfo) => {
+  const post = async (path: string, data: object) => {
+    const response = await page.request.post(path, {
+      headers: {
+        Origin: "http://localhost:3100",
+        "Idempotency-Key": randomUUID(),
+      },
+      data,
+    });
+    expect(response.ok()).toBe(true);
+    return response.json();
+  };
+  await post("/api/auth/sign-up/email", {
+    name: "Addition focus",
+    email: `focus-${randomUUID()}@example.com`,
+    password: "Synthetic-focus-password-123",
+  });
+  const exercise = await post("/api/v1/exercises", {
+    name: "Focus movement",
+    loggingType: "reps_load",
+  });
+  const plan = await post("/api/v1/strength-plans", {
+    title: "Long workout",
+    exercises: Array.from({ length: 12 }, () => ({
+      exerciseId: exercise.id,
+      sets: [{ targetReps: 8 }],
+    })),
+  });
+  await page.goto(`/fitness/workout/${plan.id}`);
+  const draft = page.getByRole("region", {
+    name: "Workout workspace",
+    includeHidden: true,
+  });
+  await expect(draft.getByLabel("Workout name", { exact: true })).toHaveValue(
+    "Long workout",
+  );
+  if (testInfo.project.name === "phone")
+    await page
+      .getByRole("button", { name: "Add exercises", exact: true })
+      .click();
+  const library = page.getByRole("complementary", {
+    name: "Exercise library panel",
+  });
+  await library
+    .getByRole("searchbox", { name: "Find an exercise", exact: true })
+    .fill("Focus movement");
+  await library
+    .getByRole("button", { name: "Add Focus movement", exact: true })
+    .click();
+  const added = draft.getByRole("region", {
+    name: "Focus movement exercise 13",
+    exact: true,
+  });
+  await expect(added).toBeFocused();
+  await expect(
+    added.getByRole("button", {
+      name: "Collapse Focus movement exercise",
+      exact: true,
+    }),
+  ).toBeVisible();
+  const heading = await added
+    .locator(".fitness-workout-exercise-heading")
+    .boundingBox();
+  const scroller = await draft.locator(".fitness-builder-scroll").boundingBox();
+  const footer = await draft.locator(".fitness-builder-footer").boundingBox();
+  expect(heading!.y).toBeGreaterThanOrEqual(scroller!.y - 1);
+  expect(heading!.y + heading!.height).toBeLessThan(footer!.y);
+  expect(
+    await draft
+      .locator(".fitness-builder-scroll")
+      .evaluate((node) => node.scrollTop),
+  ).toBeGreaterThan(0);
+  const reps = added.getByLabel("Target reps", { exact: true });
+  await reps.fill("10");
+  await expect(reps).toBeFocused();
+  await expect(reps).toHaveValue("10");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.screenshot({
+    path: testInfo.outputPath("new-exercise-in-long-workout.png"),
+  });
 });

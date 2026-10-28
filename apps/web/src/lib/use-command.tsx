@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { ApiError, uncertainWrite } from "@168hours/api-client";
 
@@ -10,30 +10,40 @@ export function useCommand<T, V = void>(options: {
   onError?: (error: Error) => unknown;
   persistence?: { key: string; parse: (value: unknown) => V };
 }) {
-  const [recovered] = useState(() => {
-    if (!options.persistence) return null;
+  const initialPersistence = useRef(options.persistence);
+  const [recovered, setRecovered] = useState<{
+    variables: V;
+    key: string;
+  } | null>(null);
+  const [restored, setRestored] = useState(false);
+  const [storageError, setStorageError] = useState<Error | null>(null);
+  const attempt = useRef<{ variables: V; key: string } | null>(null);
+  const running = useRef(false);
+  useLayoutEffect(() => {
+    const persistence = initialPersistence.current;
+    if (!persistence) return;
     try {
       const value = JSON.parse(
-        sessionStorage.getItem(options.persistence.key) ?? "null",
+        sessionStorage.getItem(persistence.key) ?? "null",
       );
       if (
         !value ||
         typeof value.key !== "string" ||
         !/^[0-9a-f-]{36}$/i.test(value.key)
       )
-        return null;
-      return {
-        variables: options.persistence.parse(value.variables),
+        return;
+      const pending = {
+        variables: persistence.parse(value.variables),
         key: value.key as string,
       };
+      attempt.current = pending;
+      // Restore browser storage after hydration, before the first interactive paint.
+      setRecovered(pending);
+      setRestored(true);
     } catch {
-      return null;
+      // Invalid recovery data cannot be replayed safely.
     }
-  });
-  const [restored, setRestored] = useState(!!recovered);
-  const [storageError, setStorageError] = useState<Error | null>(null);
-  const attempt = useRef<{ variables: V; key: string } | null>(recovered);
-  const running = useRef(false);
+  }, []);
   const mutation = useMutation({
     mutationFn: ({ variables, key }: { variables: V; key: string }) =>
       options.mutationFn(variables, key),

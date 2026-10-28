@@ -1,6 +1,8 @@
 "use client";
+import { useWorkoutDisplayUnits } from "./workout-display-units";
+import { FitnessSelect } from "./fitness-select";
 import { WorkoutDurationField } from "./workout-duration-field";
-import { useId } from "react";
+import { useId, useState } from "react";
 import {
   fromKilograms,
   toKilograms,
@@ -39,7 +41,21 @@ export function WorkoutNumberField({
   steppers?: boolean;
 }) {
   const id = useId();
-  const { weightUnit: unit, distanceUnit } = useMe().preferences;
+  const { weightUnit, distanceUnit } = useMe().preferences;
+  const preference = weight ? weightUnit : distanceUnit;
+  const [selection, setSelection] = useState({ preference, unit: preference });
+  if (selection.preference !== preference)
+    setSelection({ preference, unit: preference });
+  const displayUnits = useWorkoutDisplayUnits();
+  const selectedUnit =
+    (weight
+      ? displayUnits?.units.weightUnit
+      : displayUnits?.units.distanceUnit) ?? selection.unit;
+  const unit = selectedUnit as typeof weightUnit;
+  const selectedDistanceUnit = selectedUnit as typeof distanceUnit;
+  const unitLabel = label.replace(/\s*\([^)]*\)$/, "");
+  const inputLabel =
+    weight || distance ? `${unitLabel} (${selectedUnit})` : label;
   if (duration)
     return (
       <WorkoutDurationField
@@ -50,26 +66,54 @@ export function WorkoutNumberField({
         error={error}
         hideLabel={hideLabel}
         placeholder={placeholder}
+        steppers={steppers}
       />
     );
   const display =
     value === null
       ? ""
       : weight
-        ? Number(fromKilograms(value, unit).toFixed(6))
+        ? Number(fromKilograms(value, unit).toFixed(2))
         : distance
-          ? Number(fromMeters(value, distanceUnit).toFixed(6))
+          ? Number(fromMeters(value, selectedDistanceUnit).toFixed(3))
           : value;
   return (
     <div className="field">
       <label htmlFor={id} className={hideLabel ? "sr-only" : undefined}>
-        {displayLabel ?? label}
+        {weight || distance
+          ? (displayLabel ?? label).replace(/\s*\([^)]*\)$/, "")
+          : (displayLabel ?? label)}
       </label>
       <WorkoutNumericInput
-        controlLabel={label}
+        controlLabel={inputLabel}
         steppers={steppers}
+        unitControl={
+          weight || distance ? (
+            <FitnessSelect
+              compact
+              hideLabel
+              searchable={false}
+              label={`${unitLabel} unit`}
+              value={selectedUnit}
+              disabled={disabled}
+              onChange={(unit) => {
+                if (displayUnits)
+                  displayUnits.change(
+                    weight
+                      ? { weightUnit: unit as typeof weightUnit }
+                      : { distanceUnit: unit as typeof distanceUnit },
+                  );
+                else
+                  setSelection({ preference, unit: unit as typeof preference });
+              }}
+              options={(weight ? ["kg", "lb"] : ["m", "km", "yd", "mi"]).map(
+                (value) => ({ value, label: value }),
+              )}
+            />
+          ) : undefined
+        }
         id={id}
-        aria-label={displayLabel ? label : undefined}
+        aria-label={inputLabel}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         inputMode="decimal"
@@ -86,7 +130,7 @@ export function WorkoutNumberField({
               : weight
                 ? toKilograms(Number(text), unit)
                 : distance
-                  ? toMeters(Number(text), distanceUnit)
+                  ? toMeters(Number(text), selectedDistanceUnit)
                   : Number(text),
           )
         }

@@ -51,7 +51,7 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     includeHidden: true,
   });
   await workout
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Mixed tracking");
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",

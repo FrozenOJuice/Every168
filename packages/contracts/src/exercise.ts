@@ -380,6 +380,7 @@ export const strengthBeginInput = z
   .object({ startedAt: instantSchema })
   .strict();
 export const strengthPlanQuery = pageQuerySchema.extend({
+  search: z.string().trim().max(160).default(""),
   kind: z.enum(["workout", "scheduled"]).default("workout"),
 });
 export type StrengthPlanInput = z.infer<typeof strengthPlanInput>;
@@ -447,7 +448,24 @@ export const setSchema = recordSchema.extend({
   ...setInput.shape,
   position: z.number(),
 });
+export const workoutStartingSetupSchema = z.object({
+  title: titleSchema,
+  notes: z.string().nullable(),
+  exercises: z.array(
+    z.object({
+      id: idSchema,
+      exerciseId: idSchema,
+      exerciseNameSnapshot: z.string(),
+      loggingType: exerciseLoggingTypeSchema,
+      intentTags: intentTagsSchema,
+      notes: z.string().nullable(),
+      sets: z.array(plannedSetInput.extend({ id: idSchema })),
+    }),
+  ),
+});
+export type WorkoutStartingSetup = z.infer<typeof workoutStartingSetupSchema>;
 export const workoutSchema = workoutSummarySchema.extend({
+  startingSetup: workoutStartingSetupSchema.nullable(),
   exercises: z.array(
     z.object({
       id: idSchema,

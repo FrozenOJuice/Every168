@@ -35,7 +35,7 @@ test("workout exercise details use the library pane and preserve the draft", asy
   });
   const mobile = testInfo.project.name !== "desktop";
   await workout
-    .getByLabel("Workout title", { exact: true })
+    .getByLabel("Workout name", { exact: true })
     .fill("Panel workout");
   if (mobile)
     await page
@@ -54,7 +54,7 @@ test("workout exercise details use the library pane and preserve the draft", asy
     .click();
   await workout.getByLabel("Target reps", { exact: true }).fill("8");
   const help = workout.getByRole("button", {
-    name: "Help with Panel squat",
+    name: "Exercise details for Panel squat",
     exact: true,
   });
   await help.click();
@@ -88,9 +88,9 @@ test("workout exercise details use the library pane and preserve the draft", asy
     await page
       .getByRole("button", { name: "Your workout", exact: true })
       .click();
-  await expect(
-    workout.getByLabel("Workout title", { exact: true }),
-  ).toHaveValue("Panel workout");
+  await expect(workout.getByLabel("Workout name", { exact: true })).toHaveValue(
+    "Panel workout",
+  );
   await expect(workout.getByLabel("Target reps", { exact: true })).toHaveValue(
     "8",
   );

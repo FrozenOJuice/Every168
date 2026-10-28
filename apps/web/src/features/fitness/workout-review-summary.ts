@@ -3,22 +3,22 @@ import type { ExerciseDraft } from "./strength-draft";
 import { workoutExerciseSummary } from "./workout-exercise-summary";
 export function actualExerciseSummary(
   exercise: ExerciseDraft,
-  units: {
-    weightUnit: "kg" | "lb";
-    distanceUnit: "m" | "km" | "yd" | "mi";
-    durationUnit?: import("@168hours/domain-utils").DurationUnit;
-  },
+  units: Parameters<typeof workoutExerciseSummary>[1],
+  setUnits?: Parameters<typeof workoutExerciseSummary>[1][],
 ) {
-  const sets = exercise.sets
-    .filter((set) => set.completed && !set.skipped)
-    .map((set) => ({
-      ...set,
-      targetReps: set.reps,
-      targetWeightKg: set.weightKg,
-      targetDurationSeconds: set.durationSeconds,
-      targetDistanceMeters: set.distanceMeters,
-      targetLaps: set.laps,
-    }));
+  const completed = exercise.sets.flatMap((set, index) =>
+    set.completed && !set.skipped
+      ? [{ set, units: setUnits?.[index] ?? units }]
+      : [],
+  );
+  const sets = completed.map(({ set }) => ({
+    ...set,
+    targetReps: set.reps,
+    targetWeightKg: set.weightKg,
+    targetDurationSeconds: set.durationSeconds,
+    targetDistanceMeters: set.distanceMeters,
+    targetLaps: set.laps,
+  }));
   if (!sets.length) return "No completed sets";
   const missing = sets.some((set) =>
     measurementsFor(
@@ -39,10 +39,12 @@ export function actualExerciseSummary(
     ),
   );
   const summary = sets.length
-    ? workoutExerciseSummary({ ...exercise, sets }, units).replace(
-        "Some targets unset",
-        "Some results not recorded",
-      )
+    ? workoutExerciseSummary(
+        { ...exercise, sets },
+        units,
+        false,
+        completed.map((item) => item.units),
+      ).replace("Some targets unset", "Some results not recorded")
     : "No completed sets";
   return missing && !summary.includes("Some results not recorded")
     ? `${summary} | Some results not recorded`

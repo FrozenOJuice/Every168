@@ -9,7 +9,7 @@ import { compose } from "../src/composition.js";
 import { createApp } from "../src/app.js";
 import { user } from "../src/modules/identity/identity.table.js";
 export const origin = "http://localhost:3000";
-export function testApp() {
+export function testApp(releaseScope: "core" | "preview" = "preview") {
   const url =
     process.env.TEST_DATABASE_URL ??
     "postgresql://hours:hours_test_only@localhost:54321/hours_test";
@@ -20,6 +20,7 @@ export function testApp() {
     );
   const deps = compose({
     NODE_ENV: "test",
+    RELEASE_SCOPE: releaseScope,
     PORT: 3001,
     DATABASE_URL: url,
     BETTER_AUTH_SECRET: "synthetic-integration-test-secret-at-least-32",

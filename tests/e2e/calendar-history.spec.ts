@@ -1,3 +1,4 @@
+import { fillCalendarField } from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -40,8 +41,8 @@ test("calendar history undoes several changes to the same block safely", async (
   await save.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await block.dblclick();
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T11:05");
-  await page.getByLabel("End", { exact: true }).fill("2026-09-07T12:10");
+  await fillCalendarField(page, "Start", "2026-09-07T11:05");
+  await fillCalendarField(page, "End", "2026-09-07T12:10");
   await save.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const adjusted = (await read()).blocks[0]!;

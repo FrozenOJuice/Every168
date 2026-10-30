@@ -1,12 +1,22 @@
 "use client";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ArrowLeft, Plus } from "lucide-react";
+import { Toast, useToast } from "@/components/ui/toast";
+import { useRecoverExerciseEditor } from "./exercise-editor-recovery";
+import { useFitnessNavigation } from "./fitness-navigation";
+import type { LibraryFilters } from "./fitness-navigation-state";
+import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import {
   type Exercise,
   type ExerciseLibraryQuery,
@@ -22,7 +32,8 @@ import { ExerciseEditor } from "./exercise-editor";
 import {
   libraryExercises,
   filterLibrary,
-  sortLibrary,
+  libraryWindow,
+  libraryEmptyState,
 } from "./exercise-library-model";
 export function ExerciseLibrary({
   view = "workout",
@@ -37,22 +48,38 @@ export function ExerciseLibrary({
   pickerOpen = false,
   onDismissPicker,
   onShowPicker,
+  editorNavigationRef,
 }: {
-  view?: "training" | "workout" | "content" | "builder";
-  onChoose?: (exercise: Exercise) => void;
+  view?: "library" | "workout" | "content" | "builder";
+  onChoose?: (exercise: Exercise) => boolean | void;
   mainContent?: ReactNode;
   detailContent?: ReactNode;
   resetKey?: string;
   filterContext?: string;
   onEditorOpen: () => void;
-  onEditorClose: () => void;
+  onEditorClose?: () => void;
   workoutLabel?: string;
   pickerOpen?: boolean;
   onDismissPicker?: () => void;
   onShowPicker?: () => void;
+  editorNavigationRef?: Ref<HTMLDivElement>;
 }) {
-  const router = useRouter();
-  const returnToTraining = useRef(false);
+  const navigation = useFitnessNavigation();
+  const workspace = useFitnessExercisePanel();
+  const savedFilters: LibraryFilters = navigation.filters(filterContext) ?? {
+    search: "",
+    sort: "name_asc",
+    equipment: [],
+    muscle: [],
+    favourites: false,
+    archived: false,
+  };
+  const { pages: savedPages = 1, ...savedFilterFields } = savedFilters;
+  const [restoredWindow, setRestoredWindow] = useState(() => ({
+    filters: JSON.stringify(savedFilterFields),
+    pages: savedPages,
+  }));
+  const returnToLibrary = useRef(false);
   const returnExerciseName = useRef("");
   const root = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -61,21 +88,41 @@ export function ExerciseLibrary({
   const gridScroll = useRef(0);
   const pageScroll = useRef(0);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const toast = useToast();
   const cache = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<ExerciseSort>("name_asc");
-  const [equipment, setEquipment] = useState<string[]>([]);
-  const [muscle, setMuscle] = useState<string[]>([]);
-  const [favourites, setFavourites] = useState(false);
-  const [archived, setArchived] = useState(false);
+  const [search, setSearch] = useState(savedFilters?.search ?? "");
+  const [sort, setSort] = useState<ExerciseSort>(
+    savedFilters?.sort ?? "name_asc",
+  );
+  const [equipment, setEquipment] = useState<string[]>(
+    savedFilters?.equipment ?? [],
+  );
+  const [muscle, setMuscle] = useState<string[]>(savedFilters?.muscle ?? []);
+  const [favourites, setFavourites] = useState(
+    savedFilters?.favourites ?? false,
+  );
+  const [archived, setArchived] = useState(savedFilters?.archived ?? false);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  useRecoverExerciseEditor((attempt) => {
+    if (view === "content") return;
+    setEditingExercise(attempt.item ?? null);
+    setCreating(!attempt.item);
+    onEditorOpen();
+  });
+
   const opener = useRef<HTMLElement | null>(null);
+  const browsing =
+    view === "library" ||
+    view === "builder" ||
+    (view === "workout" && pickerOpen);
   const catalog = useQuery({
+    enabled: browsing,
     queryKey: ["fitness", "catalog"],
     queryFn: api.getExerciseCatalog,
   });
   const custom = useInfiniteQuery({
+    enabled: browsing,
     queryKey: [
       "fitness",
       "exercises",
@@ -103,11 +150,23 @@ export function ExerciseLibrary({
       }),
     getNextPageParam: (p) => p.nextCursor ?? undefined,
   });
-  const rows = libraryExercises(
-    catalog.data ?? [],
-    custom.data?.pages.flatMap((p) => p.items) ?? [],
-  );
-  const filtered = sortLibrary(
+  const fetched = custom.data?.pages.flatMap((p) => p.items) ?? [];
+  const initialReadError =
+    (catalog.error && !catalog.data ? catalog.error : null) ??
+    (custom.error && !custom.data ? custom.error : null);
+  const refreshError =
+    !initialReadError && !custom.isFetchNextPageError
+      ? (catalog.error ?? custom.error)
+      : null;
+  const rows = libraryExercises(catalog.data ?? [], fetched);
+  const emptyState = libraryEmptyState({
+    search,
+    equipment,
+    muscle,
+    favourites,
+    archived,
+  });
+  const filtered = libraryWindow(
     filterLibrary(rows, {
       search,
       equipment,
@@ -115,7 +174,9 @@ export function ExerciseLibrary({
       archived,
       favourites,
     }),
+    fetched,
     sort,
+    !!custom.hasNextPage,
   );
   const item = rows.find((row) => row.key === selected);
   const close = () => {
@@ -150,13 +211,78 @@ export function ExerciseLibrary({
   const [lastFilterContext, setLastFilterContext] = useState(filterContext);
   if (lastFilterContext !== filterContext) {
     setLastFilterContext(filterContext);
-    setSearch("");
-    setEquipment([]);
-    setMuscle([]);
-    setFavourites(false);
-    setArchived(false);
-    setSort("name_asc");
+    setRestoredWindow({
+      filters: JSON.stringify(savedFilterFields),
+      pages: savedPages,
+    });
+    setSearch(savedFilters?.search ?? "");
+    setEquipment(savedFilters?.equipment ?? []);
+    setMuscle(savedFilters?.muscle ?? []);
+    setFavourites(savedFilters?.favourites ?? false);
+    setArchived(savedFilters?.archived ?? false);
+    setSort(savedFilters?.sort ?? "name_asc");
   }
+  const filterSignature = JSON.stringify({
+    search,
+    sort,
+    equipment,
+    muscle,
+    favourites,
+    archived,
+  });
+  const requestedPages =
+    restoredWindow.filters === filterSignature ? restoredWindow.pages : 1;
+  const {
+    data: libraryData,
+    isFetching: libraryFetching,
+    error: libraryError,
+    hasNextPage: libraryHasMore,
+    fetchNextPage: fetchLibraryPage,
+  } = custom;
+  const loadedPages = libraryData?.pages.length ?? 1;
+  useLayoutEffect(() => {
+    if (
+      browsing &&
+      libraryData &&
+      !libraryFetching &&
+      !libraryError &&
+      libraryHasMore &&
+      loadedPages < requestedPages
+    )
+      void fetchLibraryPage();
+  }, [
+    browsing,
+    libraryData,
+    libraryFetching,
+    libraryError,
+    libraryHasMore,
+    loadedPages,
+    requestedPages,
+    fetchLibraryPage,
+  ]);
+  const { setFilters } = navigation;
+  useLayoutEffect(() => {
+    setFilters(filterContext, {
+      search,
+      sort,
+      equipment,
+      muscle,
+      favourites,
+      archived,
+      pages: Math.max(loadedPages, requestedPages),
+    });
+  }, [
+    setFilters,
+    loadedPages,
+    requestedPages,
+    filterContext,
+    search,
+    sort,
+    equipment,
+    muscle,
+    favourites,
+    archived,
+  ]);
   const choosing = !!onChoose;
   const [wasChoosing, setWasChoosing] = useState(choosing);
   if (lastContext !== resetKey) {
@@ -172,7 +298,7 @@ export function ExerciseLibrary({
   const closeEditor = () => {
     setCreating(false);
     setEditingExercise(null);
-    onEditorClose();
+    onEditorClose?.();
     requestAnimationFrame(() => {
       const target =
         opener.current?.isConnected && opener.current.getClientRects().length
@@ -203,12 +329,21 @@ export function ExerciseLibrary({
             void cache.invalidateQueries({ queryKey: ["fitness", "catalog"] });
             if (creating) {
               clearFilters();
-              onChoose?.(exercise);
-            }
+              const accepted = onChoose?.(exercise);
+              toast.show({
+                kind: accepted === false ? "info" : "success",
+                message: onChoose
+                  ? accepted === false
+                    ? "Exercise created, but it couldn’t be added to the workout."
+                    : "Created and added to workout."
+                  : "Exercise created.",
+              });
+            } else
+              toast.show({ kind: "success", message: "Exercise updated." });
             setCreating(false);
             setEditingExercise(null);
             setSelected(exercise.id);
-            onEditorClose();
+            onEditorClose?.();
           }}
         />
       </section>
@@ -219,9 +354,30 @@ export function ExerciseLibrary({
       <ExerciseDetails
         key={item.key}
         item={item}
-        onClose={close}
-        onChoose={onChoose}
-        workoutContext={!!editor}
+        onClose={
+          view === "builder" || view === "workout"
+            ? () => {
+                setSelected(null);
+                onDismissPicker?.();
+              }
+            : close
+        }
+        backLabel={
+          view === "builder" || view === "workout"
+            ? "Back to workout"
+            : "Back to Exercises"
+        }
+        onChoose={
+          onChoose
+            ? (exercise) => {
+                const accepted = onChoose(exercise);
+                if (accepted !== false) setSelected(null);
+              }
+            : undefined
+        }
+        workoutContext={view === "builder" || view === "workout" || !!editor}
+        standalone={view !== "builder"}
+        reference={view === "builder"}
         onEdit={(exercise) => {
           opener.current =
             document.activeElement instanceof HTMLElement
@@ -241,8 +397,8 @@ export function ExerciseLibrary({
           setFavourites(false);
           setCreating(false);
           setSelected(exercise.id);
-          setEditingExercise(exercise);
-          onEditorOpen();
+          setEditingExercise(null);
+          onEditorClose?.();
         }}
       />
     ) : null);
@@ -269,7 +425,7 @@ export function ExerciseLibrary({
     return () => cancelAnimationFrame(frame);
   }, [pickerOpen, showingDetails]);
   useLayoutEffect(() => {
-    if (view !== "training" || !returnToTraining.current) return;
+    if (view !== "library" || !returnToLibrary.current) return;
     const frame = requestAnimationFrame(() => {
       window.scrollTo({ top: pageScroll.current });
       const target = Array.from(
@@ -281,7 +437,7 @@ export function ExerciseLibrary({
           button.getAttribute("aria-label") === returnExerciseName.current,
       );
       target?.focus({ preventScroll: true });
-      returnToTraining.current = false;
+      returnToLibrary.current = false;
     });
     return () => cancelAnimationFrame(frame);
   }, [view]);
@@ -313,7 +469,7 @@ export function ExerciseLibrary({
           </div>
           <button
             type="button"
-            className="fitness-text-action"
+            className={`button${view === "library" ? " primary" : ""}`}
             disabled={!!editor}
             onClick={(e) => {
               opener.current = e.currentTarget;
@@ -351,11 +507,17 @@ export function ExerciseLibrary({
             setSelected(null);
           }}
         />
+        {archived && (
+          <p className="muted text-small">
+            Showing hidden built-ins and archived custom exercises. Turn off
+            Hidden to return to your active library.
+          </p>
+        )}
         {catalog.isPending || custom.isPending ? (
           <Loading />
-        ) : catalog.error || custom.error ? (
+        ) : initialReadError ? (
           <ErrorState
-            error={(catalog.error ?? custom.error)!}
+            error={initialReadError}
             retry={() => {
               void catalog.refetch();
               void custom.refetch();
@@ -379,17 +541,27 @@ export function ExerciseLibrary({
                 onDetails={(target) => {
                   opener.current = target;
                   captureScroll();
-                  if (view === "training") {
-                    returnToTraining.current = true;
+                  if (view === "library") {
+                    returnToLibrary.current = true;
                     returnExerciseName.current = exercise.name;
-                    router.push(
-                      exercise.definition
+                    navigation.openExercise({
+                      id: exercise.exercise?.id,
+                      catalogKey: exercise.definition?.key,
+                      href: exercise.definition
                         ? `/fitness/exercises/catalog/${encodeURIComponent(exercise.definition.key)}`
                         : `/fitness/exercises/${exercise.exercise!.id}`,
-                    );
+                      inline: false,
+                    });
                     return;
                   }
-                  setSelected(exercise.key);
+                  if (exercise.exercise)
+                    workspace.help(
+                      exercise.exercise.id,
+                      false,
+                      undefined,
+                      true,
+                    );
+                  else setSelected(exercise.key);
                 }}
               >
                 <span
@@ -409,22 +581,51 @@ export function ExerciseLibrary({
           !custom.isPending &&
           !catalog.error &&
           !custom.error &&
-          !filtered.length && (
+          !filtered.length &&
+          !custom.hasNextPage && (
             <div className="fitness-quiet-empty">
-              <h3>No matching exercises</h3>
-              <p>Try another name or clear the filters.</p>
+              <h3>{emptyState.title}</h3>
+              <p>{emptyState.description}</p>
             </div>
           )}
-        {custom.hasNextPage && (
-          <button
-            type="button"
-            className="fitness-text-action"
-            disabled={custom.isFetchingNextPage}
-            onClick={() => void custom.fetchNextPage()}
-          >
-            More of your exercises
-          </button>
+        {refreshError && (
+          <ErrorState
+            error={refreshError}
+            retry={() => {
+              void catalog.refetch();
+              void custom.refetch();
+            }}
+          />
         )}
+        {custom.isFetchNextPageError && (
+          <div className="fitness-library-load-error" role="alert">
+            <p className="error">Couldn’t load more exercises.</p>
+            <button
+              type="button"
+              className="button"
+              disabled={custom.isFetchingNextPage}
+              onClick={() => void custom.fetchNextPage()}
+            >
+              {custom.isFetchingNextPage
+                ? "Loading exercises…"
+                : "Retry loading exercises"}
+            </button>
+          </div>
+        )}
+        {custom.hasNextPage &&
+          !custom.isFetchNextPageError &&
+          !initialReadError && (
+            <button
+              type="button"
+              className="fitness-text-action"
+              disabled={custom.isFetchingNextPage}
+              onClick={() => void custom.fetchNextPage()}
+            >
+              {custom.isFetchingNextPage
+                ? "Loading exercises…"
+                : "Show more exercises"}
+            </button>
+          )}
       </section>
       <div className="fitness-library-focus" hidden={!details}>
         {details}
@@ -437,7 +638,13 @@ export function ExerciseLibrary({
       data-picker-open={pickerOpen}
       className={`fitness-library fitness-library-view-${view}${editor ? " has-editor" : ""}${details ? " has-detail" : ""}`}
     >
-      {view === "builder" && !editor && (
+      {view === "builder" && !editor && !details && (
+        <div
+          ref={editorNavigationRef}
+          className="fitness-creation-mobile-navigation"
+        />
+      )}
+      {view === "builder" && !editor && !details && (
         <div
           className="fitness-creation-mobile-tabs"
           role="group"
@@ -459,6 +666,14 @@ export function ExerciseLibrary({
           </button>
         </div>
       )}
+      {toast.notice && (
+        <Toast
+          key={toast.notice.id}
+          {...toast.notice}
+          onDismiss={() => toast.dismiss()}
+          durationMs={5000}
+        />
+      )}
       <div className="fitness-library-layout">
         <div
           className="fitness-primary-pane"
@@ -474,17 +689,17 @@ export function ExerciseLibrary({
             {editor}
           </div>
         </div>
-        {(view === "training" ||
+        {(view === "library" ||
           view === "builder" ||
           (view === "workout" && pickerOpen)) && (
           <>
             {view === "workout" && !editor && !detailContent && (
               <button
                 type="button"
-                className="fitness-text-action"
+                className="fitness-back"
                 onClick={onDismissPicker}
               >
-                ← Back to workout
+                <ArrowLeft size={16} aria-hidden="true" /> Back to workout
               </button>
             )}
             {exercisePanel}

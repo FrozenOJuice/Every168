@@ -131,7 +131,20 @@ test("overflow timed and all-day plans share selection, group actions, editing a
       exact: true,
     }),
   ).toBeVisible();
-  await expect(move.getByLabel("Destination date")).toBeEditable();
+  await move
+    .getByRole("button", { name: "Destination date", exact: true })
+    .click();
+  await expect(
+    move.getByRole("dialog", { name: "Choose day", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(move).toBeVisible();
+  await move.getByRole("button", { name: "Start time", exact: true }).click();
+  await expect(
+    move.getByRole("dialog", { name: "Choose start time", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(move).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(move).toHaveCount(0);
   await expect(popup(page)).toBeVisible();
@@ -281,7 +294,7 @@ test("Next plans select, copy, group-delete, undo and edit without leaving the a
   await ready(page);
   await next.click();
   const other = feed
-    .locator(".calendar-record.planned:not(.day-at-a-glance-next)")
+    .locator(`.calendar-record.planned:not([data-calendar-record="${id}"])`)
     .first();
   const otherId = await other.getAttribute("data-calendar-record");
   await other.click({ modifiers: ["Meta"] });
@@ -298,7 +311,7 @@ test("Next plans select, copy, group-delete, undo and edit without leaving the a
   await page.keyboard.press("Meta+z");
   await expect(next).toHaveAttribute("data-calendar-record", id!);
   await expect(
-    feed.locator(`[data-calendar-record="${otherId}"]`),
+    feed.locator(`[data-calendar-record="${otherId}"]`).first(),
   ).toBeVisible();
   await ready(page);
   await next.dblclick();
@@ -314,4 +327,52 @@ test("Next plans select, copy, group-delete, undo and edit without leaving the a
   await expect(editor(page).getByLabel("Title", { exact: true })).toHaveValue(
     title,
   );
+});
+
+test("all-day-only group movement uses a date without a time field", async ({
+  page,
+}) => {
+  const { items, blocks } = await start(page);
+  await openPopup(page);
+  await plan(page, items[0]!.id).click();
+  await plan(page, items[1]!.id).click({ modifiers: ["Meta"] });
+  await plan(page, items[0]!.id).press("Shift+F10");
+  await menu(page)
+    .getByRole("menuitem", { name: "Move…", exact: true })
+    .click();
+  const move = page.getByRole("dialog", {
+    name: "Move selected plans",
+    exact: true,
+  });
+  await expect(move).toContainText(/All-day plan [12]/);
+  await expect(
+    move.getByRole("button", { name: "Start time", exact: true }),
+  ).toHaveCount(0);
+  await move
+    .getByRole("button", { name: "Destination date", exact: true })
+    .click();
+  await move
+    .getByRole("dialog", { name: "Choose day", exact: true })
+    .getByRole("button", { name: /September 8, 2026/ })
+    .click();
+  await move.getByRole("button", { name: "Move plans", exact: true }).click();
+  await expect(move).toHaveCount(0);
+  const week = await (
+    await page.request.get("/api/v1/weeks/2026-09-07")
+  ).json();
+  expect(week.blocks.map((block: Block) => block.startsAt)).toEqual(
+    blocks.map((block) => block.startsAt),
+  );
+  const moved = await (
+    await page.request.get(
+      "/api/v1/calendar/items?from=2026-09-07&to=2026-09-09",
+    )
+  ).json();
+  expect(moved).toHaveLength(2);
+  expect(
+    moved.every(
+      (item: CalendarItem) =>
+        item.date === "2026-09-08" && item.endDate === "2026-09-08",
+    ),
+  ).toBe(true);
 });

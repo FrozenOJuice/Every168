@@ -23,6 +23,9 @@ export function useSessionRest(
         v.every((k) => typeof k === "string");
       return value &&
         Number.isFinite(value.until) &&
+        Number.isFinite(value.startedAt) &&
+        Number.isFinite(value.durationSeconds) &&
+        value.durationSeconds > 0 &&
         typeof value.exercise === "string" &&
         keys(value.source?.exerciseKeys) &&
         keys(value.source?.setKeys)

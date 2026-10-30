@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import Link from "next/link";
 import { localDate } from "@168hours/domain-utils";
 import { useState } from "react";
@@ -62,6 +64,8 @@ function Contents({
   onChanged: () => void;
   onClose: () => void;
 }) {
+  const confirm = useConfirm();
+
   const { task, times, schedules } = data;
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<"schedule" | "time" | null>(null);
@@ -240,8 +244,8 @@ function Contents({
         {task.repeat && !task.advanced && (
           <button
             className="button"
-            onClick={() => {
-              if (confirm("Skip this occurrence and create the next?"))
+            onClick={async () => {
+              if (await confirm("Skip this occurrence and create the next?"))
                 act({ type: "state", input: { status: "skipped" } });
             }}
           >
@@ -261,9 +265,9 @@ function Contents({
         </button>
         <button
           className="button danger"
-          onClick={() => {
+          onClick={async () => {
             if (
-              confirm(
+              await confirm(
                 "Delete this task, its scheduled blocks and its recorded time? Repeating tasks will not advance from a deleted occurrence.",
               )
             )
@@ -299,9 +303,9 @@ function Contents({
               <button
                 disabled={command.isPending}
                 className="button"
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    confirm(
+                    await confirm(
                       "Remove this scheduled work block? The task will stay.",
                     )
                   )
@@ -356,8 +360,8 @@ function Contents({
                 <button
                   disabled={command.isPending}
                   className="button danger"
-                  onClick={() => {
-                    if (confirm("Delete this actual time record?"))
+                  onClick={async () => {
+                    if (await confirm("Delete this actual time record?"))
                       act({ type: "deleteTime", id: t.id, version: t.version });
                   }}
                 >

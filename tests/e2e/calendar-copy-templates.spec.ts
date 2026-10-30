@@ -72,19 +72,48 @@ test("templates and keyboard copying work without the Copy plans form", async ({
     await (await page.request.get("/api/v1/weeks/2026-10-05")).json()
   ).blocks;
   expect(applied).toHaveLength(4);
-  await page
-    .locator(".app-toast")
-    .getByRole("button", { name: "Undo", exact: true })
-    .click();
+  // Template undo survives refresh and restores the same plans through redo.
+  await page.reload();
+  await expect(page.locator(".calendar-interactions")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await page.keyboard.press("Meta+z");
   await expect(
     dayGrid.getByRole("button", { name: /Work day one.*planned/ }),
   ).toHaveCount(0);
-  expect(
-    (await (await page.request.get("/api/v1/weeks/2026-10-05")).json()).blocks,
-  ).toHaveLength(0);
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get("/api/v1/weeks/2026-10-05")).json())
+          .blocks.length,
+    )
+    .toBe(0);
   expect(
     (await (await page.request.get("/api/v1/weeks/2026-10-12")).json()).blocks,
   ).toHaveLength(0);
+  await expect(page.locator(".calendar-interactions")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await page.reload();
+  await expect(page.locator(".calendar-interactions")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await page.keyboard.press("Meta+Shift+z");
+  await expect
+    .poll(
+      async () =>
+        (await (await page.request.get("/api/v1/weeks/2026-10-05")).json())
+          .blocks.length,
+    )
+    .toBe(4);
+  expect(
+    (await (await page.request.get("/api/v1/weeks/2026-10-05")).json()).blocks
+      .map((b: { id: string }) => b.id)
+      .sort(),
+  ).toEqual(applied.map((b: { id: string }) => b.id).sort());
   await page.goto("/?date=2026-09-07&view=day");
   await page
     .getByRole("region", { name: "Daily time grid" })

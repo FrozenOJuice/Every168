@@ -45,8 +45,8 @@ test("exercise editors keep one editable set through removal, mode changes and r
   await expect(
     workout.getByLabel("Target reps", { exact: true }),
   ).toBeEnabled();
-  await workout
-    .getByRole("button", { name: "Back to Training", exact: true })
+  await page
+    .getByRole("button", { name: "Back to Fitness", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -90,7 +90,7 @@ test("exercise editors keep one editable set through removal, mode changes and r
     "",
   );
   await workout.getByLabel("Target reps", { exact: true }).fill("12");
-  await workout.getByLabel("Target load (kg)", { exact: true }).fill("100");
+  await workout.getByLabel("Target weight (kg)", { exact: true }).fill("100");
   await workout
     .getByRole("button", { name: "Advanced editor", exact: true })
     .click();
@@ -122,7 +122,7 @@ test("exercise editors keep one editable set through removal, mode changes and r
     "8",
   );
   await expect(
-    workout.getByLabel("Target load (kg)", { exact: true }),
+    workout.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("100");
   await workout
     .getByRole("button", { name: "Advanced editor", exact: true })

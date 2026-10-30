@@ -41,6 +41,7 @@ export function sessionDraft(w: Workout): SessionDraft {
     notes: w.notes,
     startedAt: w.startedAt,
     endedAt: w.endedAt,
+    pauses: w.pauses,
     linkedTimeBlockId: w.linkedTimeBlockId,
     exercises: w.exercises.map((e) => ({
       ...e,

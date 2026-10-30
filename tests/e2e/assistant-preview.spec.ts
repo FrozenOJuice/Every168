@@ -60,7 +60,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
     .fill("Keep this unsaved workout");
   await page.getByLabel("Sets", { exact: true }).fill("3");
   await page.getByLabel("Target reps", { exact: true }).fill("12");
-  await page.getByLabel("Target load (kg)", { exact: true }).fill("80");
+  await page.getByLabel("Target weight (kg)", { exact: true }).fill("80");
   const writes: string[] = [];
   page.on("request", (request) => {
     if (
@@ -165,7 +165,7 @@ test("quick chat hands its draft and frozen workout context to Assistant and ret
     "12",
   );
   await expect(
-    page.getByLabel("Target load (kg)", { exact: true }),
+    page.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("80");
   // Recovery notices and fixed save controls stay clear of the launcher.
   const recovered = page.locator(".app-toast");
@@ -431,18 +431,24 @@ test("quick chat remains available inside a modal editor and honors cancelled na
   );
   await expect(launcher(page)).toBeFocused();
   await launcher(page).click();
-  page.once("dialog", (dialog) => dialog.dismiss());
   await popup(page)
     .getByRole("link", { name: "Open in Assistant", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Discard changes?", exact: true })
+    .getByRole("button", { name: "Keep editing", exact: true })
     .click();
   await expect(popup(page)).toBeVisible();
   await expect(page).toHaveURL(/\/food\?/);
   await expect(message(page)).toHaveValue("Help me with this food");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath("assistant-in-editor.png") });
-  page.once("dialog", (dialog) => dialog.accept());
   await popup(page)
     .getByRole("link", { name: "Open in Assistant", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Discard changes?", exact: true })
+    .getByRole("button", { name: "Discard changes", exact: true })
     .click();
   await expect(page).toHaveURL(/\/assistant$/);
   await expect(message(page)).toHaveValue("Help me with this food");

@@ -1054,3 +1054,228 @@ it("orders workout history by corrected start time with stable date pagination a
     ...order.map((w) => w.id),
   ]);
 });
+
+it("ready-workout searches omit drafts before pagination and retain owner isolation", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const ready = async (owner: ReturnType<typeof client>, title: string) => {
+    const exercise = (
+      await owner
+        .write("post", "exercises", { name: "Rotation movement" })
+        .expect(201)
+    ).body;
+    return (
+      await owner
+        .write("post", "strength-plans", {
+          title,
+          exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 8 }] }],
+        })
+        .expect(201)
+    ).body;
+  };
+  const first = await ready(a, "Rotation first");
+  const second = await ready(a, "Rotation second");
+  await a
+    .write("post", "strength-plans", {
+      title: "Rotation draft",
+      isDraft: true,
+      exercises: [],
+    })
+    .expect(201);
+  await ready(b, "Rotation private");
+  const page1 = (
+    await a
+      .get("strength-plans?readyOnly=true&search=Rotation&limit=1")
+      .expect(200)
+  ).body;
+  expect(page1.items.map((plan: { id: string }) => plan.id)).toEqual([
+    second.id,
+  ]);
+  const page2 = (
+    await a
+      .get(
+        `strength-plans?readyOnly=true&search=Rotation&limit=1&cursor=${encodeURIComponent(page1.nextCursor)}`,
+      )
+      .expect(200)
+  ).body;
+  expect(page2.items.map((plan: { id: string }) => plan.id)).toEqual([
+    first.id,
+  ]);
+  expect(page2.nextCursor).toBeNull();
+  const unfiltered = (await a.get("strength-plans?search=Rotation").expect(200))
+    .body;
+  expect(unfiltered.items).toHaveLength(3);
+  expect(unfiltered.items[0].isDraft).toBe(true);
+});
+
+it("lists owner-scoped session exercise and confirmed-set counts, reflecting corrections and deletion", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const exercise = (
+    await a
+      .write("post", "exercises", { name: "History count press" })
+      .expect(201)
+  ).body;
+  const workout = (
+    await a
+      .write("post", "strength-workouts", {
+        title: "Counted session",
+        startedAt: times.startsAt,
+      })
+      .expect(201)
+  ).body;
+  const exercises = [
+    {
+      exerciseId: exercise.id,
+      sets: [
+        { reps: 12, weightKg: 50, completed: true },
+        { reps: 999, weightKg: 999, completed: false, skipped: true },
+        { reps: 888, weightKg: 888, completed: false },
+      ],
+    },
+  ];
+  const saved = (
+    await a
+      .write(
+        "put",
+        `strength-workouts/${workout.id}`,
+        {
+          title: workout.title,
+          startedAt: times.startsAt,
+          endedAt: times.endsAt,
+          exercises,
+        },
+        workout.version,
+      )
+      .expect(200)
+  ).body;
+  expect(
+    (await a.get("strength-workouts?status=completed").expect(200)).body.items,
+  ).toEqual([
+    expect.objectContaining({
+      id: workout.id,
+      exerciseCount: 1,
+      completedSetCount: 1,
+    }),
+  ]);
+  expect(
+    (await b.get("strength-workouts?status=completed").expect(200)).body.items,
+  ).toEqual([]);
+  const corrected = (
+    await a
+      .write(
+        "put",
+        `strength-workouts/${workout.id}`,
+        {
+          title: workout.title,
+          startedAt: times.startsAt,
+          endedAt: times.endsAt,
+          exercises: [
+            {
+              exerciseId: exercise.id,
+              sets: [
+                { reps: 12, completed: true },
+                { reps: 10, completed: true },
+              ],
+            },
+          ],
+        },
+        saved.version,
+      )
+      .expect(200)
+  ).body;
+  expect(
+    (await a.get("strength-workouts?status=completed").expect(200)).body
+      .items[0],
+  ).toMatchObject({ exerciseCount: 1, completedSetCount: 2 });
+  await a
+    .write("delete", `strength-workouts/${workout.id}`, {}, corrected.version)
+    .expect(200);
+  expect(
+    (await a.get("strength-workouts?status=completed").expect(200)).body.items,
+  ).toEqual([]);
+});
+
+it("projects finished scheduled workouts across weeks without changing planned time or leaking ownership", async () => {
+  const a = client((await signUp()).cookie);
+  const b = client((await signUp()).cookie);
+  const exercise = (
+    await a.write("post", "exercises", { name: "Early workout" }).expect(201)
+  ).body;
+  const plan = (
+    await a
+      .write("post", "strength-plans", {
+        title: "Early workout",
+        exercises: [{ exerciseId: exercise.id, sets: [{ targetReps: 10 }] }],
+      })
+      .expect(201)
+  ).body;
+  const schedule = (
+    await a
+      .write(
+        "post",
+        `strength-plans/${plan.id}/schedule`,
+        { startsAt: "2026-11-10T18:00:00Z", endsAt: "2026-11-10T19:00:00Z" },
+        plan.version,
+      )
+      .expect(201)
+  ).body;
+  const links = () =>
+    a.get("strength-plans/day-links?date=2026-11-10").expect(200);
+  expect((await links()).body.completedBlockIds).toEqual([]);
+  const started = (
+    await a
+      .write(
+        "post",
+        `strength-plans/${schedule.id}/begin`,
+        { startedAt: "2026-10-29T12:00:00Z" },
+        schedule.version,
+      )
+      .expect(201)
+  ).body;
+  expect((await links()).body.completedBlockIds).toEqual([]);
+  const finished = (
+    await a
+      .write(
+        "put",
+        `strength-workouts/${started.id}`,
+        workoutUpdateInput.parse({
+          title: started.title,
+          startedAt: started.startedAt,
+          linkedTimeBlockId: started.linkedTimeBlockId,
+          endedAt: "2026-10-29T13:00:00Z",
+          exercises: [
+            {
+              id: started.exercises[0].id,
+              exerciseId: exercise.id,
+              sets: [
+                {
+                  id: started.exercises[0].sets[0].id,
+                  targetReps: 10,
+                  completed: true,
+                  reps: 10,
+                },
+              ],
+            },
+          ],
+        }),
+        started.version,
+      )
+      .expect(200)
+  ).body;
+  expect(
+    (await a.get("weeks/2026-11-10").expect(200)).body.entries,
+  ).toHaveLength(0);
+  expect((await links()).body).toEqual({
+    blockIds: [schedule.timeBlockId],
+    completedBlockIds: [schedule.timeBlockId],
+  });
+  expect(
+    (await b.get("strength-plans/day-links?date=2026-11-10").expect(200)).body,
+  ).toEqual({ blockIds: [], completedBlockIds: [] });
+  await a
+    .write("delete", `strength-workouts/${started.id}`, {}, finished.version)
+    .expect(200);
+  expect((await links()).body.completedBlockIds).toEqual([]);
+  await a.get(`time-blocks/${schedule.timeBlockId}`).expect(200);
+});

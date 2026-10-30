@@ -78,7 +78,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .getByLabel("Target reps", { exact: true })
     .boundingBox())!;
   const firstLoad = (await first
-    .getByLabel("Target load (kg)", { exact: true })
+    .getByLabel("Target weight (kg)", { exact: true })
     .boundingBox())!;
   const duration = (await first
     .getByLabel("Target duration (seconds)", { exact: true })
@@ -113,7 +113,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .uncheck();
   await expect(first.locator('[data-measurement="reps"]')).toHaveCount(0);
   await selection
-    .getByRole("checkbox", { name: "Load", exact: true })
+    .getByRole("checkbox", { name: "Weight", exact: true })
     .uncheck();
   await first
     .getByLabel("Target duration (seconds)", { exact: true })
@@ -126,7 +126,9 @@ test("sets inherit defaults or keep independent measurements through recovery an
     exact: true,
   });
   await selection.getByRole("checkbox", { name: "Reps", exact: true }).check();
-  await selection.getByRole("checkbox", { name: "Load", exact: true }).check();
+  await selection
+    .getByRole("checkbox", { name: "Weight", exact: true })
+    .check();
   await selection
     .getByRole("checkbox", { name: "Duration", exact: true })
     .uncheck();
@@ -143,7 +145,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .getByRole("checkbox", { name: "Reps", exact: true })
     .uncheck();
   await selection
-    .getByRole("checkbox", { name: "Load", exact: true })
+    .getByRole("checkbox", { name: "Weight", exact: true })
     .uncheck();
   await selection
     .getByRole("checkbox", { name: "Laps", exact: true })
@@ -202,7 +204,7 @@ test("sets inherit defaults or keep independent measurements through recovery an
     .getByRole("checkbox", { name: "Reps", exact: true })
     .uncheck();
   await selection
-    .getByRole("checkbox", { name: "Load", exact: true })
+    .getByRole("checkbox", { name: "Weight", exact: true })
     .uncheck();
   await selection
     .getByRole("checkbox", { name: "Laps", exact: true })

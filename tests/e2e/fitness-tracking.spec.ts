@@ -88,21 +88,21 @@ test("exercise-specific fields, advanced values and rest lines work in building 
   ).toBeVisible();
   await expect(plank.getByLabel("Target reps", { exact: true })).toBeHidden();
   await expect(
-    plank.getByLabel("Target load (kg)", { exact: true }),
+    plank.getByLabel("Target weight (kg)", { exact: true }),
   ).toBeHidden();
   await expect(bench.getByLabel("Target reps", { exact: true })).toBeVisible();
   await expect(
-    bench.getByLabel("Target load (kg)", { exact: true }),
+    bench.getByLabel("Target weight (kg)", { exact: true }),
   ).toBeVisible();
   await expect(pushup.getByLabel("Target reps", { exact: true })).toBeVisible();
   await expect(
-    pushup.getByLabel("Target load (kg)", { exact: true }),
+    pushup.getByLabel("Target weight (kg)", { exact: true }),
   ).toBeHidden();
   await expect(
     weighted.getByLabel("Target duration (seconds)", { exact: true }),
   ).toBeVisible();
   await expect(
-    weighted.getByLabel("Target load (kg)", { exact: true }),
+    weighted.getByLabel("Target weight (kg)", { exact: true }),
   ).toBeVisible();
   await expect(
     weighted.getByLabel("Target reps", { exact: true }),
@@ -114,11 +114,11 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     .getByRole("button", { name: /Configure measurements for/ })
     .click();
   await plank.getByRole("checkbox", { name: "Reps", exact: true }).check();
-  await plank.getByRole("checkbox", { name: "Load", exact: true }).check();
+  await plank.getByRole("checkbox", { name: "Weight", exact: true }).check();
   await plank.getByLabel("Target reps", { exact: true }).fill("3");
-  await plank.getByLabel("Target load (kg)", { exact: true }).fill("5");
+  await plank.getByLabel("Target weight (kg)", { exact: true }).fill("5");
   await plank.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
-  await plank.getByRole("checkbox", { name: "Load", exact: true }).uncheck();
+  await plank.getByRole("checkbox", { name: "Weight", exact: true }).uncheck();
   await expect(plank.getByLabel("Target reps", { exact: true })).toHaveCount(0);
   await expect(
     plank.getByRole("button", { name: /More details for set/ }),
@@ -252,13 +252,13 @@ test("exercise-specific fields, advanced values and rest lines work in building 
     .getByRole("checkbox", { name: "Reps", exact: true })
     .check();
   await sessionPlank
-    .getByRole("checkbox", { name: "Load", exact: true })
+    .getByRole("checkbox", { name: "Weight", exact: true })
     .check();
   await expect(
     sessionPlank.getByLabel("Target reps", { exact: true }).first(),
   ).toHaveValue("3");
   await expect(
-    sessionPlank.getByLabel("Target load (kg)", { exact: true }).first(),
+    sessionPlank.getByLabel("Target weight (kg)", { exact: true }).first(),
   ).toHaveValue("5");
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   expect(

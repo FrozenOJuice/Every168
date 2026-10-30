@@ -5,7 +5,13 @@ import { api } from "@/lib/api";
 import { canNavigateAway } from "@/lib/use-unsaved-changes";
 import { DomainDayPanel } from "@/features/workspace/domain-day-panel";
 import { useDomainDay } from "@/features/workspace/domain-day-context";
-export function FitnessDayPanel({ onNavigate }: { onNavigate: () => void }) {
+export function FitnessDayPanel({
+  onNavigate,
+  onBusyChange,
+}: {
+  onNavigate: () => void;
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const { date, selectDate } = useDomainDay();
   const router = useRouter();
   const links = useQuery({
@@ -15,6 +21,7 @@ export function FitnessDayPanel({ onNavigate }: { onNavigate: () => void }) {
   return (
     <DomainDayPanel
       domain="Fitness"
+      onBusyChange={onBusyChange}
       sources={["strength_workout", "cardio_activity"]}
       sourceLabels={["Fitness", "Exercise"]}
       date={date}
@@ -25,13 +32,13 @@ export function FitnessDayPanel({ onNavigate }: { onNavigate: () => void }) {
         error: links.error,
         retry: () => void links.refetch(),
       }}
-      onActivity={(entry) => {
-        if (!canNavigateAway()) return;
+      onActivity={async (entry) => {
+        if (!(await canNavigateAway())) return;
         onNavigate();
         router.push(entry.href);
       }}
-      onCalendar={() => {
-        if (!canNavigateAway()) return;
+      onCalendar={async () => {
+        if (!(await canNavigateAway())) return;
         onNavigate();
         router.push(`/?date=${date}&view=day`);
       }}

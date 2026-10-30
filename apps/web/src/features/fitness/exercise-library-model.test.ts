@@ -4,6 +4,8 @@ import {
   libraryExercises,
   filterLibrary,
   sortLibrary,
+  libraryWindow,
+  libraryEmptyState,
 } from "./exercise-library-model";
 const row = exerciseSchema.parse({
   intentTags: [],
@@ -223,4 +225,114 @@ it("sorts mixed library names and keeps recent custom creation separate from bui
     "Bench press",
   ]);
   expect(rows.map((x) => x.name)).toEqual(["Bench press", "Zebra", "alpha"]);
+});
+
+it("merges alphabetical pages as stable prefixes, including accented names and equal-name boundaries", () => {
+  const catalog = exerciseCatalogSchema.parse([
+    {
+      key: "bench",
+      name: "Bench press",
+      notes: null,
+      equipment: "Barbell",
+      muscles: ["Chest"],
+      loggingType: "reps_load",
+      exercise: null,
+    },
+    {
+      key: "squat",
+      name: "Squat",
+      notes: null,
+      equipment: "Barbell",
+      muscles: ["Legs"],
+      loggingType: "reps_load",
+      exercise: null,
+    },
+  ]);
+  const custom = ["Alpha", "Bench press", "Bench press", "Zulu", "Élan"].map(
+    (name, index) => ({
+      ...row,
+      catalogKey: null,
+      id: `00000000-0000-4000-8000-00000000000${index + 2}`,
+      name,
+    }),
+  );
+  for (const sort of ["name_asc", "name_desc"] as const) {
+    const ordered = sort === "name_asc" ? custom : [...custom].reverse();
+    const complete = libraryWindow(
+      libraryExercises(catalog, ordered),
+      ordered,
+      sort,
+      false,
+    );
+    for (let size = 1; size < ordered.length; size++) {
+      const fetched = ordered.slice(0, size);
+      const prefix = libraryWindow(
+        libraryExercises(catalog, fetched),
+        fetched,
+        sort,
+        true,
+      );
+      expect(prefix.map((x) => x.key)).toEqual(
+        complete.slice(0, prefix.length).map((x) => x.key),
+      );
+    }
+  }
+});
+
+it("keeps recent customs ahead of built-ins until custom pagination ends and orders timestamp ties like the API", () => {
+  const catalog = exerciseCatalogSchema.parse([
+    {
+      key: "bench",
+      name: "Bench press",
+      notes: null,
+      equipment: "Barbell",
+      muscles: ["Chest"],
+      loggingType: "reps_load",
+      exercise: null,
+    },
+  ]);
+  const custom = [4, 3, 2].map((index) => ({
+    ...row,
+    catalogKey: null,
+    id: `00000000-0000-4000-8000-00000000000${index}`,
+    name: `Exercise ${index}`,
+  }));
+  const first = libraryWindow(
+    libraryExercises(catalog, custom.slice(0, 2)),
+    custom.slice(0, 2),
+    "recent",
+    true,
+  );
+  const complete = libraryWindow(
+    libraryExercises(catalog, custom),
+    custom,
+    "recent",
+    false,
+  );
+  expect(first.map((x) => x.key)).toEqual(custom.slice(0, 2).map((x) => x.id));
+  expect(complete.slice(0, first.length)).toEqual(first);
+  expect(complete.at(-1)?.definition?.key).toBe("bench");
+});
+
+it("explains empty favourite, hidden, combined and narrowed library states", () => {
+  const filters = {
+    search: "",
+    equipment: [],
+    muscle: [],
+    favourites: false,
+    archived: false,
+  };
+  expect(libraryEmptyState({ ...filters, favourites: true }).title).toBe(
+    "No favourite exercises yet",
+  );
+  expect(libraryEmptyState({ ...filters, archived: true }).title).toBe(
+    "No hidden or archived exercises",
+  );
+  expect(
+    libraryEmptyState({ ...filters, archived: true, favourites: true }).title,
+  ).toBe("No hidden favourites");
+  expect(
+    libraryEmptyState({ ...filters, search: "nothing", favourites: true })
+      .title,
+  ).toBe("No matching exercises");
 });

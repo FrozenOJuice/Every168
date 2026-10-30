@@ -46,6 +46,7 @@ import type { ExerciseDraft, SetDraft } from "./strength-draft";
 function focusLiveStep(element: HTMLElement | null) {
   if (!element) return;
   element.focus({ preventScroll: true });
+  if (element.closest(".fitness-live-status")) return;
   const target = element.closest(".fitness-live-set") ?? element;
   const bounds = target.getBoundingClientRect();
   const status = document.querySelector(".fitness-live-status");
@@ -257,7 +258,7 @@ function LiveExercise({
   const skipped = exercise.sets.filter((item) => item.skipped).length;
   const labels = {
     reps: "Reps",
-    load: `Load (${preferences.weightUnit})`,
+    load: `Weight (${preferences.weightUnit})`,
     duration: "Time",
     distance: `Distance (${preferences.distanceUnit})`,
     laps: "Laps",
@@ -325,7 +326,7 @@ function LiveExercise({
             {fields.map((field) => (
               <WorkoutNumberField
                 key={`${set.clientKey ?? set.id ?? active}-${field}`}
-                label={`Actual ${field === "load" ? `load (${preferences.weightUnit})` : field === "distance" ? `distance (${preferences.distanceUnit})` : field === "duration" ? "duration (seconds)" : field}`}
+                label={`Actual ${field === "load" ? `weight (${preferences.weightUnit})` : field === "distance" ? `distance (${preferences.distanceUnit})` : field === "duration" ? "duration (seconds)" : field}`}
                 displayLabel={field === "duration" ? "Duration" : labels[field]}
                 value={results[actualKeys[field]]}
                 error={
@@ -465,7 +466,7 @@ function LiveExercise({
                 const units = displayUnits.forSet(item, index);
                 const rowLabels = {
                   ...labels,
-                  load: `Load (${units.weightUnit})`,
+                  load: `Weight (${units.weightUnit})`,
                   distance: `Distance (${units.distanceUnit})`,
                 };
                 const status = item.completed
@@ -580,49 +581,52 @@ function LiveExercise({
                 );
               })}
             </ol>
-            {active === null &&
-              (nextExercise || !exercise.sets.length || !hasCompletedSets) && (
-                <div
-                  className="fitness-live-handoff"
-                  ref={doneMessage}
-                  tabIndex={-1}
-                  role="group"
-                  aria-label="Exercise actions"
-                >
-                  {!nextExercise &&
-                    (!exercise.sets.length || !hasCompletedSets) && (
-                      <p className="fitness-live-exercise-done" role="status">
-                        {!exercise.sets.length
-                          ? "Use Edit workout to add sets."
-                          : "Undo a skipped set and complete it to finish this workout."}
-                      </p>
-                    )}
-                  {nextExercise && exercise.sets.length > 0 && (
-                    <>
-                      <div className="fitness-live-handoff-actions">
-                        <button
-                          type="button"
-                          className="button"
-                          disabled={disabled}
-                          aria-expanded={!!choosing}
-                          aria-haspopup="menu"
-                          onClick={(event) => {
-                            if (choosing) {
-                              closeChoices();
-                              return;
-                            }
-                            const anchor = event.currentTarget;
-                            const rect = anchor.getBoundingClientRect();
-                            setChoosing({
-                              anchor,
-                              x: rect.left,
-                              y: rect.bottom + 4,
-                            });
-                          }}
-                        >
-                          Choose exercise{" "}
-                          <ChevronDown size={16} aria-hidden="true" />
-                        </button>
+            {(unfinishedExercises.length > 0 ||
+              (active === null &&
+                (!exercise.sets.length || !hasCompletedSets))) && (
+              <div
+                className="fitness-live-handoff"
+                ref={doneMessage}
+                tabIndex={-1}
+                role="group"
+                aria-label="Exercise actions"
+              >
+                {active === null &&
+                  !nextExercise &&
+                  (!exercise.sets.length || !hasCompletedSets) && (
+                    <p className="fitness-live-exercise-done" role="status">
+                      {!exercise.sets.length
+                        ? "Use Edit workout to add sets."
+                        : "Undo a skipped set and complete it to finish this workout."}
+                    </p>
+                  )}
+                {unfinishedExercises.length > 0 && (
+                  <>
+                    <div className="fitness-live-handoff-actions">
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={disabled}
+                        aria-expanded={!!choosing}
+                        aria-haspopup="menu"
+                        onClick={(event) => {
+                          if (choosing) {
+                            closeChoices();
+                            return;
+                          }
+                          const anchor = event.currentTarget;
+                          const rect = anchor.getBoundingClientRect();
+                          setChoosing({
+                            anchor,
+                            x: rect.left,
+                            y: rect.bottom + 4,
+                          });
+                        }}
+                      >
+                        Choose exercise{" "}
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </button>
+                      {active === null && nextExercise && (
                         <button
                           type="button"
                           className="button primary"
@@ -635,31 +639,32 @@ function LiveExercise({
                         >
                           Next exercise: {nextExercise.name}
                         </button>
-                      </div>
-                      {choosing && !disabled && (
-                        <ContextMenu
-                          {...choosing}
-                          anchorToggles
-                          portalContainer={
-                            choosing.anchor.closest("main") ?? undefined
-                          }
-                          label="Choose next exercise"
-                          className="fitness-live-exercise-menu"
-                          onClose={closeChoices}
-                          actions={unfinishedExercises.map((item) => ({
-                            label: item.name,
-                            description: `Planned: ${workoutExerciseSummary(item, preferences)}`,
-                            run: () => {
-                              setOpen(false);
-                              onNext(item);
-                            },
-                          }))}
-                        />
                       )}
-                    </>
-                  )}
-                </div>
-              )}
+                    </div>
+                    {choosing && !disabled && (
+                      <ContextMenu
+                        {...choosing}
+                        anchorToggles
+                        portalContainer={
+                          choosing.anchor.closest("main") ?? undefined
+                        }
+                        label="Choose next exercise"
+                        className="fitness-live-exercise-menu"
+                        onClose={closeChoices}
+                        actions={unfinishedExercises.map((item) => ({
+                          label: item.name,
+                          description: `Planned: ${workoutExerciseSummary(item, preferences)}`,
+                          run: () => {
+                            setOpen(false);
+                            onNext(item);
+                          },
+                        }))}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
             {open && (
               <ExerciseRecall
                 quietEmpty

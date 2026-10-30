@@ -1,3 +1,9 @@
+import { saveCalendarPlan } from "./helpers/calendar-form";
+import {
+  fillCalendarField,
+  selectCalendarRepeat,
+  showCalendarNotes,
+} from "./helpers/calendar-form";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -45,8 +51,8 @@ test("undo all-day creation, edits and deletion in sequence", async ({
   await plan("Original all-day plan").dblclick();
   await dialog.getByLabel("Title", { exact: true }).fill("Edited all-day plan");
   await dialog.getByLabel("Spans multiple days", { exact: true }).check();
-  await dialog.getByLabel("Last day", { exact: true }).fill("2026-09-09");
-  await dialog.getByText("More details", { exact: true }).click();
+  await fillCalendarField(dialog, "Last day", "2026-09-09");
+  await showCalendarNotes(dialog);
   await dialog
     .getByLabel("Notes (optional)")
     .fill("Remember the prior details");
@@ -98,13 +104,11 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
       .getByRole("button", { name: new RegExp(`${title}.*planned`) });
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await dialog.getByLabel("Title", { exact: true }).fill("Original series");
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-09-07T09:00");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-09-07T10:00");
-  await dialog.getByLabel("Repeat", { exact: true }).selectOption("daily");
-  await dialog.getByLabel("Repeat through", { exact: true }).fill("2026-09-09");
-  await dialog
-    .getByRole("button", { name: "Create repeating plan", exact: true })
-    .click();
+  await fillCalendarField(dialog, "Start", "2026-09-07T09:00");
+  await fillCalendarField(dialog, "End", "2026-09-07T10:00");
+  await selectCalendarRepeat(dialog, "daily");
+  await fillCalendarField(dialog, "Repeat through", "2026-09-09");
+  await saveCalendarPlan(dialog);
   await expect(plan("Original series")).toBeVisible();
   await plan("Original series").dblclick();
   await dialog
@@ -118,7 +122,7 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
     .click();
   await dialog.getByLabel("Replace individual edits", { exact: true }).check();
   await dialog.getByLabel("Title", { exact: true }).fill("Revised series");
-  await dialog.getByLabel("Repeat through", { exact: true }).fill("2026-09-08");
+  await fillCalendarField(dialog, "Repeat through", "2026-09-08");
   await dialog
     .getByRole("button", { name: "Save entire series", exact: true })
     .click();

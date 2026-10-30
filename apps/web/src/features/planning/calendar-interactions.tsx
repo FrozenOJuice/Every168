@@ -11,6 +11,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import type {
   Block,
@@ -124,6 +125,7 @@ export function CalendarInteractions({
   items,
   editorOpen,
   overlayContainer,
+  keyboardRoot,
   onCreate,
   selection,
   children,
@@ -136,6 +138,7 @@ export function CalendarInteractions({
   items: CalendarItem[];
   editorOpen: boolean;
   overlayContainer?: Element | null;
+  keyboardRoot?: RefObject<HTMLElement | null>;
   onCreate: (date: string, minute: number, duration: number) => void;
   children: ReactNode;
 }) {
@@ -216,7 +219,7 @@ export function CalendarInteractions({
     );
     if (block)
       requestAnimationFrame(() =>
-        document
+        (keyboardRoot?.current ?? document)
           .querySelector<HTMLButtonElement>(
             `button[data-calendar-record="${block.id}"]`,
           )
@@ -304,6 +307,14 @@ export function CalendarInteractions({
   }
   useEffect(() => {
     function undo(event: KeyboardEvent) {
+      if (
+        keyboardRoot &&
+        !(
+          event.target instanceof Node &&
+          keyboardRoot.current?.contains(event.target)
+        )
+      )
+        return;
       const key = event.key.toLowerCase();
       const redo =
         (key === "z" && event.shiftKey) ||
@@ -332,7 +343,7 @@ export function CalendarInteractions({
     }
     window.addEventListener("keydown", undo);
     return () => window.removeEventListener("keydown", undo);
-  }, [history, editorOpen, gesture, busy]);
+  }, [history, editorOpen, gesture, busy, keyboardRoot]);
   function submitAdjustment(value: { block: Block; input: BlockInput }) {
     if (value.block.seriesId)
       setOccurrenceRequest({

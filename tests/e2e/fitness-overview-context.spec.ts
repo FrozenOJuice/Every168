@@ -49,7 +49,7 @@ test("workout previews stay compact and new workouts reset filters while the cur
   });
   await page.goto("/fitness");
   const cards = page.locator("#my-workouts .fitness-workout-card");
-  await expect(cards).toHaveCount(6);
+  await expect(cards).toHaveCount(info.project.name === "phone" ? 4 : 6);
   await expect(
     page.getByRole("button", { name: "Load more workouts", exact: true }),
   ).toBeVisible();
@@ -85,78 +85,21 @@ test("workout previews stay compact and new workouts reset filters while the cur
   await expect(
     page.getByRole("button", { name: "Load more workouts", exact: true }),
   ).toHaveCount(0);
-  if (info.project.name === "phone") {
-    const jump = page.getByRole("button", {
-      name: "Jump to section",
-      exact: true,
-    });
-    const menu = page.getByRole("menu", {
-      name: "Training sections",
-      exact: true,
-    });
-    await expect(jump).toBeVisible();
-    await jump.focus();
-    await page.keyboard.press("ArrowDown");
-    await expect(
-      menu.getByRole("menuitem", { name: "My workouts", exact: true }),
-    ).toBeFocused();
-    await page.keyboard.press("Escape");
-    await expect(menu).toHaveCount(0);
-    await expect(jump).toBeFocused();
-    await jump.click();
-    await expect(menu).toBeVisible();
-    await jump.click();
-    await expect(menu).toHaveCount(0);
-    const chooseSection = async (name: string) => {
-      await jump.click();
-      await menu.getByRole("menuitem", { name, exact: true }).click();
-      await expect(menu).toHaveCount(0);
-    };
-    await chooseSection("Programs");
-    await expect(page.locator("#training-programs")).toBeFocused();
-    await expect(
-      page.getByRole("heading", { name: "Training programs", exact: true }),
-    ).toBeInViewport();
-    await expect(
-      page.getByText("Organize workouts into a repeating training plan.", {
-        exact: false,
-      }),
-    ).toBeVisible();
-    await chooseSection("Exercise library");
-    await expect(page.locator("#exercises")).toBeFocused();
-    await expect(
-      page.getByRole("heading", { name: "Exercise library", exact: true }),
-    ).toBeInViewport();
-    await chooseSection("My workouts");
-    await expect(page.locator("#my-workouts")).toBeFocused();
-    await expect(
-      page.getByRole("heading", { name: "My workouts", exact: true }),
-    ).toBeInViewport();
-    const viewport = page.viewportSize()!;
-    await page.setViewportSize({ width: 320, height: viewport.height });
-    await jump.scrollIntoViewIfNeeded();
-    const tools = page.locator(".domain-workspace-tools");
-    expect(
-      await tools.evaluate((element) => element.scrollWidth),
-    ).toBeLessThanOrEqual(
-      await tools.evaluate((element) => element.clientWidth),
-    );
-    const nav = page.getByRole("navigation", {
-      name: "Fitness views",
-      exact: true,
-    });
-    expect(
-      await nav.evaluate((element) => element.scrollWidth),
-    ).toBeLessThanOrEqual(await nav.evaluate((element) => element.clientWidth));
-    await jump.click();
-    await expect(menu).toBeVisible();
-    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-    await page.screenshot({ path: info.outputPath("jump-menu-320.png") });
-    await page.keyboard.press("Escape");
-    await page.setViewportSize(viewport);
-  } else {
-    await expect(page.locator(".fitness-section-jump")).toBeHidden();
-  }
+  await expect(
+    page.getByRole("button", { name: "Jump to section", exact: true }),
+  ).toHaveCount(0);
+  const nav = page.getByRole("navigation", {
+    name: "Fitness views",
+    exact: true,
+  });
+  await nav.getByRole("link", { name: "Exercises", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Exercise library", exact: true }),
+  ).toBeVisible();
+  await nav.getByRole("link", { name: "Training", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "My workouts", exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
@@ -199,7 +142,7 @@ test("workout previews stay compact and new workouts reset filters while the cur
       .click();
   }
   await page
-    .getByRole("button", { name: "Back to Training", exact: true })
+    .getByRole("button", { name: "Back to Fitness", exact: true })
     .click();
   await create();
   await openPicker();

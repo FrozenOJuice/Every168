@@ -13,8 +13,8 @@ export function CalendarCopyPreview({ preview }: { preview: CopyPreview }) {
       </p>
       <p className="muted text-small">
         Existing plans remain. Copies are independent plans; recorded activity
-        and repeating rules are excluded. Times use {preview.timezone}; repeated
-        clock times use the first occurrence.
+        and repeating rules are excluded. Repeated clock times use the first
+        occurrence.
       </p>
       <ol className="copy-preview-list">
         {preview.blocks.map((b, index) => (

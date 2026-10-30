@@ -1,6 +1,8 @@
 import type { ExerciseDraft, SetDraft } from "./strength-draft";
 export type RestSource = { exerciseKeys: string[]; setKeys: string[] };
 export type SessionRest = {
+  startedAt: number;
+  durationSeconds: number;
   until: number;
   exercise: string;
   source: RestSource;
@@ -21,7 +23,13 @@ export function nextSessionRest(
   now: number,
 ): SessionRest | null {
   if (seconds && seconds > 0)
-    return { until: now + seconds * 1000, exercise, source };
+    return {
+      startedAt: now,
+      durationSeconds: seconds,
+      until: now + seconds * 1000,
+      exercise,
+      source,
+    };
   // Completing a later set ends this exercise's old rest, not another exercise's.
   return current && overlaps(current.source.exerciseKeys, source.exerciseKeys)
     ? null
@@ -49,13 +57,21 @@ export function reconcileSessionRest(
     overlaps(aliases(s), current.source.setKeys),
   );
   if (!exercise || !set) return null;
+  const durationSeconds = set.restSeconds ?? 0;
+  if (durationSeconds <= 0) return null;
   const source = restSource(exercise, set);
   const exerciseKeys = [
     ...new Set([...current.source.exerciseKeys, ...source.exerciseKeys]),
   ];
   const setKeys = [...new Set([...current.source.setKeys, ...source.setKeys])];
-  return exerciseKeys.length === current.source.exerciseKeys.length &&
+  return durationSeconds === current.durationSeconds &&
+    exerciseKeys.length === current.source.exerciseKeys.length &&
     setKeys.length === current.source.setKeys.length
     ? current
-    : { ...current, source: { exerciseKeys, setKeys } };
+    : {
+        ...current,
+        durationSeconds,
+        until: current.startedAt + durationSeconds * 1000,
+        source: { exerciseKeys, setKeys },
+      };
 }

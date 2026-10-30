@@ -57,10 +57,7 @@ test("mixed activities retain independent intent, measurements, recovery and pro
     .click();
   await expect(
     page.getByLabel("Intent for Swimming", { exact: true }),
-  ).toHaveValue("technique");
-  await page
-    .getByLabel("Intent for Swimming", { exact: true })
-    .fill("recovery, fun");
+  ).toHaveCount(0);
   await expect(
     page.getByLabel("Target distance (mi)", { exact: true }).first(),
   ).toHaveValue("1");
@@ -92,7 +89,7 @@ test("mixed activities retain independent intent, measurements, recovery and pro
   ).json();
   expect(savedPlan.exercises[0]).toMatchObject({
     loggingType: "laps_duration",
-    intentTags: ["recovery", "fun"],
+    intentTags: ["technique"],
   });
   expect(savedPlan.exercises[0].sets[0]).toMatchObject({
     targetDistanceMeters: 1609.344,
@@ -110,9 +107,6 @@ test("mixed activities retain independent intent, measurements, recovery and pro
       exact: true,
     })
     .click();
-  await page
-    .getByLabel("Intent for Swimming", { exact: true })
-    .fill("technique");
   await page
     .getByRole("group", {
       name: "Configure measurements for Swimming",
@@ -146,7 +140,10 @@ test("mixed activities retain independent intent, measurements, recovery and pro
     .fill("900");
   await page.getByLabel("Completed", { exact: true }).first().check();
   await page.getByLabel("Actual reps", { exact: true }).last().fill("5");
-  await page.getByLabel("Actual load (kg)", { exact: true }).last().fill("20");
+  await page
+    .getByLabel("Actual weight (kg)", { exact: true })
+    .last()
+    .fill("20");
   await page.getByLabel("Completed", { exact: true }).nth(1).check();
   await expect(page.locator(".fitness-save-state")).toHaveText("Saved");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
@@ -190,10 +187,10 @@ test("mixed activities retain independent intent, measurements, recovery and pro
   ).toBeEmpty();
   await expect(
     page.getByLabel("Intent for Swimming", { exact: true }),
-  ).toHaveValue("technique");
+  ).toHaveCount(0);
 });
 
-test("custom activity defaults accept optional intent tags and distance measurements", async ({
+test("custom activity defaults accept distance measurements without intent fields", async ({
   page,
 }) => {
   const response = await page.request.post("/api/auth/sign-up/email", {
@@ -226,11 +223,11 @@ test("custom activity defaults accept optional intent tags and distance measurem
     .getByRole("checkbox", { name: "Reps", exact: true })
     .uncheck();
   await measurements
-    .getByRole("checkbox", { name: "Load", exact: true })
+    .getByRole("checkbox", { name: "Weight", exact: true })
     .uncheck();
-  await page
-    .getByLabel("Intent tags (optional)", { exact: true })
-    .fill("Technique, recreation");
+  await expect(
+    page.getByLabel("Intent tags (optional)", { exact: true }),
+  ).toHaveCount(0);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page
     .getByRole("region", { name: "Create exercise", exact: true })
@@ -244,6 +241,6 @@ test("custom activity defaults accept optional intent tags and distance measurem
   ).json();
   expect(result.items[0]).toMatchObject({
     loggingType: "distance_duration",
-    intentTags: ["technique", "recreation"],
+    intentTags: [],
   });
 });

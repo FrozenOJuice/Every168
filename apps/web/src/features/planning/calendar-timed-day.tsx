@@ -153,10 +153,6 @@ export function CalendarTimedDay({
           )}
           {single ? (
             <>
-              <p className="muted text-small">
-                Times include their timezone to distinguish repeated or missing
-                hours.
-              </p>
               <ol className="day-records">
                 {records.map((record) => (
                   <li key={record.kind + record.item.id}>

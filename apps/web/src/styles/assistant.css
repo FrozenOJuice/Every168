@@ -415,10 +415,6 @@ body:has(.app-toast) {
   border-radius: 12px;
   background: var(--card);
 }
-.assistant-composer:focus-within {
-  border-color: var(--focus-ring);
-  outline: 1px solid var(--focus-ring);
-}
 .assistant-composer textarea {
   display: block;
   width: 100%;
@@ -432,9 +428,6 @@ body:has(.app-toast) {
   resize: vertical;
   font-size: 0.875rem;
   line-height: 1.6;
-}
-.assistant-composer textarea:focus-visible {
-  outline: none;
 }
 .assistant-composer textarea::placeholder {
   color: var(--muted-foreground);

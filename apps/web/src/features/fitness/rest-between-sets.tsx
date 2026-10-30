@@ -17,6 +17,7 @@ export function RestBetweenSets({
   error?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
   const editor = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   if (error && !open) setOpen(true);
@@ -40,11 +41,13 @@ export function RestBetweenSets({
         ref={editor}
         className="fitness-rest-line-editor"
         onBlur={(event) => {
-          if (!error && !event.currentTarget.contains(event.relatedTarget))
-            setOpen(false);
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            onChange(draft);
+            if (!error) setOpen(false);
+          }
         }}
         onKeyDown={(event) => {
-          if (event.key === "Enter" && !error) {
+          if (event.key === "Enter") {
             event.preventDefault();
             // Finish normalization before hiding, without discarding which
             // time component the user explicitly set to zero.
@@ -59,8 +62,8 @@ export function RestBetweenSets({
         <span>Rest</span>
         <RestDurationField
           compact
-          value={value}
-          onChange={onChange}
+          value={draft}
+          onChange={setDraft}
           disabled={disabled}
           error={error}
         />
@@ -72,7 +75,10 @@ export function RestBetweenSets({
           className="fitness-text-action"
           disabled={disabled}
           aria-label={`Edit rest after set ${index + 1}: ${label}`}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setDraft(value);
+            setOpen(true);
+          }}
         >
           {label}
         </button>

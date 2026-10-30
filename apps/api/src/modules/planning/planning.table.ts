@@ -81,6 +81,10 @@ export const timeEntries = pgTable(
       .default("manual")
       .notNull(),
     sourceId: uuid("source_id"),
+    excludedIntervals: jsonb("excluded_intervals")
+      .$type<{ startsAt: string; endsAt: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
   },
   (t) => [
     check(

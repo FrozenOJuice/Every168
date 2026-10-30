@@ -31,7 +31,12 @@ export function WorkoutQuickTargets({
   const restValues = exercise.sets
     .slice(0, -1)
     .map((set) => set.restSeconds ?? null);
-  const sharedRest = restValues[0] ?? null;
+  // Retain the shared setting while a single set has no rest interval to show.
+  const sharedRest =
+    restValues[0] ??
+    (exercise.sets.length === 1
+      ? (exercise.sets[0]?.restSeconds ?? null)
+      : null);
   const restSummary = !restAvailable
     ? null
     : restValues.every((value) => value === sharedRest)
@@ -46,7 +51,14 @@ export function WorkoutQuickTargets({
     if (count < 2) setRestOpen(false);
     const sets = exercise.sets.slice(0, count);
     while (sets.length < count) sets.push(nextPlannedSet(sets.at(-1)));
-    onChange({ ...exercise, sets });
+    onChange({
+      ...exercise,
+      sets: sets.map((set, index) => ({
+        ...set,
+        restSeconds:
+          index < sets.length - 1 || sets.length === 1 ? sharedRest : null,
+      })),
+    });
   };
   const activeFields = (set: SetDraft) =>
     exerciseTrackingFields[
@@ -62,7 +74,7 @@ export function WorkoutQuickTargets({
   } as const;
   const labels = {
     reps: "Target reps",
-    load: `Target load (${weightUnit})`,
+    load: `Target weight (${weightUnit})`,
     duration: "Target duration (seconds)",
     distance: `Target distance (${distanceUnit})`,
     laps: "Target laps",

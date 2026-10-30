@@ -1,6 +1,7 @@
 "use client";
 import {
   useCallback,
+  useContext,
   useId,
   useLayoutEffect,
   useRef,
@@ -20,6 +21,8 @@ export function CalendarPlanPopover({
   onClose,
   children,
   container,
+  width: preferredWidth = 320,
+  className = "",
 }: {
   date?: string;
   recordId?: string;
@@ -29,11 +32,18 @@ export function CalendarPlanPopover({
   onClose: () => void;
   children: ReactNode;
   container?: Element | null;
+  width?: number;
+  className?: string;
 }) {
+  const parentBusy = useContext(FormBusyContext);
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const [formBusy, setFormBusy] = useState(false);
   const busy = formBusy || commandBusy;
+  useLayoutEffect(() => {
+    parentBusy?.(busy);
+    return () => parentBusy?.(false);
+  }, [busy, parentBusy]);
   const reportBusy = useCallback(
     (value: boolean) => {
       setFormBusy(value);
@@ -54,7 +64,7 @@ export function CalendarPlanPopover({
       const topEdge = (viewport?.offsetTop ?? 0) + 12;
       const rightEdge = leftEdge + (viewport?.width ?? innerWidth) - 24;
       const bottomEdge = topEdge + (viewport?.height ?? innerHeight) - 24;
-      panel.style.width = `${Math.min(320, rightEdge - leftEdge)}px`;
+      panel.style.width = `${Math.min(preferredWidth, rightEdge - leftEdge)}px`;
       panel.style.maxHeight = `${bottomEdge - topEdge}px`;
       const anchors = Array.from(
         document.querySelectorAll<HTMLElement>("[data-calendar-draft]"),
@@ -140,6 +150,12 @@ export function CalendarPlanPopover({
     }
     function key(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      if (
+        event.target instanceof Element &&
+        panel.contains(event.target) &&
+        event.target.closest('[role="dialog"]') !== panel
+      )
+        return;
       event.preventDefault();
       event.stopPropagation();
       if (!current.current.busy) current.current.onClose();
@@ -164,14 +180,14 @@ export function CalendarPlanPopover({
       if (opener instanceof HTMLElement && opener.isConnected)
         opener.focus({ preventScroll: true });
     };
-  }, [date, recordId]);
+  }, [date, recordId, preferredWidth]);
   return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-modal="false"
       aria-labelledby={titleId}
-      className="calendar-plan-popover"
+      className={`calendar-plan-popover ${className}`}
     >
       <div className="row between">
         <h2 id={titleId}>{title}</h2>

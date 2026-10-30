@@ -83,7 +83,12 @@ test("inline exercise library follows programs and preserves workout drafts", as
     name: "Add exercise",
     exact: true,
   });
-  await add.click();
+  if (testInfo.project.name === "phone") await add.click();
+  else
+    await page
+      .locator(".fitness-exercise-panel")
+      .getByRole("searchbox", { name: "Find an exercise", exact: true })
+      .focus();
   const picker = page.locator(".fitness-library-view-builder");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
@@ -103,29 +108,29 @@ test("inline exercise library follows programs and preserves workout drafts", as
   if (testInfo.project.name === "phone")
     await expect(page.locator(".fitness-exercise-panel")).toBeHidden();
   else await expect(page.locator(".fitness-exercise-panel")).toBeVisible();
-  await expect(add).toBeFocused();
+  if (testInfo.project.name === "phone") await expect(add).toBeFocused();
+  else await expect(add).toHaveCount(0);
   await expect(workout.getByLabel("Workout name", { exact: true })).toHaveValue(
     "My session",
   );
-  await expect(workout.locator(".fitness-inline-recall")).toContainText(
-    "6 reps × 45 kg",
-  );
+  await expect(workout.locator(".fitness-inline-recall")).toHaveCount(0);
   await workout.getByLabel("Target reps", { exact: true }).fill("8");
-  await workout.locator(".fitness-inline-recall").getByRole("button").click();
+  await workout
+    .getByRole("button", {
+      name: "Exercise details for Recall squat",
+      exact: true,
+    })
+    .click();
   const details = page.getByRole("complementary", {
     name: "Exercise library panel",
     exact: true,
   });
-  await expect(details.locator(".fitness-recall-section tbody tr")).toHaveCount(
-    2,
-  );
-  await details.getByRole("button", { name: "Details", exact: true }).click();
   await expect(
     details.getByText("Move with control.", { exact: true }),
   ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await details
-    .getByRole("button", { name: "Back to exercises", exact: true })
+    .getByRole("button", { name: "Back to workout", exact: true })
     .click();
   if (testInfo.project.name === "phone")
     await page

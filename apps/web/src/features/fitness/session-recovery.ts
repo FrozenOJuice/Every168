@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { instantSchema, idSchema, type Workout } from "@168hours/contracts";
+import {
+  instantSchema,
+  idSchema,
+  workoutPausesSchema,
+  type Workout,
+} from "@168hours/contracts";
 import { exerciseDraftSchema } from "./strength-draft-schema";
 import {
   sessionDraft,
@@ -8,7 +13,10 @@ import {
 } from "./strength-draft";
 
 export type InvalidSessionTimes = Partial<
-  Record<"startedAt" | "endedAt", string>
+  Record<
+    "startedAt" | "endedAt" | `pauses.${number}.${"startsAt" | "endsAt"}`,
+    string
+  >
 >;
 export type SessionDraftState = {
   input: SessionDraft;
@@ -23,6 +31,7 @@ const draftInput = z.object({
   notes: z.string().nullable(),
   startedAt: instantSchema,
   endedAt: instantSchema.nullable(),
+  pauses: workoutPausesSchema.optional(),
   linkedTimeBlockId: idSchema.nullable(),
   exercises: z.array(exerciseDraftSchema),
 });
@@ -42,10 +51,10 @@ const storedSession = z.object({
     })
     .optional(),
   invalidTimes: z
-    .object({
-      startedAt: z.string().optional(),
-      endedAt: z.string().optional(),
-    })
+    .record(
+      z.string().regex(/^(startedAt|endedAt|pauses\.\d+\.(startsAt|endsAt))$/),
+      z.string(),
+    )
     .optional(),
 });
 export function recoverSession(

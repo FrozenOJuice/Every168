@@ -113,44 +113,27 @@ test("exercise recall, weekly totals and records work with units, empty modes an
   await expect(lastTime.locator("tbody tr").last()).toContainText(
     "Not recorded",
   );
-  await page.locator(".fitness-session-history summary").first().click();
-  await expect(page.locator(".fitness-session-history")).toContainText("40 kg");
-  await page
-    .getByRole("button", { name: "Recorded measurements", exact: true })
-    .click();
-  await page.getByRole("option", { name: "Reps + Load", exact: true }).click();
-  if (
-    !(await page
-      .locator("details")
-      .filter({
-        has: page.locator("summary", { hasText: /^Personal records$/ }),
-      })
-      .evaluate((element) => (element as HTMLDetailsElement).open))
-  )
-    await page.getByText("Personal records", { exact: true }).first().click();
+  await expect(page.locator(".fitness-session-history").nth(1)).toContainText(
+    "2 sets | 8 reps | 40 kg | Some results not recorded",
+  );
+
   const records = page.locator(".fitness-progress-records");
   await expect(records).toContainText("50 kg");
   await expect(records).toContainText("10 reps");
-  await expect(records).toContainText("500 kg·reps");
-  await page.getByText("Session statistics", { exact: true }).first().click();
-  await page
-    .getByRole("button", { name: "Progress measure", exact: true })
-    .click();
-  await page
-    .getByRole("option", { name: "Recorded session volume", exact: true })
-    .click();
-  await expect(page.locator(".fitness-progress-change")).toContainText(
-    "Not comparable",
-  );
-  await expect(page.locator(".fitness-progress-sessions")).toContainText(
-    "1 incomplete set",
-  );
-  await page
-    .getByRole("button", { name: "Recorded measurements", exact: true })
-    .click();
-  await page
-    .getByRole("option", { name: "All recorded measurements", exact: true })
-    .click();
+  await expect(records).not.toContainText("Highest set volume");
+  await expect(
+    page.getByText("Session statistics", { exact: true }),
+  ).toHaveCount(0);
+  const shown = page.getByRole("group", {
+    name: "Show measurements",
+    exact: true,
+  });
+  await shown.getByRole("checkbox", { name: "Weight", exact: true }).uncheck();
+  await expect(
+    lastTime.getByRole("columnheader", { name: "Weight (kg)", exact: true }),
+  ).toHaveCount(0);
+  await expect(lastTime.locator("tbody tr")).toHaveCount(2);
+  await shown.getByRole("checkbox", { name: "Weight", exact: true }).check();
   await expect(lastTime).toContainText("50 kg");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(
@@ -171,31 +154,22 @@ test("exercise recall, weekly totals and records work with units, empty modes an
   );
   await page.reload();
   await expect(lastTime).toContainText("110.2 lb");
-  await page
-    .getByRole("button", { name: "Recorded measurements", exact: true })
-    .click();
-  await page.getByRole("option", { name: "Reps + Load", exact: true }).click();
 
-  if (
-    !(await page
-      .locator("details")
-      .filter({
-        has: page.locator("summary", { hasText: /^Personal records$/ }),
-      })
-      .evaluate((element) => (element as HTMLDetailsElement).open))
-  )
-    await page.getByText("Personal records", { exact: true }).first().click();
   await expect(records).toContainText("110.2 lb");
   await records.locator("li").first().getByRole("link").click();
   await expect(page).toHaveURL(new RegExp(workouts[1]!.id));
-  await page.getByText("Compare previous workout", { exact: true }).click();
+  await page
+    .getByText("Compare with previous workout", { exact: true })
+    .click();
   const comparison = page.locator(".fitness-workout-comparison");
-  await expect(comparison).toContainText("Previous: Oct 12, 2026");
+  await expect(
+    comparison.getByRole("link", { name: /^Open workout: Progress workout/ }),
+  ).toContainText("Oct 12, 2026");
   await expect(comparison).toContainText("88.2 lb");
   await expect(comparison).toContainText("110.2 lb");
   await expect(
-    comparison.getByRole("link", { name: "Progress squat", exact: true }),
-  ).toHaveAttribute("href", `/fitness/exercises/${exercise.id}`);
+    comparison.getByRole("heading", { name: "Progress squat", exact: true }),
+  ).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -214,7 +188,10 @@ test("saved corrections and deletions update progress, and training shows the pr
       exact: true,
     })
     .click();
-  await page.getByLabel("Actual load (kg)", { exact: true }).first().fill("60");
+  await page
+    .getByLabel("Actual weight (kg)", { exact: true })
+    .first()
+    .fill("60");
   await page
     .getByRole("button", { name: "Save corrections", exact: true })
     .click();
@@ -222,13 +199,12 @@ test("saved corrections and deletions update progress, and training shows the pr
   await page.goto(`/fitness/exercises/${exercise.id}`);
   await expect(page.locator(".fitness-recall-section")).toContainText("60 kg");
   await page.goto(`/fitness/session/${current.id}`);
-  await page.getByText("More actions", { exact: true }).click();
   await page
-    .getByRole("button", { name: "Delete workout", exact: true })
+    .getByRole("button", { name: "Delete recorded workout", exact: true })
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Delete workout", exact: true })
+    .getByRole("button", { name: "Delete recorded workout", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness\/history$/);
   await page.goto(`/fitness/exercises/${exercise.id}`);
@@ -251,15 +227,21 @@ test("saved corrections and deletions update progress, and training shows the pr
     }),
   ).toBeVisible();
   await expect(page.locator(".fitness-previous-set")).toContainText(
-    "Last time · Oct 12, 2026",
+    "Previous session",
   );
   await expect(page.locator(".fitness-previous-set")).toContainText(
-    "Set 2: 8 reps",
+    "Some results not recorded",
+  );
+  await expect(page.locator(".fitness-previous-set")).toContainText(
+    "Oct 12, 2026",
+  );
+  await expect(page.locator(".fitness-previous-set")).not.toContainText(
+    "Set 2:",
   );
   await expect(page.locator(".fitness-previous-set")).toContainText("40 kg");
   await page
     .locator(".fitness-previous-set")
-    .getByRole("button", { name: /Last time/ })
+    .getByRole("button", { name: "View history", exact: true })
     .click();
   await expect(
     page
@@ -298,12 +280,91 @@ test("progress has useful empty states and retry after a read failure", async ({
   fail = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(
-    page.getByText("No workouts recorded yet.", {
+    page.getByText("No finished workouts yet.", {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(page.locator(".fitness-progress-metrics")).toContainText(
-    "Not recorded",
-  );
+  await expect(
+    page.getByText("No finished workouts this week.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".fitness-week-totals")).toHaveCount(0);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
+test("history measurement choices change displayed values without excluding mixed sessions or hidden results", async ({
+  page,
+}, info) => {
+  const { exercise, write } = await setup(page);
+  const latest = await write("post", "/api/v1/strength-workouts", {
+    title: "Timed practice",
+    startedAt: "2026-10-15T15:00:00Z",
+  });
+  await write(
+    "put",
+    `/api/v1/strength-workouts/${latest.id}`,
+    {
+      title: latest.title,
+      startedAt: latest.startedAt,
+      endedAt: "2026-10-15T16:00:00Z",
+      exercises: [
+        {
+          exerciseId: exercise.id,
+          loggingType: "duration",
+          sets: [{ durationSeconds: 60, reps: 999, weightKg: 999 }],
+        },
+      ],
+    },
+    latest.version,
+  );
+  await page.goto(`/fitness/exercises/${exercise.id}`);
+  const history = page.getByRole("region", {
+    name: "Your history",
+    exact: true,
+  });
+  const shown = history.getByRole("group", {
+    name: "Show measurements",
+    exact: true,
+  });
+  await expect(
+    shown.getByRole("checkbox", { name: "Duration", exact: true }),
+  ).toBeChecked();
+  const last = history.locator(".fitness-recall-section");
+  await expect(last).toContainText("Timed practice");
+  await expect(last).toContainText("1m");
+  await expect(last).not.toContainText("999");
+  await expect(history.locator(".fitness-session-history")).toHaveCount(3);
+  const records = history.locator(".fitness-progress-records");
+  await expect(records).toContainText("50 kg");
+  await expect(records).toContainText("10 reps");
+  await expect(records).toContainText("1m");
+  await expect(records).not.toContainText("999");
+  await shown
+    .getByRole("checkbox", { name: "Duration", exact: true })
+    .uncheck();
+  await shown.getByRole("checkbox", { name: "Reps", exact: true }).uncheck();
+  await expect(
+    shown.getByRole("checkbox", { name: "Weight", exact: true }),
+  ).toBeDisabled();
+  await expect(last).toContainText("Timed practice");
+  await expect(last.getByRole("columnheader")).toHaveText([
+    "Set",
+    "Weight (kg)",
+  ]);
+  await expect(last).toContainText("Not recorded");
+  await expect(history.locator(".fitness-session-history")).toHaveCount(3);
+  await expect(records).toContainText("Heaviest weight");
+  await expect(records).not.toContainText("Most reps");
+  await expect(records).not.toContainText("Longest recorded duration");
+  await expect(
+    history.locator(".fitness-session-history").nth(1),
+  ).toContainText("50 kg");
+  await expect(
+    history.getByText("Session statistics", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Recorded measurements", exact: true }),
+  ).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await shown.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath("history-measurements.png") });
 });

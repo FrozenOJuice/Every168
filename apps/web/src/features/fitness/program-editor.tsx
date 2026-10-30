@@ -1,6 +1,6 @@
 "use client";
 import { z } from "zod";
-import { ArrowUp, ArrowDown, Trash2, RotateCcw } from "lucide-react";
+import { ArrowUp, ArrowDown, Trash2, RotateCcw, Plus } from "lucide-react";
 import { Toast, useToast } from "@/components/ui/toast";
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { FitnessConfirm } from "./fitness-confirm";
@@ -10,11 +10,7 @@ import { focusSessionError } from "./session-validation";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { localDate } from "@168hours/domain-utils";
 import {
   trainingProgramInput,
@@ -26,7 +22,8 @@ import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { ErrorState, Loading, PageHeading } from "@/components/ui/feedback";
-import { FitnessSelect } from "./fitness-select";
+import { WorkoutSearch, useWorkoutSearch } from "./workout-search";
+import { ProgramStartDate } from "./program-start-date";
 import { invalidateFitness } from "./fitness-cache";
 export const trainingDayNames = [
   "Sunday",
@@ -99,18 +96,23 @@ function ProgramEditor({
         },
       });
   }, [recovery.recovered, recovery.conflict, show, discard]);
-  const [selected, setSelected] = useState("");
-
-  const workouts = useInfiniteQuery({
-    queryKey: ["fitness", "program-workout-options"],
-    initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) =>
-      api.getStrengthPlans({ kind: "workout", limit: 100, cursor: pageParam }),
-    getNextPageParam: (p) => p.nextCursor ?? undefined,
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [addedMessage, setAddedMessage] = useState("");
+  const addButton = useRef<HTMLButtonElement>(null);
+  const {
+    search,
+    setSearch,
+    query: workouts,
+  } = useWorkoutSearch(pickerOpen, 12, true);
+  const choices = workouts.data?.pages.flatMap((page) => page.items) ?? [];
+  const referencedIds = [...new Set(draft.steps.map((step) => step.workoutId))];
+  const referenced = useQueries({
+    queries: referencedIds.map((id) => ({
+      queryKey: ["fitness", "workout", id],
+      queryFn: () => api.getStrengthPlan(id),
+      retry: false,
+    })),
   });
-  const choices =
-    workouts.data?.pages.flatMap((p) => p.items).filter((w) => !w.isDraft) ??
-    [];
   const change = (v: Partial<TrainingProgramInput>) => {
     recovery.change({ ...draft, ...v });
     setError("");
@@ -157,9 +159,7 @@ function ProgramEditor({
           ]),
         )
       : {};
-  const back = program
-    ? `/fitness/programs/${program.id}`
-    : "/fitness/programs";
+  const back = program ? `/fitness/programs/${program.id}` : "/fitness";
   const move = (index: number, delta: number) => {
     const steps = [...draft.steps];
     [steps[index], steps[index + delta]] = [
@@ -240,70 +240,54 @@ function ProgramEditor({
               {fields.title}
             </p>
           )}
-          <label className="field">
-            Start date
-            <input
-              required
-              type="date"
-              aria-invalid={!!fields.startDate}
-              aria-describedby={
-                fields.startDate ? "program-startDate-error" : undefined
-              }
-              value={draft.startDate}
-              onChange={(e) => change({ startDate: e.target.value })}
-            />
-          </label>
-          {fields.startDate && (
-            <p className="error" role="alert" id="program-startDate-error">
-              {fields.startDate}
-            </p>
-          )}
-          <fieldset className="form-stack">
-            <legend>Preferred training days</legend>
-            <p className="muted text-small">
-              Optional. Leave blank to train whenever you’re ready. Choosing
-              days does not schedule workouts.
-            </p>
-            <div className="fitness-program-days">
-              {[1, 2, 3, 4, 5, 6, 0].map((day) => (
-                <label key={day}>
-                  <input
-                    type="checkbox"
-                    checked={draft.trainingDays.includes(day)}
-                    onChange={(e) =>
-                      change({
-                        trainingDays: e.target.checked
-                          ? [...draft.trainingDays, day].sort()
-                          : draft.trainingDays.filter((d) => d !== day),
-                      })
-                    }
-                  />
-                  {trainingDayNames[day]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+
           <section
-            className="form-stack"
+            className="fitness-program-sequence"
             aria-labelledby="program-workouts-heading"
           >
-            <h2 id="program-workouts-heading">Workout sequence</h2>
-            <p className="muted text-small">
-              Add workouts in order. The sequence repeats after the last one.
-            </p>
+            <div className="fitness-program-section-heading">
+              <div>
+                <h2 id="program-workouts-heading">Workout sequence</h2>
+                <p className="muted text-small">
+                  Repeats in this order after the last workout.
+                </p>
+              </div>
+              <span className="muted text-small">{draft.steps.length}/20</span>
+            </div>
             <ol className="fitness-program-steps">
               {draft.steps.map((step, index) => {
                 const saved = program?.steps.find((s) => s.id === step.id),
-                  choice = choices.find((w) => w.id === step.workoutId);
+                  lookup = referenced[referencedIds.indexOf(step.workoutId)]!,
+                  choice =
+                    choices.find((w) => w.id === step.workoutId) ?? lookup.data;
                 return (
                   <li key={step.id ?? index}>
                     <div>
                       <strong>
-                        {choice?.title ?? saved?.title ?? "Workout"}
+                        {choice?.title ??
+                          saved?.title ??
+                          (lookup.isPending
+                            ? "Loading workout…"
+                            : "Unavailable workout")}
                       </strong>
-                      {saved && !saved.available && !choice && (
+                      {((choice &&
+                        (choice.isDraft || choice.kind !== "workout")) ||
+                        (!choice && saved && !saved.available)) && (
                         <p className="error">
                           Unavailable. Remove this step and add a ready workout.
+                        </p>
+                      )}
+                      {!choice && lookup.error && (
+                        <p className="error" role="alert">
+                          This workout could not be loaded. Remove it or{" "}
+                          <button
+                            className="fitness-text-action"
+                            type="button"
+                            onClick={() => void lookup.refetch()}
+                          >
+                            Retry loading workout
+                          </button>
+                          .
                         </p>
                       )}
                     </div>
@@ -346,61 +330,174 @@ function ProgramEditor({
                 );
               })}
             </ol>
-            {!draft.steps.length && <p>No workouts added yet.</p>}
-            {workouts.isPending ? (
-              <Loading />
-            ) : workouts.error ? (
-              <ErrorState
-                error={workouts.error}
-                retry={() => void workouts.refetch()}
-              />
-            ) : (
-              <>
-                <FitnessSelect
-                  label="Saved workout"
-                  error={
-                    fields.steps
-                      ? "Add at least one workout to the sequence."
-                      : undefined
+            {!draft.steps.length && (
+              <p className="fitness-program-empty muted">
+                Add your first workout to build the rotation.
+              </p>
+            )}
+            <button
+              ref={addButton}
+              type="button"
+              className="button fitness-program-add"
+              aria-expanded={pickerOpen}
+              aria-controls="program-workout-picker"
+              data-invalid={!!fields.steps}
+              aria-describedby={
+                fields.steps ? "program-steps-error" : undefined
+              }
+              onClick={() => setPickerOpen(!pickerOpen)}
+            >
+              <Plus size={18} aria-hidden="true" /> Add workout
+            </button>
+            {fields.steps && (
+              <p className="error" role="alert" id="program-steps-error">
+                Add at least one workout to the sequence.
+              </p>
+            )}
+            {pickerOpen && (
+              <div
+                className="fitness-program-picker"
+                id="program-workout-picker"
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    setPickerOpen(false);
+                    addButton.current?.focus();
                   }
-                  value={selected}
-                  onChange={setSelected}
-                  options={[
-                    { value: "", label: "Choose a ready workout" },
-                    ...choices.map((w) => ({ value: w.id, label: w.title })),
-                  ]}
-                  disabled={save.isPending}
-                />
-                <button
-                  type="button"
-                  className="button"
-                  disabled={!selected || draft.steps.length >= 20}
-                  onClick={() => {
-                    change({
-                      steps: [...draft.steps, { workoutId: selected }],
-                    });
-                  }}
-                >
-                  Add workout to sequence
-                </button>
-                {workouts.hasNextPage && (
+                }}
+              >
+                <WorkoutSearch value={search} onChange={setSearch} />
+                <div className="fitness-program-picker-results">
+                  {workouts.isPending ? (
+                    <Loading />
+                  ) : workouts.error ? (
+                    <ErrorState
+                      error={workouts.error}
+                      retry={() => void workouts.refetch()}
+                    />
+                  ) : (
+                    <>
+                      <ul aria-label="Ready workouts">
+                        {choices.map((workout) => (
+                          <li key={workout.id}>
+                            <div>
+                              <strong>{workout.title}</strong>
+                              <span className="muted text-small">
+                                {workout.exercises.length}{" "}
+                                {workout.exercises.length === 1
+                                  ? "exercise"
+                                  : "exercises"}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="button"
+                              aria-label={`Add ${workout.title} to sequence`}
+                              disabled={draft.steps.length >= 20}
+                              onClick={() => {
+                                change({
+                                  steps: [
+                                    ...draft.steps,
+                                    { workoutId: workout.id },
+                                  ],
+                                });
+                                setAddedMessage(
+                                  `${workout.title} added at position ${draft.steps.length + 1}.`,
+                                );
+                              }}
+                            >
+                              Add
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {workouts.hasNextPage && (
+                        <button
+                          type="button"
+                          className="button"
+                          disabled={workouts.isFetchingNextPage}
+                          onClick={() => void workouts.fetchNextPage()}
+                        >
+                          {workouts.isFetchingNextPage
+                            ? "Loading…"
+                            : "Show more workouts"}
+                        </button>
+                      )}
+                      {!choices.length &&
+                        (search.trim() ? (
+                          <p className="muted">
+                            No ready workouts match your search.
+                          </p>
+                        ) : (
+                          <p className="muted">
+                            Save a ready workout before adding it to a program.{" "}
+                            <Link href="/fitness/workout/new">
+                              Create a workout
+                            </Link>
+                          </p>
+                        ))}
+                    </>
+                  )}
+                </div>
+                <div className="fitness-program-picker-footer">
+                  <span className="muted text-small" role="status">
+                    {draft.steps.length >= 20
+                      ? "20-workout limit reached."
+                      : addedMessage}
+                  </span>
                   <button
                     type="button"
                     className="button"
-                    disabled={workouts.isFetchingNextPage}
-                    onClick={() => void workouts.fetchNextPage()}
+                    onClick={() => {
+                      setPickerOpen(false);
+                      addButton.current?.focus();
+                    }}
                   >
-                    Load more saved workouts
+                    Done
                   </button>
-                )}
-                {!choices.length && (
-                  <p>
-                    Save a ready workout before adding it to a program.{" "}
-                    <Link href="/fitness/workout/new">Create a workout</Link>
-                  </p>
-                )}
-              </>
+                </div>
+              </div>
             )}
+          </section>
+          <section
+            className="fitness-program-preferences"
+            aria-labelledby="program-dates-heading"
+          >
+            <h2 id="program-dates-heading">Date preferences</h2>
+            <fieldset className="form-stack">
+              <legend>
+                Preferred training days{" "}
+                <span className="muted text-small">(optional)</span>
+              </legend>
+              <p className="muted text-small">
+                Leave blank for a flexible rotation. These preferences suggest
+                dates; workouts are scheduled separately.
+              </p>
+              <div className="fitness-program-days">
+                {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+                  <label key={day}>
+                    <input
+                      type="checkbox"
+                      checked={draft.trainingDays.includes(day)}
+                      onChange={(e) =>
+                        change({
+                          trainingDays: e.target.checked
+                            ? [...draft.trainingDays, day].sort()
+                            : draft.trainingDays.filter((d) => d !== day),
+                        })
+                      }
+                    />
+                    {trainingDayNames[day]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <ProgramStartDate
+              value={draft.startDate}
+              onChange={(startDate) => change({ startDate })}
+              error={fields.startDate}
+              disabled={save.isPending || recovery.conflict}
+            />
           </section>
           <NotesEditor
             label="Program notes"

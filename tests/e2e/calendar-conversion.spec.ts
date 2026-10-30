@@ -1,3 +1,7 @@
+import {
+  expectCalendarField,
+  fillCalendarField,
+} from "./helpers/calendar-form";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
@@ -67,19 +71,14 @@ test("one editor switches saved plans between all-day and one continuous timed r
     editor(page).getByLabel("All day", { exact: true }),
   ).not.toBeChecked();
   await editor(page).getByLabel("All day", { exact: true }).check();
-  await expect(editor(page).getByLabel("Date", { exact: true })).toHaveValue(
-    "2026-09-07",
+  await expect(editor(page)).toContainText(
+    "Recorded results and time are kept. Undo restores the links",
   );
-  await expect(
-    editor(page).getByLabel("Last day", { exact: true }),
-  ).toHaveValue("2026-09-09");
+  await expectCalendarField(editor(page), "Date", "2026-09-07");
+  await expectCalendarField(editor(page), "Last day", "2026-09-09");
   await editor(page).getByLabel("All day", { exact: true }).uncheck();
-  await expect(editor(page).getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-07T09:00",
-  );
-  await expect(editor(page).getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-09T17:00",
-  );
+  await expectCalendarField(editor(page), "Start", "2026-09-07T09:00");
+  await expectCalendarField(editor(page), "End", "2026-09-09T17:00");
   await editor(page).getByLabel("All day", { exact: true }).check();
   await page.keyboard.press("Escape");
   expect(await blocks(page)).toHaveLength(1);
@@ -116,18 +115,10 @@ test("one editor switches saved plans between all-day and one continuous timed r
     editor(page).getByLabel("All day", { exact: true }),
   ).toBeChecked();
   await editor(page).getByLabel("All day", { exact: true }).uncheck();
-  await expect(editor(page).getByLabel("Start", { exact: true })).toHaveValue(
-    /^2026-09-07T/,
-  );
-  await expect(editor(page).getByLabel("End", { exact: true })).toHaveValue(
-    /^2026-09-09T/,
-  );
-  await editor(page)
-    .getByLabel("Start", { exact: true })
-    .fill("2026-09-07T10:00");
-  await editor(page)
-    .getByLabel("End", { exact: true })
-    .fill("2026-09-09T18:00");
+  await expectCalendarField(editor(page), "Start", /^2026-09-07T/);
+  await expectCalendarField(editor(page), "End", /^2026-09-09T/);
+  await fillCalendarField(editor(page), "Start", "2026-09-07T10:00");
+  await fillCalendarField(editor(page), "End", "2026-09-09T18:00");
   expect(
     (await new AxeBuilder({ page }).include('[role="dialog"]').analyze())
       .violations,
@@ -186,12 +177,8 @@ test("repeating plan mode changes support individual exceptions, following scope
     .getByRole("button", { name: /Daily plan, all day/ })
     .dblclick();
   await editor(page).getByLabel("All day", { exact: true }).uncheck();
-  await editor(page)
-    .getByLabel("Start", { exact: true })
-    .fill("2026-09-07T09:00");
-  await editor(page)
-    .getByLabel("End", { exact: true })
-    .fill("2026-09-07T10:00");
+  await fillCalendarField(editor(page), "Start", "2026-09-07T09:00");
+  await fillCalendarField(editor(page), "End", "2026-09-07T10:00");
   await editor(page).getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor(page)).toHaveCount(0);
   expect(await blocks(page)).toHaveLength(1);

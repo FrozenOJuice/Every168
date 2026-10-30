@@ -43,7 +43,7 @@ function subscribeToDialogs(change: () => void) {
 const modalHost = () =>
   Array.from(
     document.querySelectorAll<HTMLDialogElement>(
-      "dialog:modal:not(.assistant-popup)",
+      "dialog:modal:not(.assistant-popup):not(.confirmation-dialog)",
     ),
   ).at(-1) ?? null;
 const noHost = () => null;

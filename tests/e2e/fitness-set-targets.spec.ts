@@ -113,7 +113,7 @@ test("numeric replacement, adding sets and mixed summaries survive saving", asyn
   // Click entry and keyboard entry replace existing digits in every target type.
   const labels = [
     "Target reps",
-    "Target load (kg)",
+    "Target weight (kg)",
     "Target duration (seconds)",
     "Target distance (km)",
     "Target laps",
@@ -136,11 +136,11 @@ test("numeric replacement, adding sets and mixed summaries survive saving", asyn
   await quick.getByLabel("Target reps", { exact: true }).focus();
   await page.keyboard.press("Tab");
   await expect(
-    quick.getByLabel("Target load (kg)", { exact: true }),
+    quick.getByLabel("Target weight (kg)", { exact: true }),
   ).toBeFocused();
   await page.keyboard.type("85");
   await expect(
-    quick.getByLabel("Target load (kg)", { exact: true }),
+    quick.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("85");
   await entryCard
     .getByRole("button", { name: "Advanced editor", exact: true })

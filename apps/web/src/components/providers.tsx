@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-query";
 import { ApiError } from "@168hours/api-client";
 import { clearCalendarHistory } from "@/features/planning/calendar-history-store";
+import { ConfirmationProvider } from "@/components/ui/confirmation-provider";
+import { NavigationGuardProvider } from "@/lib/use-unsaved-changes";
 function handleError(error: Error) {
   if (
     error instanceof ApiError &&
@@ -35,5 +37,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <ConfirmationProvider>
+        <NavigationGuardProvider>{children}</NavigationGuardProvider>
+      </ConfirmationProvider>
+    </QueryClientProvider>
+  );
 }

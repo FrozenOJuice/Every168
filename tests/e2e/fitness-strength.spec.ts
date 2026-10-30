@@ -72,7 +72,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
       .click();
   }
   await page.getByLabel("Target reps", { exact: true }).fill("8");
-  await page.getByLabel("Target load (lb)", { exact: true }).fill("100");
+  await page.getByLabel("Target weight (lb)", { exact: true }).fill("100");
   await page
     .getByRole("button", { name: "More details for set 1", exact: true })
     .click();
@@ -102,8 +102,36 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
     name: "Schedule workout",
     exact: true,
   });
-  await schedule.getByLabel("Start", { exact: true }).fill("2026-10-14T15:00");
-  await schedule.getByLabel("End", { exact: true }).fill("2026-10-14T16:00");
+  await schedule
+    .getByRole("button", { name: "Choose start date", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Choose day", exact: true })
+    .getByRole("button", { name: "Wednesday, October 14, 2026", exact: true })
+    .click();
+  await schedule
+    .getByRole("button", { name: "Choose start time", exact: true })
+    .click();
+  const timePicker = page.getByRole("dialog", {
+    name: "Choose start time",
+    exact: true,
+  });
+  const hour = timePicker.getByRole("listbox", { name: "Hour", exact: true });
+  await hour.press("Home");
+  await hour.press("ArrowDown");
+  await hour.press("ArrowDown");
+  await timePicker
+    .getByRole("listbox", { name: "Minute", exact: true })
+    .press("Home");
+  await timePicker
+    .getByRole("listbox", { name: "AM/PM", exact: true })
+    .press("End");
+  await timePicker
+    .getByRole("button", { name: "Set time", exact: true })
+    .click();
+  await expect(
+    schedule.getByRole("button", { name: "Choose end time", exact: true }),
+  ).toContainText("4:00 PM");
   await schedule
     .getByRole("button", { name: "Schedule workout", exact: true })
     .click();
@@ -133,7 +161,7 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   ).toHaveValue("");
   await page.locator(".fitness-set-targets").first().locator("summary").click();
   await expect(
-    page.getByLabel("Target load (lb)", { exact: true }).first(),
+    page.getByLabel("Target weight (lb)", { exact: true }).first(),
   ).toHaveValue("100");
   await page.getByLabel("Actual reps", { exact: true }).first().fill("7");
   await saved(page);
@@ -144,7 +172,10 @@ test("prepare, schedule, train, recover, finish and repeat a strength workout", 
   await expect
     .poll(async () => (await read()).exercises[0].sets[0].reps)
     .toBe(7);
-  await page.getByLabel("Actual load (lb)", { exact: true }).first().fill("90");
+  await page
+    .getByLabel("Actual weight (lb)", { exact: true })
+    .first()
+    .fill("90");
   await saved(page);
   await page
     .getByRole("group", { name: "Set 1", exact: true })

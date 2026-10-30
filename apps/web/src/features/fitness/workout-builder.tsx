@@ -2,6 +2,7 @@
 import { FitnessConfirm } from "./fitness-confirm";
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { useMe } from "@/features/identity/me";
+import { useFitnessNavigation } from "./fitness-navigation";
 import { useWorkoutBuilderRecovery } from "./workout-builder-recovery";
 import { WorkoutEditor } from "./workout-editor";
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -70,6 +71,7 @@ function WorkoutBuilder({
   initialExercise?: import("@168hours/contracts").Exercise;
 }) {
   const { user } = useMe();
+  const navigation = useFitnessNavigation();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const cache = useQueryClient();
@@ -131,11 +133,14 @@ function WorkoutBuilder({
   const error = Object.values(errors).find(Boolean);
   // Once all reported problems are resolved, wait for Save before validating new edits.
   if (validationMode !== null && !error) setValidationMode(null);
-  const leave = () => router.push(returnTo ?? "/fitness");
+  const leave = () =>
+    navigation.parent
+      ? void navigation.back()
+      : router.replace(returnTo ?? "/fitness");
   const saved = () => {
     recovery.clear();
     invalidateFitness(cache);
-    leave();
+    router.replace(returnTo ?? "/fitness");
   };
   const save = useCommand({
     persistence: {
@@ -242,7 +247,7 @@ function WorkoutBuilder({
                 : "Edit workout"
               : "Create workout"
           }
-          backLabel={returnTo ? "Back to exercise" : "Back to Training"}
+          backLabel={returnTo ? "Back to exercise" : "Back to Fitness"}
           onBack={() => (dirty ? setCancelling(true) : leave())}
           disabled={busy}
           headerActions={
@@ -399,7 +404,9 @@ function WorkoutBuilder({
                     ? [{ separator: true as const }]
                     : []),
                   {
-                    label: plan.isDraft ? "Delete draft" : "Delete workout",
+                    label: plan.isDraft
+                      ? "Delete draft"
+                      : "Delete reusable workout",
                     disabled: busy,
                     destructive: true,
                     run: () => setDeleting(true),
@@ -414,7 +421,7 @@ function WorkoutBuilder({
         <FitnessConfirm
           title={plan?.isDraft ? "Delete draft?" : "Delete reusable workout?"}
           description="Scheduled workouts and recorded results will stay."
-          action={plan?.isDraft ? "Delete draft" : "Delete workout"}
+          action={plan?.isDraft ? "Delete draft" : "Delete reusable workout"}
           cancel="Cancel"
           danger
           busy={busy}

@@ -18,7 +18,7 @@ export function ResetWorkoutExercise({
   const proposal = basicResetProposal(exercise);
   const targetLabels = {
     targetReps: "reps",
-    targetWeightKg: "load",
+    targetWeightKg: "weight",
     targetDurationSeconds: "duration",
     targetDistanceMeters: "distance",
     targetLaps: "laps",

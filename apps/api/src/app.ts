@@ -108,7 +108,7 @@ export function createApp({
       calendarActivity,
     ),
     routinesRoutes(routines, writes),
-    tasksRoutes(tasks, writes),
+    ...(features.tasks ? [tasksRoutes(tasks, writes)] : []),
     goalsRoutes(goals, writes),
     ...(features.food
       ? [
@@ -118,7 +118,9 @@ export function createApp({
           bodyRoutes(body, writes),
         ]
       : []),
-    trainingProgramsRoutes(trainingPrograms, writes),
+    ...(features.trainingPrograms
+      ? [trainingProgramsRoutes(trainingPrograms, writes)]
+      : []),
     exerciseRoutes(
       exercises,
       strength,

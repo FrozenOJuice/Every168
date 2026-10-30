@@ -18,7 +18,9 @@ export function WorkoutMeasurementsEditor({
   const [open, setOpen] = useState(false);
   const id = useId();
   const selected = measurementsFor(value)
-    .map((field) => field[0]!.toUpperCase() + field.slice(1))
+    .map((field) =>
+      field === "load" ? "Weight" : field[0]!.toUpperCase() + field.slice(1),
+    )
     .join(" · ");
   return (
     <div

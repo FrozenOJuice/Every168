@@ -1,3 +1,6 @@
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { CalendarSourceLink } from "./calendar-source-link";
 import {
   Activity,
@@ -101,6 +104,7 @@ export function CalendarDayFeed({
   now,
   onOpen,
   onOpenActivity,
+  emptyMessage = "No plans or activity for this day yet.",
 }: {
   date: string;
   week: Week;
@@ -110,7 +114,12 @@ export function CalendarDayFeed({
   now: string;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   onOpenActivity?: (entry: CalendarActivity) => void;
+  emptyMessage?: string;
 }) {
+  const workoutLinks = useQuery({
+    queryKey: ["fitness", "day-links", date],
+    queryFn: () => api.getFitnessDayLinks(date),
+  });
   const domain = activityOnDate(activity.entries, date, week.timezone, filter);
   // A domain session and its accounting ledger are one activity, even when linked to a plan.
   const sourceKeys = new Set(
@@ -147,7 +156,15 @@ export function CalendarDayFeed({
   const upcoming = feed.filter(
     (entry) => Date.parse(entry.at) > Date.parse(now),
   );
-  const next = upcoming[0];
+  // Completion follows the scheduled workout's linked session, independently
+  // of when its time was recorded. Other activity linked to a plan is not completion.
+  const finishedWorkoutBlocks = new Set(
+    workoutLinks.data?.completedBlockIds ?? [],
+  );
+  const workoutFinished = (entry: (typeof feed)[number]) =>
+    entry.record?.kind === "block" &&
+    finishedWorkoutBlocks.has(entry.record.item.id);
+  const next = upcoming.find((entry) => !workoutFinished(entry));
   const groups = [
     {
       title: "Earlier",
@@ -166,14 +183,17 @@ export function CalendarDayFeed({
     },
     {
       title: "Coming up",
-      entries: upcoming.slice(1),
+      entries: upcoming,
     },
   ];
+  const happeningNow = groups[1]!.entries.filter(
+    (entry) => !workoutFinished(entry),
+  );
   return (
     <section className="calendar-day-feed" aria-label="Day activity">
-      {(groups[1]!.entries.length > 0 || next) && (
+      {(happeningNow.length > 0 || next) && (
         <div className="day-at-a-glance">
-          {groups[1]!.entries.map((entry) => (
+          {happeningNow.map((entry) => (
             <p key={entry.key}>
               <strong>Now</strong> ·{" "}
               {entry.record?.kind === "block" ? "Planned: " : "Recorded: "}
@@ -272,16 +292,12 @@ export function CalendarDayFeed({
                         />
                       ) : (
                         entry.record && (
-                          <div className="feed-time-record">
-                            {entry.record.kind === "block" && (
-                              <small>Planned</small>
-                            )}
-                            <CalendarRecord
-                              record={entry.record}
-                              week={week}
-                              onOpen={() => onOpen(entry.record!, date)}
-                            />
-                          </div>
+                          <CalendarRecord
+                            workoutCompleted={workoutFinished(entry)}
+                            record={entry.record}
+                            week={week}
+                            onOpen={() => onOpen(entry.record!, date)}
+                          />
                         )
                       )}
                     </li>
@@ -292,7 +308,7 @@ export function CalendarDayFeed({
           ),
       )}
       {!feed.length && !anytime.length && !datedTasks.length && (
-        <p className="empty">No plans or activity for this day yet.</p>
+        <p className="empty">{emptyMessage}</p>
       )}
       {activity.truncatedSources.map((source, index) => (
         <p className="notice" key={source.label + index}>

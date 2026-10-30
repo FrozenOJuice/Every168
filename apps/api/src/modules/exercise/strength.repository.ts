@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
 import {
+  getTableColumns,
   and,
   gte,
   gt,
@@ -179,7 +180,15 @@ export function strengthRepository(db: Database) {
     },
     async list(u: string, q: WorkoutHistoryQuery) {
       const rows = await db
-        .select()
+        .select({
+          ...getTableColumns(workouts),
+          exerciseCount: sql<number>`(select count(*)::int from strength_workout_exercises e
+            where e.workout_id = "strength_workouts"."id" and e.user_id = ${u})`,
+          completedSetCount: sql<number>`(select count(*)::int from strength_sets s
+            inner join strength_workout_exercises e on e.id = s.workout_exercise_id and e.user_id = ${u}
+            where e.workout_id = "strength_workouts"."id" and s.user_id = ${u}
+            and s.completed = true and s.skipped = false)`,
+        })
         .from(workouts)
         .where(
           and(
@@ -221,6 +230,7 @@ export function strengthRepository(db: Database) {
         .update(workouts)
         .set({
           title: v.title,
+          pauses: v.pauses ?? [],
           startedAt: new Date(v.startedAt),
           endedAt: v.endedAt ? new Date(v.endedAt) : null,
           notes: v.notes,

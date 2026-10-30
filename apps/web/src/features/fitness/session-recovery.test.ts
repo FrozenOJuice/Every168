@@ -45,6 +45,33 @@ const invalidInput = () => ({
     },
   ],
 });
+
+it("retains invalid local pause corrections through draft recovery without replacing saved instants", () => {
+  const input = {
+    ...sessionDraft(session),
+    endedAt: "2026-10-23T14:00:00Z",
+    pauses: [
+      {
+        startsAt: "2026-10-23T12:30:12.123Z",
+        endsAt: "2026-10-23T13:00:14.456Z",
+      },
+    ],
+  };
+  const invalidTimes = {
+    "pauses.0.startsAt": "2026-03-08T02:30",
+    "pauses.0.endsAt": "2026-11-01T01:30",
+  };
+  const restored = recoverSession(
+    JSON.stringify({ input, invalidTimes, version: session.version }),
+    session,
+  );
+  expect(restored).toMatchObject({
+    dirty: true,
+    conflict: false,
+    invalidTimes,
+  });
+  expect(restored.input.pauses).toEqual(input.pauses);
+});
 it("recovers invalid session measurements and other edits without relaxing save validation", () => {
   const input = invalidInput();
   const recovered = recoverSession(

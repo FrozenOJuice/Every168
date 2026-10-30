@@ -22,6 +22,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+export const FormDisabledContext = createContext(false);
 export const FormBusyContext = createContext<((busy: boolean) => void) | null>(
   null,
 );
@@ -46,12 +47,14 @@ export function Form<T extends FieldValues>({
   children,
   retrySafe = true,
   disabled = false,
+  footer,
 }: {
   form: UseFormReturn<T>;
   retrySafe?: boolean;
   disabled?: boolean;
   onSubmit: (values: T, requestKey: string) => Promise<void>;
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   const [pending, setPending] = useState<{ values: T; key: string } | null>(
     null,
@@ -99,50 +102,65 @@ export function Form<T extends FieldValues>({
       setSaving(false);
     }
   }
+  const body = (
+    <>
+      <fieldset
+        className="form-stack"
+        disabled={disabled || !!pending || saving}
+      >
+        {children}
+      </fieldset>
+      {form.formState.errors.root && (
+        <p role="alert" className="error">
+          {form.formState.errors.root.message}
+        </p>
+      )}
+      {pending && (
+        <div role="status">
+          <p>
+            The save could not be confirmed. Retry this same change before
+            making another.
+          </p>
+          <button
+            className="button primary"
+            type="button"
+            onClick={() => void save(pending.values)}
+            disabled={saving}
+          >
+            Retry save
+          </button>
+        </div>
+      )}
+      {stale && (
+        <button
+          className="button"
+          type="button"
+          onClick={() => window.location.reload()}
+        >
+          Reload latest (discard edits)
+        </button>
+      )}
+    </>
+  );
   return (
     <FormProvider {...form}>
-      <form
-        noValidate
-        onSubmit={(event) => void form.handleSubmit(save)(event)}
-        className="form-stack"
-      >
-        <fieldset
+      <FormDisabledContext.Provider value={disabled || !!pending || saving}>
+        <form
+          noValidate
+          onSubmit={(event) => void form.handleSubmit(save)(event)}
           className="form-stack"
-          disabled={disabled || !!pending || saving}
         >
-          {children}
-        </fieldset>
-        {form.formState.errors.root && (
-          <p role="alert" className="error">
-            {form.formState.errors.root.message}
-          </p>
-        )}
-        {pending && (
-          <div role="status">
-            <p>
-              The save could not be confirmed. Retry this same change before
-              making another.
-            </p>
-            <button
-              className="button primary"
-              type="button"
-              onClick={() => void save(pending.values)}
-              disabled={saving}
+          {footer ? <div className="form-scroll-body">{body}</div> : body}
+          {footer && (
+            <fieldset
+              className="form-footer"
+              disabled={disabled || !!pending || saving}
             >
-              Retry save
-            </button>
-          </div>
-        )}
-        {stale && (
-          <button
-            className="button"
-            type="button"
-            onClick={() => window.location.reload()}
-          >
-            Reload latest (discard edits)
-          </button>
-        )}
-      </form>
+              {footer}
+            </fieldset>
+          )}
+        </form>
+      </FormDisabledContext.Provider>
     </FormProvider>
   );
 }

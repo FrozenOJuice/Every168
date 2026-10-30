@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/format";
 export function SessionStartField({
   id = "session-start",
   kind = "start",
+  timeLabel,
   value,
   onChange,
   invalid,
@@ -18,7 +19,8 @@ export function SessionStartField({
   disabled,
 }: {
   id?: string;
-  kind?: "start" | "finish";
+  kind?: "start" | "finish" | "end";
+  timeLabel?: string;
   value: string;
   onChange: (value: string) => void;
   invalid: boolean;
@@ -43,10 +45,15 @@ export function SessionStartField({
         className="button"
         disabled={disabled}
         aria-label={`Choose ${kind} date`}
+        data-invalid={invalid}
+        aria-describedby={describedBy}
         aria-haspopup="dialog"
         aria-expanded={open && !disabled}
         onClick={(event) => {
-          setContainer(event.currentTarget.closest("main"));
+          setContainer(
+            event.currentTarget.closest("dialog[open]") ??
+              event.currentTarget.closest("main"),
+          );
           closeTime();
           setOpen(!open);
         }}
@@ -60,6 +67,7 @@ export function SessionStartField({
         className="button fitness-session-time-trigger"
         disabled={disabled}
         data-invalid={invalid}
+        aria-label={timeLabel}
         aria-describedby={describedBy}
         aria-haspopup="dialog"
         aria-expanded={!!timeAnchor && !disabled}

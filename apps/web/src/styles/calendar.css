@@ -523,7 +523,7 @@
   justify-self: end;
   min-width: 0;
   max-width: 100%;
-  width: 350px;
+  width: var(--calendar-side-width);
   padding: 16px 8px;
   border-left: 1px solid transparent;
 }
@@ -1606,7 +1606,7 @@
 }
 .calendar-day-feed {
   padding: 16px;
-  width: 350px;
+  width: var(--calendar-side-width);
   flex-shrink: 0;
   overflow-y: auto;
   overflow-wrap: anywhere;
@@ -1668,9 +1668,6 @@
   font-size: 0.75rem;
   min-height: 44px;
 }
-.composer-plan-types {
-  margin-top: 16px;
-}
 .form-stack details > summary {
   min-height: 44px;
   cursor: pointer;
@@ -1728,11 +1725,6 @@
 .day-at-a-glance-next[aria-pressed="true"] {
   background: var(--primary);
   color: var(--primary-foreground);
-}
-.feed-time-record > small {
-  color: var(--muted-foreground);
-  display: block;
-  margin-bottom: 4px;
 }
 .unscheduled-list {
   display: grid;
@@ -1816,6 +1808,11 @@
   }
 }
 
+:root {
+  --calendar-side-width: 350px;
+  --calendar-date-font-size: 1.25rem;
+}
+
 /* Keep the date label's geometry identical when switching calendar views. */
 .calendar-date-controls {
   display: grid;
@@ -1831,7 +1828,7 @@
   justify-self: center;
   width: 100%;
   max-width: 100%;
-  font-size: 1.25rem;
+  font-size: var(--calendar-date-font-size);
 }
 .calendar-date-title {
   display: flex;
@@ -1859,16 +1856,16 @@
   line-height: 1.25;
 }
 @media (max-width: 700px) {
-  .calendar-period h2 {
-    font-size: 1.125rem;
+  :root {
+    --calendar-date-font-size: 1.125rem;
   }
   .calendar-date-title {
     padding-inline: 4px;
   }
 }
 @media (max-width: 360px) {
-  .calendar-period h2 {
-    font-size: 0.8125rem;
+  :root {
+    --calendar-date-font-size: 0.8125rem;
   }
   .calendar-period {
     padding-left: 56px;
@@ -2065,4 +2062,180 @@ dialog > .calendar-selection-actions {
 .calendar-actions-button[aria-disabled="true"] {
   opacity: 0.5;
   cursor: default;
+}
+
+.calendar-move-anchor,
+.calendar-move-destination,
+.calendar-move-destination .field {
+  display: grid;
+  gap: 8px;
+}
+.calendar-move-anchor {
+  margin-block: 12px 16px;
+  overflow-wrap: anywhere;
+}
+.calendar-move-destination {
+  gap: 12px;
+}
+.calendar-move-destination .button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 44px;
+}
+.calendar-move-destination .field label {
+  font-size: 0.8125rem;
+}
+
+/* Event creation keeps the primary action visible while longer repeat options scroll. */
+.calendar-event-composer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px;
+  gap: 8px;
+}
+.calendar-event-composer > .row {
+  flex-shrink: 0;
+}
+.calendar-event-composer h2 {
+  font-size: 0.9375rem;
+}
+.calendar-event-composer form.form-stack {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  gap: 0;
+}
+.calendar-event-composer .form-scroll-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 4px 10px;
+  scrollbar-gutter: stable;
+}
+.calendar-event-composer .form-scroll-body > fieldset {
+  gap: 8px;
+}
+.calendar-event-composer .form-stack > fieldset > .field,
+.calendar-event-composer .form-grid > .field,
+.calendar-event-composer .field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+}
+.calendar-event-composer .field label,
+.calendar-event-choices > span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.calendar-event-composer input:not([type="checkbox"], [type="radio"]),
+.calendar-event-composer .button {
+  min-height: 36px;
+  font-size: 0.8125rem;
+}
+.calendar-event-composer textarea {
+  min-height: 56px;
+  height: 56px;
+  resize: vertical;
+  width: 100%;
+}
+.calendar-event-composer .calendar-all-day-toggle {
+  min-height: 28px;
+  font-size: 0.8125rem;
+}
+.calendar-event-timing,
+.calendar-event-composer .calendar-all-day-fields,
+.calendar-event-composer .calendar-repeat-fields {
+  display: grid;
+  gap: 8px;
+}
+.calendar-event-date-time {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.calendar-event-composer .calendar-field-trigger {
+  width: 100%;
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  gap: 8px;
+}
+.calendar-field-trigger svg {
+  flex-shrink: 0;
+}
+.calendar-event-choices {
+  display: grid;
+  gap: 4px;
+}
+.calendar-event-choices > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.calendar-event-choices label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.calendar-event-choices label:has(:checked) {
+  background: var(--muted);
+  border-color: var(--primary);
+}
+.calendar-event-composer .calendar-event-choices input {
+  margin: 0;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px;
+  accent-color: var(--primary);
+}
+.calendar-event-composer .weekday-choices {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.calendar-event-composer .weekday-choices .button {
+  min-width: 0;
+  padding-inline: 2px;
+}
+.calendar-event-composer .form-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex-shrink: 0;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 0 0;
+  background: var(--card);
+}
+.calendar-event-composer .form-footer .button {
+  min-width: 0;
+  white-space: normal;
+}
+.calendar-field-trigger[data-invalid="true"] {
+  border-color: var(--destructive);
+}
+.calendar-field-trigger:focus {
+  outline: none;
+  box-shadow: var(--field-focus-shadow);
+  position: relative;
+  z-index: 1;
+}
+
+@media (pointer: coarse), (max-width: 600px) {
+  .calendar-event-composer input:not([type="checkbox"], [type="radio"]),
+  .calendar-event-composer .button,
+  .calendar-event-composer .calendar-all-day-toggle,
+  .calendar-event-composer .calendar-event-choices label {
+    min-height: 44px;
+  }
 }

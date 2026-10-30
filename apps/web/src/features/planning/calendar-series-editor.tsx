@@ -32,6 +32,7 @@ export function CalendarSeriesEditor({
   date,
   source,
   occurrenceDate,
+  container,
   onClose,
   onSaved,
 }: {
@@ -39,6 +40,7 @@ export function CalendarSeriesEditor({
   date: string;
   source?: Block | CalendarItem;
   occurrenceDate?: string;
+  container?: Element | null;
   onClose: () => void;
   onSaved: (message: string, date?: string) => void;
 }) {
@@ -51,6 +53,7 @@ export function CalendarSeriesEditor({
   });
   return (
     <CalendarPlanPopover
+      container={container}
       date={date}
       recordId={source?.id}
       busy={removing}

@@ -75,8 +75,9 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     name: "Add exercise",
     exact: true,
   });
-  await expect(empty).toHaveClass("fitness-builder-empty");
-  await expect(empty).toHaveCSS("border-top-style", "dotted");
+  await expect(right.locator(".fitness-builder-library-hint")).toBeVisible();
+  if (touch) await expect(empty).toBeVisible();
+  else await expect(empty).toHaveCount(0);
   if (touch)
     await right
       .getByRole("button", { name: "Add exercise", exact: true })
@@ -214,7 +215,7 @@ test("compact workout cards expose removal and reorder exercises and sets by han
     .getByLabel("Target reps", { exact: true })
     .boundingBox())!;
   const loadBox = (await firstRow
-    .getByLabel("Target load (kg)", { exact: true })
+    .getByLabel("Target weight (kg)", { exact: true })
     .boundingBox())!;
   const durationBox = (await firstRow
     .getByLabel("Target duration (seconds)", { exact: true })

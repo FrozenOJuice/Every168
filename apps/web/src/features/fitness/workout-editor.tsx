@@ -1,10 +1,24 @@
 "use client";
 
-import { useId, type ComponentProps, type ReactNode } from "react";
+import {
+  useId,
+  useSyncExternalStore,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Plus } from "lucide-react";
 import { NotesEditor } from "./notes-editor";
 import { StrengthExercises } from "./strength-exercises";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
+import { workoutCreationExperiment } from "./workout-creation-experiment";
+
+const compactEditorQuery = "(max-width: 1100px)";
+function subscribeEditorLayout(onChange: () => void) {
+  const media = window.matchMedia(compactEditorQuery);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
 
 type SetupProps = {
   name: string;
@@ -90,24 +104,37 @@ export function WorkoutEditor({
   exercises: Omit<ComponentProps<typeof StrengthExercises>, "building">;
 }) {
   const panel = useFitnessExercisePanel();
+  const compact = useSyncExternalStore(
+    subscribeEditorLayout,
+    () => window.matchMedia(compactEditorQuery).matches,
+    () => false,
+  );
+  const navigationTarget = compact ? panel.editorNavigationTarget : null;
+  const navigation = (
+    <div className="fitness-builder-heading-navigation">
+      <button
+        type="button"
+        className="fitness-back"
+        disabled={backDisabled ?? setup.disabled}
+        onClick={async () => {
+          await panel.showWorkout();
+          onBack();
+        }}
+      >
+        <ArrowLeft size={16} aria-hidden="true" />
+        {backLabel}
+      </button>
+      {headerActions}
+    </div>
+  );
   return (
     <>
+      {navigationTarget && createPortal(navigation, navigationTarget)}
       <div className="fitness-builder-scroll">
         <header className="fitness-builder-heading">
-          <div className="fitness-builder-heading-navigation">
-            <button
-              type="button"
-              className="fitness-text-action"
-              disabled={backDisabled ?? setup.disabled}
-              onClick={onBack}
-            >
-              <ArrowLeft size={16} aria-hidden="true" />
-              {backLabel}
-            </button>
-            {headerActions}
-          </div>
-          <h1 className="sr-only">{heading}</h1>
+          {!navigationTarget && navigation}
         </header>
+        <h1 className="sr-only">{heading}</h1>
         {notices}
         <WorkoutEditorSetup {...setup} />
         {context}
@@ -121,17 +148,19 @@ export function WorkoutEditor({
         >
           <header className="fitness-session-plan-heading">
             <h2>Exercises</h2>
-            <button
-              type="button"
-              className="button"
-              data-validation-error={!!setup.errors?.exercises}
-              data-add-exercise
-              disabled={setup.disabled || exercises.value.length >= 50}
-              onClick={() => panel.pick()}
-            >
-              <Plus size={16} aria-hidden="true" />
-              Add exercise
-            </button>
+            {(compact || !workoutCreationExperiment) && (
+              <button
+                type="button"
+                className="button"
+                data-validation-error={!!setup.errors?.exercises}
+                data-add-exercise
+                disabled={setup.disabled || exercises.value.length >= 50}
+                onClick={() => panel.pick()}
+              >
+                <Plus size={16} aria-hidden="true" />
+                Add exercise
+              </button>
+            )}
           </header>
           <StrengthExercises {...exercises} building />
         </div>

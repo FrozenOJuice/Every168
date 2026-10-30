@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Link from "next/link";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
 import { TimeForm } from "./time-form";
 import type {
@@ -25,6 +24,8 @@ export function CalendarComposer({
       date={editor.date}
       onBusyChange={setBusy}
       title="Add plan"
+      width={380}
+      className="calendar-event-composer"
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -32,6 +33,8 @@ export function CalendarComposer({
       <TimeForm
         {...editor}
         compact
+        composer
+        onCancel={onClose}
         allowRepeat
         allowAllDay
         initialAllDay={editor.allDay ?? false}
@@ -39,21 +42,6 @@ export function CalendarComposer({
         onSaved={onSaved}
         onDraftChange={onDraftChange}
       />
-      <details>
-        <summary>Other plans</summary>
-        <div className="row wrap composer-plan-types">
-          <Link
-            className="text-button"
-            href="/unscheduled"
-            aria-disabled={busy}
-            onClick={(event) => {
-              if (busy) event.preventDefault();
-            }}
-          >
-            Unscheduled plans
-          </Link>
-        </div>
-      </details>
     </CalendarPlanPopover>
   );
 }

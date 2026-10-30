@@ -1,112 +1,127 @@
 "use client";
 import { formatFitnessDuration } from "./rest-duration";
-import { measurementsFor } from "@168hours/contracts";
-import { useState } from "react";
+import { measurementsFor, measurementSetKey } from "@168hours/contracts";
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { ExerciseLoggingType } from "@168hours/contracts";
+import type { ExerciseLoggingType, ExerciseReport } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { ErrorState, Loading, PageHeading } from "@/components/ui/feedback";
 import { number } from "@/lib/format";
+import { progressSessionSummary } from "./workout-review-summary";
+import { useRestoreExerciseWorkoutPosition } from "./exercise-workout-position";
+import { WorkoutReference } from "./workout-reference";
+import { WeightRecords } from "./weight-records";
 import { RecordedSets } from "./recorded-sets";
-import { FitnessSelect } from "./fitness-select";
-import {
-  load,
-  distance,
-  sessionDate,
-  trackingLabels,
-  volumeText,
-} from "./progress-shared";
+import { MeasurementFields } from "./measurement-fields";
+import { load, distance } from "./progress-shared";
 
 export function ExerciseProgressPage({
   id,
   initialMode,
   embedded = false,
+  recordsOnly = false,
+  nested = false,
+  onReady,
 }: {
   id: string;
   initialMode?: ExerciseLoggingType;
   embedded?: boolean;
+  recordsOnly?: boolean;
+  nested?: boolean;
+  onReady?: () => void;
 }) {
   const {
-    preferences: { timezone, weightUnit: unit, distanceUnit, durationUnit },
+    preferences: { weightUnit: unit, distanceUnit, durationUnit },
   } = useMe();
+  const root = useRef<HTMLDivElement>(null);
+  const SectionHeading = nested ? "h4" : embedded ? "h3" : "h2";
   const [mode, setMode] = useState<ExerciseLoggingType | undefined>(
     initialMode,
   );
-  const [measure, setMeasure] = useState("maxWeightKg");
   const q = useInfiniteQuery({
-    queryKey: ["fitness", "exercise-report", id, mode],
+    queryKey: ["fitness", "exercise-report", id, "all"],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       api.getExerciseReport(id, {
-        loggingType: mode,
-        allMeasurements: mode ? "false" : "true",
+        allMeasurements: "true",
         cursor: pageParam,
-        limit: 30,
+        limit: 6,
       }),
     getNextPageParam: (p) => p.sessions.nextCursor ?? undefined,
   });
+  useLayoutEffect(() => {
+    if (!q.isPending) onReady?.();
+  }, [q.isPending, onReady]);
+  useRestoreExerciseWorkoutPosition(
+    id,
+    !recordsOnly && !q.isPending && !q.error,
+    root,
+  );
   if (q.isPending) return <Loading />;
   if (q.error)
     return <ErrorState error={q.error} retry={() => void q.refetch()} />;
   const data = q.data.pages[0]!;
   const sessions = q.data.pages.flatMap((p) => p.sessions.items);
-  const fields = measurementsFor(data.loggingType);
-  const hasVolume = fields.includes("reps") && fields.includes("load");
-  const options = [
-    ...(fields.includes("distance")
-      ? [{ value: "maxDistanceMeters", label: "Longest distance" }]
-      : []),
-    ...(fields.includes("laps")
-      ? [{ value: "maxLaps", label: "Most laps" }]
-      : []),
-    ...(fields.includes("load")
-      ? [{ value: "maxWeightKg", label: "Highest load" }]
-      : []),
-    ...(fields.includes("duration")
-      ? [{ value: "maxDurationSeconds", label: "Longest set" }]
-      : []),
-    ...(fields.includes("reps")
-      ? [{ value: "maxReps", label: "Most reps in a set" }]
-      : []),
-    ...(hasVolume
-      ? [{ value: "volumeKg", label: "Recorded session volume" }]
-      : []),
-  ];
-  const metric = (
-    options.some((o) => o.value === measure) ? measure : options[0]!.value
-  ) as
-    | "maxWeightKg"
-    | "maxDurationSeconds"
-    | "maxReps"
-    | "volumeKg"
-    | "maxDistanceMeters"
-    | "maxLaps";
-  const format = (v: number) =>
-    metric === "maxWeightKg"
-      ? load(v, unit)
-      : metric === "volumeKg"
-        ? load(v, unit, true)
-        : metric === "maxDurationSeconds"
-          ? formatFitnessDuration(v, durationUnit)
-          : metric === "maxDistanceMeters"
-            ? distance(v, distanceUnit)
-            : `${number(v)} ${metric === "maxLaps" ? "laps" : "reps"}`;
-  const latestValue = sessions[0]?.[metric] ?? null;
-  const previousValue = sessions[1]?.[metric] ?? null;
+  const displayMode =
+    mode ??
+    measurementSetKey(
+      data.availableMeasurementTypes.length
+        ? [...new Set(data.availableMeasurementTypes.flatMap(measurementsFor))]
+        : measurementsFor(data.loggingType),
+    );
+  const fields = measurementsFor(displayMode);
+  const origin = { exerciseId: id, mode: displayMode };
+  const records = data.records
+    .filter(
+      (record) =>
+        record.metric !== "setVolume" &&
+        record.metric !== "laps" &&
+        fields.includes(record.metric),
+    )
+    .sort(
+      (a, b) =>
+        ["load", "reps", "distance", "duration"].indexOf(a.metric) -
+        ["load", "reps", "distance", "duration"].indexOf(b.metric),
+    );
   const titles = {
-    load: "Highest load",
+    load: "Heaviest weight",
     reps: "Most reps in a set",
-    duration: "Longest set",
+    duration: "Longest recorded duration",
     setVolume: "Highest set volume",
-    distance: "Longest distance",
+    distance: "Longest recorded distance",
     laps: "Most laps",
   };
+  const recordValue = (record: ExerciseReport["records"][number]) =>
+    record.metric === "load"
+      ? load(record.value, unit)
+      : record.metric === "distance"
+        ? distance(record.value, distanceUnit)
+        : record.metric === "duration"
+          ? formatFitnessDuration(record.value, durationUnit)
+          : `${number(record.value)} ${record.value === 1 ? "rep" : "reps"}`;
+  const recordContext = (record: ExerciseReport["records"][number]) => {
+    if (record.metric === "load" && record.reps !== null)
+      return `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
+    if (record.metric === "reps" && record.weightKg !== null)
+      return `at ${load(record.weightKg, unit)}`;
+    if (record.metric === "distance" && record.durationSeconds !== null)
+      return `in ${formatFitnessDuration(record.durationSeconds, durationUnit)}`;
+    if (record.metric === "duration" && record.distanceMeters !== null)
+      return `over ${distance(record.distanceMeters, distanceUnit)}`;
+    return null;
+  };
   return (
-    <div className="fitness-progress-page form-stack">
-      {!embedded && <Link href="/fitness/history">← History</Link>}
-      {!embedded && (
+    <div ref={root} className="fitness-progress-page form-stack">
+      {!embedded && !recordsOnly && (
+        <Link className="fitness-back" href="/fitness/history">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to History
+        </Link>
+      )}
+      {!embedded && !recordsOnly && (
         <PageHeading
           title={`${data.exercise.name} history`}
           description="Completed sets from finished workouts. Open a result to review its session."
@@ -117,188 +132,152 @@ export function ExerciseProgressPage({
           This exercise is archived. Its progress remains available.
         </p>
       )}
-      <FitnessSelect
-        label="Recorded measurements"
-        value={mode ?? "all"}
-        onChange={(value) =>
-          setMode(value === "all" ? undefined : (value as ExerciseLoggingType))
-        }
-        options={[
-          { value: "all", label: "All recorded measurements" },
-          ...[
-            ...new Set([
-              ...data.availableMeasurementTypes,
-              ...(mode ? [mode] : []),
-            ]),
-          ].map((value) => ({ value, label: trackingLabels[value] })),
-        ]}
-      />
-      <p className="muted text-small">
-        Completed sets from finished workouts. Select a measurement combination
-        to view comparable statistics and records.
-      </p>
-      <section
-        className="fitness-recall-section form-stack"
-        aria-labelledby="last-session-heading"
-      >
-        <h2 id="last-session-heading">Last time</h2>
-        {sessions[0] ? (
-          <>
-            <Link href={`/fitness/session/${sessions[0].id}`}>
-              {sessionDate(sessions[0].startedAt, timezone)} ·{" "}
-              {sessions[0].title}
-            </Link>
-            <RecordedSets sets={sessions[0].sets} mode={mode} />
-          </>
-        ) : (
-          <p>No finished sessions for this tracking type yet.</p>
-        )}
-      </section>
-      {sessions.length > 1 && (
-        <section
-          className="form-stack"
-          aria-labelledby="previous-sessions-heading"
-        >
-          <h2 id="previous-sessions-heading">Previous sessions</h2>
-          {sessions.slice(1).map((session) => (
-            <details
-              className="fitness-secondary fitness-session-history"
-              key={session.id}
-            >
-              <summary>
-                {sessionDate(session.startedAt, timezone)} · {session.title} ·{" "}
-                {session.sets.length} sets
-              </summary>
-              <RecordedSets sets={session.sets} mode={mode} />
-              <Link href={`/fitness/session/${session.id}`}>Open workout</Link>
-            </details>
-          ))}
-        </section>
-      )}
-      {q.hasNextPage && (
-        <button
-          className="button"
-          disabled={q.isFetchingNextPage}
-          onClick={() => void q.fetchNextPage()}
-        >
-          Load older sessions
-        </button>
-      )}
-      {mode && (
+      {!sessions.length ? (
+        <ExerciseHistoryEmpty embedded={embedded} nested={nested} />
+      ) : (
         <>
-          <details className="fitness-secondary">
-            <summary>Personal records</summary>
-            <section className="form-stack" aria-labelledby="records-heading">
-              <h2 id="records-heading">Personal records</h2>
-              <p className="muted text-small">
-                All-time best recorded sets for this tracking type. Ties show
-                the earliest workout. A higher load and more reps may come from
-                different sets.
-              </p>
-              {!data.records.length ? (
-                <p>No records yet for {trackingLabels[data.loggingType]}.</p>
-              ) : (
-                <ul className="fitness-progress-records">
-                  {data.records.map((r) => (
-                    <li key={r.metric}>
-                      <span>{titles[r.metric]}</span>
-                      <strong>
-                        {r.metric === "load" || r.metric === "setVolume"
-                          ? load(r.value, unit, r.metric === "setVolume")
-                          : r.metric === "distance"
-                            ? distance(r.value, distanceUnit)
-                            : r.metric === "duration"
-                              ? formatFitnessDuration(r.value, durationUnit)
-                              : `${number(r.value)} ${r.metric === "reps" ? "reps" : "laps"}`}
-                      </strong>
-                      <span className="text-small">
-                        {[
-                          r.distanceMeters !== null
-                            ? distance(r.distanceMeters, distanceUnit)
-                            : null,
-                          r.laps !== null ? `${r.laps} laps` : null,
-                          r.reps !== null ? `${r.reps} reps` : null,
-                          r.weightKg !== null ? load(r.weightKg, unit) : null,
-                          r.durationSeconds !== null
-                            ? formatFitnessDuration(
-                                r.durationSeconds,
-                                durationUnit,
-                              )
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                      <Link href={`/fitness/session/${r.workoutId}`}>
-                        {sessionDate(r.startedAt, timezone)} · {r.workoutTitle}
-                      </Link>
-                    </li>
+          {!recordsOnly && (
+            <MeasurementFields
+              label="Show measurements"
+              value={displayMode}
+              onChange={setMode}
+            />
+          )}
+          {!recordsOnly && (
+            <section
+              className="fitness-recall-section form-stack"
+              aria-labelledby="last-session-heading"
+            >
+              <div className="fitness-history-section-heading">
+                <SectionHeading id="last-session-heading">
+                  Latest session
+                </SectionHeading>
+                {sessions[0] && (
+                  <WorkoutReference
+                    origin={origin}
+                    id={sessions[0].id}
+                    title={sessions[0].title}
+                    startedAt={sessions[0].startedAt}
+                  />
+                )}
+              </div>
+              {sessions[0] ? (
+                <>
+                  <RecordedSets
+                    sets={sessions[0].sets}
+                    visibleMeasurements={fields}
+                  />
+                  {sessions[0].exerciseNotes?.map((note, index) => (
+                    <p className="fitness-review-note" key={index}>
+                      {note}
+                    </p>
                   ))}
-                </ul>
+                  {sessions[0].notes && (
+                    <p className="muted fitness-review-note">
+                      Workout notes: {sessions[0].notes}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p>No finished sessions for this exercise yet.</p>
               )}
             </section>
-          </details>
-          <details className="fitness-secondary">
-            <summary>Session statistics</summary>
-            <section
-              className="form-stack"
-              aria-labelledby="exercise-trend-heading"
-            >
-              <h2 id="exercise-trend-heading">Session statistics</h2>
-              <FitnessSelect
-                label="Progress measure"
-                searchable={false}
-                value={metric}
-                onChange={setMeasure}
-                options={options}
-              />
-              {metric === "volumeKg" && (
-                <p className="muted text-small">
-                  Volume sums recorded load × reps. Sessions with missing
-                  measurements are partial; see the session rows below.
-                </p>
-              )}
-              {sessions.length >= 2 && (
-                <p className="fitness-progress-change">
-                  Latest compared with previous:{" "}
-                  <strong>
-                    {latestValue === null ||
-                    previousValue === null ||
-                    (metric === "volumeKg" &&
-                      (sessions[0]!.missingVolumeSets ||
-                        sessions[1]!.missingVolumeSets))
-                      ? "Not comparable — measurements are incomplete"
-                      : `${format(latestValue)} vs ${format(previousValue)}`}
-                  </strong>
-                  . Compare the set details before treating a change as
-                  improvement.
-                </p>
-              )}
-              <ul className="record-list fitness-progress-sessions">
-                {sessions.map((s) => (
-                  <li key={s.id}>
-                    <div>
-                      <Link href={`/fitness/session/${s.id}`}>
-                        {sessionDate(s.startedAt, timezone)} · {s.title}
-                      </Link>
-                      <p className="muted text-small">
-                        {s.completedSets} completed sets
-                        {hasVolume ? ` · Volume: ${volumeText(s, unit)}` : ""}
-                      </p>
+          )}
+          <section
+            className="form-stack fitness-exercise-records"
+            aria-labelledby="records-heading"
+          >
+            <SectionHeading id="records-heading">
+              Personal records
+            </SectionHeading>
+            {!records.length ? (
+              <p>No records yet for the selected measurements.</p>
+            ) : (
+              <ul className="fitness-progress-records">
+                {records.map((r) => (
+                  <li key={r.metric}>
+                    <span>{titles[r.metric]}</span>
+                    <div className="fitness-exercise-record-result">
+                      <strong>{recordValue(r)}</strong>
+                      {recordContext(r) && (
+                        <span className="muted">· {recordContext(r)}</span>
+                      )}
                     </div>
-                    <strong>
-                      {s[metric] === null ? "Not recorded" : format(s[metric])}
-                    </strong>
+                    <WorkoutReference
+                      origin={origin}
+                      id={r.workoutId}
+                      title={r.workoutTitle}
+                      startedAt={r.startedAt}
+                    />
                   </li>
                 ))}
               </ul>
-              {!sessions.length && (
-                <p>No finished sessions for this tracking type yet.</p>
-              )}
+            )}
+            {fields.includes("reps") && fields.includes("load") && (
+              <WeightRecords
+                id={id}
+                origin={origin}
+                heading={nested ? "h5" : embedded ? "h4" : "h3"}
+              />
+            )}
+          </section>
+          {!recordsOnly && sessions.length > 0 && (
+            <section
+              className="form-stack"
+              aria-labelledby="previous-sessions-heading"
+            >
+              <SectionHeading id="previous-sessions-heading">
+                All sessions
+              </SectionHeading>
+              <ul className="fitness-exercise-session-list">
+                {sessions.map((session) => (
+                  <li className="fitness-session-history" key={session.id}>
+                    <WorkoutReference
+                      origin={origin}
+                      id={session.id}
+                      title={session.title}
+                      startedAt={session.startedAt}
+                      showTime
+                      summary={progressSessionSummary(data.exercise, session, {
+                        weightUnit: unit,
+                        distanceUnit,
+                        durationUnit,
+                      })}
+                    />
+                  </li>
+                ))}
+              </ul>
             </section>
-          </details>
+          )}
+          {!recordsOnly && q.hasNextPage && (
+            <button
+              className="button"
+              disabled={q.isFetchingNextPage}
+              onClick={() => void q.fetchNextPage()}
+            >
+              {q.isFetchingNextPage ? "Loading…" : "Load older sessions"}
+            </button>
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+export function ExerciseHistoryEmpty({
+  embedded = false,
+  nested = false,
+}: {
+  embedded?: boolean;
+  nested?: boolean;
+}) {
+  const Heading = nested ? "h4" : embedded ? "h3" : "h2";
+  return (
+    <div className="fitness-history-empty">
+      <Heading>No workout history yet</Heading>
+      <p className="muted">
+        Finish a workout with this exercise to see your sets and records here.
+      </p>
     </div>
   );
 }

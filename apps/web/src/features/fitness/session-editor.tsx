@@ -1,4 +1,5 @@
 "use client";
+import { useFitnessNavigation } from "./fitness-navigation";
 import {
   ArrowLeft,
   ChevronDown,
@@ -13,7 +14,9 @@ import {
 } from "./restore-starting-workout";
 import { workoutCopySignature } from "./workout-copy-signature";
 import { SessionStartField } from "./session-start-field";
+import { WorkoutPauseCorrections } from "./workout-pause-corrections";
 import { SessionSaveFeedback } from "./session-save-feedback";
+import type { ExerciseWorkoutReturn } from "./exercise-workout-return";
 import { WorkoutReview } from "./workout-review";
 import { FitnessConfirm } from "./fitness-confirm";
 import { useWorkoutStart } from "./active-workouts";
@@ -22,6 +25,7 @@ import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
 import { LiveWorkoutStatus } from "./live-workout-status";
 import { LiveWorkout } from "./live-workout";
 import { TooltipButton } from "@/components/ui/tooltip-button";
+import { features } from "@/lib/release";
 import { ProgramSessionLink } from "./program-detail";
 import { WorkoutComparison } from "./workout-comparison";
 import Link from "next/link";
@@ -36,6 +40,8 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   instantToLocalInput,
+  clipWorkoutPauses,
+  clippedSeconds,
   localInputToInstant,
 } from "@168hours/domain-utils";
 import {
@@ -76,7 +82,15 @@ function recover(key: string, session: Workout): SessionDraftState {
     return recoverSession(null, session);
   }
 }
-export function SessionPage({ id }: { id: string }) {
+export function SessionPage({
+  id,
+  exerciseReturn,
+  historyReturn,
+}: {
+  id: string;
+  exerciseReturn?: ExerciseWorkoutReturn;
+  historyReturn?: string;
+}) {
   const q = useQuery({
     queryKey: ["fitness", "session", id],
     queryFn: () => api.getWorkout(id),
@@ -85,9 +99,42 @@ export function SessionPage({ id }: { id: string }) {
   if (q.isPending) return <Loading />;
   if (q.error)
     return <ErrorState error={q.error} retry={() => void q.refetch()} />;
-  return <SessionEditor key={id} session={q.data} />;
+  return (
+    <SessionEditor
+      key={id}
+      session={q.data}
+      exerciseReturn={exerciseReturn}
+      historyReturn={historyReturn}
+    />
+  );
 }
-function SessionEditor({ session }: { session: Workout }) {
+function SessionEditor({
+  session,
+  exerciseReturn,
+  historyReturn,
+}: {
+  session: Workout;
+  exerciseReturn?: ExerciseWorkoutReturn;
+  historyReturn?: string;
+}) {
+  const navigation = useFitnessNavigation();
+  const parent = navigation.parent;
+  const returnExerciseId =
+    parent?.kind === "exercise"
+      ? parent.exerciseId
+      : exerciseReturn?.exerciseId;
+  const returnExercise = useQuery({
+    queryKey: ["fitness", "exercise", returnExerciseId],
+    queryFn: () => api.getExercise(returnExerciseId!),
+    enabled: !!returnExerciseId,
+  });
+  const returnParams = exerciseReturn
+    ? new URL(exerciseReturn.href, "https://168hours.invalid")
+    : null;
+  if (returnParams) returnParams.searchParams.set("restoreWorkout", session.id);
+  const exerciseBackHref = returnParams
+    ? returnParams.pathname + returnParams.search
+    : undefined;
   const { user, preferences } = useMe();
   const { setSessionEditor, setRecordedSession } = useFitnessExercisePanel();
   const timezone = preferences.timezone;
@@ -126,7 +173,9 @@ function SessionEditor({ session }: { session: Workout }) {
   const [timingOpen, setTimingOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(!!draft.input.notes);
   const [reviewEditing, setReviewEditing] = useState(
-    () => !!session.endedAt && draft.dirty,
+    () =>
+      !!session.endedAt &&
+      (draft.dirty || navigation.screen?.view === "corrections"),
   );
   const [confirmation, setConfirmation] = useState<
     "finish" | "delete" | "reload" | null
@@ -135,7 +184,9 @@ function SessionEditor({ session }: { session: Workout }) {
   const [repeatConfirm, setRepeatConfirm] = useState(false);
   const [cancelCorrectionsConfirm, setCancelCorrectionsConfirm] =
     useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(
+    !session.endedAt && navigation.screen?.view === "editor",
+  );
   const [returning, setReturning] = useState(false);
   const returnRequested = useRef(false);
   const [actionsMenu, setActionsMenu] = useState<{
@@ -144,7 +195,10 @@ function SessionEditor({ session }: { session: Workout }) {
     y: number;
   } | null>(null);
   const closeActions = useCallback(() => setActionsMenu(null), []);
-  const [editorOpened, setEditorOpened] = useState(false);
+  const [editorOpened, setEditorOpened] = useState(
+    navigation.screen?.view === "editor" ||
+      navigation.screen?.view === "corrections",
+  );
   const timeError = Object.keys(draft.invalidTimes ?? {}).length > 0;
   const [storageError, setStorageError] = useState("");
   const { rest, startRest, clearRest, cancelSetRest } = useSessionRest(
@@ -213,7 +267,12 @@ function SessionEditor({ session }: { session: Workout }) {
         sessionStorage.removeItem(copyStorageKey);
       } catch {}
       invalidateFitness(cache);
-      router.push("/fitness/history");
+      clearRest();
+      router.push(
+        currentDraft.current.input.endedAt
+          ? (historyReturn ?? "/fitness/history")
+          : "/fitness",
+      );
     },
   });
   const reusable = useCommand({
@@ -238,7 +297,7 @@ function SessionEditor({ session }: { session: Workout }) {
       }
       invalidateFitness(cache);
       show({
-        message: "Workout saved",
+        message: `Saved “${p.title}” to My workouts.`,
         kind: "success",
         action: {
           label: "Edit workout",
@@ -279,8 +338,13 @@ function SessionEditor({ session }: { session: Workout }) {
     save.conflict;
   useUnsavedChanges(
     busy || (draft.dirty && (confirmedFinished || !!storageError)),
-    "These workout changes have not been saved. Leave and lose them?",
+    confirmedFinished
+      ? "Your unsaved corrections will be discarded. The saved workout stays unchanged."
+      : "These workout changes have not been saved.",
     busy,
+    () => {
+      if (confirmedFinished) discardCorrections();
+    },
   );
   function changeExercises(exercises: SessionDraft["exercises"]) {
     const before = currentDraft.current.input.exercises;
@@ -389,14 +453,82 @@ function SessionEditor({ session }: { session: Workout }) {
           : localInputToInstant(value, timezone);
       const invalidTimes = { ...draft.invalidTimes };
       delete invalidTimes[kind];
-      change({ ...draft.input, [kind]: instant }, invalidTimes);
+      const updated = { ...draft.input, [kind]: instant };
+      change(
+        {
+          ...updated,
+          pauses: finished ? updated.pauses : clipWorkoutPauses(updated),
+        },
+        invalidTimes,
+      );
     } catch {
       change(draft.input, { ...draft.invalidTimes, [kind]: value });
     }
   }
+  const openPause =
+    draft.input.pauses?.at(-1)?.endsAt === null
+      ? draft.input.pauses.at(-1)!
+      : null;
+  const paused = !!openPause;
+  const pausedAt = openPause ? Date.parse(openPause.startsAt) : null;
+  const restExtension = rest
+    ? (draft.input.pauses ?? []).reduce(
+        (sum, pause) =>
+          pause.endsAt
+            ? sum +
+              clippedSeconds(pause as { startsAt: string; endsAt: string }, {
+                startsAt: new Date(rest.startedAt),
+                endsAt: new Date(
+                  Math.max(rest.startedAt, Date.parse(pause.endsAt)),
+                ),
+              }) *
+                1000
+            : sum,
+        0,
+      )
+    : 0;
+  function togglePause() {
+    const now = new Date().toISOString();
+    const pauses = [...(draft.input.pauses ?? [])];
+    if (paused) {
+      const last = pauses.pop()!;
+      // A same-tick resume need not create an empty pause interval.
+      if (Date.parse(now) > Date.parse(last.startsAt))
+        pauses.push({ ...last, endsAt: now });
+    } else
+      pauses.push({
+        startsAt: new Date(
+          Math.max(Date.now(), Date.parse(draft.input.startedAt)),
+        ).toISOString(),
+        endsAt: null,
+      });
+    saveNow({ ...draft.input, pauses });
+  }
   const fields = sessionErrors(draft.input);
   if (fields.notes && !notesOpen) setNotesOpen(true);
   const finished = !!draft.input.endedAt && confirmedFinished;
+  const [appliedEntry, setAppliedEntry] = useState(navigation.entryId);
+  if (appliedEntry !== navigation.entryId) {
+    setAppliedEntry(navigation.entryId);
+    const view = navigation.screen?.view;
+    if (view && view !== "default") {
+      setEditing(!finished && view === "editor");
+      setReviewEditing(finished && view === "corrections");
+      if (view === "editor" || view === "corrections") setEditorOpened(true);
+    }
+  }
+  const { setView } = navigation;
+  useLayoutEffect(() => {
+    setView(
+      finished
+        ? reviewEditing
+          ? "corrections"
+          : "summary"
+        : editing
+          ? "editor"
+          : "live",
+    );
+  }, [setView, finished, reviewEditing, editing]);
   useLayoutEffect(() => {
     setRecordedSession(finished ? `/fitness/session/${session.id}` : null);
     return () => setRecordedSession(null);
@@ -413,9 +545,13 @@ function SessionEditor({ session }: { session: Workout }) {
     fields.notes ||
     fields.startedAt ||
     fields.endedAt ||
+    fields.pauses ||
     timeError
   );
-  if ((timeError || fields.startedAt || fields.endedAt) && !timingOpen)
+  if (
+    (timeError || fields.startedAt || fields.endedAt || fields.pauses) &&
+    !timingOpen
+  )
     setTimingOpen(true);
   if (metadataInvalid && !finished && !editing) {
     setEditing(true);
@@ -434,7 +570,27 @@ function SessionEditor({ session }: { session: Workout }) {
       endedAt: new Date(
         Math.max(Date.now(), Date.parse(draft.input.startedAt) + 1),
       ).toISOString(),
+      pauses: (draft.input.pauses ?? []).flatMap((pause) =>
+        pause.endsAt
+          ? [pause]
+          : Date.now() > Date.parse(pause.startsAt)
+            ? [{ ...pause, endsAt: new Date().toISOString() }]
+            : [],
+      ),
     });
+  }
+  const finishDisabled =
+    busy ||
+    blocked ||
+    !draft.input.exercises.some((e) =>
+      e.sets.some((set) => set.completed && !set.skipped),
+    );
+  function requestFinish() {
+    const unfinished = draft.input.exercises.some((e) =>
+      e.sets.some((set) => !set.completed && !set.skipped),
+    );
+    if (unfinished) setConfirmation("finish");
+    else finish();
   }
   const starting = session.startingSetup;
   const canRestore =
@@ -461,24 +617,27 @@ function SessionEditor({ session }: { session: Workout }) {
       },
     });
   }
+  const saveAsNewWorkoutButton = (
+    <button
+      className="button"
+      disabled={
+        busy ||
+        draft.dirty ||
+        draft.conflict ||
+        !draft.input.exercises.length ||
+        copyUnchanged
+      }
+      onClick={() => {
+        if (!copyUnchanged) reusable.mutate();
+      }}
+    >
+      Save as new workout
+    </button>
+  );
   const sessionOptions = (
     <div className="fitness-session-actions">
       <div className="fitness-session-setup-actions" hidden={reviewEditing}>
-        <button
-          className="button"
-          disabled={
-            busy ||
-            draft.dirty ||
-            draft.conflict ||
-            !draft.input.exercises.length ||
-            copyUnchanged
-          }
-          onClick={() => {
-            if (!copyUnchanged) reusable.mutate();
-          }}
-        >
-          Save as new workout
-        </button>
+        {saveAsNewWorkoutButton}
         {canRestore && (
           <button
             className="button"
@@ -529,7 +688,7 @@ function SessionEditor({ session }: { session: Workout }) {
           disabled={busy || draft.conflict}
           onClick={() => setConfirmation("delete")}
         >
-          {finished ? "Delete workout" : "Discard workout"}
+          {finished ? "Delete recorded workout" : "Discard workout"}
         </button>
       )}
     </div>
@@ -552,20 +711,18 @@ function SessionEditor({ session }: { session: Workout }) {
   );
   const timing = (
     <>
-      {finished ? (
-        <div className="fitness-session-timing-heading">
-          <h2>Timing</h2>
-          <span className="muted text-small">{timezone}</span>
-        </div>
-      ) : (
+      {!finished && (
         <div className="fitness-session-start-heading">
           <label htmlFor="session-start">Started at</label>
-          <span className="muted text-small">{timezone}</span>
         </div>
       )}
       <div className="form-grid fitness-live-timing-fields">
         <div className="field">
-          {finished && <label htmlFor="session-start">Started at</label>}
+          {finished && (
+            <div className="fitness-session-start-heading">
+              <label htmlFor="session-start">Started at</label>
+            </div>
+          )}
           <SessionStartField
             value={
               draft.invalidTimes?.startedAt ??
@@ -619,6 +776,15 @@ function SessionEditor({ session }: { session: Workout }) {
           </div>
         )}
       </div>
+      {finished && (
+        <WorkoutPauseCorrections
+          value={draft.input}
+          invalidTimes={draft.invalidTimes ?? {}}
+          errors={fields}
+          disabled={blocked || returning}
+          onChange={change}
+        />
+      )}
     </>
   );
   return (
@@ -645,7 +811,7 @@ function SessionEditor({ session }: { session: Workout }) {
           onClose={closeActions}
           actions={[
             {
-              label: finished ? "Delete workout" : "Discard workout",
+              label: finished ? "Delete recorded workout" : "Discard workout",
               destructive: true,
               disabled: busy || draft.conflict || returning,
               run: () => setConfirmation("delete"),
@@ -746,7 +912,7 @@ function SessionEditor({ session }: { session: Workout }) {
               : confirmation === "reload"
                 ? "Load the latest saved workout and remove your local edits."
                 : finished
-                  ? "This removes its results and recorded Calendar time. Planned time stays."
+                  ? "This deletes this session from your workout history, including its results and recorded Calendar time. Your reusable workout and planned time stay."
                   : "This removes the session and its results. Your reusable workout stays."
           }
           action={
@@ -755,7 +921,7 @@ function SessionEditor({ session }: { session: Workout }) {
               : confirmation === "reload"
                 ? "Discard and reload"
                 : finished
-                  ? "Delete workout"
+                  ? "Delete recorded workout"
                   : "Discard workout"
           }
           cancel={confirmation === "finish" ? "Keep training" : "Cancel"}
@@ -808,11 +974,13 @@ function SessionEditor({ session }: { session: Workout }) {
         />
       )}
       {start.dialog}
-      {!editing && !reviewEditing && <ProgramSessionLink id={session.id} />}
+      {features.trainingPrograms && !editing && !reviewEditing && (
+        <ProgramSessionLink id={session.id} />
+      )}
       {((!finished && editorOpened) || reviewEditing) && (
         <div
           hidden={!editing && !reviewEditing}
-          className="fitness-workout-builder fitness-session-shared-editor"
+          className={`fitness-workout-builder fitness-session-shared-editor${finished ? " fitness-correct-results" : ""}`}
         >
           <div className="fitness-builder-form">
             <WorkoutEditor
@@ -860,7 +1028,7 @@ function SessionEditor({ session }: { session: Workout }) {
               onNotesChange={(notes) =>
                 change({ ...currentDraft.current.input, notes })
               }
-              disabled={blocked || !!removal || returning}
+              disabled={blocked || !!removal || returning || paused}
               errors={fields}
               timing={
                 <details
@@ -892,8 +1060,9 @@ function SessionEditor({ session }: { session: Workout }) {
               notices={
                 <>
                   <RestTimer
-                    key={rest?.until ?? "idle"}
-                    until={rest?.until ?? null}
+                    key={`${rest?.until ?? "idle"}:${restExtension}:${pausedAt ?? "running"}`}
+                    until={rest ? rest.until + restExtension : null}
+                    pausedAt={pausedAt}
                     label={rest?.exercise}
                     onCancel={clearRest}
                   />
@@ -911,11 +1080,11 @@ function SessionEditor({ session }: { session: Workout }) {
                 </>
               }
               context={
-                <p className="fitness-builder-context">
-                  {finished
-                    ? "Correct recorded results. Your reusable workout stays unchanged."
-                    : "Changes apply to this session only."}
-                </p>
+                !finished && (
+                  <p className="fitness-builder-context">
+                    Changes apply to this session only.
+                  </p>
+                )
               }
               exercises={{
                 value: draft.input.exercises,
@@ -947,9 +1116,43 @@ function SessionEditor({ session }: { session: Workout }) {
         ? !reviewEditing && (
             <header className="fitness-session-header fitness-summary-header">
               <div className="fitness-summary-navigation">
-                <Link className="fitness-session-back" href="/fitness/history">
+                <Link
+                  className="fitness-back"
+                  onNavigate={
+                    parent
+                      ? (event) => {
+                          event.preventDefault();
+                          void navigation.back();
+                        }
+                      : undefined
+                  }
+                  href={
+                    parent?.href ??
+                    (exerciseBackHref && !returnExercise.error
+                      ? exerciseBackHref
+                      : historyReturn
+                        ? `${historyReturn}${historyReturn.includes("?") ? "&" : "?"}restoreSession=${session.id}`
+                        : "/fitness/history")
+                  }
+                  scroll={!exerciseBackHref && !historyReturn}
+                >
                   <ArrowLeft size={16} aria-hidden="true" />
-                  Back to history
+                  {parent?.kind === "exercise"
+                    ? returnExercise.data
+                      ? `Back to ${returnExercise.data.name}`
+                      : "Back to exercise"
+                    : parent?.view === "summary"
+                      ? "Back to summary"
+                      : parent?.href.split("?")[0] === "/fitness"
+                        ? "Back to Fitness"
+                        : parent &&
+                            parent.href.split("?")[0] !== "/fitness/history"
+                          ? "Back to workout"
+                          : exerciseBackHref && !returnExercise.error
+                            ? returnExercise.data
+                              ? `Back to ${returnExercise.data.name}`
+                              : "Back to exercise"
+                            : "Back to History"}
                 </Link>
                 <div className="fitness-session-tools">
                   {saveStatus}
@@ -967,11 +1170,19 @@ function SessionEditor({ session }: { session: Workout }) {
         : !editing && (
             <header className="fitness-session-header">
               <div>
-                <p className="fitness-live-eyebrow">Workout in progress</p>
                 <h1>{draft.input.title}</h1>
               </div>
               <div className="fitness-session-tools">
                 {saveStatus}
+                <button
+                  type="button"
+                  className="button danger"
+                  aria-label="Discard workout"
+                  disabled={busy || blocked || returning}
+                  onClick={() => setConfirmation("delete")}
+                >
+                  Discard
+                </button>
                 <TooltipButton
                   type="button"
                   className="button fitness-session-edit"
@@ -988,14 +1199,32 @@ function SessionEditor({ session }: { session: Workout }) {
                   ) : (
                     <SlidersHorizontal size={16} aria-hidden="true" />
                   )}
-                  <span>{editing ? "Back to workout" : "Edit workout"}</span>
+                  <span>
+                    Edit
+                    <span className="fitness-session-edit-suffix">
+                      {" "}
+                      workout
+                    </span>
+                  </span>
                 </TooltipButton>
               </div>
             </header>
           )}
-      {finished && !reviewEditing && <WorkoutReview value={draft.input} />}
+      {finished && !reviewEditing && (
+        <WorkoutReview
+          value={draft.input}
+          id={session.id}
+          version={draft.version}
+        />
+      )}
       {!finished && !editing && draft.input.notes && (
-        <p className="fitness-live-note">{draft.input.notes}</p>
+        <section
+          className="fitness-live-workout-notes"
+          aria-label="Workout notes"
+        >
+          <h2>Workout notes</h2>
+          <p>{draft.input.notes}</p>
+        </section>
       )}
       {storageError && (
         <p className="error" role="alert">
@@ -1006,12 +1235,24 @@ function SessionEditor({ session }: { session: Workout }) {
       <div className="form-stack" hidden={editing || reviewEditing}>
         {!finished && (
           <LiveWorkoutStatus
-            startedAt={draft.input.startedAt}
+            timing={draft.input}
+            onTogglePause={togglePause}
+            pauseDisabled={busy || blocked || returning || !!removal}
             exercises={draft.input.exercises}
+            onFinish={requestFinish}
+            finishDisabled={finishDisabled}
+            finishLabel={
+              finishRequested
+                ? save.retrying
+                  ? "Finishing…"
+                  : "Finish pending"
+                : "Finish"
+            }
           >
             <RestTimer
-              key={rest?.until ?? "idle"}
-              until={rest?.until ?? null}
+              key={`${rest?.until ?? "idle"}:${restExtension}:${pausedAt ?? "running"}`}
+              until={rest ? rest.until + restExtension : null}
+              pausedAt={pausedAt}
               label={rest?.exercise}
               onCancel={clearRest}
             />
@@ -1030,7 +1271,7 @@ function SessionEditor({ session }: { session: Workout }) {
         <fieldset
           hidden={finished && !reviewEditing}
           className="form-stack"
-          disabled={blocked || !!removal || returning}
+          disabled={blocked || !!removal || returning || paused}
         >
           {!finished ? (
             <>
@@ -1039,7 +1280,7 @@ function SessionEditor({ session }: { session: Workout }) {
                   sessionId={session.id}
                   value={draft.input.exercises}
                   onChange={changeExercises}
-                  disabled={blocked || !!removal || returning}
+                  disabled={blocked || !!removal || returning || paused}
                   errors={fields}
                   onRest={startRest}
                   onUndoRest={cancelSetRest}
@@ -1062,35 +1303,14 @@ function SessionEditor({ session }: { session: Workout }) {
         {confirmation !== "delete" && <CommandError command={remove} />}
         <CommandError command={reusable} />
         <CommandError command={repeat} />
-        <div className="fitness-session-actions">
-          {!finished && !editing && (
-            <button
-              className={`button${draft.input.exercises.every((e) => e.sets.every((set) => set.completed || set.skipped)) ? " primary" : ""}`}
-              data-finish-workout
-              disabled={
-                busy ||
-                blocked ||
-                !draft.input.exercises.some((e) =>
-                  e.sets.some((set) => set.completed && !set.skipped),
-                )
-              }
-              onClick={() => {
-                const unfinished = draft.input.exercises.some((e) =>
-                  e.sets.some((set) => !set.completed && !set.skipped),
-                );
-                if (unfinished) setConfirmation("finish");
-                else finish();
-              }}
+        {finished && !reviewEditing && (
+          <>
+            <WorkoutComparison id={session.id} version={draft.version} />
+            <div
+              className="fitness-summary-footer"
+              role="group"
+              aria-label="Workout actions"
             >
-              {finishRequested
-                ? save.retrying
-                  ? "Finishing…"
-                  : "Finish pending"
-                : "Finish workout"}
-            </button>
-          )}
-          {finished && !reviewEditing && (
-            <>
               <button
                 className="button"
                 disabled={
@@ -1100,22 +1320,21 @@ function SessionEditor({ session }: { session: Workout }) {
               >
                 Repeat workout
               </button>
+              {saveAsNewWorkoutButton}
+              <button
+                className="button danger"
+                disabled={busy || draft.conflict}
+                onClick={() => setConfirmation("delete")}
+              >
+                Delete recorded workout
+              </button>
               <Link
                 className="button primary fitness-session-done"
                 href="/fitness"
               >
-                Back to training
+                Back to Fitness
               </Link>
-            </>
-          )}
-        </div>
-        {finished && !reviewEditing && (
-          <>
-            <WorkoutComparison id={session.id} version={draft.version} />
-            <details className="fitness-secondary">
-              <summary>More actions</summary>
-              {sessionOptions}
-            </details>
+            </div>
           </>
         )}
       </div>

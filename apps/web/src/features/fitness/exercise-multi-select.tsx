@@ -9,6 +9,7 @@ export function ExerciseMultiSelect<T extends string>({
   onChange,
   error,
   disabled = false,
+  optional = false,
 }: {
   label: string;
   options: readonly T[];
@@ -16,6 +17,7 @@ export function ExerciseMultiSelect<T extends string>({
   onChange: (value: T[]) => void;
   error?: string;
   disabled?: boolean;
+  optional?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -88,7 +90,10 @@ export function ExerciseMultiSelect<T extends string>({
           setOpen(false);
       }}
     >
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id}>
+        {label}
+        {optional && <span aria-hidden="true"> (optional)</span>}
+      </label>
       <div className="fitness-select-input">
         <Search
           size={16}

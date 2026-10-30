@@ -5,6 +5,7 @@ import {
   convertPlan,
   type OccurrenceScope,
 } from "./calendar-repeating";
+import { CalendarDateField, CalendarChoiceField } from "./calendar-form-fields";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
@@ -59,6 +60,8 @@ export function TimeForm({
   initialRepeat = "never",
   allowAllDay = false,
   initialAllDay = false,
+  composer = false,
+  onCancel,
 }: TimeEditor & {
   onSaved: (result: CalendarSaveResult) => void;
   compact?: boolean;
@@ -68,6 +71,8 @@ export function TimeForm({
   initialRepeat?: "never" | "weekly";
   allowAllDay?: boolean;
   initialAllDay?: boolean;
+  composer?: boolean;
+  onCancel?: () => void;
 }) {
   const [scope, setScope] = useState<OccurrenceScope>("this");
   const [preserve, setPreserve] = useState(true);
@@ -338,6 +343,16 @@ export function TimeForm({
   return (
     <Form
       form={form}
+      footer={
+        composer ? (
+          <>
+            <button type="button" className="button" onClick={onCancel}>
+              Cancel
+            </button>
+            <Submit>Save</Submit>
+          </>
+        ) : undefined
+      }
       disabled={disabled || interaction?.busy}
       onSubmit={async (v, key) => {
         if (savedPlan && v.allDay !== !!allDayItem) {
@@ -710,22 +725,34 @@ export function TimeForm({
       {savedPlan && allDay !== !!allDayItem && (
         <small>
           {allDay
-            ? "Save changes this plan to all-day."
+            ? "Saving makes this an all-day plan and removes any linked workout or activity associations. Recorded results and time are kept. Undo restores the links; changing this plan back to timed does not."
             : "Save changes this plan to one continuous timed plan, including any nights between its start and end."}
         </small>
       )}
       {allDay ? (
         <div key="all-day" className="calendar-all-day-fields">
-          <Field
-            name="allDayDate"
-            label="Date"
-            type="date"
-            required
-            onChange={(value) => {
-              if (!spansMultipleDays || allDayEndDate < value)
-                form.setValue("allDayEndDate", value);
-            }}
-          />
+          {composer ? (
+            <CalendarDateField
+              name="allDayDate"
+              label="Date"
+              timezone={timezone}
+              onChange={(value) => {
+                if (!spansMultipleDays || allDayEndDate < value)
+                  form.setValue("allDayEndDate", value);
+              }}
+            />
+          ) : (
+            <Field
+              name="allDayDate"
+              label="Date"
+              type="date"
+              required
+              onChange={(value) => {
+                if (!spansMultipleDays || allDayEndDate < value)
+                  form.setValue("allDayEndDate", value);
+              }}
+            />
+          )}
           <label className="calendar-all-day-toggle">
             <input
               type="checkbox"
@@ -738,10 +765,51 @@ export function TimeForm({
             />
             Spans multiple days
           </label>
-          {spansMultipleDays && (
-            <Field name="allDayEndDate" label="Last day" type="date" required />
-          )}
+          {spansMultipleDays &&
+            (composer ? (
+              <CalendarDateField
+                name="allDayEndDate"
+                label="Last day"
+                timezone={timezone}
+                fallbackDate={allDayDate}
+              />
+            ) : (
+              <Field
+                name="allDayEndDate"
+                label="Last day"
+                type="date"
+                required
+              />
+            ))}
           <small>All-day plans do not allocate hours.</small>
+        </div>
+      ) : composer ? (
+        <div key="timed" className="calendar-event-timing">
+          <CalendarDateField
+            name="startsAt"
+            label="Start"
+            timezone={timezone}
+            timed
+            onChange={(value) => setEnd(value, duration.current)}
+          />
+          <CalendarDateField
+            name="endsAt"
+            label="End"
+            timezone={timezone}
+            timed
+            onChange={(value) => {
+              try {
+                const next = elapsedMilliseconds(
+                  form.getValues("startsAt"),
+                  value,
+                  timezone,
+                );
+                if (next > 0) duration.current = next;
+              } catch {
+                /* Keep the last valid duration until both values are valid. */
+              }
+            }}
+          />
         </div>
       ) : (
         <div key="timed" className="form-grid">
@@ -791,38 +859,74 @@ export function TimeForm({
       )}
       {!allDay && !compact && (
         <small>
-          Times are in {timezone}. Moving Start keeps the duration; change End
-          or choose a duration to resize.{" "}
-          {kind === "entry" ? "Enter the time you actually spent." : ""}
+          Moving Start keeps the duration; change End or choose a duration to
+          resize. {kind === "entry" ? "Enter the time you actually spent." : ""}
         </small>
       )}
       {kind === "block" && allowRepeat && (
         <div className="calendar-repeat-fields">
-          <Field
-            name="repeat"
-            label="Repeat"
-            onChange={(value) => {
-              const startDate = form.getValues("startsAt").slice(0, 10);
-              if (
-                (value === "weekly" || value === "custom") &&
-                dateSchema.safeParse(startDate).success
-              )
-                form.setValue("repeatWeekdays", [weekday(startDate)]);
-            }}
-          >
-            <option value="never">Never</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="custom">Custom</option>
-          </Field>
+          {composer ? (
+            <CalendarChoiceField
+              name="repeat"
+              label="Repeat"
+              options={[
+                { value: "never", label: "Doesn’t repeat" },
+                { value: "daily", label: "Daily" },
+                { value: "weekly", label: "Weekly" },
+                { value: "custom", label: "Custom" },
+              ]}
+              onChange={(value) => {
+                const startDate = allDay
+                  ? form.getValues("allDayDate")
+                  : form.getValues("startsAt").slice(0, 10);
+                if (
+                  (value === "weekly" || value === "custom") &&
+                  dateSchema.safeParse(startDate).success
+                )
+                  form.setValue("repeatWeekdays", [weekday(startDate)]);
+              }}
+            />
+          ) : (
+            <>
+              {" "}
+              <Field
+                name="repeat"
+                label="Repeat"
+                onChange={(value) => {
+                  const startDate = form.getValues("startsAt").slice(0, 10);
+                  if (
+                    (value === "weekly" || value === "custom") &&
+                    dateSchema.safeParse(startDate).success
+                  )
+                    form.setValue("repeatWeekdays", [weekday(startDate)]);
+                }}
+              >
+                <option value="never">Never</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom">Custom</option>
+              </Field>
+            </>
+          )}
           {repeat !== "never" && (
             <>
               {repeat === "custom" && (
                 <div className="form-grid">
-                  <Field name="repeatFrequency" label="Repeat by">
-                    <option value="daily">Days</option>
-                    <option value="weekly">Weeks</option>
-                  </Field>
+                  {composer ? (
+                    <CalendarChoiceField
+                      name="repeatFrequency"
+                      label="Repeat by"
+                      options={[
+                        { value: "daily", label: "Days" },
+                        { value: "weekly", label: "Weeks" },
+                      ]}
+                    />
+                  ) : (
+                    <Field name="repeatFrequency" label="Repeat by">
+                      <option value="daily">Days</option>
+                      <option value="weekly">Weeks</option>
+                    </Field>
+                  )}
                   <Field
                     name="repeatInterval"
                     label="Every"
@@ -872,12 +976,21 @@ export function TimeForm({
                   )}
                 </div>
               )}
-              <Field
-                name="repeatUntil"
-                label="Repeat through"
-                type="date"
-                required
-              />
+              {composer ? (
+                <CalendarDateField
+                  name="repeatUntil"
+                  label="Repeat through"
+                  timezone={timezone}
+                  fallbackDate={allDay ? allDayDate : start.slice(0, 10)}
+                />
+              ) : (
+                <Field
+                  name="repeatUntil"
+                  label="Repeat through"
+                  type="date"
+                  required
+                />
+              )}
               {seriesPreview && (
                 <div className="calendar-repeat-preview">
                   <strong>
@@ -916,37 +1029,47 @@ export function TimeForm({
           )}
         </div>
       )}
-      {kind === "block" && (
-        <details
-          open={!compact && (!!item || !!duplicateOf || !!scheduledItem)}
-        >
-          <summary>More details</summary>
+      {kind === "block" &&
+        (composer ? (
           <Field
             name="notes"
             label="Notes (optional)"
             type="textarea"
             optional
           />
-        </details>
-      )}
+        ) : (
+          <details
+            open={!compact && (!!item || !!duplicateOf || !!scheduledItem)}
+          >
+            <summary>More details</summary>
+            <Field
+              name="notes"
+              label="Notes (optional)"
+              type="textarea"
+              optional
+            />
+          </details>
+        ))}
       {linkedBlock && (
         <p className="muted text-small">
           Linked to planned block: {linkedBlock.title}
         </p>
       )}
-      <Submit>
-        {allDay && !compact
-          ? "Create all-day plan"
-          : !allDay && allowRepeat && repeat !== "never"
-            ? "Create repeating plan"
-            : compact
-              ? "Save"
-              : item
-                ? "Save changes"
-                : kind === "block"
-                  ? "Create block"
-                  : "Record time"}
-      </Submit>
+      {!composer && (
+        <Submit>
+          {allDay && !compact
+            ? "Create all-day plan"
+            : !allDay && allowRepeat && repeat !== "never"
+              ? "Create repeating plan"
+              : compact
+                ? "Save"
+                : item
+                  ? "Save changes"
+                  : kind === "block"
+                    ? "Create block"
+                    : "Record time"}
+        </Submit>
+      )}
     </Form>
   );
 }

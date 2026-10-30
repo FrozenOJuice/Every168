@@ -211,8 +211,11 @@ test("Task forms validate, protect drafts, retain stale edits and retry uncertai
     "true",
   );
   await form.getByLabel("Task title", { exact: true }).fill("Keep this draft");
-  page.once("dialog", (d) => d.dismiss());
   await form.getByRole("button", { name: "Close dialog", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Discard unsaved changes?", exact: true })
+    .getByRole("button", { name: "Keep editing", exact: true })
+    .click();
   await expect(form.getByLabel("Task title", { exact: true })).toHaveValue(
     "Keep this draft",
   );

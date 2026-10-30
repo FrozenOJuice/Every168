@@ -13,7 +13,6 @@ import {
   Info,
 } from "lucide-react";
 import { WorkoutMeasurementsEditor } from "./workout-measurements-editor";
-import { ExerciseRecall } from "./exercise-recall";
 import { useState, useId, type CSSProperties, type ReactNode } from "react";
 import { NotesEditor } from "./notes-editor";
 import { useFitnessExercisePanel } from "./fitness-exercise-workspace";
@@ -21,11 +20,13 @@ import { emptySet, nextPlannedSet, type ExerciseDraft } from "./strength-draft";
 import { useReorderList } from "./reorder-list";
 import { exerciseTrackingFields } from "./exercise-tracking";
 
-import { IntentTagsField } from "./intent-tags-field";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { WorkoutQuickTargets } from "./workout-quick-targets";
 import { WorkoutSetRow } from "./workout-set-row";
-import { actualExerciseSummary } from "./workout-review-summary";
+import {
+  actualExerciseSummary,
+  summaryExerciseOutcome,
+} from "./workout-review-summary";
 import { workoutExerciseSummary } from "./workout-exercise-summary";
 import {
   WorkoutDisplayUnitsContext,
@@ -159,12 +160,12 @@ export function WorkoutExerciseCard({
           </h2>
           {session && (
             <span className="fitness-exercise-target-summary">
-              Recorded:{" "}
-              {actualExerciseSummary(
-                exercise,
-                displayUnits.units,
-                exercise.sets.map(displayUnits.forSet),
-              )}
+              {summaryExerciseOutcome(exercise) ??
+                `Recorded: ${actualExerciseSummary(
+                  exercise,
+                  displayUnits.units,
+                  exercise.sets.map(displayUnits.forSet),
+                )}`}
             </span>
           )}
           {!session && (
@@ -275,17 +276,6 @@ export function WorkoutExerciseCard({
                 }
               />
             </div>
-            {!session && (
-              <ExerciseRecall
-                quietEmpty={quick}
-                id={exercise.exerciseId}
-                mode={loggingType}
-                excludeWorkoutId={sessionId}
-                onHistory={() =>
-                  panel.help(exercise.exerciseId, true, loggingType)
-                }
-              />
-            )}
             {quick && !detailed && (
               <WorkoutQuickTargets
                 exercise={exercise}
@@ -390,19 +380,20 @@ export function WorkoutExerciseCard({
                   aria-describedby={
                     errors[`${errorPrefix}.sets`] ? setErrorId : undefined
                   }
-                  className="fitness-text-action fitness-add-set"
+                  className="button fitness-add-set"
                   disabled={disabled || exercise.sets.length >= 100}
-                  onClick={() =>
-                    onChange({
-                      ...exercise,
-                      sets: [
-                        ...exercise.sets,
-                        collapsible
-                          ? nextPlannedSet(exercise.sets.at(-1))
-                          : emptySet(),
-                      ],
-                    })
-                  }
+                  onClick={() => {
+                    const source = exercise.sets.at(-1);
+                    const next = collapsible
+                      ? nextPlannedSet(source)
+                      : emptySet();
+                    if (collapsible && source)
+                      displayUnits.copySetUnits(
+                        setUnitKey(source, exercise.sets.length - 1),
+                        setUnitKey(next, exercise.sets.length),
+                      );
+                    onChange({ ...exercise, sets: [...exercise.sets, next] });
+                  }}
                 >
                   <Plus size={16} aria-hidden="true" />
                   Add set
@@ -425,18 +416,6 @@ export function WorkoutExerciseCard({
               <p id={setErrorId} className="error" role="alert">
                 {errors[`${errorPrefix}.sets`]}
               </p>
-            )}
-            {!session && (!quick || detailed) && (
-              <div className="fitness-exercise-intent">
-                <IntentTagsField
-                  label={`Intent for ${exercise.name}`}
-                  value={exercise.intentTags ?? []}
-                  disabled={disabled}
-                  onChange={(intentTags) =>
-                    onChange({ ...exercise, intentTags })
-                  }
-                />
-              </div>
             )}
           </div>
         </div>

@@ -11,40 +11,47 @@ import {
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
-import { Dialog } from "@/components/ui/dialog";
+import { FitnessConfirm } from "./fitness-confirm";
+import {
+  exerciseEditorAttempt,
+  useExerciseEditorRecoveryKey,
+  type ExerciseEditorAttempt,
+} from "./exercise-editor-recovery";
 import { NotesField } from "./notes-field";
 
-import { IntentTagsField } from "./intent-tags-field";
 import { MeasurementFields } from "./measurement-fields";
 import { ExerciseMultiSelect } from "./exercise-multi-select";
 
 export function ExerciseEditor({
   item,
+  initialValues,
   addToWorkout = false,
   onSaved,
   onCancel,
 }: {
   item?: Exercise;
+  initialValues?: ExerciseInput;
   addToWorkout?: boolean;
   onSaved: (item: Exercise) => void;
   onCancel: () => void;
 }) {
+  const initial = item ?? initialValues;
   const form = useRef<HTMLFormElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
   const nameId = useId();
-  const [name, setName] = useState(item?.name ?? "");
+  const [name, setName] = useState(initial?.name ?? "");
   const [loggingType, setLoggingType] = useState(
-    item?.loggingType ?? "reps_load",
+    initial?.loggingType ?? "reps_load",
   );
-  const [intentTags, setIntentTags] = useState(item?.intentTags ?? []);
-  const [notes, setNotes] = useState(item?.notes ?? "");
+  const intentTags = initial?.intentTags ?? [];
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [equipment, setEquipment] = useState<Exercise["equipment"]>(
-    item?.equipment ?? [],
+    initial?.equipment ?? [],
   );
   const [muscles, setMuscles] = useState<Exercise["muscles"]>(
-    item?.muscles ?? [],
+    initial?.muscles ?? [],
   );
-  const [favourite, setFavourite] = useState(item?.favourite ?? false);
+  const [favourite, setFavourite] = useState(initial?.favourite ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [discarding, setDiscarding] = useState(false);
   const value = {
@@ -59,25 +66,48 @@ export function ExerciseEditor({
   const dirty =
     JSON.stringify(value) !==
     JSON.stringify({
-      name: item?.name ?? "",
-      notes: item?.notes ?? "",
-      equipment: item?.equipment ?? [],
-      muscles: item?.muscles ?? [],
-      favourite: item?.favourite ?? false,
-      loggingType: item?.loggingType ?? "reps_load",
-      intentTags: item?.intentTags ?? [],
+      name: initial?.name ?? "",
+      notes: initial?.notes ?? "",
+      equipment: initial?.equipment ?? [],
+      muscles: initial?.muscles ?? [],
+      favourite: initial?.favourite ?? false,
+      loggingType: initial?.loggingType ?? "reps_load",
+      intentTags: initial?.intentTags ?? [],
     });
+  const recoveryKey = useExerciseEditorRecoveryKey();
   const save = useCommand({
-    mutationFn: (v: ExerciseInput, key: string) =>
-      item
-        ? api.updateExercise(item.id, v, item.version, key)
-        : api.createExercise(v, key),
+    persistence: {
+      key: recoveryKey,
+      parse: (value) => exerciseEditorAttempt.parse(value),
+    },
+    mutationFn: (attempt: ExerciseEditorAttempt, key: string) =>
+      attempt.item
+        ? api.updateExercise(
+            attempt.item.id,
+            attempt.input,
+            attempt.item.version,
+            key,
+          )
+        : api.createExercise(attempt.input, key),
     onSuccess: onSaved,
   });
   useLayoutEffect(() => nameInput.current?.focus(), []);
+  const [recoveredAttempt, setRecoveredAttempt] =
+    useState<ExerciseEditorAttempt | null>(null);
+  if (save.recoveredVariables && recoveredAttempt !== save.recoveredVariables) {
+    setRecoveredAttempt(save.recoveredVariables);
+    const recovered = save.recoveredVariables.input;
+    setName(recovered.name);
+    setNotes(recovered.notes ?? "");
+    setLoggingType(recovered.loggingType ?? "reps_load");
+    setEquipment(recovered.equipment ?? []);
+    setMuscles(recovered.muscles ?? []);
+    setFavourite(recovered.favourite ?? false);
+  }
   useUnsavedChanges(
     dirty || save.isPending,
     "Leave this exercise without saving your changes?",
+    save.isPending,
   );
   const cancel = () => {
     if (save.isPending) return;
@@ -105,7 +135,7 @@ export function ExerciseEditor({
           });
           if (parsed.success) {
             setErrors({});
-            save.mutate(parsed.data);
+            save.mutate({ input: parsed.data, item });
             return;
           }
           const next: Record<string, string> = {};
@@ -169,17 +199,14 @@ export function ExerciseEditor({
             )}
             <MeasurementFields
               value={loggingType}
+              description="Choose what you’ll track for each set. You can change this in a workout. Keep at least one measurement selected."
               disabled={save.isPending}
               onChange={setLoggingType}
-            />
-            <IntentTagsField
-              value={intentTags}
-              onChange={setIntentTags}
-              disabled={save.isPending}
             />
             <div className="fitness-exercise-metadata">
               <ExerciseMultiSelect
                 label="Equipment"
+                optional
                 options={exerciseEquipmentOptions}
                 value={equipment}
                 onChange={setEquipment}
@@ -188,6 +215,7 @@ export function ExerciseEditor({
               />
               <ExerciseMultiSelect
                 label="Muscles worked"
+                optional
                 options={exerciseMuscleOptions}
                 value={muscles}
                 onChange={setMuscles}
@@ -214,38 +242,28 @@ export function ExerciseEditor({
               Cancel
             </button>
             <button className="button primary" type="submit">
-              {save.isPending ? "Saving…" : action}
+              {save.needsRetry
+                ? "Awaiting confirmation…"
+                : save.isPending
+                  ? "Saving…"
+                  : action}
             </button>
           </footer>
         </fieldset>
         <CommandError command={save} />
       </form>
       {discarding && (
-        <Dialog
+        <FitnessConfirm
           title="Discard exercise changes?"
-          onClose={() => setDiscarding(false)}
-        >
-          <p>Your changes haven’t been saved.</p>
-          <div className="row">
-            <button
-              type="button"
-              className="button primary"
-              onClick={() => setDiscarding(false)}
-            >
-              Keep editing
-            </button>
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                setDiscarding(false);
-                onCancel();
-              }}
-            >
-              Discard changes
-            </button>
-          </div>
-        </Dialog>
+          description="Your changes haven’t been saved."
+          action="Discard changes"
+          danger
+          onCancel={() => setDiscarding(false)}
+          onConfirm={() => {
+            setDiscarding(false);
+            onCancel();
+          }}
+        />
       )}
     </>
   );

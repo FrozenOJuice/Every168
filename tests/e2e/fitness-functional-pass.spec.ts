@@ -69,7 +69,7 @@ test("cleared actuals survive reload; recorded removals need confirmation and ca
     .getByRole("spinbutton", { name: "Actual reps", exact: true })
     .fill("");
   await current(page)
-    .getByRole("spinbutton", { name: "Actual load (kg)", exact: true })
+    .getByRole("spinbutton", { name: "Actual weight (kg)", exact: true })
     .fill("");
   await saved(page);
   await page.reload();
@@ -85,7 +85,7 @@ test("cleared actuals survive reload; recorded removals need confirmation and ca
     .getByRole("spinbutton", { name: "Actual reps", exact: true })
     .fill("10");
   await current(page)
-    .getByRole("spinbutton", { name: "Actual load (kg)", exact: true })
+    .getByRole("spinbutton", { name: "Actual weight (kg)", exact: true })
     .fill("40");
   await current(page)
     .getByRole("button", { name: "Complete set", exact: true })
@@ -216,12 +216,14 @@ test("uncertain schedules cannot be dismissed and refresh retries the same opera
   page,
 }) => {
   const { plan } = await fixture(page);
-  await page.goto("/fitness");
+  await page.goto("/fitness?date=2026-10-29");
   await page.getByRole("button", { name: "Schedule", exact: true }).click();
   const endpoint = `**/strength-plans/${plan.id}/schedule`;
   let key = "";
+  let reserved!: { startsAt: string; endsAt: string };
   await page.route(endpoint, async (route) => {
     key = route.request().headers()["idempotency-key"]!;
+    reserved = route.request().postDataJSON();
     await route.fetch();
     await route.abort("failed");
   });
@@ -237,7 +239,10 @@ test("uncertain schedules cannot be dismissed and refresh retries the same opera
   ).toBeVisible();
   await page.unroute(endpoint);
   page.on("dialog", (d) => d.accept());
-  await page.reload();
+  await page.goto("/fitness?date=2026-11-03");
+  await expect(
+    page.getByRole("button", { name: "Choose start date", exact: true }),
+  ).toHaveText("Oct 29, 2026");
   let retryKey = "";
   page.on("request", (r) => {
     if (r.url().endsWith(`/strength-plans/${plan.id}/schedule`))
@@ -248,6 +253,20 @@ test("uncertain schedules cannot be dismissed and refresh retries the same opera
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(retryKey).toBe(key);
+  await expect(page).toHaveURL(/date=2026-10-29/);
+  await expect(
+    page.getByRole("status").filter({ hasText: "Test workout scheduled for" }),
+  ).toBeVisible();
+  const scheduled = await (
+    await page.request.get("/api/v1/strength-plans?kind=scheduled")
+  ).json();
+  const block = await (
+    await page.request.get(
+      `/api/v1/time-blocks/${scheduled.items[0].timeBlockId}`,
+    )
+  ).json();
+  expect(Date.parse(block.startsAt)).toBe(Date.parse(reserved.startsAt));
+  expect(Date.parse(block.endsAt)).toBe(Date.parse(reserved.endsAt));
   expect(
     (
       await (
@@ -331,7 +350,7 @@ test("mixed measurement history is discoverable and forms identify invalid field
     page.getByRole("textbox", { name: "Program name", exact: true }),
   ).toHaveAttribute("aria-invalid", "true");
   await expect(
-    page.getByRole("button", { name: "Saved workout", exact: true }),
+    page.getByRole("button", { name: "Add workout", exact: true }),
   ).toHaveAttribute("data-invalid", "true");
 });
 
@@ -382,17 +401,17 @@ test("failed draft storage protects navigation and live setup errors identify th
     .getByRole("button", { name: "Expand Test bench exercise", exact: true })
     .click();
   await editor
-    .getByRole("spinbutton", { name: "Target load (kg)", exact: true })
+    .getByRole("spinbutton", { name: "Target weight (kg)", exact: true })
     .fill("-5");
   await expect(
     editor
-      .getByRole("spinbutton", { name: "Target load (kg)", exact: true })
+      .getByRole("spinbutton", { name: "Target weight (kg)", exact: true })
       .first(),
   ).toHaveAttribute("aria-invalid", "true");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(
     editor
-      .getByRole("spinbutton", { name: "Target load (kg)", exact: true })
+      .getByRole("spinbutton", { name: "Target weight (kg)", exact: true })
       .first(),
   ).toBeFocused();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);

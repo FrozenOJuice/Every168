@@ -121,7 +121,7 @@ test("measurement placement, duration units and steppers stay consistent", async
   await expect(duration).toHaveValue("5400");
   await duration.fill("60");
   await chooseUnit(unit, "h");
-  await expect(duration).toHaveValue("0.016666667");
+  await expect(duration).toHaveValue("0.017");
   await chooseUnit(unit, "s");
   await expect(duration).toHaveValue("60");
   await duration.fill("");
@@ -216,18 +216,18 @@ test("measurement placement, duration units and steppers stay consistent", async
   await expect(distance).toHaveValue("0.75");
   const loadUnit = rows
     .nth(0)
-    .getByRole("button", { name: "Target load unit", exact: true });
+    .getByRole("button", { name: "Target weight unit", exact: true });
   await chooseUnit(loadUnit, "lb");
   await expect(
-    rows.nth(0).getByLabel("Target load (lb)", { exact: true }),
+    rows.nth(0).getByLabel("Target weight (lb)", { exact: true }),
   ).toHaveValue("44.09");
   await expect(card.locator(".fitness-summary-full")).toContainText("44.09 lb");
   await expect(
-    second.getByRole("button", { name: "Target load unit", exact: true }),
+    second.getByRole("button", { name: "Target weight unit", exact: true }),
   ).toHaveText("kg");
   await chooseUnit(loadUnit, "kg");
   await expect(
-    rows.nth(0).getByLabel("Target load (kg)", { exact: true }),
+    rows.nth(0).getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("20");
   await expect(
     distance
@@ -300,7 +300,7 @@ test("measurement placement, duration units and steppers stay consistent", async
     .getByRole("button", { name: "Expand Practice exercise", exact: true })
     .click();
   const basicLoadUnit = basicLoadCard.getByRole("button", {
-    name: "Target load unit",
+    name: "Target weight unit",
     exact: true,
   });
   await chooseUnit(basicLoadUnit, "lb");
@@ -308,7 +308,7 @@ test("measurement placement, duration units and steppers stay consistent", async
     basicLoadCard.locator(".fitness-exercise-target-summary:visible"),
   ).toHaveText("3×12 | 44.09 lb");
   await basicLoadCard
-    .getByRole("spinbutton", { name: "Target load (lb)", exact: true })
+    .getByRole("spinbutton", { name: "Target weight (lb)", exact: true })
     .fill("225");
   await basicLoadCard
     .getByRole("button", { name: "Collapse Practice exercise", exact: true })

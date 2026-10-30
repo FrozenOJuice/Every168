@@ -4,14 +4,26 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { api } from "@/lib/api";
 
-export function useWorkoutSearch(enabled = true, pageSize = 12) {
+export function useWorkoutSearch(
+  enabled = true,
+  pageSize = 12,
+  readyOnly = false,
+) {
   const [search, setSearch] = useState("");
   const query = useInfiniteQuery({
-    queryKey: ["fitness", "plans", "workout", search.trim(), pageSize],
+    queryKey: [
+      "fitness",
+      "plans",
+      "workout",
+      search.trim(),
+      pageSize,
+      readyOnly,
+    ],
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam }) =>
       api.getStrengthPlans({
         kind: "workout",
+        readyOnly: readyOnly ? "true" : undefined,
         search,
         cursor: pageParam,
         limit: pageSize,

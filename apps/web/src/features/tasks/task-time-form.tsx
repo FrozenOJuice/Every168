@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import { useState } from "react";
 import {
   instantToLocalInput,
@@ -29,6 +31,8 @@ export function TaskTimeForm({
   onSaved: () => void;
   onCancel: () => void;
 }) {
+  const confirm = useConfirm();
+
   const {
     preferences: { timezone },
   } = useMe();
@@ -69,9 +73,7 @@ export function TaskTimeForm({
                 ? time.endsAt
                 : localInputToInstant(end, timezone);
           if (!a || !b) {
-            setError(
-              "Choose valid, unambiguous local times in " + timezone + ".",
-            );
+            setError("Choose valid, unambiguous local times.");
             return;
           }
           const result = taskTimeInput.safeParse({
@@ -86,9 +88,7 @@ export function TaskTimeForm({
           setError("");
           save.mutate(result.data);
         } catch {
-          setError(
-            "Choose valid, unambiguous local times in " + timezone + ".",
-          );
+          setError("Choose valid, unambiguous local times.");
         }
       }}
     >
@@ -100,7 +100,6 @@ export function TaskTimeForm({
             : "Log actual time"}
       </h3>
       <p className="muted text-small">
-        Times use {timezone}.{" "}
         {kind === "schedule"
           ? "Reserve time in Calendar."
           : "Record time you actually spent."}{" "}
@@ -146,10 +145,10 @@ export function TaskTimeForm({
           <button
             type="button"
             className="button"
-            onClick={() => {
+            onClick={async () => {
               if (
                 JSON.stringify({ start, end, notes }) === baseline ||
-                confirm("Discard these time changes?")
+                (await confirm("Discard these time changes?"))
               )
                 onCancel();
             }}

@@ -83,7 +83,14 @@ test("domains share a full-height day rail and Fitness separates training, libra
   await page
     .getByLabel("Workout name", { exact: true })
     .fill("Retain this draft");
-  await page.getByRole("button", { name: "Add exercise", exact: true }).click();
+  if (info.project.name === "phone")
+    await page
+      .getByRole("button", { name: "Add exercise", exact: true })
+      .click();
+  else
+    await page
+      .getByRole("searchbox", { name: "Find an exercise", exact: true })
+      .focus();
   await expect(
     page.getByRole("searchbox", { name: "Find an exercise", exact: true }),
   ).toBeFocused();

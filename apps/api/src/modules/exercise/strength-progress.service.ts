@@ -1,9 +1,11 @@
+import { workoutSeconds } from "@168hours/domain-utils";
 import { measurementsFor } from "@168hours/contracts";
 import { addDays, localDate, weekRange } from "@168hours/domain-utils";
 import type {
   ExerciseReportQuery,
   ProgressExerciseQuery,
   StrengthMetrics,
+  WeightRecordsQuery,
 } from "@168hours/contracts";
 import type { IdentityService } from "../identity/identity.service.js";
 import type { ExerciseService } from "./exercise.service.js";
@@ -18,7 +20,11 @@ function summarize(workout: SavedWorkout) {
     startedAt: workout.startedAt,
     endedAt: workout.endedAt,
     durationSeconds: workout.endedAt
-      ? (workout.endedAt.getTime() - workout.startedAt.getTime()) / 1000
+      ? workoutSeconds({
+          startedAt: workout.startedAt.toISOString(),
+          endedAt: workout.endedAt.toISOString(),
+          pauses: workout.pauses,
+        })
       : null,
     exercises: workout.exercises.map((e) => {
       const selected = (s: (typeof e.sets)[number]) =>
@@ -107,6 +113,16 @@ export function strengthProgressService(
         loggingType,
         ...(await repo.exercise(u, id, loggingType, q)),
       };
+    },
+    async weightRecords(u: string, id: string, q: WeightRecordsQuery) {
+      await exercises.get(u, id);
+      return repo.weightRecords(u, id, q);
+    },
+    async workoutRecords(u: string, id: string) {
+      const workout = await strength.get(u, id);
+      return workout.endedAt
+        ? repo.workoutRecords(u, id, workout.startedAt)
+        : { records: [] };
     },
     async comparison(u: string, id: string) {
       const current = await strength.get(u, id);

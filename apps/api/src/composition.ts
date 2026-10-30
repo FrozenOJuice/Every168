@@ -164,7 +164,7 @@ export function compose(input: ConfigInput) {
   );
   const cardio = cardioService(runInTransaction, cardioRepo, planning);
   const calendarActivity = calendarActivityService(identity, [
-    tasks.calendarActivity,
+    ...(features.tasks ? [tasks.calendarActivity] : []),
     ...(features.food
       ? [
           nutrition.calendarActivity,

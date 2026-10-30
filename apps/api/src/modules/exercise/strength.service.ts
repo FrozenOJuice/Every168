@@ -46,7 +46,11 @@ export function strengthService(
           kind: "session",
           status: row.endedAt ? "recorded" : "draft",
           title: row.title,
-          summary: row.endedAt ? "Finished workout" : "Workout in progress",
+          summary: row.endedAt
+            ? "Finished workout"
+            : row.pauses.at(-1)?.endsAt === null
+              ? "Workout is paused"
+              : "Workout in progress",
           occurredAt: row.startedAt.toISOString(),
           endsAt: row.endedAt?.toISOString() ?? null,
           href: `/fitness/session/${row.id}`,
@@ -180,6 +184,11 @@ export function strengthService(
             timeBlockId: v.linkedTimeBlockId,
             startsAt: v.startedAt,
             endsAt: v.endedAt,
+            excludedIntervals: (v.pauses ?? []).flatMap((pause) =>
+              pause.endsAt
+                ? [{ startsAt: pause.startsAt, endsAt: pause.endsAt }]
+                : [],
+            ),
             sourceType: "strength_workout",
             sourceId: id,
           });

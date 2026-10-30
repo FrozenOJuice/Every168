@@ -118,7 +118,10 @@ export function SessionTimePicker({
         Set time
       </button>
     </div>,
-    anchor.closest("main") ?? document.body,
+    anchor.closest(".calendar-plan-popover") ??
+      anchor.closest("dialog[open]") ??
+      anchor.closest("main") ??
+      document.body,
   );
 }
 

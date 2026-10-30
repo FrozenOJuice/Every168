@@ -1,3 +1,5 @@
+import { features } from "@/lib/release";
+import { useConfirm } from "@/components/ui/confirmation-provider";
 import {
   TaskBlockAction,
   TaskTimeAction,
@@ -31,10 +33,12 @@ export function CalendarEditor({
   onSeries,
   onRepeat,
   composer = false,
+  container,
   onDraftChange,
 }: {
   editor: TimeEditor;
   composer?: boolean;
+  container?: Element | null;
   onDraftChange?: (draft: CalendarDraft | null) => void;
   week: Week;
   onClose: () => void;
@@ -43,6 +47,8 @@ export function CalendarEditor({
   onSeries: (id: string) => void;
   onRepeat: (block: Block | CalendarItem) => void;
 }) {
+  const confirm = useConfirm();
+
   const interaction = useCalendarInteractions(),
     router = useRouter();
   const cache = useQueryClient();
@@ -82,6 +88,7 @@ export function CalendarEditor({
     );
   return (
     <CalendarPlanPopover
+      container={container}
       date={editor.date}
       recordId={plan?.id ?? item?.id ?? editor.duplicateOf?.id}
       busy={remove.isPending}
@@ -115,10 +122,16 @@ export function CalendarEditor({
               {formatTime(item.startsAt, week.timezone)} –{" "}
               {formatTime(item.endsAt, week.timezone)}
             </p>
+            {"excludedIntervals" in item &&
+              !!item.excludedIntervals?.length && (
+                <p className="muted text-small">
+                  Paused intervals are excluded from recorded time totals.
+                </p>
+              )}
             <p className="muted text-small">
               {"sourceType" in item && item.sourceType === "strength_workout"
                 ? "Recorded from Fitness. Open the session to review or correct it."
-                : item.sourceType === "task_time"
+                : item.sourceType === "task_time" && features.tasks
                   ? "Recorded from Tasks. Open Tasks to review or correct it."
                   : "Recorded activity. Its editing workspace is not available yet."}
             </p>
@@ -144,10 +157,13 @@ export function CalendarEditor({
           </Link>
         )}
       {plan && <ScheduledWorkoutAction blockId={plan.id} />}
-      {plan && <TaskBlockAction blockId={plan.id} />}
-      {automatic && "sourceType" in item && item.sourceType === "task_time" && (
-        <TaskTimeAction sourceId={item.sourceId!} />
-      )}
+      {features.tasks && plan && <TaskBlockAction blockId={plan.id} />}
+      {features.tasks &&
+        automatic &&
+        "sourceType" in item &&
+        item.sourceType === "task_time" && (
+          <TaskTimeAction sourceId={item.sourceId!} />
+        )}
       {editor.allDayItem && (
         <details className="calendar-block-actions">
           <summary>Actions</summary>
@@ -267,7 +283,7 @@ export function CalendarEditor({
             <button
               className="button danger"
               disabled={remove.isPending}
-              onClick={() => {
+              onClick={async () => {
                 if (
                   kind === "block" &&
                   item &&
@@ -279,7 +295,7 @@ export function CalendarEditor({
                   return;
                 }
                 if (
-                  confirm(
+                  await confirm(
                     kind === "block"
                       ? "Delete this planned block? Recorded time will remain."
                       : "Delete this recorded time entry?",

@@ -57,7 +57,13 @@ export function strengthPlansService(
     async dayLinks(u: string, date: string) {
       const week = await planning.getWeek(u, date);
       const ids = week.days.find((day) => day.date === date)?.blockIds ?? [];
-      return { blockIds: await repo.linkedBlockIds(u, ids) };
+      const links = await repo.linkedBlocks(u, ids);
+      return {
+        blockIds: links.map((link) => link.id),
+        completedBlockIds: links
+          .filter((link) => link.completed)
+          .map((link) => link.id),
+      };
     },
     async next(u: string, now = new Date()) {
       let cursor: string | undefined;

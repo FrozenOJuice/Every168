@@ -110,7 +110,7 @@ export function workoutExerciseSummary(
         sets[0]!.measurementOverride ?? exercise.loggingType ?? "reps_load",
       );
       return fields.every((field) => sets[0]![targetKeys[field]] === null)
-        ? `${summary} | ${fields.join(" + ")}`
+        ? `${summary} | ${fields.map((field) => (field === "load" ? "weight" : field)).join(" + ")}`
         : summary;
     });
     const remaining =

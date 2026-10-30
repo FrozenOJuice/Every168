@@ -1,3 +1,4 @@
+import { showCalendarNotes } from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
 import type { Block } from "@168hours/contracts";
@@ -40,7 +41,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Account menu" }).click();
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByLabel("Timezone", { exact: true }).fill("America/Edmonton");
-  await page.getByLabel("Weight & strength load").selectOption("lb");
+  await page.getByLabel("Weight").selectOption("lb");
   await page.getByRole("button", { name: "Save preferences" }).click();
   await expect(page.getByRole("status")).toContainText("Preferences saved");
   await page.getByRole("button", { name: "Add category" }).click();
@@ -56,7 +57,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByLabel("Title", { exact: true }).fill("Read a chapter");
-  await page.getByText("More details", { exact: true }).click();
+  await showCalendarNotes(page);
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Goal (optional)")).toHaveCount(0);
   await loseFirstWriteResponse("time-blocks");
@@ -73,7 +74,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await page
     .getByRole("button", { name: /Read a chapter.*planned/ })
     .dblclick();
-  await page.getByText("More details", { exact: true }).click();
+  await showCalendarNotes(page);
   await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Log actual" })).toHaveCount(0);
   await page.keyboard.press("Escape");
@@ -128,7 +129,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await page
     .getByRole("button", { name: /Read a chapter.*planned/ })
     .dblclick();
-  await page.getByText("More details", { exact: true }).click();
+  await showCalendarNotes(page);
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Goal (optional)")).toHaveCount(0);
   await page
@@ -149,7 +150,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await page
     .getByRole("button", { name: /Read a chapter.*planned/ })
     .dblclick();
-  await page.getByText("More details", { exact: true }).click();
+  await showCalendarNotes(page);
   await page
     .getByLabel("Notes (optional)", { exact: true })
     .fill("My unsaved notes");

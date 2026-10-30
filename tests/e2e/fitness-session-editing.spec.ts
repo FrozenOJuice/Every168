@@ -307,7 +307,7 @@ test("live setup uses creator cards and exercise help returns directly with sess
     0,
   );
   await editor
-    .getByRole("spinbutton", { name: "Target load (kg)", exact: true })
+    .getByRole("spinbutton", { name: "Target weight (kg)", exact: true })
     .fill("45");
   await saved();
   let record = await read();
@@ -322,9 +322,10 @@ test("live setup uses creator cards and exercise help returns directly with sess
     fullPage: true,
   });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
-  await editor
-    .getByRole("button", { name: "Add exercise", exact: true })
-    .click();
+  if (info.project.name === "phone")
+    await editor
+      .getByRole("button", { name: "Add exercise", exact: true })
+      .click();
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
     exact: true,
@@ -364,7 +365,7 @@ test("live setup uses creator cards and exercise help returns directly with sess
     "12",
   );
   await expect(
-    current.getByLabel("Actual load (kg)", { exact: true }),
+    current.getByLabel("Actual weight (kg)", { exact: true }),
   ).toHaveValue("45");
   await expect(
     page.getByRole("button", {
@@ -397,7 +398,7 @@ test("live setup uses creator cards and exercise help returns directly with sess
   ).toBe(restUntil);
   await expect(
     page.getByRole("button", { name: "Discard workout", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   record = await read();
   expect(record.notes).toBe("Steady tempo today");
   expect(record.exercises[1]).toMatchObject({ exerciseId: extra.id });

@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import { useQueryClient } from "@tanstack/react-query";
 import type { Water, Weight } from "@168hours/contracts";
 import { fromKilograms, localDate } from "@168hours/domain-utils";
@@ -18,6 +20,8 @@ export function MeasurementList({
   onEdit: (entry: Water | Weight) => void;
   showDate?: boolean;
 }) {
+  const confirm = useConfirm();
+
   const {
     preferences: { timezone, weightUnit },
   } = useMe();
@@ -70,8 +74,8 @@ export function MeasurementList({
                 <button
                   className="button danger"
                   disabled={remove.isPending}
-                  onClick={() => {
-                    if (confirm("Delete this " + kind + " entry?"))
+                  onClick={async () => {
+                    if (await confirm("Delete this " + kind + " entry?"))
                       remove.mutate(entry);
                   }}
                 >

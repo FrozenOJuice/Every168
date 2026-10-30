@@ -61,9 +61,7 @@ test("Settings unit defaults convert recovered workout edits without changing sa
   await expect(page.getByLabel("Timezone", { exact: true })).toHaveValue(
     await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
   );
-  await page
-    .getByLabel("Weight & strength load", { exact: true })
-    .selectOption("lb");
+  await page.getByLabel("Weight", { exact: true }).selectOption("lb");
   await page.getByLabel("Distance", { exact: true }).selectOption("yd");
   await page
     .getByLabel("Fitness duration", { exact: true })
@@ -85,7 +83,7 @@ test("Settings unit defaults convert recovered workout edits without changing sa
     })
     .click();
   await expect(
-    page.getByLabel("Target load (lb)", { exact: true }),
+    page.getByLabel("Target weight (lb)", { exact: true }),
   ).toHaveValue("220.46");
   await expect(
     page.getByLabel("Target distance (yd)", { exact: true }),

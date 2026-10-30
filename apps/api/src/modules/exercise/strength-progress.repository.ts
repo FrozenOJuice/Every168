@@ -16,7 +16,10 @@ import type {
   ExerciseLoggingType,
   ExerciseReportQuery,
   ProgressExerciseQuery,
+  WeightRecordsQuery,
+  WorkoutRecords,
 } from "@168hours/contracts";
+import { alias } from "drizzle-orm/pg-core";
 import type { Database } from "../../infrastructure/database/client.js";
 import {
   cursorCondition,
@@ -41,7 +44,7 @@ const scope = (u: string) =>
   );
 const effectiveType = sql<ExerciseLoggingType>`coalesce(${sets.measurementOverride}, ${entries.loggingType})`;
 const hasMeasurement = (field: ExerciseMeasurement) =>
-  sql`${field} = any(string_to_array(${effectiveType}, '_'))`;
+  sql`${sets.completed} and not ${sets.skipped} and ${field} = any(string_to_array(${effectiveType}, '_'))`;
 const weightedReps = sql`${hasMeasurement("reps")} and ${hasMeasurement("load")}`;
 const volume = sql<
   number | null
@@ -100,7 +103,8 @@ export function strengthProgressRepository(db: Database) {
               .select({
                 workoutCount: sql<number>`count(*)`.mapWith(Number),
                 durationSeconds:
-                  sql<number>`coalesce(sum(extract(epoch from (${workouts.endedAt} - ${workouts.startedAt}))),0)`.mapWith(
+                  sql<number>`coalesce(sum(extract(epoch from (${workouts.endedAt} - ${workouts.startedAt})) -
+                    coalesce((select sum(extract(epoch from ((p->>'endsAt')::timestamptz - (p->>'startsAt')::timestamptz))) from jsonb_array_elements(${workouts.pauses}) p), 0)),0)`.mapWith(
                     Number,
                   ),
               })
@@ -248,7 +252,10 @@ export function strengthProgressRepository(db: Database) {
       return db.transaction(
         async (tx) => {
           const baseFilter = and(
-            scope(u),
+            eq(sets.userId, u),
+            eq(entries.userId, u),
+            eq(workouts.userId, u),
+            isNotNull(workouts.endedAt),
             eq(entries.exerciseId, id),
             q.excludeWorkoutId
               ? ne(workouts.id, q.excludeWorkoutId)
@@ -273,9 +280,14 @@ export function strengthProgressRepository(db: Database) {
               id: workouts.id,
               createdAt: workouts.startedAt,
               title: workouts.title,
+              notes: workouts.notes,
               startedAt: workouts.startedAt,
               endedAt: workouts.endedAt,
               ...metrics,
+              completedSets:
+                sql<number>`count(*) filter (where ${sets.completed} and not ${sets.skipped})`.mapWith(
+                  Number,
+                ),
             })
             .from(sets)
             .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
@@ -286,12 +298,21 @@ export function strengthProgressRepository(db: Database) {
             .groupBy(workouts.id)
             .orderBy(desc(workouts.startedAt), desc(workouts.id))
             .limit(q.limit + 1);
-          const fields = measurementsFor(mode);
-          const measures: (ExerciseMeasurement | "setVolume")[] = [...fields];
-          if (fields.includes("reps") && fields.includes("load"))
-            measures.push("setVolume");
+          const fields =
+            q.allMeasurements === "true"
+              ? [
+                  ...new Set(
+                    available.flatMap((row) =>
+                      measurementsFor(row.loggingType),
+                    ),
+                  ),
+                ]
+              : measurementsFor(mode);
+          const measures: ExerciseMeasurement[] = fields.filter(
+            (field) => field !== "laps",
+          );
           const records = [];
-          for (const metric of q.allMeasurements === "true" ? [] : measures) {
+          for (const metric of measures) {
             const value =
               metric === "load"
                 ? sets.weightKg
@@ -313,16 +334,36 @@ export function strengthProgressRepository(db: Database) {
                 workoutTitle: workouts.title,
                 startedAt: workouts.startedAt,
                 setId: sets.id,
-                reps: sets.reps,
-                weightKg: sets.weightKg,
-                durationSeconds: sets.durationSeconds,
-                distanceMeters: sets.distanceMeters,
-                laps: sets.laps,
+                reps: sql<
+                  number | null
+                >`case when ${hasMeasurement("reps")} then ${sets.reps} end`.mapWith(
+                  Number,
+                ),
+                weightKg: sql<
+                  number | null
+                >`case when ${hasMeasurement("load")} then ${sets.weightKg} end`.mapWith(
+                  Number,
+                ),
+                durationSeconds: sql<
+                  number | null
+                >`case when ${hasMeasurement("duration")} then ${sets.durationSeconds} end`.mapWith(
+                  Number,
+                ),
+                distanceMeters: sql<
+                  number | null
+                >`case when ${hasMeasurement("distance")} then ${sets.distanceMeters} end`.mapWith(
+                  Number,
+                ),
+                laps: sql<
+                  number | null
+                >`case when ${hasMeasurement("laps")} then ${sets.laps} end`.mapWith(
+                  Number,
+                ),
               })
               .from(sets)
               .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
               .innerJoin(workouts, eq(entries.workoutId, workouts.id))
-              .where(and(filter, isNotNull(value)))
+              .where(and(filter, hasMeasurement(metric), isNotNull(value)))
               .orderBy(
                 desc(value),
                 asc(workouts.startedAt),
@@ -339,6 +380,9 @@ export function strengthProgressRepository(db: Database) {
                 .select({
                   workoutId: workouts.id,
                   loggingType: effectiveType,
+                  completed: sets.completed,
+                  skipped: sets.skipped,
+                  exerciseNotes: entries.notes,
                   position: sets.position,
                   id: sets.id,
                   reps: sets.reps,
@@ -368,10 +412,215 @@ export function strengthProgressRepository(db: Database) {
               ...page,
               items: page.items.map((row) => ({
                 ...row,
-                sets: recordedSets.filter((set) => set.workoutId === row.id),
+                exerciseNotes: [
+                  ...new Set(
+                    recordedSets
+                      .filter((set) => set.workoutId === row.id)
+                      .flatMap((set) =>
+                        set.exerciseNotes ? [set.exerciseNotes] : [],
+                      ),
+                  ),
+                ],
+                sets: recordedSets
+                  .filter((set) => set.workoutId === row.id)
+                  .map((set) =>
+                    set.completed && !set.skipped
+                      ? set
+                      : {
+                          ...set,
+                          reps: null,
+                          weightKg: null,
+                          durationSeconds: null,
+                          distanceMeters: null,
+                          laps: null,
+                        },
+                  ),
               })),
             },
           };
+        },
+        { isolationLevel: "repeatable read", accessMode: "read only" },
+      );
+    },
+
+    async weightRecords(u: string, id: string, q: WeightRecordsQuery) {
+      const rows = await db
+        .selectDistinctOn([sets.weightKg], {
+          value: sets.reps,
+          totalReps:
+            sql<number>`sum(${sets.reps}) over (partition by ${sets.weightKg})`.mapWith(
+              Number,
+            ),
+          workoutId: workouts.id,
+          workoutTitle: workouts.title,
+          startedAt: workouts.startedAt,
+          setId: sets.id,
+          reps: sets.reps,
+          weightKg: sets.weightKg,
+          durationSeconds: sql<
+            number | null
+          >`case when ${hasMeasurement("duration")} then ${sets.durationSeconds} end`.mapWith(
+            Number,
+          ),
+          distanceMeters: sql<
+            number | null
+          >`case when ${hasMeasurement("distance")} then ${sets.distanceMeters} end`.mapWith(
+            Number,
+          ),
+          laps: sql<
+            number | null
+          >`case when ${hasMeasurement("laps")} then ${sets.laps} end`.mapWith(
+            Number,
+          ),
+        })
+        .from(sets)
+        .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+        .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+        .where(
+          and(
+            scope(u),
+            eq(entries.exerciseId, id),
+            weightedReps,
+            isNotNull(sets.reps),
+            isNotNull(sets.weightKg),
+            q.beforeWeight === undefined
+              ? undefined
+              : lt(sets.weightKg, q.beforeWeight),
+          ),
+        )
+        .orderBy(
+          desc(sets.weightKg),
+          desc(sets.reps),
+          asc(workouts.startedAt),
+          asc(workouts.id),
+          asc(entries.position),
+          asc(sets.position),
+        )
+        .limit(q.limit + 1);
+      const items = rows.slice(0, q.limit).map((row) => ({
+        ...row,
+        metric: "repsAtWeight" as const,
+        value: row.value!,
+        reps: row.reps!,
+        weightKg: row.weightKg!,
+      }));
+      return {
+        items,
+        nextWeight: rows.length > q.limit ? items.at(-1)!.weightKg : null,
+      };
+    },
+    async workoutRecords(u: string, id: string, startedAt: Date) {
+      const priorSets = alias(sets, "prior_record_sets");
+      const priorEntries = alias(entries, "prior_record_entries");
+      const priorWorkouts = alias(workouts, "prior_record_workouts");
+      const records: WorkoutRecords["records"] = [];
+      return db.transaction(
+        async (tx) => {
+          for (const metric of [
+            "load",
+            "reps",
+            "repsAtWeight",
+            "duration",
+            "distance",
+          ] as const) {
+            const field = metric === "repsAtWeight" ? "reps" : metric;
+            const key = {
+              load: "weightKg",
+              reps: "reps",
+              duration: "durationSeconds",
+              distance: "distanceMeters",
+            }[field] as
+              "weightKg" | "reps" | "durationSeconds" | "distanceMeters";
+            const priorType = sql`coalesce(${priorSets.measurementOverride}, ${priorEntries.loggingType})`;
+            const previous = tx
+              .select({
+                value: sql<number | null>`max(${priorSets[key]})`.mapWith(
+                  Number,
+                ),
+              })
+              .from(priorSets)
+              .innerJoin(
+                priorEntries,
+                eq(priorSets.workoutExerciseId, priorEntries.id),
+              )
+              .innerJoin(
+                priorWorkouts,
+                eq(priorEntries.workoutId, priorWorkouts.id),
+              )
+              .where(
+                and(
+                  eq(priorSets.userId, u),
+                  eq(priorEntries.userId, u),
+                  eq(priorWorkouts.userId, u),
+                  eq(priorSets.completed, true),
+                  eq(priorSets.skipped, false),
+                  isNotNull(priorWorkouts.endedAt),
+                  eq(priorEntries.exerciseId, entries.exerciseId),
+                  sql`(${priorWorkouts.startedAt}, ${priorWorkouts.id}) < (${startedAt.toISOString()}::timestamptz, ${id}::uuid)`,
+                  sql`${field} = any(string_to_array(${priorType}, '_'))`,
+                  metric === "repsAtWeight"
+                    ? sql`'load' = any(string_to_array(${priorType}, '_')) and ${priorSets.weightKg} = ${sets.weightKg}`
+                    : undefined,
+                ),
+              );
+            const buckets =
+              metric === "repsAtWeight"
+                ? [entries.exerciseId, sets.weightKg]
+                : [entries.exerciseId];
+            const rows = await tx
+              .selectDistinctOn(buckets, {
+                exerciseId: entries.exerciseId,
+                workoutExerciseId: entries.id,
+                setId: sets.id,
+                value: sets[key],
+                reps: sql<
+                  number | null
+                >`case when ${hasMeasurement("reps")} then ${sets.reps} end`.mapWith(
+                  Number,
+                ),
+                weightKg: sql<
+                  number | null
+                >`case when ${hasMeasurement("load")} then ${sets.weightKg} end`.mapWith(
+                  Number,
+                ),
+                previousValue: sql<number | null>`(${previous})`.mapWith(
+                  Number,
+                ),
+              })
+              .from(sets)
+              .innerJoin(entries, eq(sets.workoutExerciseId, entries.id))
+              .innerJoin(workouts, eq(entries.workoutId, workouts.id))
+              .where(
+                and(
+                  scope(u),
+                  eq(workouts.id, id),
+                  hasMeasurement(field),
+                  isNotNull(sets[key]),
+                  metric === "repsAtWeight"
+                    ? and(weightedReps, isNotNull(sets.weightKg))
+                    : undefined,
+                ),
+              )
+              .orderBy(
+                ...buckets.map((column) => asc(column)),
+                desc(sets[key]),
+                asc(entries.position),
+                asc(sets.position),
+              );
+            for (const row of rows)
+              if (row.previousValue === null || row.value! > row.previousValue)
+                records.push({
+                  exerciseId: row.exerciseId,
+                  workoutExerciseId: row.workoutExerciseId,
+                  setId: row.setId,
+                  metric,
+                  value: row.value!,
+                  reps: row.reps,
+                  weightKg: row.weightKg,
+                  first: row.previousValue === null,
+                });
+          }
+          return { records };
         },
         { isolationLevel: "repeatable read", accessMode: "read only" },
       );

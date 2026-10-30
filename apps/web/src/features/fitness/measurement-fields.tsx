@@ -57,7 +57,11 @@ export function MeasurementFields({
               ) : (
                 <Plus size={14} aria-hidden="true" />
               )}
-              <span>{field[0]!.toUpperCase() + field.slice(1)}</span>
+              <span>
+                {field === "load"
+                  ? "Weight"
+                  : field[0]!.toUpperCase() + field.slice(1)}
+              </span>
             </label>
           );
         })}

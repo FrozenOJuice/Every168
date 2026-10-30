@@ -47,7 +47,7 @@ export function PreferencesForm() {
           <option value="0">Sunday</option>
         </Field>
         <div className="form-grid">
-          <Field name="weightUnit" label="Weight & strength load">
+          <Field name="weightUnit" label="Weight">
             <option value="kg">Kilograms (kg)</option>
             <option value="lb">Pounds (lb)</option>
           </Field>

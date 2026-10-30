@@ -87,14 +87,14 @@ export function WorkoutSetRow({
   } as const;
   const labels = {
     reps: "reps",
-    load: `load (${unit})`,
+    load: `weight (${unit})`,
     duration: "duration (seconds)",
     distance: `distance (${distanceUnit})`,
     laps: "laps",
   };
   const messages = {
     reps: "Use whole reps from 1 to 10,000, or leave blank.",
-    load: `Use a load from 0 to ${number(fromKilograms(2000, unit))} ${unit}, or leave blank.`,
+    load: `Use a weight from 0 to ${number(fromKilograms(2000, unit))} ${unit}, or leave blank.`,
     duration: "Enter 1 second to 24 hours, or leave blank.",
     distance: "Use a positive distance up to 10,000 km, or leave blank.",
     laps: "Use whole laps from 1 to 10,000, or leave blank.",
@@ -208,10 +208,64 @@ export function WorkoutSetRow({
       </TooltipButton>
     </div>
   );
+  const outcome = set.skipped
+    ? "skipped"
+    : set.completed
+      ? "completed"
+      : "unfinished";
+  const status = (
+    <div className="fitness-correction-status">
+      <FitnessSelect
+        label={`Set ${index + 1} status`}
+        hideLabel
+        floating
+        searchable={false}
+        value={
+          set.skipped ? "skipped" : set.completed ? "completed" : "unfinished"
+        }
+        disabled={disabled}
+        error={
+          set.completed &&
+          [
+            set.reps,
+            set.weightKg,
+            set.durationSeconds,
+            set.distanceMeters,
+            set.laps,
+          ].every((value) => value === null)
+            ? "Enter at least one recorded measurement for a completed set."
+            : undefined
+        }
+        options={[
+          { value: "completed", label: "Completed" },
+          { value: "skipped", label: "Skipped" },
+          { value: "unfinished", label: "Unfinished" },
+        ]}
+        onChange={(status) =>
+          onChange({
+            ...set,
+            completed: status === "completed",
+            skipped: status === "skipped",
+            resultsEdited: true,
+          })
+        }
+      />
+    </div>
+  );
   return (
     <>
-      <div className="fitness-set-editor-row">
-        <div className="fitness-set-number-cell">{handle}</div>
+      <div
+        className="fitness-set-editor-row"
+        data-recorded={session || undefined}
+      >
+        {session ? (
+          <div className="fitness-recorded-set-header" data-outcome={outcome}>
+            {handle}
+            {status}
+          </div>
+        ) : (
+          <div className="fitness-set-number-cell">{handle}</div>
+        )}
         <div className="fitness-set-measurements">
           {main.map((field) => (
             <div
@@ -235,47 +289,11 @@ export function WorkoutSetRow({
             Planned:{" "}
             {targetSummary(set, unit, distanceUnit, main, durationUnit)}
           </p>
-          <div className="fitness-correction-status">
-            <FitnessSelect
-              label={`Set ${index + 1} status`}
-              hideLabel
-              floating
-              searchable={false}
-              value={
-                set.skipped
-                  ? "skipped"
-                  : set.completed
-                    ? "completed"
-                    : "unfinished"
-              }
-              disabled={disabled}
-              error={
-                set.completed &&
-                [
-                  set.reps,
-                  set.weightKg,
-                  set.durationSeconds,
-                  set.distanceMeters,
-                  set.laps,
-                ].every((value) => value === null)
-                  ? "Enter at least one recorded measurement for a completed set."
-                  : undefined
-              }
-              options={[
-                { value: "completed", label: "Completed" },
-                { value: "skipped", label: "Skipped" },
-                { value: "unfinished", label: "Unfinished" },
-              ]}
-              onChange={(status) =>
-                onChange({
-                  ...set,
-                  completed: status === "completed",
-                  skipped: status === "skipped",
-                  resultsEdited: true,
-                })
-              }
-            />
-          </div>
+          {outcome !== "completed" && (
+            <p className="fitness-correction-unrecorded">
+              Values don’t count until completed.
+            </p>
+          )}
         </div>
       )}
       {secondary.some(

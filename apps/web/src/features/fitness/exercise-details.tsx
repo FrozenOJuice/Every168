@@ -2,17 +2,32 @@
 import { ContextMenu } from "@/components/ui/context-menu";
 import { TooltipButton } from "@/components/ui/tooltip-button";
 import { FitnessConfirm } from "./fitness-confirm";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MoreHorizontal } from "lucide-react";
-import { type Exercise, type ExerciseLoggingType } from "@168hours/contracts";
+import {
+  type Exercise,
+  type ExerciseInput,
+  type ExerciseLoggingType,
+} from "@168hours/contracts";
+import { ExerciseEditor } from "./exercise-editor";
+import { Toast, useToast } from "@/components/ui/toast";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { ExerciseFavourite } from "./exercise-favourite";
 import { ExerciseVisual } from "./exercise-visual";
 import { type LibraryExercise } from "./exercise-library-model";
-import { ExerciseProgressPage } from "./exercise-progress";
-import { ExerciseRecall } from "./exercise-recall";
+import {
+  ExerciseProgressPage,
+  ExerciseHistoryEmpty,
+} from "./exercise-progress";
 import { ExerciseAddToWorkout } from "./exercise-add-to-workout";
 export function ExerciseDetails({
   item,
@@ -21,11 +36,12 @@ export function ExerciseDetails({
   onDuplicated,
   onEdit,
   workoutContext = false,
-  backLabel = "Back to exercises",
+  backLabel = "Back to Exercises",
   hideBack = false,
   initialHistory = false,
   initialMode,
   standalone = false,
+  reference = false,
 }: {
   item: LibraryExercise;
   onChoose?: (exercise: Exercise) => void;
@@ -38,23 +54,45 @@ export function ExerciseDetails({
   initialHistory?: boolean;
   initialMode?: ExerciseLoggingType;
   standalone?: boolean;
+  reference?: boolean;
 }) {
   const SectionHeading = standalone ? "h2" : "h3";
   const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+  const [copy, setCopy] = useState<ExerciseInput | null>(null);
+  const toast = useToast();
   const [actionsMenu, setActionsMenu] = useState<{
     anchor: HTMLElement;
     x: number;
     y: number;
   } | null>(null);
   const closeActions = useCallback(() => setActionsMenu(null), []);
-  const [history, setHistory] = useState(initialHistory);
   const cache = useQueryClient();
   const panel = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    panel.current?.focus({
-      preventScroll: !window.matchMedia("(max-width: 1000px)").matches,
+  const emptyHistoryEntry = initialHistory && !item.exercise;
+  const historyHeading = useRef<HTMLHeadingElement>(null);
+  const historyFrame = useRef<number | null>(null);
+  const focusHistory = useCallback(() => {
+    if (!initialHistory) return;
+    if (historyFrame.current !== null)
+      cancelAnimationFrame(historyFrame.current);
+    historyFrame.current = requestAnimationFrame(() => {
+      historyHeading.current?.focus({ preventScroll: true });
+      historyHeading.current?.scrollIntoView({ block: "start" });
     });
-  }, []);
+  }, [initialHistory]);
+  useLayoutEffect(() => {
+    if (emptyHistoryEntry) focusHistory();
+    else
+      panel.current?.focus({
+        preventScroll:
+          initialHistory || !window.matchMedia("(max-width: 1000px)").matches,
+      });
+    return () => {
+      if (historyFrame.current !== null)
+        cancelAnimationFrame(historyFrame.current);
+    };
+  }, [initialHistory, emptyHistoryEntry, focusHistory]);
   const refresh = () => {
     void cache.invalidateQueries({ queryKey: ["fitness", "exercises"] });
     void cache.invalidateQueries({ queryKey: ["fitness", "catalog"] });
@@ -81,29 +119,47 @@ export function ExerciseDetails({
     },
   });
   const archive = useCommand({
-    mutationFn: async ({ importKey }: { importKey: string }, key: string) => {
+    mutationFn: async (
+      {
+        exercise: captured,
+        value,
+        importKey,
+      }: { exercise?: Exercise; value: boolean; importKey: string },
+      key: string,
+    ) => {
       const exercise =
+        captured ??
         item.exercise ??
         (await api.useCatalogExercise(item.definition!.key, importKey));
-      return item.definition
-        ? api.hideExercise(exercise.id, !exercise.hidden, exercise.version, key)
-        : exercise.archivedAt
-          ? api.restoreExercise(exercise.id, exercise.version, key)
-          : api.archiveExercise(exercise.id, exercise.version, key);
+      const saved = item.definition
+        ? await api.hideExercise(exercise.id, value, exercise.version, key)
+        : value
+          ? await api.archiveExercise(exercise.id, exercise.version, key)
+          : await api.restoreExercise(exercise.id, exercise.version, key);
+      return { exercise: saved, value };
     },
-    onSuccess: refresh,
-  });
-  const duplicate = useCommand({
-    mutationFn: (_: void, key: string) =>
-      api.duplicateExercise(
-        item.definition
-          ? { catalogKey: item.definition.key }
-          : { exerciseId: item.exercise!.id, version: item.exercise!.version },
-        key,
-      ),
-    onSuccess: (exercise) => {
+    onSuccess: ({ exercise, value }) => {
+      cache.setQueryData(["fitness", "exercise", exercise.id], exercise);
       refresh();
-      onDuplicated(exercise);
+      toast.show({
+        kind: "success",
+        message: item.definition
+          ? value
+            ? `${item.name} hidden from library.`
+            : `${item.name} shown in library.`
+          : value
+            ? `${item.name} archived.`
+            : `${item.name} restored.`,
+        action: {
+          label: "Undo",
+          onClick: () =>
+            archive.mutate({
+              exercise,
+              value: !value,
+              importKey: crypto.randomUUID(),
+            }),
+        },
+      });
     },
   });
   const remove = useCommand({
@@ -111,18 +167,91 @@ export function ExerciseDetails({
       api.deleteExercise(item.exercise!.id, item.exercise!.version, key),
     onSuccess: () => {
       refresh();
-      onClose();
+      setDeleted(true);
     },
   });
   const busy =
-    choose.isPending ||
-    edit.isPending ||
-    archive.isPending ||
-    duplicate.isPending ||
-    remove.isPending;
+    choose.isPending || edit.isPending || archive.isPending || remove.isPending;
+  useUnsavedChanges(
+    busy,
+    "Wait for this exercise change to finish, or retry it before leaving.",
+    true,
+  );
+  useEffect(() => {
+    if (deleted && !busy) onClose();
+  }, [deleted, busy, onClose]);
+  const exerciseActions = (
+    <div className="fitness-exercise-detail-actions">
+      <ExerciseFavourite item={item} iconOnly />
+      {!workoutContext && (
+        <TooltipButton
+          type="button"
+          className="icon-button"
+          tooltip="Exercise actions"
+          aria-label="Exercise actions"
+          aria-haspopup="menu"
+          aria-expanded={!!actionsMenu}
+          disabled={busy}
+          onClick={(event) => {
+            const anchor = event.currentTarget;
+            const rect = anchor.getBoundingClientRect();
+            setActionsMenu((current) =>
+              current ? null : { anchor, x: rect.right, y: rect.bottom + 4 },
+            );
+          }}
+        >
+          <MoreHorizontal size={18} aria-hidden="true" />
+        </TooltipButton>
+      )}
+    </div>
+  );
+  const exerciseHeading = (
+    <div className="fitness-exercise-detail-heading">
+      <div>
+        {standalone ? <h1>{item.name}</h1> : <h2>{item.name}</h2>}
+        {!item.definition && (
+          <span className="fitness-custom-badge">Custom</span>
+        )}
+      </div>
+    </div>
+  );
+  const exerciseAddition = onChoose ? (
+    <button
+      className="button primary fitness-exercise-add-trigger"
+      disabled={busy || !!item.exercise?.archivedAt}
+      onClick={() => choose.mutate()}
+    >
+      Add {item.name}
+    </button>
+  ) : (
+    !workoutContext &&
+    !item.exercise?.archivedAt && (
+      <ExerciseAddToWorkout item={item} overview={standalone} />
+    )
+  );
+  if (copy)
+    return (
+      <ExerciseEditor
+        initialValues={copy}
+        onCancel={() => {
+          setCopy(null);
+          requestAnimationFrame(() =>
+            panel.current
+              ?.querySelector<HTMLElement>('[aria-label="Exercise actions"]')
+              ?.focus({ preventScroll: true }),
+          );
+        }}
+        onSaved={(exercise) => {
+          refresh();
+          setCopy(null);
+          onDuplicated(exercise);
+        }}
+      />
+    );
   return (
     <section
-      className={`fitness-inspector${standalone ? " fitness-exercise-detail-page" : ""}`}
+      className={`fitness-inspector fitness-exercise-detail-page${reference ? " fitness-exercise-reference" : ""}`}
+      data-history-entry={initialHistory}
       aria-label={`${item.name} details`}
       tabIndex={-1}
       ref={panel}
@@ -134,179 +263,99 @@ export function ExerciseDetails({
         }
       }}
     >
-      {!hideBack && (
-        <button
-          className="fitness-text-action"
-          onClick={onClose}
-          disabled={busy}
-        >
-          <ArrowLeft size={16} aria-hidden="true" />
-          {backLabel}
-        </button>
-      )}
-      <>
-        <div className="fitness-exercise-detail-heading">
-          <div>
-            {standalone ? <h1>{item.name}</h1> : <h2>{item.name}</h2>}
-            {!item.definition && (
-              <span className="fitness-custom-badge">Custom</span>
-            )}
-          </div>
-          <div className="fitness-exercise-detail-actions">
-            <ExerciseFavourite item={item} iconOnly />
-            {!workoutContext && (
-              <TooltipButton
-                type="button"
-                className="icon-button"
-                tooltip="Exercise actions"
-                aria-label="Exercise actions"
-                aria-haspopup="menu"
-                aria-expanded={!!actionsMenu}
-                disabled={busy}
-                onClick={(event) => {
-                  const anchor = event.currentTarget;
-                  const rect = anchor.getBoundingClientRect();
-                  setActionsMenu({ anchor, x: rect.right, y: rect.bottom + 4 });
-                }}
-              >
-                <MoreHorizontal size={18} aria-hidden="true" />
-              </TooltipButton>
-            )}
-          </div>
-        </div>
-        {!standalone && (
-          <div
-            className="fitness-detail-tabs"
-            role="group"
-            aria-label="Exercise information"
-          >
-            <button
-              type="button"
-              aria-pressed={!history}
-              onClick={() => setHistory(false)}
-            >
-              Details
-            </button>
-            <button
-              type="button"
-              aria-pressed={history}
-              onClick={() => setHistory(true)}
-            >
-              History
-            </button>
-          </div>
+      <div className="fitness-exercise-detail-toolbar">
+        {!hideBack && (
+          <button className="fitness-back" onClick={onClose} disabled={busy}>
+            <ArrowLeft size={16} aria-hidden="true" />
+            {backLabel}
+          </button>
         )}
-        {history && !standalone ? (
-          item.exercise ? (
+        {exerciseActions}
+      </div>
+      <div className="fitness-exercise-overview has-title">
+        {exerciseHeading}
+        <ExerciseVisual large />
+        <div className="fitness-exercise-facts">
+          <div className="fitness-exercise-equipment">
+            <SectionHeading>Equipment</SectionHeading>
+            {item.equipment.length ? (
+              <ul>
+                {item.equipment.map((equipment) => (
+                  <li key={equipment}>{equipment}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Not specified</p>
+            )}
+          </div>
+          {item.muscles.length > 0 && (
+            <div>
+              <SectionHeading>Muscles worked</SectionHeading>
+              <div className="fitness-muscle-tags" aria-label="Muscles worked">
+                {item.muscles.map((muscle) => (
+                  <span key={muscle}>{muscle}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {exerciseAddition}
+      </div>
+      {item.notes && (
+        <div className="fitness-exercise-instructions">
+          <SectionHeading>Instructions</SectionHeading>
+          <p>{item.notes || "No instructions added yet."}</p>
+        </div>
+      )}
+      {item.definition && item.exercise?.hidden && (
+        <p className="text-small">
+          Hidden from your library. Existing workouts and history are unchanged.
+        </p>
+      )}
+      {item.exercise?.archivedAt && (
+        <p className="text-small">
+          Archived. Restore it to use it in a workout.
+        </p>
+      )}
+      <CommandError command={choose} />
+      <CommandError command={edit} />
+      <CommandError command={archive} />
+      {!deleting && <CommandError command={remove} />}
+      {(!reference || initialHistory) && (
+        <section
+          className="fitness-exercise-personal-history"
+          aria-label="Your history"
+        >
+          <SectionHeading ref={historyHeading} tabIndex={-1}>
+            Your history
+          </SectionHeading>
+          {item.exercise ? (
             <ExerciseProgressPage
               id={item.exercise.id}
               initialMode={initialMode}
               embedded
+              nested={!standalone}
+              onReady={initialHistory ? focusHistory : undefined}
             />
           ) : (
-            <p>No finished sessions for this exercise yet.</p>
-          )
-        ) : (
-          <>
-            <div className="fitness-exercise-overview">
-              <ExerciseVisual large />
-              <div className="fitness-exercise-facts">
-                {!!item.exercise?.intentTags.length && (
-                  <p className="muted text-small">
-                    Default intent: {item.exercise.intentTags.join(", ")}
-                  </p>
-                )}
-                <div className="fitness-exercise-equipment">
-                  <SectionHeading>Equipment</SectionHeading>
-                  <ul>
-                    {(item.equipment.length
-                      ? item.equipment
-                      : ["Not specified"]
-                    ).map((equipment) => (
-                      <li key={equipment}>{equipment}</li>
-                    ))}
-                  </ul>
-                </div>
-                {item.muscles.length > 0 && (
-                  <div>
-                    <SectionHeading>Muscles worked</SectionHeading>
-                    <div
-                      className="fitness-muscle-tags"
-                      aria-label="Muscles worked"
-                    >
-                      {item.muscles.map((muscle) => (
-                        <span key={muscle}>{muscle}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="fitness-exercise-instructions">
-              <SectionHeading>How it works</SectionHeading>
-              <p>{item.notes || "No instructions added yet."}</p>
-            </div>
-            {!standalone && item.exercise && (
-              <ExerciseRecall
-                id={item.exercise.id}
-                mode={initialMode ?? item.exercise.loggingType}
-                onHistory={() => setHistory(true)}
-              />
-            )}
-            {item.definition && item.exercise?.hidden && (
-              <p className="text-small">
-                Hidden from your library. Existing workouts and history are
-                unchanged.
-              </p>
-            )}
-            {item.exercise?.archivedAt && (
-              <p className="text-small">
-                Archived. Restore it to use it in a workout.
-              </p>
-            )}
-            {onChoose ? (
-              <button
-                className="button primary"
-                disabled={busy || !!item.exercise?.archivedAt}
-                onClick={() => choose.mutate()}
-              >
-                Add {item.name}
-              </button>
-            ) : (
-              !workoutContext &&
-              !item.exercise?.archivedAt && <ExerciseAddToWorkout item={item} />
-            )}
-            <CommandError command={choose} />
-            <CommandError command={edit} />
-            <CommandError command={archive} />
-            <CommandError command={duplicate} />
-            {!deleting && <CommandError command={remove} />}
-            {standalone && (
-              <section
-                className="fitness-exercise-personal-history"
-                aria-label="Your history"
-              >
-                <h2>Your history</h2>
-                {item.exercise ? (
-                  <ExerciseProgressPage
-                    id={item.exercise.id}
-                    initialMode={initialMode}
-                    embedded
-                  />
-                ) : (
-                  <p className="muted">
-                    No finished sessions for this exercise yet.
-                  </p>
-                )}
-              </section>
-            )}
-          </>
-        )}
-      </>
+            <ExerciseHistoryEmpty embedded nested={!standalone} />
+          )}
+        </section>
+      )}
+      {reference && !initialHistory && (
+        <div className="fitness-exercise-reference-records">
+          {item.exercise ? (
+            <ExerciseProgressPage id={item.exercise.id} embedded recordsOnly />
+          ) : (
+            <ExerciseHistoryEmpty embedded />
+          )}
+        </div>
+      )}
       {actionsMenu && (
         <ContextMenu
           {...actionsMenu}
           label="Exercise actions"
+          anchorToggles
           portalContainer={actionsMenu.anchor.closest("main") ?? undefined}
           onClose={closeActions}
           actions={[
@@ -322,7 +371,19 @@ export function ExerciseDetails({
             {
               label: "Duplicate exercise",
               disabled: busy,
-              run: () => duplicate.mutate(),
+              run: () =>
+                setCopy({
+                  name: item.name.slice(0, 153) + " (copy)",
+                  notes: item.notes,
+                  equipment: item.equipment,
+                  muscles: item.muscles,
+                  loggingType:
+                    item.exercise?.loggingType ??
+                    item.definition?.loggingType ??
+                    "reps_load",
+                  intentTags: item.exercise?.intentTags ?? [],
+                  favourite: false,
+                }),
             },
             {
               label: item.definition
@@ -333,20 +394,41 @@ export function ExerciseDetails({
                   ? "Restore exercise"
                   : "Archive exercise",
               disabled: busy,
-              run: () => archive.mutate({ importKey: crypto.randomUUID() }),
+              run: () =>
+                archive.mutate({
+                  value: item.definition
+                    ? !item.exercise?.hidden
+                    : !item.exercise?.archivedAt,
+                  importKey: crypto.randomUUID(),
+                }),
             },
-            ...(!item.definition && item.exercise?.canDelete
+            ...(!item.definition
               ? [
                   { separator: true as const },
                   {
                     label: "Delete exercise",
-                    disabled: busy,
+                    disabled: busy || !item.exercise?.canDelete,
+                    description: item.exercise?.canDelete
+                      ? undefined
+                      : "Used in workouts or history. Archive it instead.",
                     destructive: true,
                     run: () => setDeleting(true),
                   },
                 ]
               : []),
           ]}
+        />
+      )}
+      {toast.notice && (
+        <Toast
+          key={toast.notice.id}
+          {...toast.notice}
+          action={
+            toast.notice.action
+              ? { ...toast.notice.action, disabled: busy }
+              : undefined
+          }
+          onDismiss={() => toast.dismiss()}
         />
       )}
       {deleting && (

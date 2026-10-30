@@ -1,0 +1,145 @@
+/* Shared field focus: 3px, no gap, following each control's own rounded edge. */
+:root {
+  --field-focus-width: 3px;
+  --field-focus-shadow: 0 0 0 var(--field-focus-width) var(--focus-ring);
+}
+
+:is(
+  input,
+  textarea,
+  select,
+  .fitness-select-trigger,
+  .fitness-session-start-field > .button,
+  .fitness-program-date,
+  .fitness-week-date
+) {
+  scroll-margin: calc(var(--field-focus-width) + 1px);
+}
+
+:is(
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]),
+  textarea,
+  select
+):focus,
+.fitness-select-trigger:focus,
+.fitness-session-start-field > .button:focus,
+.fitness-program-date:focus,
+.fitness-week-date:focus {
+  outline: none;
+  box-shadow: var(--field-focus-shadow);
+  position: relative;
+  z-index: 1;
+}
+input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
+  outline: var(--field-focus-width) solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+/* Segmented fields draw above their children so units/icons cannot cover the ring. */
+:is(
+  .fitness-search,
+  .fitness-select-option-search,
+  .fitness-number-control,
+  .fitness-notes-editor,
+  .fitness-rest-disclosure,
+  .password-field,
+  .assistant-composer
+) {
+  --field-focus-radius: var(--radius);
+  --field-focus-border: 1px;
+  scroll-margin: calc(var(--field-focus-width) + 1px);
+  position: relative;
+}
+.password-field {
+  --field-focus-radius: 6px;
+  --field-focus-border: 0px;
+  border-radius: var(--field-focus-radius);
+}
+.assistant-composer {
+  --field-focus-radius: 12px;
+}
+.fitness-select-option-search {
+  --field-focus-radius: 6px;
+  border: 1px solid var(--input);
+  border-radius: var(--field-focus-radius);
+}
+:is(
+  .fitness-search,
+  .fitness-select-option-search,
+  .fitness-number-control,
+  .password-field
+):focus-within,
+.fitness-notes-editor:has(textarea:focus),
+.fitness-rest-disclosure:has(input:focus),
+.assistant-composer:has(textarea:focus) {
+  outline: none;
+  box-shadow: none;
+  z-index: 2;
+}
+:is(
+    .fitness-search,
+    .fitness-select-option-search,
+    .fitness-number-control,
+    .password-field
+  ):focus-within::after,
+.fitness-notes-editor:has(textarea:focus)::after,
+.fitness-rest-disclosure:has(input:focus)::after,
+.assistant-composer:has(textarea:focus)::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * (var(--field-focus-width) + var(--field-focus-border)));
+  border: var(--field-focus-width) solid var(--focus-ring);
+  border-radius: calc(var(--field-focus-radius) + var(--field-focus-width));
+  pointer-events: none;
+  z-index: 2;
+}
+:is(
+    .fitness-search,
+    .fitness-select-option-search,
+    .fitness-number-control,
+    .fitness-notes-editor,
+    .fitness-rest-disclosure,
+    .password-field,
+    .assistant-composer
+  )
+  :is(input, textarea):focus,
+.fitness-number-control .fitness-select-trigger:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Measurement chips contain visually hidden checkbox inputs. */
+.fitness-measurement-options label:focus-within {
+  outline: none;
+  box-shadow: var(--field-focus-shadow);
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  :is(input, textarea, select):focus,
+  .fitness-select-trigger:focus,
+  .fitness-session-start-field > .button:focus,
+  .fitness-program-date:focus,
+  .fitness-week-date:focus,
+  .fitness-measurement-options label:focus-within {
+    outline: var(--field-focus-width) solid Highlight;
+    outline-offset: 0;
+    box-shadow: none;
+  }
+  :is(
+      .fitness-search,
+      .fitness-select-option-search,
+      .fitness-number-control,
+      .password-field
+    ):focus-within::after,
+  .fitness-notes-editor:has(textarea:focus)::after,
+  .fitness-rest-disclosure:has(input:focus)::after,
+  .assistant-composer:has(textarea:focus)::after {
+    border-color: Highlight;
+  }
+}
+
+/* Keep automatic field scrolling clear of the fixed editor footer. */
+.fitness-creation-experiment .fitness-builder-scroll {
+  scroll-padding-block: calc(var(--field-focus-width) + 1px);
+}

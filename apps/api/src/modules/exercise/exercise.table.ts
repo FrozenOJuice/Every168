@@ -2,6 +2,7 @@ import type {
   StrengthPlan,
   ExerciseLoggingType,
   WorkoutStartingSetup,
+  WorkoutPause,
 } from "@168hours/contracts";
 import {
   pgTable,
@@ -94,6 +95,10 @@ export const strengthWorkouts = pgTable(
   {
     ...ownedColumns(),
     startingSetup: jsonb("starting_setup").$type<WorkoutStartingSetup>(),
+    pauses: jsonb("pauses")
+      .$type<WorkoutPause[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     title: text("title").notNull(),
     startedAt: instant("started_at").notNull(),
     endedAt: instant("ended_at"),

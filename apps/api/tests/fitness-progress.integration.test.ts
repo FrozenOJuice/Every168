@@ -3,6 +3,9 @@ import { expect, it } from "vitest";
 import request from "supertest";
 import {
   exerciseReportSchema,
+  setInput,
+  weightRecordsSchema,
+  workoutRecordsSchema,
   fitnessOverviewSchema,
   workoutComparisonSchema,
   workoutUpdateInput,
@@ -79,8 +82,15 @@ async function correct(
     exercises: w.exercises.map((e) => ({
       id: e.id,
       exerciseId: e.exerciseId,
+      loggingType: e.loggingType,
       notes: e.notes,
       sets: e.sets.map((s) => ({
+        ...Object.fromEntries(
+          Object.keys(setInput.shape).map((key) => [
+            key,
+            s[key as keyof typeof s],
+          ]),
+        ),
         id: s.id,
         reps: s.reps,
         weightKg: s.weightKg,
@@ -204,7 +214,7 @@ it("returns chronological session trends and all-time records with source sets, 
     workoutId: earlier.id,
     setId: earlier.exercises[0]!.sets[0]!.id,
   });
-  expect(first.records.find((r) => r.metric === "setVolume")?.value).toBe(600);
+  expect(first.records.some((r) => r.metric === "setVolume")).toBe(false);
   const second = exerciseReportSchema.parse(
     (
       await a
@@ -246,7 +256,7 @@ it("returns chronological session trends and all-time records with source sets, 
   });
   expect(
     (await a.get(`fitness-progress/exercises/${e.id}`)).body.records,
-  ).toHaveLength(3);
+  ).toHaveLength(2);
   await a
     .write("delete", `strength-workouts/${earlier.id}`, {}, earlier.version)
     .expect(200);
@@ -444,9 +454,7 @@ it("persists independent measurements through plans and sessions and derives mix
   });
   expect(
     report.records.map((r: { metric: string }) => r.metric).sort(),
-  ).toEqual(
-    ["distance", "duration", "laps", "load", "reps", "setVolume"].sort(),
-  );
+  ).toEqual(["distance", "duration", "load", "reps"].sort());
   await b.get(path).expect(404);
   const { body: comparison } = await a
     .get(`fitness-progress/workouts/${w.id}`)
@@ -626,7 +634,14 @@ it("discovers all recorded measurement combinations while retaining exact filter
   expect(report.sessions.items).toHaveLength(2);
   expect(report.sessions.items[0]!.sets[0]!.loggingType).toBe("duration");
   expect(report.sessions.items[0]!.maxReps).toBeNull();
-  expect(report.records).toEqual([]);
+  expect(report.records).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ metric: "reps", value: 8 }),
+      expect.objectContaining({ metric: "load", value: 30 }),
+      expect.objectContaining({ metric: "duration", value: 60, reps: null }),
+    ]),
+  );
+  expect(report.records).toHaveLength(3);
   const filtered = exerciseReportSchema.parse(
     (
       await a
@@ -727,4 +742,199 @@ it("persists deliberately cleared actuals and resets that flag when repeating a 
     reps: null,
     targetReps: 12,
   });
+});
+
+it("derives reps-at-weight records and session badges from confirmed owned results, recalculating corrections and deletions", async () => {
+  const a = client((await signUp()).cookie),
+    b = client((await signUp()).cookie);
+  const exercise = (
+    await a.write("post", "exercises", { name: "Record press" }).expect(201)
+  ).body;
+  const early = await workout(a, exercise.id, "2026-10-20T10:00:00Z", [
+    { reps: 8, weightKg: 50, completed: true },
+    { reps: 10, weightKg: 40, completed: true },
+    { reps: 15, weightKg: 0, completed: true },
+  ]);
+  let later = await workout(a, exercise.id, "2026-10-21T10:00:00Z", [
+    { reps: 10, weightKg: 50, completed: true },
+    { reps: 12, weightKg: 40, completed: true },
+    { reps: 4, weightKg: 60, completed: true },
+    { reps: 999, weightKg: 999, completed: false },
+    { reps: 999, weightKg: 999, skipped: true, completed: false },
+    {
+      reps: 999,
+      weightKg: 999,
+      completed: true,
+      measurementOverride: "duration",
+      durationSeconds: 30,
+    },
+  ]);
+  const tied = await workout(a, exercise.id, "2026-10-22T10:00:00Z", [
+    { reps: 10, weightKg: 50, completed: true },
+  ]);
+  await workout(
+    a,
+    exercise.id,
+    "2026-10-23T10:00:00Z",
+    [{ reps: 100, weightKg: 100, completed: true }],
+    { active: true },
+  );
+  const path = `fitness-progress/exercises/${exercise.id}/weight-records`;
+  const firstPage = weightRecordsSchema.parse(
+    (await a.get(path + "?limit=2").expect(200)).body,
+  );
+  expect(firstPage.items.map((r) => [r.weightKg, r.reps, r.workoutId])).toEqual(
+    [
+      [60, 4, later.id],
+      [50, 10, later.id],
+    ],
+  );
+  expect(firstPage.items.map((record) => record.totalReps)).toEqual([4, 28]);
+  expect(firstPage.nextWeight).toBe(50);
+  const secondPage = weightRecordsSchema.parse(
+    (await a.get(path + "?limit=2&beforeWeight=50").expect(200)).body,
+  );
+  expect(secondPage.items.map((r) => [r.weightKg, r.reps])).toEqual([
+    [40, 12],
+    [0, 15],
+  ]);
+  expect(secondPage.items.map((record) => record.totalReps)).toEqual([22, 15]);
+  expect(secondPage.nextWeight).toBeNull();
+  const recordsPath = `fitness-progress/workouts/${later.id}/records`;
+  const badges = workoutRecordsSchema.parse(
+    (await a.get(recordsPath).expect(200)).body,
+  ).records;
+  expect(badges).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        metric: "load",
+        value: 60,
+        reps: 4,
+        first: false,
+      }),
+      expect.objectContaining({
+        metric: "repsAtWeight",
+        weightKg: 50,
+        value: 10,
+        first: false,
+      }),
+      expect.objectContaining({
+        metric: "repsAtWeight",
+        weightKg: 60,
+        value: 4,
+        first: true,
+      }),
+      expect.objectContaining({
+        metric: "duration",
+        value: 30,
+        reps: null,
+        weightKg: null,
+        first: true,
+      }),
+    ]),
+  );
+  expect(badges.some((r) => r.value === 999)).toBe(false);
+  expect(
+    (await a.get(`fitness-progress/workouts/${tied.id}/records`).expect(200))
+      .body.records,
+  ).toEqual([]);
+  expect(
+    (
+      await a.get(`fitness-progress/workouts/${early.id}/records`).expect(200)
+    ).body.records.every((r: { first: boolean }) => r.first),
+  ).toBe(true);
+  await b.get(path).expect(404);
+  await b.get(recordsPath).expect(404);
+  await a.get(path + "?beforeWeight=-1").expect(422);
+  later = await correct(a, later, (input) => {
+    input.exercises[0]!.sets[0]!.reps = 7;
+  });
+  expect(
+    (await a.get(path).expect(200)).body.items.find(
+      (r: { weightKg: number }) => r.weightKg === 50,
+    ).workoutId,
+  ).toBe(tied.id);
+  await a
+    .write("delete", `strength-workouts/${tied.id}`, {}, tied.version)
+    .expect(200);
+  const updated = (await a.get(path).expect(200)).body.items.find(
+    (r: { weightKg: number }) => r.weightKg === 50,
+  );
+  expect(updated.reps).toBe(8);
+  expect(updated.totalReps).toBe(15);
+  expect(updated.workoutId).toBe(early.id);
+  expect(
+    (await a.get(recordsPath).expect(200)).body.records.some(
+      (r: { metric: string; weightKg: number }) =>
+        r.metric === "repsAtWeight" && r.weightKg === 50,
+    ),
+  ).toBe(false);
+});
+
+it("keeps unfinished and skipped occurrences in finished exercise history without recording their entered values", async () => {
+  const a = client((await signUp()).cookie);
+  const exercise = (
+    await a.write("post", "exercises", { name: "History states" }).expect(201)
+  ).body;
+  const other = (
+    await a
+      .write("post", "exercises", { name: "Performed movement" })
+      .expect(201)
+  ).body;
+  let saved = await workout(
+    a,
+    exercise.id,
+    "2026-10-24T10:00:00Z",
+    [
+      { reps: 100, weightKg: 100, completed: false },
+      { reps: 200, weightKg: 200, skipped: true, completed: false },
+    ],
+    { active: true },
+  );
+  saved = await correct(a, saved, (input) => {
+    input.endedAt = "2026-10-24T11:00:00Z";
+    input.exercises.push({
+      exerciseId: other.id,
+      notes: null,
+      loggingType: "reps",
+      sets: [setInput.parse({ reps: 5, completed: true })],
+    });
+    input.notes = "Ended early";
+    input.exercises[0]!.notes = "Bench unavailable";
+  });
+  const report = exerciseReportSchema.parse(
+    (
+      await a
+        .get(`fitness-progress/exercises/${exercise.id}?allMeasurements=true`)
+        .expect(200)
+    ).body,
+  );
+  expect(report.records).toEqual([]);
+  expect(report.sessions.items).toHaveLength(1);
+  expect(report.sessions.items[0]).toMatchObject({
+    notes: "Ended early",
+    exerciseNotes: ["Bench unavailable"],
+    completedSets: 0,
+    maxReps: null,
+    maxWeightKg: null,
+    volumeKg: null,
+  });
+  expect(report.sessions.items[0]!.sets).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        completed: false,
+        skipped: false,
+        reps: null,
+        weightKg: null,
+      }),
+      expect.objectContaining({ skipped: true, reps: null, weightKg: null }),
+    ]),
+  );
+  expect(
+    (
+      await a.get(`fitness-progress/workouts/${saved.id}/records`).expect(200)
+    ).body.records.filter(
+      (record: { exerciseId: string }) => record.exerciseId === exercise.id,
+    ),
+  ).toEqual([]);
 });

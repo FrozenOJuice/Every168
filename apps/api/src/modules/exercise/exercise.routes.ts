@@ -1,5 +1,6 @@
 import {
   fitnessProgressQuery,
+  weightRecordsQuery,
   exerciseReportQuery,
   progressExerciseQuery,
 } from "@168hours/contracts";
@@ -73,6 +74,23 @@ export function exerciseRoutes(
         currentUser(res).id,
         idSchema.parse(req.params.id),
         exerciseReportQuery.parse(req.query),
+      ),
+    ),
+  );
+  r.get("/fitness-progress/exercises/:id/weight-records", async (req, res) =>
+    res.json(
+      await progress.weightRecords(
+        currentUser(res).id,
+        idSchema.parse(req.params.id),
+        weightRecordsQuery.parse(req.query),
+      ),
+    ),
+  );
+  r.get("/fitness-progress/workouts/:id/records", async (req, res) =>
+    res.json(
+      await progress.workoutRecords(
+        currentUser(res).id,
+        idSchema.parse(req.params.id),
       ),
     ),
   );

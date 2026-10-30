@@ -17,16 +17,22 @@ import { CalendarDays } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { workoutCreationExperiment } from "./workout-creation-experiment";
 import { FitnessDayPanel } from "./fitness-day-panel";
-import { FitnessSectionJump } from "./fitness-section-jump";
-import { restoreActionFocus } from "@/components/ui/tooltip-button";
+import { useFitnessNavigation } from "./fitness-navigation";
 
 type Choose = (exercise: Exercise) => boolean | void;
 const WorkspaceContext = createContext<{
+  editorNavigationTarget: HTMLDivElement | null;
+  showWorkout: () => Promise<void>;
   register: (choose: Choose) => () => void;
   setSessionEditor: (path: string | null) => void;
   setRecordedSession: (path: string | null) => void;
   pick: () => void;
-  help: (id: string, history?: boolean, mode?: ExerciseLoggingType) => void;
+  help: (
+    id: string,
+    history?: boolean,
+    mode?: ExerciseLoggingType,
+    fromLibrary?: boolean,
+  ) => void;
 } | null>(null);
 export function useFitnessExercisePanel() {
   const value = useContext(WorkspaceContext);
@@ -39,7 +45,9 @@ export function FitnessExerciseWorkspace({
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  const trainingView = pathname === "/fitness";
+  const navigation = useFitnessNavigation();
+  const exercisesView = pathname === "/fitness/exercises";
+  const exerciseRoute = pathname.startsWith("/fitness/exercises");
   const [recordedSessionPath, setRecordedSession] = useState<string | null>(
     null,
   );
@@ -56,14 +64,19 @@ export function FitnessExerciseWorkspace({
     (pathname.startsWith("/fitness/workout/") || editingSession);
   const activeWorkout = /\/fitness\/(workout|session)\//.test(pathname);
   const [choose, setChoose] = useState<Choose | null>(null);
-  const [helpId, setHelpId] = useState<string | null>(null);
-  const [helpHistory, setHelpHistory] = useState(false);
-  const [helpReturnsToWorkout, setHelpReturnsToWorkout] = useState(false);
-  const helpScroll = useRef({ page: 0, pane: 0 });
-  const [helpMode, setHelpMode] = useState<ExerciseLoggingType>();
+  const [editorNavigationTarget, setEditorNavigationTarget] =
+    useState<HTMLDivElement | null>(null);
+  const help =
+    navigation.current?.kind === "exercise" && navigation.current.inline
+      ? navigation.current
+      : undefined;
+  const helpId = help?.exerciseId;
+  const helpHistory = help?.history ?? false;
+  const helpMode = help?.mode;
+  const helpReturnsToWorkout = !!help;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dayOpen, setDayOpen] = useState(false);
-  const [exerciseEditorOpen, setExerciseEditorOpen] = useState(false);
+  const [dayBusy, setDayBusy] = useState(false);
   const [browseRequest, setBrowseRequest] = useState(0);
   const [notice, setNotice] = useState("");
   const opener = useRef<HTMLElement | null>(null);
@@ -76,14 +89,11 @@ export function FitnessExerciseWorkspace({
   const setSessionEditor = useCallback((path: string | null) => {
     setSessionEditorPath(path);
     setPickerOpen(false);
-    setHelpId(null);
     setDayOpen(false);
   }, []);
   const [previousPath, setPreviousPath] = useState(pathname);
   if (previousPath !== pathname) {
     setPreviousPath(pathname);
-    setExerciseEditorOpen(false);
-    setHelpId(null);
     setNotice("");
     setPickerOpen(false);
   }
@@ -91,29 +101,18 @@ export function FitnessExerciseWorkspace({
     workout.current?.closest(".fitness-primary-pane")?.scrollTo({ top: 0 });
   }, [pathname]);
   const closeHelp = () => {
-    setHelpId(null);
-    if (helpReturnsToWorkout) {
-      setPickerOpen(false);
-      requestAnimationFrame(() => {
-        const pane = workout.current?.closest(".fitness-primary-pane");
-        if (pane) pane.scrollTop = helpScroll.current.pane;
-        window.scrollTo({ top: helpScroll.current.page });
-        if (opener.current?.isConnected) restoreActionFocus(opener.current);
-      });
-      return;
-    }
-    setPickerOpen(true);
-    requestAnimationFrame(() => {
-      library.current
-        ?.querySelector<HTMLInputElement>(
-          '.fitness-exercise-panel input[type="search"]',
-        )
-        ?.focus({ preventScroll: true });
-    });
+    setPickerOpen(false);
+    void navigation.back();
   };
+
   return (
     <WorkspaceContext.Provider
       value={{
+        editorNavigationTarget,
+        showWorkout: async () => {
+          if (help) await navigation.back();
+          setPickerOpen(false);
+        },
         register,
         setSessionEditor,
         setRecordedSession,
@@ -122,26 +121,26 @@ export function FitnessExerciseWorkspace({
             document.activeElement instanceof HTMLElement
               ? document.activeElement
               : null;
-          setHelpId(null);
           setBrowseRequest((request) => request + 1);
           setPickerOpen(true);
         },
-        help: (id, history = false, mode) => {
-          setHelpReturnsToWorkout(pathname.startsWith("/fitness/session/"));
-          helpScroll.current = {
-            page: window.scrollY,
-            pane:
-              workout.current?.closest(".fitness-primary-pane")?.scrollTop ?? 0,
-          };
-          opener.current =
-            document.activeElement instanceof HTMLElement
-              ? document.activeElement
-              : null;
-          setHelpId(id);
-          setHelpHistory(history);
-          setHelpMode(mode);
-          setBrowseRequest((request) => request + 1);
-          setPickerOpen(true);
+        help: (id, history = false, mode, fromLibrary = false) => {
+          navigation.openExercise({
+            id,
+            history,
+            mode,
+            inline: activeWorkout,
+            compact: building,
+            fromLibrary,
+            view:
+              recordedSessionPath === pathname
+                ? editingSession
+                  ? "corrections"
+                  : "summary"
+                : building
+                  ? "editor"
+                  : "live",
+          });
         },
       }}
     >
@@ -154,9 +153,17 @@ export function FitnessExerciseWorkspace({
             <nav className="fitness-domain-nav" aria-label="Fitness views">
               <Link
                 href="/fitness"
-                aria-current={!progressView ? "page" : undefined}
+                aria-current={
+                  !progressView && !exerciseRoute ? "page" : undefined
+                }
               >
                 Training
+              </Link>
+              <Link
+                href="/fitness/exercises"
+                aria-current={exerciseRoute ? "page" : undefined}
+              >
+                Exercises
               </Link>
               <Link
                 href="/fitness/history"
@@ -165,9 +172,6 @@ export function FitnessExerciseWorkspace({
                 History
               </Link>
             </nav>
-            {trainingView && !pickerOpen && !exerciseEditorOpen && (
-              <FitnessSectionJump />
-            )}
             {!building && (
               <button
                 className="button domain-mobile-day"
@@ -186,6 +190,7 @@ export function FitnessExerciseWorkspace({
               </p>
             )}
             <ExerciseLibrary
+              editorNavigationRef={setEditorNavigationTarget}
               workoutLabel={
                 recordedSessionPath === pathname
                   ? "Recorded results"
@@ -194,40 +199,39 @@ export function FitnessExerciseWorkspace({
               view={
                 building
                   ? "builder"
-                  : trainingView
-                    ? "training"
+                  : exercisesView
+                    ? "library"
                     : activeWorkout
                       ? "workout"
                       : "content"
               }
               resetKey={`${pathname}:${browseRequest}`}
-              filterContext={
-                pathname.startsWith("/fitness/exercises/")
-                  ? "/fitness"
-                  : pathname
-              }
+              filterContext={exerciseRoute ? "/fitness/exercises" : pathname}
               onEditorOpen={() => {
-                setExerciseEditorOpen(true);
                 requestAnimationFrame(() =>
                   library.current
                     ?.querySelector(".fitness-primary-pane")
                     ?.scrollIntoView({ block: "start" }),
                 );
               }}
-              onEditorClose={() => setExerciseEditorOpen(false)}
-              pickerOpen={pickerOpen}
+              pickerOpen={pickerOpen || !!help}
               onShowPicker={() => setPickerOpen(true)}
               onDismissPicker={() => {
-                setHelpId(null);
+                if (help) closeHelp();
                 setPickerOpen(false);
                 requestAnimationFrame(() => {
                   if (helpId && opener.current?.isConnected) {
                     opener.current.focus({ preventScroll: true });
                     return;
                   }
-                  workout.current
-                    ?.querySelector<HTMLElement>("[data-add-exercise]")
-                    ?.focus();
+                  const target =
+                    workout.current?.querySelector<HTMLElement>(
+                      "[data-add-exercise]",
+                    ) ??
+                    workout.current?.querySelector<HTMLElement>(
+                      ".fitness-builder-setup input",
+                    );
+                  target?.focus({ preventScroll: true });
                 });
               }}
               detailContent={
@@ -238,11 +242,22 @@ export function FitnessExerciseWorkspace({
                     onClose={closeHelp}
                     backLabel={
                       helpReturnsToWorkout
-                        ? "Back to workout"
-                        : "Back to exercises"
+                        ? navigation.parent?.view === "summary"
+                          ? "Back to summary"
+                          : "Back to workout"
+                        : "Back to Exercises"
                     }
+                    compact={building}
                     history={helpHistory}
                     mode={helpMode}
+                    onChoose={
+                      help?.fromLibrary && choose
+                        ? (exercise) => {
+                            const accepted = choose(exercise);
+                            if (accepted !== false) closeHelp();
+                          }
+                        : undefined
+                    }
                   />
                 ) : undefined
               }
@@ -263,6 +278,7 @@ export function FitnessExerciseWorkspace({
                           ? "Cannot add another exercise right now."
                           : "",
                       );
+                      return accepted;
                     }
                   : undefined
               }
@@ -288,8 +304,15 @@ export function FitnessExerciseWorkspace({
           </aside>
         )}
         {!building && dayOpen && (
-          <Dialog title="Your day" onClose={() => setDayOpen(false)}>
-            <FitnessDayPanel onNavigate={() => setDayOpen(false)} />
+          <Dialog
+            title="Your day"
+            busy={dayBusy}
+            onClose={() => setDayOpen(false)}
+          >
+            <FitnessDayPanel
+              onBusyChange={setDayBusy}
+              onNavigate={() => setDayOpen(false)}
+            />
           </Dialog>
         )}
       </div>

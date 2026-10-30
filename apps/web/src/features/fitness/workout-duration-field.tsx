@@ -51,6 +51,11 @@ export function WorkoutDurationField({
   if (selection.preference !== preference)
     setSelection({ preference, unit: initialUnit(preference, value) });
   const displayUnits = useWorkoutDisplayUnits();
+  const [typed, setTyped] = useState<{
+    value: number | null;
+    unit: AmountUnit;
+    text: string;
+  } | null>(null);
   const unit =
     displayUnits?.units.durationUnit &&
     displayUnits.units.durationUnit !== "min_sec"
@@ -59,6 +64,14 @@ export function WorkoutDurationField({
   const name = label.replace(" (seconds)", "");
   const unitName =
     unit === "s" ? "seconds" : unit === "min" ? "minutes" : "hours";
+  const amount = value === null ? null : fromSeconds(value, unit);
+  const rounded = amount === null ? "" : Number(amount.toFixed(3));
+  const display =
+    typed?.value === value && typed.unit === unit
+      ? typed.text
+      : rounded === 0 && amount
+        ? Number(amount.toPrecision(2))
+        : rounded;
   return (
     <div
       className="field fitness-duration-target"
@@ -81,6 +94,7 @@ export function WorkoutDurationField({
             value={unit}
             disabled={disabled}
             onChange={(unit) => {
+              setTyped(null);
               if (displayUnits)
                 displayUnits.change({ durationUnit: unit as AmountUnit });
               else setSelection({ preference, unit: unit as AmountUnit });
@@ -95,18 +109,18 @@ export function WorkoutDurationField({
         aria-label={`${name} (${unitName})`}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
-        value={
-          value === null ? "" : Number(fromSeconds(value, unit).toFixed(9))
-        }
+        value={display}
         disabled={disabled}
         min={0}
         step="any"
         inputMode="decimal"
         placeholder={placeholder ?? "—"}
         onFocus={(event) => event.currentTarget.select()}
-        onValueChange={(text) =>
-          onChange(text === "" ? null : toSeconds(Number(text), unit))
-        }
+        onValueChange={(text) => {
+          const next = text === "" ? null : toSeconds(Number(text), unit);
+          setTyped({ value: next, unit, text });
+          onChange(next);
+        }}
       />
 
       {error && (

@@ -1,21 +1,16 @@
 "use client";
-import { formatFitnessDuration } from "./rest-duration";
+import { formatFitnessDuration, formatRestDuration } from "./rest-duration";
 import { measurementsFor } from "@168hours/contracts";
-import { useState } from "react";
-import Link from "next/link";
+import { useId, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { ErrorState, Loading } from "@/components/ui/feedback";
-import { hours } from "@/lib/format";
-import {
-  load,
-  distance,
-  sessionDate,
-  trackingLabels,
-  volumeText,
-} from "./progress-shared";
-import type { StrengthMetrics, ExerciseLoggingType } from "@168hours/contracts";
+import { WorkoutReference } from "./workout-reference";
+import { load, distance } from "./progress-shared";
+import type { StrengthMetrics, ExerciseMeasurement } from "@168hours/contracts";
+import type { WorkoutDisplayUnits } from "./workout-display-units";
 
 export function WorkoutComparison({
   id,
@@ -25,155 +20,162 @@ export function WorkoutComparison({
   version: number;
 }) {
   const [open, setOpen] = useState(false);
-  const {
-    preferences: { timezone, weightUnit: unit, distanceUnit, durationUnit },
-  } = useMe();
+  const contentId = useId();
+  const { preferences } = useMe();
   const q = useQuery({
     queryKey: ["fitness", "comparison", id, version],
     queryFn: () => api.getWorkoutComparison(id),
     enabled: open,
   });
   return (
-    <details
-      className="fitness-secondary fitness-workout-comparison"
-      open={open}
-      onToggle={(e) => setOpen(e.currentTarget.open)}
+    <section
+      className="fitness-workout-comparison"
+      aria-label="Previous workout comparison"
     >
-      <summary>Compare previous workout</summary>
-      {open &&
-        (q.isPending ? (
-          <Loading />
-        ) : q.error ? (
-          <ErrorState error={q.error} retry={() => void q.refetch()} />
-        ) : !q.data.previous ? (
-          <p>
-            No earlier finished workout with the same exercises and measurement
-            selections yet. Repeat this workout to build a comparison.
-          </p>
-        ) : (
-          <div className="form-stack">
-            <p className="muted text-small">
-              Saved results compared with the most recent earlier finished
-              workout with the same exercises and measurement selections.
-              Repeated exercises match by occurrence. Targets and unfinished
-              sets are excluded.
+      <h2 className="fitness-comparison-heading">
+        <button
+          type="button"
+          className="button fitness-comparison-toggle"
+          aria-expanded={open}
+          aria-controls={contentId}
+          onClick={() => setOpen(!open)}
+        >
+          Compare with previous workout
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      </h2>
+      <div id={contentId} hidden={!open}>
+        {open &&
+          (q.isPending ? (
+            <Loading />
+          ) : q.error ? (
+            <ErrorState error={q.error} retry={() => void q.refetch()} />
+          ) : !q.data.previous ? (
+            <p className="fitness-comparison-empty muted">
+              No earlier finished workout with the same exercises and
+              measurements yet.
             </p>
-            <Link href={`/fitness/session/${q.data.previous.id}`}>
-              Previous: {sessionDate(q.data.previous.startedAt, timezone)} ·{" "}
-              {q.data.previous.title}
-            </Link>
-            <p>
-              Session duration:{" "}
-              {q.data.current.durationSeconds === null
-                ? "In progress"
-                : hours(q.data.current.durationSeconds)}{" "}
-              · Previous: {hours(q.data.previous.durationSeconds!)}
-            </p>
-            {q.data.current.exercises.map((exercise, index) => (
+          ) : (
+            <div className="fitness-comparison-content form-stack">
+              <WorkoutReference
+                id={q.data.previous.id}
+                title={q.data.previous.title}
+                startedAt={q.data.previous.startedAt}
+                showTime
+              />
               <section
-                className="fitness-comparison-exercise"
-                key={`${exercise.exerciseId}:${index}`}
+                className="fitness-comparison-time"
+                aria-label="Workout time comparison"
               >
-                <h2>
-                  <Link href={`/fitness/exercises/${exercise.exerciseId}`}>
-                    {exercise.name}
-                  </Link>
-                </h2>
-                <p className="muted text-small">
-                  {trackingLabels[exercise.loggingType]}
-                </p>
-                <div className="fitness-comparison-columns">
-                  <ComparisonValues
-                    label="This workout"
-                    metrics={exercise}
-                    mode={exercise.loggingType}
-                    modes={exercise.measurementTypes}
-                    unit={unit}
-                    distanceUnit={distanceUnit}
-                    durationUnit={durationUnit}
-                  />
-                  <ComparisonValues
-                    label="Previous workout"
-                    metrics={q.data.previous!.exercises[index]!}
-                    mode={exercise.loggingType}
-                    modes={exercise.measurementTypes}
-                    unit={unit}
-                    distanceUnit={distanceUnit}
-                    durationUnit={durationUnit}
-                  />
-                </div>
+                <h3>Workout time</h3>
+                <dl>
+                  <div>
+                    <dt>This workout</dt>
+                    <dd>
+                      {q.data.current.durationSeconds === null
+                        ? "In progress"
+                        : formatRestDuration(q.data.current.durationSeconds)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Previous workout</dt>
+                    <dd>
+                      {q.data.previous.durationSeconds === null
+                        ? "Not recorded"
+                        : formatRestDuration(q.data.previous.durationSeconds)}
+                    </dd>
+                  </div>
+                </dl>
               </section>
-            ))}
-          </div>
-        ))}
-    </details>
+              <p className="muted text-small fitness-comparison-scope">
+                Completed sets only
+              </p>
+              {q.data.current.exercises.map((exercise, index) => {
+                const fields = [
+                  ...new Set(
+                    (
+                      exercise.measurementTypes ?? [exercise.loggingType]
+                    ).flatMap(measurementsFor),
+                  ),
+                ];
+                const current = comparisonValues(exercise, fields, preferences);
+                const previous = comparisonValues(
+                  q.data.previous!.exercises[index]!,
+                  fields,
+                  preferences,
+                );
+                return (
+                  <section
+                    className="fitness-comparison-exercise"
+                    key={`${exercise.exerciseId}:${index}`}
+                  >
+                    <h3>{exercise.name}</h3>
+                    <table className="fitness-comparison-table">
+                      <caption className="sr-only">
+                        {exercise.name} recorded results comparison
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">Measurement</th>
+                          <th scope="col">This workout</th>
+                          <th scope="col">Previous</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {current.map((item, row) => (
+                          <tr key={item.label}>
+                            <th scope="row">{item.label}</th>
+                            <td>{item.value}</td>
+                            <td>{previous[row]!.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+                );
+              })}
+            </div>
+          ))}
+      </div>
+    </section>
   );
 }
-function ComparisonValues({
-  label,
-  metrics: m,
-  mode,
-  modes,
-  unit,
-  distanceUnit,
-  durationUnit,
-}: {
-  label: string;
-  metrics: StrengthMetrics;
-  mode: ExerciseLoggingType;
-  modes?: ExerciseLoggingType[];
-  unit: "kg" | "lb";
-  distanceUnit: "m" | "km" | "yd" | "mi";
-  durationUnit: import("@168hours/domain-utils").DurationUnit;
-}) {
-  const fields = [...new Set((modes ?? [mode]).flatMap(measurementsFor))];
-  return (
-    <div>
-      <h3>{label}</h3>
-      <dl>
-        <dt>Completed sets</dt>
-        <dd>{m.completedSets}</dd>
-        {fields.includes("load") && (
-          <>
-            <dt>Highest load</dt>
-            <dd>{load(m.maxWeightKg, unit)}</dd>
-          </>
-        )}
-        {fields.includes("reps") && (
-          <>
-            <dt>Most reps in a set</dt>
-            <dd>{m.maxReps ?? "Not recorded"}</dd>
-          </>
-        )}
-        {fields.includes("duration") && (
-          <>
-            <dt>Longest set</dt>
-            <dd>
-              {m.maxDurationSeconds === null
-                ? "Not recorded"
-                : formatFitnessDuration(m.maxDurationSeconds, durationUnit)}
-            </dd>
-          </>
-        )}
-        {fields.includes("distance") && (
-          <>
-            <dt>Longest distance</dt>
-            <dd>{distance(m.maxDistanceMeters, distanceUnit)}</dd>
-          </>
-        )}
-        {fields.includes("laps") && (
-          <>
-            <dt>Most laps</dt>
-            <dd>{m.maxLaps ?? "Not recorded"}</dd>
-          </>
-        )}
-        {fields.includes("reps") && fields.includes("load") && (
-          <>
-            <dt>Recorded volume</dt>
-            <dd>{volumeText(m, unit)}</dd>
-          </>
-        )}
-      </dl>
-    </div>
-  );
+
+function comparisonValues(
+  m: StrengthMetrics,
+  fields: ExerciseMeasurement[],
+  units: WorkoutDisplayUnits,
+) {
+  const values: { label: string; value: string | number }[] = [
+    { label: "Completed sets", value: m.completedSets },
+  ];
+  if (fields.includes("load"))
+    values.push({
+      label: "Highest weight",
+      value: load(m.maxWeightKg, units.weightUnit),
+    });
+  if (fields.includes("reps"))
+    values.push({
+      label: "Most reps in a set",
+      value: m.maxReps ?? "Not recorded",
+    });
+  if (fields.includes("duration"))
+    values.push({
+      label: "Longest set",
+      value:
+        m.maxDurationSeconds === null
+          ? "Not recorded"
+          : formatFitnessDuration(
+              m.maxDurationSeconds,
+              units.durationUnit ?? "min_sec",
+            ),
+    });
+  if (fields.includes("distance"))
+    values.push({
+      label: "Longest distance",
+      value: distance(m.maxDistanceMeters, units.distanceUnit),
+    });
+  if (fields.includes("laps"))
+    values.push({ label: "Most laps", value: m.maxLaps ?? "Not recorded" });
+  return values;
 }

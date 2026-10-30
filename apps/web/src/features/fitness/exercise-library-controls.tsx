@@ -87,6 +87,7 @@ export function ExerciseLibraryControls({
             onClick={() => onArchived(!archived)}
           >
             <EyeOff size={18} aria-hidden="true" />
+            <span>Hidden</span>
           </button>
         )}
         <button

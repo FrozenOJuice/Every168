@@ -209,6 +209,7 @@ export function planningService(
       input: TimeEntryInput & {
         sourceType: "strength_workout" | "cardio_activity" | "task_time";
         sourceId: string;
+        excludedIntervals?: { startsAt: string; endsAt: string }[];
       },
     ) {
       timeEntryInput.parse({

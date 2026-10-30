@@ -1,11 +1,10 @@
 "use client";
-import { formatFitnessDuration } from "./rest-duration";
 import { useQuery } from "@tanstack/react-query";
 import type { ExerciseLoggingType } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
-import { distance, load, sessionDate } from "./progress-shared";
-import { exerciseTrackingFields } from "./exercise-tracking";
+import { sessionDate } from "./progress-shared";
+import { progressSessionSummary } from "./workout-review-summary";
 
 export function ExerciseRecall({
   id,
@@ -20,8 +19,8 @@ export function ExerciseRecall({
   onHistory: () => void;
   quietEmpty?: boolean;
 }) {
-  const { timezone, weightUnit, distanceUnit, durationUnit } =
-    useMe().preferences;
+  const { preferences } = useMe();
+  const { timezone } = preferences;
   const query = useQuery({
     queryKey: ["fitness", "previous-session", id, excludeWorkoutId, mode],
     queryFn: () =>
@@ -40,7 +39,7 @@ export function ExerciseRecall({
         Last session couldn’t load.{" "}
         <button
           type="button"
-          className="fitness-text-action"
+          className="button"
           onClick={() => void query.refetch()}
         >
           Retry history
@@ -54,39 +53,28 @@ export function ExerciseRecall({
         No finished session recorded yet for this tracking type.
       </p>
     );
-  const fields = exerciseTrackingFields[mode];
+  const summary = progressSessionSummary(
+    query.data.exercise,
+    last,
+    preferences,
+  );
   return (
-    <div className="fitness-previous-set fitness-inline-recall">
-      <button type="button" className="fitness-text-action" onClick={onHistory}>
-        Last time · {sessionDate(last.startedAt, timezone)}{" "}
-        <span aria-hidden="true">→</span>
+    <section
+      className="fitness-previous-set fitness-inline-recall"
+      aria-label="Previous session"
+    >
+      <div className="fitness-inline-recall-copy">
+        <div className="fitness-inline-recall-caption">
+          <span>Previous session</span>
+          <time dateTime={last.startedAt}>
+            {sessionDate(last.startedAt, timezone)}
+          </time>
+        </div>
+        <strong>{summary}</strong>
+      </div>
+      <button type="button" className="button" onClick={onHistory}>
+        View history
       </button>
-      <p>
-        {last.sets.slice(0, 3).map((set, index) => (
-          <span key={set.id}>
-            {index > 0 && " · "}Set {(set.position ?? index) + 1}:{" "}
-            {fields
-              .map((field) =>
-                field === "load"
-                  ? load(set.weightKg, weightUnit)
-                  : field === "distance"
-                    ? distance(set.distanceMeters, distanceUnit)
-                    : field === "duration"
-                      ? set.durationSeconds === null
-                        ? "time not recorded"
-                        : formatFitnessDuration(
-                            set.durationSeconds,
-                            durationUnit,
-                          )
-                      : set[field] === null
-                        ? `${field} not recorded`
-                        : `${set[field]} ${field}`,
-              )
-              .join(" × ")}
-          </span>
-        ))}
-        {last.sets.length > 3 && ` · +${last.sets.length - 3} more sets`}
-      </p>
-    </div>
+    </section>
   );
 }

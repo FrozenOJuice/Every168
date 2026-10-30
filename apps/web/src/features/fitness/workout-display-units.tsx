@@ -85,6 +85,18 @@ export function useExerciseDisplayUnits(preferences: WorkoutDisplayUnits) {
   };
   return {
     context,
+    copySetUnits: (source: string, destination: string) =>
+      setState((current) =>
+        current.sets[source]
+          ? {
+              ...current,
+              sets: {
+                ...current.sets,
+                [destination]: { ...current.sets[source] },
+              },
+            }
+          : current,
+      ),
     units: { ...preferences, ...state.shared },
     forSet: (set: SetDraft, index: number) => ({
       ...preferences,

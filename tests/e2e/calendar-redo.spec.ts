@@ -1,3 +1,8 @@
+import { saveCalendarPlan } from "./helpers/calendar-form";
+import {
+  fillCalendarField,
+  selectCalendarRepeat,
+} from "./helpers/calendar-form";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import type { Block, CalendarItem, Week } from "@168hours/contracts";
@@ -55,8 +60,8 @@ async function create(page: Page, title: string, allDay = false) {
   await editor.getByLabel("Title", { exact: true }).fill(title);
   if (allDay) await editor.getByLabel("All day", { exact: true }).check();
   else {
-    await editor.getByLabel("Start", { exact: true }).fill("2026-09-07T09:00");
-    await editor.getByLabel("End", { exact: true }).fill("2026-09-07T10:00");
+    await fillCalendarField(editor, "Start", "2026-09-07T09:00");
+    await fillCalendarField(editor, "End", "2026-09-07T10:00");
   }
   await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
@@ -148,8 +153,8 @@ test("plan undo and redo survive navigation and refresh, preserve identity, bran
   await plan(page, "Original").dblclick();
   const editor = page.getByRole("dialog");
   await editor.getByLabel("Title", { exact: true }).fill("Edited");
-  await editor.getByLabel("Start", { exact: true }).fill("2026-09-07T11:05");
-  await editor.getByLabel("End", { exact: true }).fill("2026-09-07T12:10");
+  await fillCalendarField(editor, "Start", "2026-09-07T11:05");
+  await fillCalendarField(editor, "End", "2026-09-07T12:10");
   await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
   const edited = (await blocks(page))[0]!;
@@ -223,7 +228,7 @@ test("all-day edits, group paste and group deletion redo exact saved plans despi
   const editor = page.getByRole("dialog");
   await editor.getByLabel("Title", { exact: true }).fill("One edited");
   await editor.getByLabel("Spans multiple days").check();
-  await editor.getByLabel("Last day", { exact: true }).fill("2026-09-09");
+  await fillCalendarField(editor, "Last day", "2026-09-09");
   await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await step(page, "Control+z");
@@ -335,13 +340,11 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const editor = page.getByRole("dialog");
   await editor.getByLabel("Title", { exact: true }).fill("Series original");
-  await editor.getByLabel("Start", { exact: true }).fill("2026-09-07T09:00");
-  await editor.getByLabel("End", { exact: true }).fill("2026-09-07T10:00");
-  await editor.getByLabel("Repeat", { exact: true }).selectOption("daily");
-  await editor.getByLabel("Repeat through", { exact: true }).fill("2026-09-09");
-  await editor
-    .getByRole("button", { name: "Create repeating plan", exact: true })
-    .click();
+  await fillCalendarField(editor, "Start", "2026-09-07T09:00");
+  await fillCalendarField(editor, "End", "2026-09-07T10:00");
+  await selectCalendarRepeat(editor, "daily");
+  await fillCalendarField(editor, "Repeat through", "2026-09-09");
+  await saveCalendarPlan(editor);
   await expect(editor).toHaveCount(0);
   const ids = (await blocks(page)).map((block) => block.id).sort();
   await plan(page, "Series original").dblclick();
@@ -356,7 +359,7 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
     .click();
   await editor.getByLabel("Replace individual edits", { exact: true }).check();
   await editor.getByLabel("Title", { exact: true }).fill("Series revised");
-  await editor.getByLabel("Repeat through", { exact: true }).fill("2026-09-08");
+  await fillCalendarField(editor, "Repeat through", "2026-09-08");
   await editor
     .getByRole("button", { name: "Save entire series", exact: true })
     .click();

@@ -147,3 +147,75 @@ export function shiftPlannedTime(
       }
     : null;
 }
+
+/** Return the portions of an interval that were actually active. */
+export function activeIntervals(
+  interval: Interval,
+  excluded: Interval[] = [],
+): Interval[] {
+  const start = new Date(interval.startsAt).getTime();
+  const end = new Date(interval.endsAt).getTime();
+  let cursor = start;
+  const result: Interval[] = [];
+  for (const gap of [...excluded].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  )) {
+    const a = Math.max(start, new Date(gap.startsAt).getTime());
+    const b = Math.min(end, new Date(gap.endsAt).getTime());
+    if (b <= cursor || b <= a) continue;
+    if (a > cursor)
+      result.push({
+        startsAt: new Date(cursor).toISOString(),
+        endsAt: new Date(a).toISOString(),
+      });
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < end)
+    result.push({
+      startsAt: new Date(cursor).toISOString(),
+      endsAt: new Date(end).toISOString(),
+    });
+  return result;
+}
+export type WorkoutTiming = {
+  startedAt: string;
+  endedAt: string | null;
+  pauses?: { startsAt: string; endsAt: string | null }[];
+};
+export function workoutSeconds(workout: WorkoutTiming, now = Date.now()) {
+  const lastPause = workout.pauses?.at(-1);
+  // A paused workout freezes at the recorded transition, not the last timer tick.
+  const endsAt =
+    workout.endedAt ??
+    (lastPause?.endsAt === null
+      ? lastPause.startsAt
+      : new Date(
+          Math.max(now, lastPause?.endsAt ? Date.parse(lastPause.endsAt) : now),
+        ).toISOString());
+  return activeIntervals(
+    { startsAt: workout.startedAt, endsAt },
+    (workout.pauses ?? []).map((pause) => ({
+      ...pause,
+      endsAt: pause.endsAt ?? endsAt,
+    })),
+  ).reduce((sum, span) => sum + durationSeconds(span.startsAt, span.endsAt), 0);
+}
+/** Timing corrections retain only the parts of pauses inside the corrected span. */
+export function clipWorkoutPauses(workout: WorkoutTiming) {
+  const start = Date.parse(workout.startedAt);
+  const end = workout.endedAt ? Date.parse(workout.endedAt) : Infinity;
+  // Retain pause data while an incomplete/invalid timing correction is shown.
+  if (end <= start) return workout.pauses ?? [];
+  return (workout.pauses ?? []).flatMap((pause) => {
+    const a = Math.max(start, Date.parse(pause.startsAt));
+    const b = pause.endsAt ? Math.min(end, Date.parse(pause.endsAt)) : end;
+    return b <= a
+      ? []
+      : [
+          {
+            startsAt: new Date(a).toISOString(),
+            endsAt: Number.isFinite(b) ? new Date(b).toISOString() : null,
+          },
+        ];
+  });
+}

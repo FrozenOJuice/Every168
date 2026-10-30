@@ -10,12 +10,12 @@ const plan: CalendarAction = {
   version: 1,
 };
 afterEach(() => vi.unstubAllGlobals());
-it("round-trips both stacks and the exact pending request, excluding templates and activity", () => {
+it("round-trips both stacks and the exact pending request, excluding transient actions and activity", () => {
   const state = {
     ...emptyHistory(),
     actions: [
       plan,
-      { ...plan, key: "template", transient: true },
+      { ...plan, key: "transient", transient: true },
       {
         key: "water",
         kind: "activity-create" as const,

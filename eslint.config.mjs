@@ -29,4 +29,25 @@ export default [
     },
   },
   prettier,
+  {
+    files: ["apps/web/src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        { name: "alert", message: "Use the shared styled dialog." },
+        { name: "confirm", message: "Use useConfirm." },
+        { name: "prompt", message: "Use useTextPrompt." },
+      ],
+      "no-restricted-properties": [
+        "error",
+        ...["window", "globalThis"].flatMap((object) =>
+          ["alert", "confirm", "prompt"].map((property) => ({
+            object,
+            property,
+            message: "Use the shared styled dialogs.",
+          })),
+        ),
+      ],
+    },
+  },
 ];

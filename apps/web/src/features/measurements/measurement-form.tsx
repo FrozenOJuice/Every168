@@ -133,7 +133,6 @@ export function MeasurementForm({
         name="at"
         label={weight ? "Measured at" : "Drank at"}
         type="datetime-local"
-        help={"In " + timezone}
       />
       <Submit>
         {item ? "Save changes" : weight ? "Log weight" : "Log water"}

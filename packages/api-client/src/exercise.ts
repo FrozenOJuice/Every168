@@ -1,5 +1,8 @@
 import type {
   FitnessDayLinks,
+  WeightRecordsQuery,
+  WeightRecords,
+  WorkoutRecords,
   FitnessOverview,
   ExerciseReport,
   ExerciseReportQuery,
@@ -17,7 +20,7 @@ import type {
   ExerciseCatalogEntry,
   ExerciseLibraryQuery,
   Workout,
-  WorkoutSummary,
+  WorkoutHistoryItem,
   WorkoutStartInput,
   WorkoutUpdateInput,
   Cardio,
@@ -40,6 +43,20 @@ export function exerciseClient(http: Http) {
     getExerciseReport: (id: string, q: Partial<ExerciseReportQuery> = {}) =>
       http<ExerciseReport>(
         "/api/v1/fitness-progress/exercises/" + id + query(q),
+      ),
+    getExerciseWeightRecords: (
+      id: string,
+      q: Partial<WeightRecordsQuery> = {},
+    ) =>
+      http<WeightRecords>(
+        "/api/v1/fitness-progress/exercises/" +
+          id +
+          "/weight-records" +
+          query(q),
+      ),
+    getWorkoutRecords: (id: string) =>
+      http<WorkoutRecords>(
+        "/api/v1/fitness-progress/workouts/" + id + "/records",
       ),
     getWorkoutComparison: (id: string) =>
       http<WorkoutComparison>("/api/v1/fitness-progress/workouts/" + id),
@@ -186,7 +203,7 @@ export function exerciseClient(http: Http) {
         body: "{}",
       }),
     getWorkouts: (q: Partial<WorkoutHistoryQuery> = {}) =>
-      http<Page<WorkoutSummary>>("/api/v1/strength-workouts" + query(q)),
+      http<Page<WorkoutHistoryItem>>("/api/v1/strength-workouts" + query(q)),
     startWorkout: (v: WorkoutStartInput, key?: string) =>
       http<Workout>("/api/v1/strength-workouts", {
         method: "POST",

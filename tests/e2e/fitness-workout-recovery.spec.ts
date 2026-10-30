@@ -145,8 +145,8 @@ test("unsaved workout edits recover across navigation and refresh without overwr
     .click();
   await expect(title).toHaveValue("Newer saved workout");
   await title.fill("Deliberate discard");
-  await workspace
-    .getByRole("button", { name: "Back to Training", exact: true })
+  await page
+    .getByRole("button", { name: "Back to Fitness", exact: true })
     .click();
   await page
     .getByRole("dialog")

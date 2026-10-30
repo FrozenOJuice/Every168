@@ -35,7 +35,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
     .getByRole("button", { name: "Save workout", exact: true })
     .click();
   await expect(
-    right.getByText("Enter a workout title.", { exact: true }),
+    right.getByText("Enter a workout name.", { exact: true }),
   ).toBeVisible();
   await right.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page).toHaveURL(/\/fitness$/);
@@ -70,7 +70,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   else
     await expect(
       right.getByRole("button", { name: "Add exercise", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
   const left = page.locator(".fitness-exercise-panel");
   const bench = left.getByRole("button", { name: "Bench press", exact: true });
   if (testInfo.project.name === "desktop") await bench.hover();
@@ -134,7 +134,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   ).toBeVisible();
 });
 
-test("Back to Training leaves unchanged workouts and offers draft, discard and keep editing for changes", async ({
+test("Back to Fitness leaves unchanged workouts and offers draft, discard and keep editing for changes", async ({
   page,
 }, testInfo) => {
   test.setTimeout(90000);
@@ -158,9 +158,7 @@ test("Back to Training leaves unchanged workouts and offers draft, discard and k
   const create = () =>
     right.getByRole("link", { name: "Create workout", exact: true }).click();
   const cancel = () =>
-    right
-      .getByRole("button", { name: "Back to Training", exact: true })
-      .click();
+    page.getByRole("button", { name: "Back to Fitness", exact: true }).click();
   const dialog = page.getByRole("dialog", {
     name: "Save your changes?",
     exact: true,
@@ -208,7 +206,7 @@ test("Back to Training leaves unchanged workouts and offers draft, discard and k
   await dialog.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(
-    right.getByRole("button", { name: "Back to Training", exact: true }),
+    page.getByRole("button", { name: "Back to Fitness", exact: true }),
   ).toBeFocused();
   await cancel();
   await dialog

@@ -1,6 +1,7 @@
 "use client";
 import { Star } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import type { LibraryExercise } from "./exercise-library-model";
@@ -25,11 +26,17 @@ export function ExerciseFavourite({
         (await api.useCatalogExercise(item.definition!.key, importKey));
       return api.favouriteExercise(exercise.id, value, exercise.version, key);
     },
-    onSuccess: () => {
+    onSuccess: (exercise) => {
+      cache.setQueryData(["fitness", "exercise", exercise.id], exercise);
       void cache.invalidateQueries({ queryKey: ["fitness", "catalog"] });
       void cache.invalidateQueries({ queryKey: ["fitness", "exercises"] });
     },
   });
+  useUnsavedChanges(
+    save.isPending,
+    "Wait for this favourite change to finish, or retry it before leaving.",
+    true,
+  );
   return (
     <div
       className={

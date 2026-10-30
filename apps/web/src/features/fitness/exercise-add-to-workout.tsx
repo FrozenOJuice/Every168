@@ -1,6 +1,6 @@
 "use client";
-import { useId, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useFitnessNavigation } from "./fitness-navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { strengthPlanInput, type StrengthPlanInput } from "@168hours/contracts";
 import { api } from "@/lib/api";
@@ -12,7 +12,13 @@ import type { LibraryExercise } from "./exercise-library-model";
 import { emptySet, planExercises, planInput } from "./strength-draft";
 import { WorkoutSearch, useWorkoutSearch } from "./workout-search";
 import { invalidateFitness } from "./fitness-cache";
-export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
+export function ExerciseAddToWorkout({
+  item,
+  overview = false,
+}: {
+  item: LibraryExercise;
+  overview?: boolean;
+}) {
   const [choosing, setChoosing] = useState(false);
   const [selected, setSelected] = useState<{
     id: string;
@@ -21,11 +27,18 @@ export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
   const { notice, show, dismiss } = useToast();
   const chooserId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
+  const chooser = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    if (choosing)
+      chooser.current
+        ?.querySelector<HTMLInputElement>('input[type="search"]')
+        ?.focus();
+  }, [choosing]);
   const closeChooser = () => {
     setChoosing(false);
     trigger.current?.focus();
   };
-  const router = useRouter();
+  const navigation = useFitnessNavigation();
   const cache = useQueryClient();
   const returnTo = item.definition
     ? `/fitness/exercises/catalog/${encodeURIComponent(item.definition.key)}`
@@ -93,7 +106,13 @@ export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
       const params = new URLSearchParams({ returnTo });
       if (result.id === "new") {
         params.set("exercise", result.exerciseId);
-        router.push(`/fitness/workout/new?${params}`);
+        navigation.openWorkout(`/fitness/workout/new?${params}`, {
+          exerciseId: result.exerciseId,
+          mode:
+            item.exercise?.loggingType ??
+            item.definition?.loggingType ??
+            "reps_load",
+        });
       } else {
         params.set("added", result.occurrence);
         show({
@@ -102,7 +121,16 @@ export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
           action: {
             label: "Edit workout",
             onClick: () =>
-              router.push(`/fitness/workout/${result.id}?${params}`),
+              navigation.openWorkout(
+                `/fitness/workout/${result.id}?${params}`,
+                {
+                  exerciseId: result.exerciseId,
+                  mode:
+                    item.exercise?.loggingType ??
+                    item.definition?.loggingType ??
+                    "reps_load",
+                },
+              ),
           },
         });
       }
@@ -116,7 +144,16 @@ export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
   const submit = (id: string) =>
     add.mutate({ id, importKey: crypto.randomUUID() });
   return (
-    <div className="form-stack">
+    <div
+      className={overview ? "fitness-overview-addition" : "form-stack"}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && choosing) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!add.isPending) closeChooser();
+        }
+      }}
+    >
       <button
         ref={trigger}
         className="button primary fitness-exercise-add-trigger"
@@ -146,16 +183,10 @@ export function ExerciseAddToWorkout({ item }: { item: LibraryExercise }) {
       )}
       {choosing && (
         <section
+          ref={chooser}
           id={chooserId}
           aria-label="Choose a workout"
           className="fitness-workout-chooser"
-          onKeyDown={(event) => {
-            if (event.key === "Escape" && !add.isPending) {
-              event.preventDefault();
-              event.stopPropagation();
-              closeChooser();
-            }
-          }}
         >
           <div className="form-stack">
             <p>

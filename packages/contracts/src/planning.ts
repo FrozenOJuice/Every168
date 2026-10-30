@@ -44,6 +44,9 @@ export const blockSchema = recordSchema.extend({
   notes: z.string().nullable(),
 });
 export const timeEntrySchema = recordSchema.extend({
+  excludedIntervals: z
+    .array(z.object({ startsAt: instantSchema, endsAt: instantSchema }))
+    .optional(),
   ...timeFields,
   timeBlockId: idSchema.nullable(),
   sourceType: z.enum([

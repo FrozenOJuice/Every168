@@ -70,10 +70,10 @@ test("creation preview keeps library beside draft and saves shared and individua
     .getByRole("button", { name: "Exercise details for Squat", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Back to exercises", exact: true }),
+    page.getByRole("button", { name: "Back to workout", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Back to exercises", exact: true })
+    .getByRole("button", { name: "Back to workout", exact: true })
     .click();
   if (testInfo.project.name === "phone")
     await page
@@ -163,16 +163,16 @@ test("creation preview keeps library beside draft and saves shared and individua
     "9",
   );
   await step("Target reps", "Decrease");
-  const loadTarget = quick.getByLabel("Target load (kg)", { exact: true });
+  const loadTarget = quick.getByLabel("Target weight (kg)", { exact: true });
   await loadTarget.fill("12.5");
-  await step("Target load (kg)", "Increase");
+  await step("Target weight (kg)", "Increase");
   await expect(loadTarget).toHaveValue("13.5");
-  await step("Target load (kg)", "Decrease");
+  await step("Target weight (kg)", "Decrease");
   await expect(loadTarget).toHaveValue("12.5");
   await quick.getByLabel("Target reps", { exact: true }).focus();
   await page.keyboard.press("Tab");
   await expect(loadTarget).toBeFocused();
-  await quick.getByLabel("Target load (kg)", { exact: true }).fill("40");
+  await quick.getByLabel("Target weight (kg)", { exact: true }).fill("40");
   await expect(
     draft.locator(".fitness-exercise-target-summary:visible"),
   ).toHaveText("3×8 | 40 kg");
@@ -705,10 +705,10 @@ test("creation preview keeps library beside draft and saves shared and individua
     .uncheck();
   await expect(draft.getByLabel("Target reps", { exact: true })).toHaveCount(3);
   await expect(
-    draft.getByLabel("Target load (kg)", { exact: true }).nth(2),
+    draft.getByLabel("Target weight (kg)", { exact: true }).nth(2),
   ).toHaveValue("40");
   await draft
-    .getByLabel("Target load (kg)", { exact: true })
+    .getByLabel("Target weight (kg)", { exact: true })
     .first()
     .fill("20");
   await expect(
@@ -876,7 +876,7 @@ test("creation preview keeps library beside draft and saves shared and individua
     draft.getByRole("button", { name: "Reset to basic", exact: true }),
   ).toHaveAttribute("aria-expanded", "true");
   await expect(
-    draft.getByLabel("Target load (kg)", { exact: true }).first(),
+    draft.getByLabel("Target weight (kg)", { exact: true }).first(),
   ).toHaveValue("20");
   await draft
     .getByRole("button", { name: "Collapse Squat exercise", exact: true })
@@ -905,8 +905,8 @@ test("creation preview keeps library beside draft and saves shared and individua
     .nth(1)
     .getByRole("button", { name: "Remove Squat exercise", exact: true })
     .click();
-  await draft
-    .getByRole("button", { name: "Back to Training", exact: true })
+  await page
+    .getByRole("button", { name: "Back to Fitness", exact: true })
     .click();
   await expect(page).toHaveURL(/\/fitness$/);
 });

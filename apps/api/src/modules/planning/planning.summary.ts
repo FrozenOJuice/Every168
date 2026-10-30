@@ -1,11 +1,21 @@
 import {
   clippedSeconds,
+  activeIntervals,
   durationSeconds,
   intervalCoverage,
   overlaps,
   type Interval,
 } from "@168hours/domain-utils";
-type Timed = Interval & { id: string; categoryId: string | null };
+type Timed = Interval & {
+  id: string;
+  categoryId: string | null;
+  excludedIntervals?: Interval[];
+};
+const recordedSeconds = (entry: Timed, range: Interval) =>
+  activeIntervals(entry, entry.excludedIntervals).reduce(
+    (sum, span) => sum + clippedSeconds(span, range),
+    0,
+  );
 export function summarizeWeek(
   blocks: Timed[],
   entries: Timed[],
@@ -32,7 +42,7 @@ export function summarizeWeek(
     overlapSeconds: plannedSeconds - coverageSeconds,
     overlapPairs,
     recordedSeconds: entries.length
-      ? entries.reduce((n, e) => n + clippedSeconds(e, range), 0)
+      ? entries.reduce((n, e) => n + recordedSeconds(e, range), 0)
       : null,
     categories: [...keys].map((categoryId) => {
       const category = categories.find((c) => c.id === categoryId);
@@ -45,7 +55,7 @@ export function summarizeWeek(
           .filter((b) => b.categoryId === categoryId)
           .reduce((n, b) => n + clippedSeconds(b, range), 0),
         recordedSeconds: actual.length
-          ? actual.reduce((n, e) => n + clippedSeconds(e, range), 0)
+          ? actual.reduce((n, e) => n + recordedSeconds(e, range), 0)
           : null,
       };
     }),

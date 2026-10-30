@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import {
   createContext,
   useContext,
@@ -29,14 +31,21 @@ export function FoodDialog({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const confirm = useConfirm();
+
   const [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false);
-  useUnsavedChanges(dirty || busy, "Leave without saving your food changes?");
+  useUnsavedChanges(
+    dirty || busy,
+    "Your unsaved food changes will be discarded.",
+    busy,
+  );
   return (
     <Dialog
       title={title}
-      onClose={() => {
-        if (!busy && (!dirty || confirm("Discard unsaved changes?"))) onClose();
+      onClose={async () => {
+        if (!busy && (!dirty || (await confirm("Discard unsaved changes?"))))
+          onClose();
       }}
     >
       <FormBusyContext.Provider value={setBusy}>

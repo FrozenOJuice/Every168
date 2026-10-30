@@ -56,6 +56,7 @@ export function FoodPage() {
   const selected = params.get("view") ?? "day";
   const view = views.some(([v]) => v === selected) ? selected : "day";
   const [dayOpen, setDayOpen] = useState(false);
+  const [dayBusy, setDayBusy] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);
   const url = (nextView = view, nextDate = date) =>
     `/food?view=${nextView}&date=${nextDate}`;
@@ -93,6 +94,7 @@ export function FoodPage() {
   const dayPanel = (
     <DomainDayPanel
       domain="Food"
+      onBusyChange={setDayBusy}
       sources={["food_entry", "water_entry", "weight_entry"]}
       sourceLabels={["Food", "Water", "Weight"]}
       date={date}
@@ -258,7 +260,11 @@ export function FoodPage() {
         {dayPanel}
       </aside>
       {dayOpen && (
-        <Dialog title="Your day" onClose={() => setDayOpen(false)}>
+        <Dialog
+          title="Your day"
+          busy={dayBusy}
+          onClose={() => setDayOpen(false)}
+        >
           {dayPanel}
         </Dialog>
       )}

@@ -6,11 +6,15 @@ export function Dialog({
   onClose,
   children,
   dialogRef,
+  busy = false,
+  className,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   dialogRef?: (element: HTMLDialogElement | null) => void;
+  busy?: boolean;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -38,9 +42,9 @@ export function Dialog({
       onCancel={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onClose();
+        if (!busy) onClose();
       }}
-      className="dialog"
+      className={`dialog${className ? ` ${className}` : ""}`}
     >
       <div className="row between dialog-heading">
         <h2 id={titleId}>{title}</h2>
@@ -48,6 +52,7 @@ export function Dialog({
           type="button"
           className="icon-button"
           aria-label="Close dialog"
+          disabled={busy}
           onClick={onClose}
         >
           <X size={20} />

@@ -96,7 +96,7 @@ test("custom exercise settings reset with confirmation and can be adjusted after
   await expect(card.getByLabel("Sets", { exact: true })).toHaveValue("2");
   await expect(card.getByLabel("Target reps", { exact: true })).toBeEmpty();
   await card.getByLabel("Target reps", { exact: true }).fill("6");
-  await card.getByRole("spinbutton", { name: /^Target load/ }).fill("25");
+  await card.getByRole("spinbutton", { name: /^Target weight/ }).fill("25");
   await card
     .getByRole("button", { name: "Rest between sets", exact: true })
     .click();

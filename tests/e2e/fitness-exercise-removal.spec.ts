@@ -88,7 +88,7 @@ test("exercise removal undo restores the right occurrence and preserves other ed
     "12",
   );
   await expect(
-    second.getByLabel("Target load (kg)", { exact: true }),
+    second.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("25");
   await expect(
     second.getByText("Keep my tempo notes", { exact: true }),

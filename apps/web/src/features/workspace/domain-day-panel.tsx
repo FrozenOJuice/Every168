@@ -2,7 +2,7 @@
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight,
+  ArrowRight,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -13,9 +13,8 @@ import type { CalendarActivity } from "@168hours/contracts";
 import { useMe } from "@/features/identity/me";
 import { useCalendar } from "@/features/planning/use-calendar";
 import { useCalendarClock } from "@/features/planning/use-calendar-clock";
-import { CalendarDayFeed } from "@/features/planning/calendar-day-feed";
+import { DomainDayActivities } from "./domain-day-activities";
 import { CalendarDatePicker } from "@/features/planning/calendar-date-picker";
-import { emptyCalendarFilter } from "@/features/planning/calendar-filters";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { formatDate } from "@/lib/format";
 
@@ -29,6 +28,7 @@ export function DomainDayPanel({
   plans,
   onActivity,
   onCalendar,
+  onBusyChange,
 }: {
   date: string;
   onDate: (date: string) => void;
@@ -44,6 +44,7 @@ export function DomainDayPanel({
   };
   onActivity: (activity: CalendarActivity) => void;
   onCalendar: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const {
     preferences: { timezone, weekStartsOn },
@@ -52,6 +53,14 @@ export function DomainDayPanel({
   const today = localDate(now, timezone);
   const weekStart = weekRange(date, timezone, weekStartsOn).weekStart;
   const calendar = useCalendar(date, "day");
+  const [busy, setBusy] = useState(false);
+  const reportBusy = useCallback(
+    (value: boolean) => {
+      setBusy(value);
+      onBusyChange?.(value);
+    },
+    [onBusyChange],
+  );
   const [all, setAll] = useState(false);
   const [picker, setPicker] = useState(false);
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
@@ -85,22 +94,11 @@ export function DomainDayPanel({
         });
   return (
     <div className="domain-day-panel">
-      <header className="domain-day-heading">
-        <div>
-          <CalendarDays size={17} aria-hidden="true" />
-          <h2>Your day</h2>
-        </div>
-        <Link
-          href={`/?date=${date}&view=day`}
-          className="icon-button"
-          aria-label="Open full Calendar"
-        >
-          <ArrowUpRight size={19} />
-        </Link>
-      </header>
+      <h2 className="sr-only">Day overview</h2>
       <div className="domain-day-date">
         <button
           className="icon-button"
+          disabled={busy}
           aria-label="Previous day"
           onClick={() => onDate(addDays(date, -1))}
         >
@@ -108,7 +106,8 @@ export function DomainDayPanel({
         </button>
         <button
           ref={anchor}
-          className="domain-date-title"
+          className="calendar-date-title domain-date-title"
+          disabled={busy}
           aria-haspopup="dialog"
           aria-expanded={picker}
           onClick={(event) => {
@@ -126,6 +125,7 @@ export function DomainDayPanel({
         </button>
         <button
           className="icon-button"
+          disabled={busy}
           aria-label="Next day"
           onClick={() => onDate(addDays(date, 1))}
         >
@@ -147,12 +147,13 @@ export function DomainDayPanel({
           }}
         />
       )}
-      <div className="domain-week-strip" aria-label="Choose a day">
+      <div className="domain-week-strip" role="group" aria-label="Choose a day">
         {Array.from({ length: 7 }, (_, i) => {
           const day = addDays(weekStart, i);
           return (
             <button
               key={day}
+              disabled={busy}
               aria-label={formatDate(day, {
                 weekday: "long",
                 month: "long",
@@ -163,72 +164,104 @@ export function DomainDayPanel({
               aria-current={day === today ? "date" : undefined}
               onClick={() => onDate(day)}
             >
-              <span>{formatDate(day, { weekday: "short" }).slice(0, 1)}</span>
+              <span>{formatDate(day, { weekday: "short" }).slice(0, 2)}</span>
               <strong>{Number(day.slice(8))}</strong>
             </button>
           );
         })}
       </div>
       <div className="domain-day-controls">
-        <span>
-          {formatDate(date, {
-            weekday: "long",
-            month: "short",
-            day: "numeric",
-          })}
-        </span>
-        <button className="text-button" onClick={() => onDate(today)}>
+        <button
+          className="button"
+          disabled={busy}
+          onClick={() => onDate(today)}
+        >
           Today
         </button>
-      </div>
-      <div
-        className="domain-day-scope"
-        role="group"
-        aria-label="Day activity filter"
-      >
-        <button aria-pressed={!all} onClick={() => setAll(false)}>
-          {domain}
-        </button>
-        <button aria-pressed={all} onClick={() => setAll(true)}>
-          All activities
-        </button>
+        <div
+          className="domain-day-scope"
+          role="group"
+          aria-label="Day activity filter"
+        >
+          <button
+            disabled={busy}
+            aria-pressed={!all}
+            onClick={() => setAll(false)}
+          >
+            {domain}
+          </button>
+          <button
+            disabled={busy}
+            aria-pressed={all}
+            onClick={() => setAll(true)}
+          >
+            All activities
+          </button>
+        </div>
       </div>
       <div className="domain-day-feed-wrap">
-        {calendar.isPending ||
-        calendar.activityPending ||
-        (!all && plans?.pending) ? (
-          <Loading />
-        ) : !all && plans?.error ? (
+        {(calendar.isPending ||
+          calendar.activityPending ||
+          (!all && plans?.pending)) && <Loading />}
+        {!all && plans?.error && (
           <ErrorState error={plans.error} retry={plans.retry} />
-        ) : calendar.error ? (
+        )}
+        {calendar.error && (
           <ErrorState error={calendar.error} retry={calendar.retry} />
-        ) : calendar.activityError ? (
+        )}
+        {calendar.activityError && (
           <ErrorState
             error={calendar.activityError}
             retry={calendar.retryActivity}
           />
-        ) : week && activity ? (
-          <CalendarDayFeed
-            date={date}
-            week={week}
-            items={all ? calendar.items : []}
-            activity={activity}
-            filter={emptyCalendarFilter}
-            now={now}
-            onOpen={onCalendar}
-            onOpenActivity={onActivity}
-          />
-        ) : null}
+        )}
+        {week &&
+          activity &&
+          !calendar.isPending &&
+          !calendar.activityPending &&
+          !(!all && plans?.pending) && (
+            <DomainDayActivities
+              date={date}
+              week={week}
+              items={all ? calendar.items : []}
+              activity={activity}
+              scope={`${date}:${all}`}
+              onDate={onDate}
+              onBusyChange={reportBusy}
+              now={now}
+              emptyMessage={
+                all ? undefined : `No ${domain} plans or activity for this day.`
+              }
+              onActivity={onActivity}
+            />
+          )}
       </div>
       <footer className="domain-day-footer">
         {action && (
-          <button className="button" onClick={action.onClick}>
+          <button className="button" disabled={busy} onClick={action.onClick}>
             <Plus size={16} aria-hidden="true" />
             {action.label}
           </button>
         )}
-        <Link href={`/?date=${date}&view=day`}>
-          Open Calendar <ArrowUpRight size={15} aria-hidden="true" />
+        <Link
+          className="button domain-day-calendar"
+          aria-disabled={busy || undefined}
+          onClick={(event) => {
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey
+            )
+              return;
+            event.preventDefault();
+            if (!busy) onCalendar();
+          }}
+          href={`/?date=${date}&view=day`}
+        >
+          <CalendarDays size={17} aria-hidden="true" />
+          <span>Open Calendar</span>
+          <ArrowRight size={17} aria-hidden="true" />
         </Link>
       </footer>
     </div>

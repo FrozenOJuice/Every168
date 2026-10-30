@@ -1,13 +1,19 @@
 "use client";
+import { useFitnessNavigation } from "./fitness-navigation";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import type { Exercise, ExerciseLoggingType } from "@168hours/contracts";
+import type {
+  Exercise,
+  ExerciseInput,
+  ExerciseLoggingType,
+} from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { ErrorState, Loading } from "@/components/ui/feedback";
 import { ExerciseDetails } from "./exercise-details";
 import { ExerciseEditor } from "./exercise-editor";
+import { useRecoverExerciseEditor } from "./exercise-editor-recovery";
 import { libraryExercises } from "./exercise-library-model";
 
 export function ExerciseDetailPage({
@@ -20,8 +26,24 @@ export function ExerciseDetailPage({
   mode?: ExerciseLoggingType;
 }) {
   const router = useRouter();
+  const navigation = useFitnessNavigation();
+  const backLabel =
+    navigation.parent?.view === "summary"
+      ? "Back to summary"
+      : navigation.parent?.href.split("?")[0] === "/fitness/exercises" ||
+          !navigation.parent
+        ? "Back to Exercises"
+        : "Back to workout";
   const cache = useQueryClient();
   const [editing, setEditing] = useState<Exercise | null>(null);
+  const [recoveredCopy, setRecoveredCopy] = useState<ExerciseInput | null>(
+    null,
+  );
+  useRecoverExerciseEditor((attempt) => {
+    if (!attempt.item) setRecoveredCopy(attempt.input);
+    if (attempt.item && (attempt.item.id === id || catalogKey))
+      setEditing(attempt.item);
+  });
   const exercise = useQuery({
     queryKey: ["fitness", "exercise", id],
     queryFn: () => api.getExercise(id!),
@@ -36,7 +58,10 @@ export function ExerciseDetailPage({
   const pending =
     (!!id && exercise.isPending) || (needsCatalog && catalog.isPending);
   const error = (id && exercise.error) || (needsCatalog && catalog.error);
-  const back = () => router.push("/fitness", { scroll: false });
+  const back = () => {
+    if (navigation.parent) void navigation.back();
+    else router.replace("/fitness/exercises", { scroll: false });
+  };
   const item = catalogKey
     ? libraryExercises(catalog.data ?? [], []).find(
         (row) => row.key === catalogKey,
@@ -54,13 +79,17 @@ export function ExerciseDetailPage({
           ),
         }
       : undefined;
-  if (editing)
+  if (editing || recoveredCopy)
     return (
       <div className="fitness-exercise-detail-page">
         <ExerciseEditor
-          key={editing.id}
-          item={editing}
-          onCancel={() => setEditing(null)}
+          key={editing?.id ?? "copy"}
+          item={editing ?? undefined}
+          initialValues={recoveredCopy ?? undefined}
+          onCancel={() => {
+            setEditing(null);
+            setRecoveredCopy(null);
+          }}
           onSaved={(saved) => {
             cache.setQueryData(["fitness", "exercise", saved.id], saved);
             void cache.invalidateQueries({
@@ -68,6 +97,7 @@ export function ExerciseDetailPage({
             });
             void cache.invalidateQueries({ queryKey: ["fitness", "catalog"] });
             setEditing(null);
+            setRecoveredCopy(null);
             router.replace(`/fitness/exercises/${saved.id}`);
           }}
         />
@@ -79,9 +109,9 @@ export function ExerciseDetailPage({
         className="fitness-exercise-detail-page"
         aria-label="Exercise details"
       >
-        <button className="fitness-text-action" onClick={back}>
+        <button className="fitness-back" onClick={back}>
           <ArrowLeft size={16} aria-hidden="true" />
-          Back to Fitness
+          {backLabel}
         </button>
         {pending ? (
           <Loading />
@@ -101,11 +131,14 @@ export function ExerciseDetailPage({
     <ExerciseDetails
       item={item}
       standalone
-      backLabel="Back to Fitness"
+      backLabel={backLabel}
       onClose={back}
       onEdit={setEditing}
-      onDuplicated={setEditing}
-      initialMode={mode}
+      onDuplicated={(saved) => {
+        cache.setQueryData(["fitness", "exercise", saved.id], saved);
+        router.replace(`/fitness/exercises/${saved.id}`);
+      }}
+      initialMode={navigation.current?.mode ?? mode}
     />
   );
 }

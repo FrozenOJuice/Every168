@@ -185,12 +185,7 @@ function FoodLogForm({
           </option>
         ))}
       </Field>
-      <Field
-        name="at"
-        label="Eaten at"
-        type="datetime-local"
-        help={`In ${timezone}`}
-      />
+      <Field name="at" label="Eaten at" type="datetime-local" />
       {!!food?.ingredients.length && (
         <details
           open={adjustOpen || !!form.formState.errors.ingredientQuantities}

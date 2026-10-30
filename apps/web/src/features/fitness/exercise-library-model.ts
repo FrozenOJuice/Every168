@@ -69,16 +69,96 @@ export function filterLibrary(
 }
 
 export function sortLibrary(rows: LibraryExercise[], sort: ExerciseSort) {
-  const nameOrder = new Intl.Collator("en", { sensitivity: "base" });
   const compareName = (a: LibraryExercise, b: LibraryExercise) =>
-    nameOrder.compare(a.name, b.name) || a.key.localeCompare(b.key);
+    compareLibraryNames(a.name, b.name) || compareKeys(a.key, b.key);
   const addedAt = (row: LibraryExercise) =>
     row.definition
       ? 0
       : Date.parse(row.exercise?.createdAt ?? "1970-01-01T00:00:00Z");
   return [...rows].sort((a, b) =>
     sort === "recent"
-      ? addedAt(b) - addedAt(a) || compareName(a, b)
+      ? addedAt(b) - addedAt(a) ||
+        (a.definition && b.definition
+          ? compareName(a, b)
+          : compareKeys(b.key, a.key))
       : (sort === "name_asc" ? 1 : -1) * compareName(a, b),
   );
+}
+
+function compareKeys(a: string, b: string) {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+// Match the API's lower(name) COLLATE "C" order across page boundaries.
+function compareLibraryNames(a: string, b: string) {
+  const encoder = new TextEncoder();
+  const left = encoder.encode(a.toLowerCase());
+  const right = encoder.encode(b.toLowerCase());
+  for (let index = 0; index < Math.min(left.length, right.length); index++) {
+    const difference = left[index]! - right[index]!;
+    if (difference) return difference;
+  }
+  return left.length - right.length;
+}
+
+export function libraryWindow(
+  rows: LibraryExercise[],
+  fetched: Exercise[],
+  sort: ExerciseSort,
+  hasMore: boolean,
+) {
+  const boundary = fetched.at(-1);
+  return sortLibrary(
+    rows.filter((row) => {
+      if (!hasMore) return true;
+      if (sort === "recent") return !row.definition;
+      if (!boundary) return false;
+      const order = compareLibraryNames(row.name, boundary.name);
+      // Defer the complete boundary-name bucket so ties cannot insert earlier cards.
+      return sort === "name_asc" ? order < 0 : order > 0;
+    }),
+    sort,
+  );
+}
+
+export function libraryEmptyState(filters: {
+  search: string;
+  equipment: string[];
+  muscle: string[];
+  favourites: boolean;
+  archived: boolean;
+}) {
+  if (
+    filters.search.trim() ||
+    filters.equipment.length ||
+    filters.muscle.length
+  )
+    return {
+      title: "No matching exercises",
+      description: filters.archived
+        ? "Try another name or clear the filters to see hidden and archived exercises."
+        : "Try another name or clear the filters.",
+    };
+  if (filters.archived)
+    return filters.favourites
+      ? {
+          title: "No hidden favourites",
+          description:
+            "None of your favourite exercises are hidden or archived. Turn off Favourites to see all hidden and archived exercises.",
+        }
+      : {
+          title: "No hidden or archived exercises",
+          description:
+            "Exercises you hide or archive appear here. Turn off Hidden to return to your active library.",
+        };
+  if (filters.favourites)
+    return {
+      title: "No favourite exercises yet",
+      description:
+        "Use the star on an exercise to keep it here for quick access.",
+    };
+  return {
+    title: "No exercises yet",
+    description: "Create an exercise to start building your library.",
+  };
 }

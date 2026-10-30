@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -38,6 +40,8 @@ const views = [
   ["routines", "Routines"],
 ] as const;
 export function TasksPage() {
+  const confirm = useConfirm();
+
   const params = useSearchParams(),
     router = useRouter(),
     cache = useQueryClient();
@@ -48,6 +52,7 @@ export function TasksPage() {
   const taskId = selected.success ? selected.data : null;
   const projectParsed = idSchema.safeParse(params.get("project"));
   const projectId = projectParsed.success ? projectParsed.data : undefined;
+  const [dayBusy, setDayBusy] = useState(false);
   const [dayOpen, setDayOpen] = useState(false),
     [creating, setCreating] = useState(false),
     [projectEditor, setProjectEditor] = useState<
@@ -111,6 +116,7 @@ export function TasksPage() {
   const panel = (
     <DomainDayPanel
       domain="Tasks"
+      onBusyChange={setDayBusy}
       sources={["task", "task_time", "task_completion"]}
       sourceLabels={["Tasks"]}
       date={date}
@@ -121,13 +127,13 @@ export function TasksPage() {
         error: dayLinks.error,
         retry: () => void dayLinks.refetch(),
       }}
-      onActivity={(a) => {
-        if (!canNavigateAway()) return;
+      onActivity={async (a) => {
+        if (!(await canNavigateAway())) return;
         setDayOpen(false);
         router.push(a.href);
       }}
-      onCalendar={() => {
-        if (!canNavigateAway()) return;
+      onCalendar={async () => {
+        if (!(await canNavigateAway())) return;
         setDayOpen(false);
         router.push(`/?date=${date}&view=day`);
       }}
@@ -434,8 +440,10 @@ export function TasksPage() {
                   <button
                     disabled={removeProject.isPending}
                     className="button danger"
-                    onClick={() => {
-                      if (confirm("Delete this project and keep its tasks?"))
+                    onClick={async () => {
+                      if (
+                        await confirm("Delete this project and keep its tasks?")
+                      )
                         removeProject.mutate();
                     }}
                   >
@@ -452,7 +460,11 @@ export function TasksPage() {
         {panel}
       </aside>
       {dayOpen && (
-        <Dialog title="Your day" onClose={() => setDayOpen(false)}>
+        <Dialog
+          title="Your day"
+          busy={dayBusy}
+          onClose={() => setDayOpen(false)}
+        >
           {panel}
         </Dialog>
       )}
@@ -518,7 +530,7 @@ function QuickCapture({
   });
   useUnsavedChanges(
     !!title.trim() || create.isPending,
-    "Leave this task capture without saving it?",
+    "Your unsaved task capture will be discarded.",
     create.isPending,
   );
   return (

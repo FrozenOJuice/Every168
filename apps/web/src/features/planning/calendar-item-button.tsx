@@ -26,6 +26,7 @@ export function CalendarItemButton({
       }
     >
       <button
+        disabled={interaction?.busy}
         data-calendar-record={item.id}
         className={
           "calendar-record date-record" +

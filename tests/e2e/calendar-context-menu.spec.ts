@@ -1,3 +1,4 @@
+import { expectCalendarField } from "./helpers/calendar-form";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
@@ -266,16 +267,16 @@ test("Week empty-space destinations preserve selection and mixed clipboard types
   await choose(page, "Add all-day plan");
   const editor = page.getByRole("dialog");
   await expect(editor.getByLabel("All day", { exact: true })).toBeChecked();
-  await expect(editor.getByLabel("Date", { exact: true })).toHaveValue(
-    "2026-09-09",
-  );
+  await expectCalendarField(editor, "Date", "2026-09-09");
   await page.keyboard.press("Escape");
   await slot.focus();
   await page.keyboard.press("ContextMenu");
   await choose(page, "Add plan here");
-  await expect(
-    page.getByRole("dialog").getByLabel("Start", { exact: true }),
-  ).toHaveValue("2026-09-08T11:00");
+  await expectCalendarField(
+    page.getByRole("dialog"),
+    "Start",
+    "2026-09-08T11:00",
+  );
   await page.keyboard.press("Escape");
   const axis = page.getByRole("slider", { name: "Hour spacing" });
   await axis.focus();

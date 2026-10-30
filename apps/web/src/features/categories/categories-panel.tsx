@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +45,8 @@ function CategoryForm({
   );
 }
 export function CategoriesPanel() {
+  const confirm = useConfirm();
+
   const query = useQuery({
     queryKey: ["categories"],
     queryFn: api.getCategories,
@@ -95,9 +99,9 @@ export function CategoriesPanel() {
                   <button
                     className="button"
                     disabled={archive.isPending}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        confirm(
+                        await confirm(
                           "Archive this category? Existing records will keep their category.",
                         )
                       )

@@ -646,11 +646,13 @@ export function planningRepository(db: Database) {
       input: TimeEntryInput & {
         sourceType: "strength_workout" | "cardio_activity" | "task_time";
         sourceId: string;
+        excludedIntervals?: { startsAt: string; endsAt: string }[];
       },
     ) {
       const tx = databaseFor(db, context);
       const values = {
         ...input,
+        excludedIntervals: input.excludedIntervals ?? [],
         userId: u,
         startsAt: new Date(input.startsAt),
         endsAt: new Date(input.endsAt),

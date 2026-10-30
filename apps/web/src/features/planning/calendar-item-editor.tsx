@@ -1,3 +1,4 @@
+import { useConfirm } from "@/components/ui/confirmation-provider";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { calendarItemInput, type CalendarItem } from "@168hours/contracts";
@@ -10,6 +11,7 @@ import { useCalendarInteractions } from "./calendar-interactions";
 export function CalendarItemEditor({
   item,
   date,
+  container,
   onClose,
   onSchedule,
   onSaved,
@@ -17,10 +19,13 @@ export function CalendarItemEditor({
   item?: CalendarItem;
   date: string;
   kind?: "unscheduled";
+  container?: Element | null;
   onClose: () => void;
   onSchedule: (item: CalendarItem) => void;
   onSaved: (message: string, date?: string) => void;
 }) {
+  const confirm = useConfirm();
+
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
   const [formBusy, setFormBusy] = useState(false);
@@ -46,6 +51,7 @@ export function CalendarItemEditor({
   });
   return (
     <CalendarPlanPopover
+      container={container}
       date={date}
       recordId={item?.id}
       busy={remove.isPending || interaction?.busy}
@@ -92,8 +98,8 @@ export function CalendarItemEditor({
           </button>
           <button
             className="button danger"
-            onClick={() => {
-              if (confirm("Delete this plan?")) remove.mutate();
+            onClick={async () => {
+              if (await confirm("Delete this plan?")) remove.mutate();
             }}
           >
             Delete plan

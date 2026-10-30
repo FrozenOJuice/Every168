@@ -1,3 +1,8 @@
+import {
+  expectCalendarField,
+  fillCalendarField,
+  showCalendarNotes,
+} from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -1243,9 +1248,7 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(page).toHaveURL(/date=2026-09-15.*view=day/);
   await expect(day).toBeVisible();
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-15T14:00",
-  );
+  await expectCalendarField(page, "Start", "2026-09-15T14:00");
   await page.getByLabel("Title", { exact: true }).fill("Month planning check");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -1297,11 +1300,9 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(day.locator("[data-calendar-draft]")).toHaveCount(0);
   await page.goto("/?date=2026-09-07");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-07T14:00",
-  );
+  await expectCalendarField(page, "Start", "2026-09-07T14:00");
   await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
-  await page.getByLabel("End", { exact: true }).fill("2026-09-07T08:00");
+  await fillCalendarField(page, "End", "2026-09-07T08:00");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "End must be after start",
@@ -1320,40 +1321,28 @@ test("day, week and month calendars keep planning focused", async ({
   // Overlapping records can make the hour row wider than a phone viewport.
   const slotBounds = (await creationSlot.boundingBox())!;
   await creationSlot.dblclick({ position: { x: slotBounds.width / 2, y: 36 } });
-  await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-07T14:35",
-  );
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-07T15:35",
-  );
-  await page.getByLabel("End", { exact: true }).fill("2026-09-07T15:05");
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-07T15:05",
-  );
+  await expectCalendarField(page, "Start", "2026-09-07T14:35");
+  await expectCalendarField(page, "End", "2026-09-07T15:35");
+  await fillCalendarField(page, "End", "2026-09-07T15:05");
+  await expectCalendarField(page, "End", "2026-09-07T15:05");
   await page.getByLabel("Title", { exact: true }).fill("Quarter-hour plan");
-  await page.getByText("More details", { exact: true }).click();
+  await showCalendarNotes(page);
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Goal (optional)")).toHaveCount(0);
   await page.getByLabel("Notes (optional)").fill("Bring the project draft.");
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-09T23:45");
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-10T00:15",
-  );
-  await page.getByLabel("End", { exact: true }).fill("2026-09-10T00:30");
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-10T22:15");
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-10T23:00",
-  );
+  await fillCalendarField(page, "Start", "2026-09-09T23:45");
+  await expectCalendarField(page, "End", "2026-09-10T00:15");
+  await fillCalendarField(page, "End", "2026-09-10T00:30");
+  await fillCalendarField(page, "Start", "2026-09-10T22:15");
+  await expectCalendarField(page, "End", "2026-09-10T23:00");
   await auditAndCapture("calendar-planning-form");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/date=2026-09-10.*view=day/);
   await day
     .getByRole("button", { name: /Quarter-hour plan.*planned/ })
     .dblclick();
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-10T21:15");
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-10T22:00",
-  );
+  await fillCalendarField(page, "Start", "2026-09-10T21:15");
+  await expectCalendarField(page, "End", "2026-09-10T22:00");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   const originWeek: Week = await (
@@ -1382,9 +1371,7 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(
     page.getByRole("dialog", { name: "Duplicate block" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-11T21:15",
-  );
+  await expectCalendarField(page, "Start", "2026-09-11T21:15");
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Goal (optional)")).toHaveCount(0);
   await expect(page.getByLabel("Notes (optional)")).toHaveValue(
@@ -1400,10 +1387,8 @@ test("day, week and month calendars keep planning focused", async ({
   await page
     .getByLabel("Title", { exact: true })
     .fill("Copied quarter-hour plan");
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-21T07:15");
-  await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-09-21T08:00",
-  );
+  await fillCalendarField(page, "Start", "2026-09-21T07:15");
+  await expectCalendarField(page, "End", "2026-09-21T08:00");
   let lostCopy = false;
   await page.route("**/api/v1/time-blocks", async (route) => {
     if (route.request().method() === "POST" && !lostCopy) {

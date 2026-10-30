@@ -15,6 +15,7 @@ export function CalendarRecord({
   month = false,
   date,
   next = false,
+  workoutCompleted = false,
 }: {
   record: Record;
   week: Week;
@@ -25,6 +26,7 @@ export function CalendarRecord({
   month?: boolean;
   date?: string;
   next?: boolean;
+  workoutCompleted?: boolean;
 }) {
   const interaction = useCalendarInteractions();
   const { item, kind } = record;
@@ -44,6 +46,7 @@ export function CalendarRecord({
       : record.item.timeBlockId !== null;
   return (
     <button
+      disabled={interaction?.busy}
       data-calendar-record={item.id}
       className={
         "calendar-record " +
@@ -88,7 +91,7 @@ export function CalendarRecord({
           ? undefined
           : `${item.title} · ${formatTime(item.startsAt, week.timezone, true)} – ${formatTime(item.endsAt, week.timezone, true)}`
       }
-      aria-label={`${next ? "Next: " : ""}${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}`}
+      aria-label={`${next ? "Next: " : ""}${item.title}, ${startDate !== endDate ? formatDate(startDate) + " " : ""}${formatTime(item.startsAt, week.timezone, true)} to ${startDate !== endDate ? formatDate(endDate) + " " : ""}${formatTime(item.endsAt, week.timezone, true)}, ${kind === "block" ? "planned" : "recorded"}${overlap ? ", overlapping" : ""}${linked ? ", linked record" : ""}${workoutCompleted ? ", workout completed" : ""}`}
     >
       {next ? (
         <>
@@ -135,10 +138,18 @@ export function CalendarRecord({
                 Recorded
               </span>
             )}
-            {!!linked && (
+            {(!!linked || workoutCompleted) && (
               <span>
-                <Link2 size={12} aria-hidden="true" />
-                {kind === "block" ? `${linked} linked` : "Linked plan"}
+                {workoutCompleted ? (
+                  <Check size={12} aria-hidden="true" />
+                ) : (
+                  <Link2 size={12} aria-hidden="true" />
+                )}
+                {kind === "block"
+                  ? workoutCompleted
+                    ? "Workout completed"
+                    : `${linked} linked`
+                  : "Linked plan"}
               </span>
             )}
             {overlap && (

@@ -1,27 +1,20 @@
 "use client";
-import { FitnessConfirm } from "./fitness-confirm";
+import { ScheduleWorkout } from "./schedule-workout";
+import { Toast, useToast } from "@/components/ui/toast";
+import { useDomainDay } from "@/features/workspace/domain-day-context";
 import { useWorkoutStart } from "./active-workouts";
-import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
-import { z } from "zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CalendarPlus, Pencil, Play } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  instantToLocalInput,
-  localInputToInstant,
-} from "@168hours/domain-utils";
-import {
-  strengthScheduleInput,
-  type StrengthPlan,
-  type Block,
-} from "@168hours/contracts";
+import { instantToLocalInput, localDate } from "@168hours/domain-utils";
+import { type StrengthPlan, type Block } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
+import { canNavigateAway } from "@/lib/use-unsaved-changes";
 import { ErrorState } from "@/components/ui/feedback";
-import { Dialog } from "@/components/ui/dialog";
 import { invalidateFitness } from "./fitness-cache";
 export function BeginWorkout({ plan }: { plan: StrengthPlan }) {
   const router = useRouter();
@@ -63,6 +56,9 @@ export function PlanCard({
   scheduledBlock?: Block;
 }) {
   const { user, preferences } = useMe();
+  const { selectDate } = useDomainDay();
+  const toast = useToast();
+  const router = useRouter();
   const [scheduling, setScheduling] = useState(() => {
     try {
       return !!sessionStorage.getItem(
@@ -171,136 +167,36 @@ export function PlanCard({
         )}
       </div>
       {scheduling && (
-        <ScheduleWorkout plan={plan} onSaved={() => setScheduling(false)} />
-      )}
-    </section>
-  );
-}
-function ScheduleWorkout({
-  plan,
-  onSaved,
-}: {
-  plan: StrengthPlan;
-  onSaved: () => void;
-}) {
-  const { user, preferences } = useMe();
-  const timezone = preferences.timezone;
-  const cache = useQueryClient();
-  const [start, setStart] = useState(() =>
-    instantToLocalInput(new Date().toISOString(), timezone),
-  );
-  const [end, setEnd] = useState(() =>
-    instantToLocalInput(new Date(Date.now() + 3600000).toISOString(), timezone),
-  );
-  const [error, setError] = useState("");
-  const [defaults] = useState({ start, end });
-  const [cancelling, setCancelling] = useState(false);
-  const command = useCommand({
-    persistence: {
-      key: `168hours:schedule:${user.id}:${plan.id}`,
-      parse: (value) =>
-        strengthScheduleInput
-          .safeExtend({ version: z.number().int().positive() })
-          .parse(value),
-    },
-    mutationFn: (
-      v: { startsAt: string; endsAt: string; version: number },
-      key: string,
-    ) =>
-      api.scheduleStrengthPlan(
-        plan.id,
-        { startsAt: v.startsAt, endsAt: v.endsAt },
-        v.version,
-        key,
-      ),
-    onSuccess: () => {
-      invalidateFitness(cache);
-      onSaved();
-    },
-  });
-  useUnsavedChanges(command.isPending, "Wait for scheduling to finish.", true);
-  return (
-    <Dialog
-      title="Schedule workout"
-      onClose={() => {
-        if (command.isPending) return;
-        if (start !== defaults.start || end !== defaults.end)
-          setCancelling(true);
-        else onSaved();
-      }}
-    >
-      {cancelling && (
-        <FitnessConfirm
-          title="Discard schedule changes?"
-          action="Discard changes"
-          danger
-          onCancel={() => setCancelling(false)}
-          onConfirm={onSaved}
+        <ScheduleWorkout
+          plan={plan}
+          onClose={() => setScheduling(false)}
+          onScheduled={(schedule) => {
+            setScheduling(false);
+            selectDate(localDate(schedule.startsAt, timezone));
+            toast.show({
+              kind: "success",
+              message: `${plan.title} scheduled for ${new Intl.DateTimeFormat("en", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(schedule.startsAt))}.`,
+              action: {
+                label: "View in Calendar",
+                onClick: async () => {
+                  if (await canNavigateAway())
+                    router.push(
+                      `/?date=${localDate(schedule.startsAt, timezone)}&view=day`,
+                    );
+                },
+              },
+            });
+          }}
         />
       )}
-      <form
-        className="form-stack"
-        onSubmit={(e) => {
-          e.preventDefault();
-          try {
-            const v = strengthScheduleInput.parse({
-              startsAt: localInputToInstant(start, timezone),
-              endsAt: localInputToInstant(end, timezone),
-            });
-            setError("");
-            command.mutate({ ...v, version: plan.version });
-          } catch {
-            setError(
-              "Choose valid, unambiguous start and end times in your timezone.",
-            );
-          }
-        }}
-      >
-        <p>
-          This reserves Calendar time. It does not start or complete a workout.
-        </p>
-        <fieldset className="form-stack" disabled={command.isPending}>
-          <label className="field">
-            Start
-            <input
-              type="datetime-local"
-              required
-              value={
-                command.needsRetry && command.recoveredVariables
-                  ? instantToLocalInput(
-                      command.recoveredVariables.startsAt,
-                      timezone,
-                    )
-                  : start
-              }
-              onChange={(e) => setStart(e.target.value)}
-            />
-          </label>
-          <label className="field">
-            End
-            <input
-              type="datetime-local"
-              required
-              value={
-                command.needsRetry && command.recoveredVariables
-                  ? instantToLocalInput(
-                      command.recoveredVariables.endsAt,
-                      timezone,
-                    )
-                  : end
-              }
-              onChange={(e) => setEnd(e.target.value)}
-            />
-          </label>
-          <button className="button primary">Schedule workout</button>
-        </fieldset>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-        <CommandError command={command} />
-      </form>
-    </Dialog>
+      {toast.notice && (
+        <Toast
+          key={toast.notice.id}
+          {...toast.notice}
+          durationMs={5000}
+          onDismiss={() => toast.dismiss()}
+        />
+      )}
+    </section>
   );
 }

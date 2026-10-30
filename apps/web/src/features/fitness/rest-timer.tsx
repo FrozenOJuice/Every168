@@ -4,19 +4,21 @@ export function RestTimer({
   until,
   onCancel,
   label,
+  pausedAt,
 }: {
   until: number | null;
   onCancel: () => void;
   label?: string;
+  pausedAt?: number | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!until) return;
+    if (!until || pausedAt) return;
     const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
-  }, [until]);
+  }, [until, pausedAt]);
   if (!until) return null;
-  const remaining = Math.max(0, Math.ceil((until - now) / 1000));
+  const remaining = Math.max(0, Math.ceil((until - (pausedAt ?? now)) / 1000));
   return (
     <div className="fitness-rest" role="timer" aria-label="Rest timer">
       <div className="fitness-rest-copy">

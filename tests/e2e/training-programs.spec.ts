@@ -52,13 +52,13 @@ async function setup(page: Page) {
   return { write, plans };
 }
 async function add(page: Page, name: string) {
+  const picker = page.getByRole("button", { name: "Add workout", exact: true });
+  if ((await picker.getAttribute("aria-expanded")) !== "true")
+    await picker.click();
   await page
-    .getByRole("button", { name: "Saved workout", exact: true })
+    .getByRole("button", { name: `Add ${name} to sequence`, exact: true })
     .click();
-  await page.getByRole("option", { name, exact: true }).click();
-  await page
-    .getByRole("button", { name: "Add workout to sequence", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 test("program creation, reorder, Calendar rescheduling, skipping, completion and pause work on desktop and phone", async ({
   page,
@@ -69,7 +69,11 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
   await page
     .getByLabel("Program name", { exact: true })
     .fill("Two-day strength");
-  await page.getByLabel("Start date", { exact: true }).fill("2026-10-26");
+  await page.getByRole("button", { name: "Start date", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Choose day", exact: true })
+    .getByRole("button", { name: /October 26, 2026/ })
+    .click();
   await page.getByLabel("Monday", { exact: true }).check();
   await page.getByLabel("Wednesday", { exact: true }).check();
   await add(page, "Workout A");

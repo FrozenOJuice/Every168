@@ -12,7 +12,9 @@ export const trackingLabels = Object.fromEntries(
   exerciseLoggingTypeSchema.options.map((type) => [
     type,
     measurementsFor(type)
-      .map((field) => field[0]!.toUpperCase() + field.slice(1))
+      .map((field) =>
+        field === "load" ? "Weight" : field[0]!.toUpperCase() + field.slice(1),
+      )
       .join(" + "),
   ]),
 ) as Record<ExerciseLoggingType, string>;

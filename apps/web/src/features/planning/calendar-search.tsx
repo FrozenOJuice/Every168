@@ -183,8 +183,7 @@ export function CalendarSearch({
             />
           </div>
           <p>
-            Applies to Search all dates. Dates use {preferences.timezone};
-            undated plans appear without a range.
+            Applies to Search all dates. Undated plans appear without a range.
           </p>
         </details>
         <div className="calendar-search-actions">

@@ -1,10 +1,10 @@
 # 168Hours
 
-A private planner for Calendar, Fitness and Tasks. Plan your week, train, organize work and record actual time.
+A private planner for Calendar and Fitness. Plan your week, train and record actual time. Tasks remains available in preview scope.
 
 Core MVP with the owner-approved Calendar expansion. No AI, integrations, native app, social features, or external food services.
 
-The default first-release scope hides Food (including water/weight logging) and Assistant. Their code and data are retained. Set `RELEASE_SCOPE=preview` in both app environment files and restart/rebuild the web and API to work on those deferred features; leave it unset or use `core` for the release app. Core scope also disables their direct pages/APIs, measurement shortcuts and Calendar activity contributions.
+The default first-release scope hides Tasks, Training Programs, Food (including water/weight logging) and Assistant. Their code and data are retained. Set `RELEASE_SCOPE=preview` in both app environment files and restart/rebuild the web and API to work on those deferred features; leave it unset or use `core` for the release app. Core scope also disables their direct pages/APIs, program links, task-specific Calendar actions/activity and Food measurement shortcuts/Calendar activity contributions. Existing Calendar reservations and recorded time remain intact.
 
 ## Run locally
 
@@ -91,11 +91,11 @@ pnpm --filter @168hours/api start
 pnpm --filter @168hours/web start
 ```
 
-The full retained-feature browser suite runs explicitly in preview scope (`pnpm test:e2e`). Check the first-release boundary separately with `pnpm test:e2e:release`; it verifies core navigation, unavailable deferred pages/APIs and working Calendar/Fitness/Tasks entry points. API integration fixtures explicitly use preview scope unless a test requests core scope.
+The full retained-feature browser suite runs explicitly in preview scope (`pnpm test:e2e`). Check the first-release boundary separately with `pnpm test:e2e:release`; it verifies core navigation, unavailable deferred pages/APIs and working Calendar/Fitness entry points. API integration fixtures explicitly use preview scope unless a test requests core scope.
 
 ## Capabilities and deliberate limits
 
-- Calendar-first home with Day, Week, and Month views and a full-height planning workspace. Three main destinations: Calendar, Fitness and Tasks; account controls live in the account menu.
+- Calendar-first home with Day, Week, and Month views and a full-height planning workspace. Two main destinations: Calendar and Fitness; account controls live in the account menu.
 - Timezone-aware seven-day planner, overlapping blocks, category labels and manual actual time linked to blocks. Canonical allocation and planned-versus-recorded totals remain available through the API. Sunday/Monday week starts. DST weeks show their actual 167/169-hour calendar coverage.
 - Goals with category/date links and active, completed, paused, archived states.
 - Preview-only: manual food library with archive/restore, immutable log snapshots, daily and meal nutrition, unknown-nutrient indicators, and searchable recent entries for repeat logging. Create a missing food without leaving the logging flow.
@@ -105,7 +105,7 @@ The full retained-feature browser suite runs explicitly in preview scope (`pnpm 
 
 Save a workout before leaving; unsaved navigation warns you. Completing a strength workout or logging cardio records its actual time once, including when no planned block is linked. Linking supplies the block's category. Delete activity records from Exercise to remove their source time entry. Deleting a plan keeps recorded activity.
 
-Calendar dates and Day/Week/Month views are addressable in the URL. Click the date heading to jump, or Today to return to the current time. Grid taps select five-minute starts; dragging empty time in Day/Week shows a live plan draft in five-minute increments, then opens a compact tab beside the block; existing-block editing and toolbar creation use the same tab; the editor supports duration shortcuts, rescheduling and reviewable planned-block duplication. Busy weeks keep their grid with extra records in a day list; Month adapts its previews to available space and opens the same list. Overnight continuations and clock-change dates retain explicit local times. Planned blocks and recorded entries appear together; their accounting remains separate, and duplication never copies recorded time. Fitness and Tasks support direct links; Food links are available in preview scope. See [UI standards](docs/ui-standards.md).
+Calendar dates and Day/Week/Month views are addressable in the URL. Click the date heading to jump, or Today to return to the current time. Grid taps select five-minute starts; dragging empty time in Day/Week shows a live plan draft in five-minute increments, then opens a compact tab beside the block; existing-block editing and toolbar creation use the same tab; the editor supports duration shortcuts, rescheduling and reviewable planned-block duplication. Busy weeks keep their grid with extra records in a day list; Month adapts its previews to available space and opens the same list. Overnight continuations and clock-change dates retain explicit local times. Planned blocks and recorded entries appear together; their accounting remains separate, and duplication never copies recorded time. Fitness supports direct links; Tasks and Food links are available in preview scope. See [UI standards](docs/ui-standards.md).
 
 Click a planned block once to select it, double-click to open its compact tab, or press Enter when focused. Delete or Backspace deletes the selected block without an alert; recorded time remains. Undo several timed-block actions with repeated Cmd+Z or Ctrl+Z while Calendar stays open. No undo bar or action counter is shown. History includes creation/duplication, saved title/details/time edits, moving/resizing and deletion; changes from another tab are protected. History resets on leaving/reloading Calendar; date-only plans, whole-series operations, bulk reuse and recorded activity are outside this history. Dragging snaps the preview to the destination day and time in five-minute steps, with a ghost at its original position. Drag planned blocks in Day/Week to move them; drag their edges to resize with live size and time feedback, or drag empty space to open a draft. On touch screens, tap once to select and drag to move. For resizing, double-tap to open a block and choose **Move or resize on calendar**, then select Move, Resize start, or Resize end and drag the selected block. The form remains available for precise and keyboard editing. Month previews can be dragged to another date on desktop. Recorded activity is edited in its source domain. See [Calendar behavior and limits](docs/decisions/004-calendar-expansion.md) for recurrence, copying, templates and daylight saving rules.
 

@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import { useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { FoodEntryDetail } from "@168hours/contracts";
@@ -19,6 +21,8 @@ export function FoodEntries({
   onRepeat,
   showDate = false,
 }: Actions & { entries: FoodEntryDetail[]; showDate?: boolean }) {
+  const confirm = useConfirm();
+
   const cache = useQueryClient();
   const {
     preferences: { timezone },
@@ -57,8 +61,10 @@ export function FoodEntries({
                 <button
                   className="button"
                   disabled={remove.isPending}
-                  onClick={() => {
-                    if (confirm(`Delete ${e.nameSnapshot} from your log?`))
+                  onClick={async () => {
+                    if (
+                      await confirm(`Delete ${e.nameSnapshot} from your log?`)
+                    )
                       remove.mutate(e);
                   }}
                 >

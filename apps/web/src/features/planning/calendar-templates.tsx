@@ -1,3 +1,7 @@
+import {
+  useTextPrompt,
+  useConfirm,
+} from "@/components/ui/confirmation-provider";
 import { z } from "zod";
 import { useState } from "react";
 import { useWatch } from "react-hook-form";
@@ -51,7 +55,6 @@ export function CalendarTemplates({
     onSuccess: async (outcome) => {
       interaction?.history.record({
         kind: "copy",
-        transient: true,
         key: outcome.key,
         blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
           id,
@@ -114,6 +117,9 @@ function TemplateLibrary({
   date: string;
   onReview: (review: Review) => void;
 }) {
+  const prompt = useTextPrompt();
+  const confirm = useConfirm();
+
   const cache = useQueryClient();
   const [selected, setSelected] = useState<Template | null>(null),
     [capture, setCapture] = useState(false);
@@ -189,8 +195,10 @@ function TemplateLibrary({
                 <button
                   className="button"
                   disabled={rename.isPending}
-                  onClick={() => {
-                    const name = prompt("Template name", t.name)?.trim();
+                  onClick={async () => {
+                    const name = (
+                      await prompt("Template name", t.name)
+                    )?.trim();
                     if (name) rename.mutate({ template: t, name });
                   }}
                 >
@@ -199,9 +207,9 @@ function TemplateLibrary({
                 <button
                   className="button danger"
                   disabled={remove.isPending}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      confirm(
+                      await confirm(
                         "Delete this template? Applied plans will remain.",
                       )
                     )

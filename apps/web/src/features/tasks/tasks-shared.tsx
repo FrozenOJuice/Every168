@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import {
   createContext,
   useContext,
@@ -28,19 +30,25 @@ export function TaskDialog({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const confirm = useConfirm();
+
   const [form, setForm] = useState({ dirty: false, busy: false });
   const [report] = useState(
     () => (dirty: boolean, busy: boolean) => setForm({ dirty, busy }),
   );
   useUnsavedChanges(
     form.dirty || form.busy,
-    "Leave without saving your task changes?",
+    "Your unsaved task changes will be discarded.",
+    form.busy,
   );
   return (
     <Dialog
       title={title}
-      onClose={() => {
-        if (!form.busy && (!form.dirty || confirm("Discard unsaved changes?")))
+      onClose={async () => {
+        if (
+          !form.busy &&
+          (!form.dirty || (await confirm("Discard unsaved changes?")))
+        )
           onClose();
       }}
     >

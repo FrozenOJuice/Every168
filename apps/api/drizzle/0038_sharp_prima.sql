@@ -1,0 +1,2 @@
+ALTER TABLE "strength_workouts" ADD COLUMN "pauses" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "time_entries" ADD COLUMN "excluded_intervals" jsonb DEFAULT '[]'::jsonb NOT NULL;

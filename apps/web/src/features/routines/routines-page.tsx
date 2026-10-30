@@ -1,4 +1,6 @@
 "use client";
+import { useConfirm } from "@/components/ui/confirmation-provider";
+
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { routineInput, type Routine } from "@168hours/contracts";
@@ -148,6 +150,8 @@ function RoutineEditor({
   routine?: Routine;
   onSaved: () => void;
 }) {
+  const confirm = useConfirm();
+
   const [name, setName] = useState(routine?.name ?? "");
   const [steps, setSteps] = useState<string[]>(routine?.steps ?? [""]);
   const [error, setError] = useState("");
@@ -271,8 +275,8 @@ function RoutineEditor({
           type="button"
           className="button danger"
           disabled={busy}
-          onClick={() => {
-            if (confirm("Delete this routine?")) remove.mutate();
+          onClick={async () => {
+            if (await confirm("Delete this routine?")) remove.mutate();
           }}
         >
           Delete routine

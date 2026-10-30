@@ -41,15 +41,16 @@ async function setup(page: Page) {
   return { write, exercise, plan };
 }
 async function addWorkout(page: Page) {
+  const picker = page.getByRole("button", { name: "Add workout", exact: true });
+  if ((await picker.getAttribute("aria-expanded")) !== "true")
+    await picker.click();
   await page
-    .getByRole("button", { name: "Saved workout", exact: true })
+    .getByRole("button", {
+      name: "Add Interval workout to sequence",
+      exact: true,
+    })
     .click();
-  await page
-    .getByRole("option", { name: "Interval workout", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Add workout to sequence", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Done", exact: true }).click();
 }
 test("duration entry feeds a read-only review and explicit correction preserves actual results", async ({
   page,
@@ -151,7 +152,6 @@ test("program drafts recover incomplete fields and ordering, then clear after a 
   await setup(page);
   await page.goto("/fitness/programs/new");
   await page.getByLabel("Program name", { exact: true }).fill("My program");
-  await page.getByLabel("Start date", { exact: true }).fill("");
   await addWorkout(page);
   await page
     .getByRole("button", { name: "Toggle program notes", exact: true })
@@ -159,12 +159,22 @@ test("program drafts recover incomplete fields and ordering, then clear after a 
   await page
     .getByLabel("Program notes", { exact: true })
     .fill("Keep this draft");
+  await page.evaluate(() => {
+    const key = Object.keys(sessionStorage).find((value) =>
+      value.startsWith("168hours:program-draft:"),
+    )!;
+    const stored = JSON.parse(sessionStorage.getItem(key)!);
+    stored.input.startDate = "";
+    sessionStorage.setItem(key, JSON.stringify(stored));
+  });
   await page.reload();
   await expect(page.getByText("Draft restored", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Program name", { exact: true })).toHaveValue(
     "My program",
   );
-  await expect(page.getByLabel("Start date", { exact: true })).toHaveValue("");
+  await expect(
+    page.getByRole("button", { name: "Start date", exact: true }),
+  ).toHaveText("Choose a date");
   await expect(page.locator(".fitness-program-steps")).toContainText(
     "Interval workout",
   );
@@ -176,7 +186,11 @@ test("program drafts recover incomplete fields and ordering, then clear after a 
   );
   await page.getByRole("button", { name: "Save program", exact: true }).click();
   await expect(page.getByLabel("Start date", { exact: true })).toBeFocused();
-  await page.getByLabel("Start date", { exact: true }).fill("2026-10-26");
+  await page.getByRole("button", { name: "Start date", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Choose day", exact: true })
+    .getByRole("button", { name: /October 26, 2026/ })
+    .click();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(
     await page.evaluate(

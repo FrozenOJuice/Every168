@@ -397,8 +397,8 @@ function ProgramSchedule({
         }}
       >
         <p>
-          Reserve time for {base.next.title} in {timezone}. This keeps your
-          place in the program.
+          Reserve time for {base.next.title}. This keeps your place in the
+          program.
         </p>
         <fieldset className="form-stack" disabled={save.isPending}>
           <label className="field">

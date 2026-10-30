@@ -43,7 +43,11 @@ export function AppShell({
             <p className="nav-caption">Your week, your way</p>
             <nav aria-label="Main navigation">
               {links
-                .filter(([href]) => href !== "/food" || features.food)
+                .filter(
+                  ([href]) =>
+                    (href !== "/food" || features.food) &&
+                    (href !== "/tasks" || features.tasks),
+                )
                 .map(([href, label, Icon]) => (
                   <Link
                     key={href}

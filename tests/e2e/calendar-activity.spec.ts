@@ -1,3 +1,8 @@
+import {
+  expectCalendarField,
+  fillCalendarField,
+  selectCalendarRepeat,
+} from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
@@ -142,7 +147,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   ).toBeVisible();
   await expect(
     comingUp.getByRole("button", { name: /Later plan/ }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await expect(
     feed.locator(".activity-record").filter({ hasText: /Recorded walk/ }),
   ).toHaveCount(1);
@@ -179,24 +184,22 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     await expect(
       dialog.getByRole("button", { name: "Plan", exact: true }),
     ).toHaveCount(0);
-    const details = dialog.getByText("More details", { exact: true });
-    await details.click();
+    await expect(dialog.getByText("More details", { exact: true })).toHaveCount(
+      0,
+    );
     await expect(dialog.getByLabel("Category", { exact: true })).toHaveCount(0);
     await expect(dialog.getByLabel("Goal (optional)")).toHaveCount(0);
     await expect(dialog.getByLabel("Notes (optional)")).toBeVisible();
-    await details.click();
-    const otherPlans = dialog.getByText("Other plans", { exact: true });
-    await otherPlans.click();
+    await expect(dialog.getByText("Other plans", { exact: true })).toHaveCount(
+      0,
+    );
     await expect(
       dialog.getByRole("link", { name: "Unscheduled plans" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(
       dialog.getByLabel("All day", { exact: true }),
     ).not.toBeChecked();
-    await expect(dialog.getByLabel("Repeat", { exact: true })).toHaveValue(
-      "never",
-    );
-    await otherPlans.click();
+    await expectCalendarField(dialog, "Repeat", "never");
   }
   await expect(dialog).toHaveCount(0);
   await expect(slot).toHaveAttribute("aria-pressed", "true");
@@ -205,18 +208,12 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     "2026-10-07T19:15",
   );
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-07T19:15",
-  );
-  await expect(dialog.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-10-07T20:15",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-07T19:15");
+  await expectCalendarField(dialog, "End", "2026-10-07T20:15");
   await page.keyboard.press("Escape");
   await expect(day.locator("[data-selected-time]")).toHaveCount(0);
   await slot.dblclick({ position: { x: 15, y: 16 } });
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-07T19:15",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-07T19:15");
   await expect(
     dialog.getByLabel("Category", { exact: true }),
   ).not.toBeVisible();
@@ -224,22 +221,21 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(page.locator("dialog[open]")).toHaveCount(0);
   await expect(dialog.getByLabel("Title", { exact: true })).toBeFocused();
   await expectCreationOptions();
-  await dialog.getByLabel("Repeat", { exact: true }).selectOption("weekly");
-  await dialog.getByLabel("Repeat through").fill("2026-10-21");
+  await selectCalendarRepeat(dialog, "weekly");
+  await fillCalendarField(dialog, "Repeat through", "2026-10-21");
   await expect(dialog.locator(".calendar-repeat-preview")).toContainText(
     "plans will be added",
   );
-  await dialog.getByLabel("Repeat", { exact: true }).selectOption("custom");
+  await selectCalendarRepeat(dialog, "custom");
   await dialog.getByLabel("Every", { exact: true }).fill("2");
   await expect(dialog.locator(".calendar-repeat-preview")).toContainText(
     "Every 2 weeks",
   );
-  await dialog.getByLabel("Repeat", { exact: true }).selectOption("never");
+  await selectCalendarRepeat(dialog, "never");
   await expect(day.locator("[data-calendar-draft]")).toBeVisible();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   const panel = (await dialog.boundingBox())!;
-  if (testInfo.project.name === "desktop")
-    expect(panel.height).toBeLessThan(410);
+  expect(panel.height).toBeLessThanOrEqual(page.viewportSize()!.height - 24);
   expect(panel.x).toBeGreaterThanOrEqual(0);
   expect(panel.x + panel.width).toBeLessThanOrEqual(page.viewportSize()!.width);
   expect(panel.y + panel.height).toBeLessThanOrEqual(
@@ -262,15 +258,13 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(slot).toHaveAttribute("aria-pressed", "true");
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-07T16:00",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-07T16:00");
   const draft = day.locator("[data-calendar-draft]");
   await expect(draft).toBeInViewport();
   await dialog.getByLabel("Title", { exact: true }).fill("Toolbar draft");
   await expect(draft).toContainText("Toolbar draft");
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-07T11:05");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-07T11:35");
+  await fillCalendarField(dialog, "Start", "2026-10-07T11:05");
+  await fillCalendarField(dialog, "End", "2026-10-07T11:35");
   await expect(draft).toContainText("11:05 AM - 11:35 AM");
   await expect(draft).toHaveCSS("height", "30px");
   await page.keyboard.press("Escape");
@@ -366,12 +360,8 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(dialog).toHaveCount(0);
   await expect(otherDaySlot).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-08T19:15",
-  );
-  await expect(dialog.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-10-08T20:15",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-08T19:15");
+  await expectCalendarField(dialog, "End", "2026-10-08T20:15");
   await expectCreationOptions();
   await dialog.getByLabel("Title", { exact: true }).fill("Carried title");
   await dialog.getByLabel("All day", { exact: true }).check();
@@ -380,9 +370,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     "Carried title",
   );
   await expect(dialog.getByLabel("Start", { exact: true })).toHaveCount(0);
-  await expect(dialog.getByLabel("Date", { exact: true })).toHaveValue(
-    "2026-10-08",
-  );
+  await expectCalendarField(dialog, "Date", "2026-10-08");
   await page.keyboard.press("Escape");
   await otherDaySlot.click({ position: { x: 15, y: 16 } });
   await page.keyboard.press("Escape");
@@ -410,9 +398,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
     page.getByRole("region", { name: "Monthly calendar" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-08T16:00",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-08T16:00");
   await expect(page.locator(".month-add")).toHaveCount(0);
   const selectedDay = page.getByRole("button", {
     name: "Select 2026-10-09, 0 records",
@@ -437,12 +423,8 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(selectedDay).toHaveAttribute("aria-pressed", "true");
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-09T16:00",
-  );
-  await expect(dialog.getByLabel("End", { exact: true })).toHaveValue(
-    "2026-10-09T17:00",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-09T16:00");
+  await expectCalendarField(dialog, "End", "2026-10-09T17:00");
   await expect(
     page.locator('[data-calendar-draft="2026-10-09"]'),
   ).toBeVisible();
@@ -463,9 +445,7 @@ test("Calendar brings plans, sessions and moments together with quick creation a
   await expect(dialog).toHaveCount(0);
   await page.goto("/?date=2026-10-08&view=month");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-08T16:00",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-08T16:00");
   await expectCreationOptions();
   await dialog.getByLabel("Title", { exact: true }).fill("Month draft");
   await expect(

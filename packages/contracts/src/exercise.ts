@@ -269,7 +269,7 @@ export const setInput = z
     {
       path: ["reps"],
       message:
-        "Enter actual reps, load, duration, distance or laps before completing a set.",
+        "Enter actual reps, weight, duration, distance or laps before completing a set.",
     },
   )
   .refine((v) => !(v.completed && v.skipped), {
@@ -331,7 +331,7 @@ export const strengthPlanInput = z
       ctx.addIssue({
         code: "custom",
         path: ["title"],
-        message: "Enter a workout title.",
+        message: "Enter a workout name.",
       });
     if (!v.exercises.length)
       ctx.addIssue({
@@ -381,12 +381,16 @@ export const strengthBeginInput = z
   .strict();
 export const strengthPlanQuery = pageQuerySchema.extend({
   search: z.string().trim().max(160).default(""),
+  readyOnly: z.enum(["true"]).optional(),
   kind: z.enum(["workout", "scheduled"]).default("workout"),
 });
 export type StrengthPlanInput = z.infer<typeof strengthPlanInput>;
 export type StrengthPlan = z.infer<typeof strengthPlanSchema>;
 export type StrengthPlanQuery = z.infer<typeof strengthPlanQuery>;
-export const fitnessDayLinksSchema = z.object({ blockIds: z.array(idSchema) });
+export const fitnessDayLinksSchema = z.object({
+  blockIds: z.array(idSchema),
+  completedBlockIds: z.array(idSchema),
+});
 export type FitnessDayLinks = z.infer<typeof fitnessDayLinksSchema>;
 export const nextStrengthWorkoutSchema = z.object({
   workout: z
@@ -408,6 +412,14 @@ export const workoutExerciseInput = z
     sets: z.array(setInput.safeExtend({ id: idSchema.optional() })).max(100),
   })
   .strict();
+export const workoutPauseSchema = z
+  .object({
+    startsAt: instantSchema,
+    endsAt: instantSchema.nullable(),
+  })
+  .strict();
+export const workoutPausesSchema = z.array(workoutPauseSchema).max(1000);
+export type WorkoutPause = z.infer<typeof workoutPauseSchema>;
 export const workoutStartInput = z
   .object({
     title: titleSchema.default("Workout"),
@@ -419,6 +431,7 @@ export const workoutStartInput = z
 export const workoutUpdateInput = workoutStartInput
   .extend({
     endedAt: instantSchema.nullable(),
+    pauses: workoutPausesSchema.optional(),
     exercises: z.array(workoutExerciseInput).max(50),
   })
   .refine(
@@ -432,6 +445,28 @@ export const workoutUpdateInput = workoutStartInput
     },
   )
   .refine(
+    (v) => {
+      let previous = Date.parse(v.startedAt);
+      return (v.pauses ?? []).every((pause, index, pauses) => {
+        const start = Date.parse(pause.startsAt);
+        const end = pause.endsAt === null ? null : Date.parse(pause.endsAt);
+        if (start < previous || (v.endedAt && start > Date.parse(v.endedAt)))
+          return false;
+        if (end === null)
+          return v.endedAt === null && index === pauses.length - 1;
+        if (end <= start || (v.endedAt && end > Date.parse(v.endedAt)))
+          return false;
+        previous = end;
+        return true;
+      });
+    },
+    {
+      path: ["pauses"],
+      message:
+        "Pauses must be ordered, non-overlapping and inside the workout; finish or resume an open pause first.",
+    },
+  )
+  .refine(
     (v) =>
       v.endedAt === null ||
       v.exercises.some((e) => e.sets.some((s) => s.completed)),
@@ -442,8 +477,15 @@ export const workoutUpdateInput = workoutStartInput
   );
 export const workoutSummarySchema = recordSchema.extend({
   ...workoutStartInput.shape,
+  pauses: workoutPausesSchema.default([]),
   endedAt: instantSchema.nullable(),
 });
+export const workoutHistoryItemSchema = workoutSummarySchema.extend({
+  exerciseCount: z.number().int().nonnegative(),
+  completedSetCount: z.number().int().nonnegative(),
+});
+export type WorkoutHistoryItem = z.infer<typeof workoutHistoryItemSchema>;
+
 export const setSchema = recordSchema.extend({
   ...setInput.shape,
   position: z.number(),

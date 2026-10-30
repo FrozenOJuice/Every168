@@ -8,18 +8,25 @@ import {
 } from "../../infrastructure/database/pagination.js";
 import type { TransactionContext } from "../../shared/transactions.js";
 import type { StrengthPlanQuery } from "@168hours/contracts";
-import { strengthPlans as plans } from "./exercise.table.js";
+import {
+  strengthPlans as plans,
+  strengthWorkouts as workouts,
+} from "./exercise.table.js";
 
 type Values = typeof plans.$inferInsert;
 export function strengthPlansRepository(db: Database) {
   const owned = (u: string, id: string) =>
     and(eq(plans.userId, u), eq(plans.id, id));
   return {
-    async linkedBlockIds(u: string, ids: string[]) {
+    async linkedBlocks(u: string, ids: string[]) {
       if (!ids.length) return [];
       const rows = await db
-        .select({ id: plans.timeBlockId })
+        .select({ id: plans.timeBlockId, finishedAt: workouts.endedAt })
         .from(plans)
+        .leftJoin(
+          workouts,
+          and(eq(workouts.userId, u), eq(workouts.id, plans.sessionId)),
+        )
         .where(
           and(
             eq(plans.userId, u),
@@ -27,7 +34,9 @@ export function strengthPlansRepository(db: Database) {
             inArray(plans.timeBlockId, ids),
           ),
         );
-      return rows.flatMap((row) => (row.id ? [row.id] : []));
+      return rows.flatMap((row) =>
+        row.id ? [{ id: row.id, completed: !!row.finishedAt }] : [],
+      );
     },
     async capturePlanLinks(u: string, id: string, context: TransactionContext) {
       const rows = await databaseFor(db, context)
@@ -88,6 +97,7 @@ export function strengthPlansRepository(db: Database) {
           and(
             eq(plans.userId, u),
             eq(plans.kind, q.kind),
+            q.readyOnly === "true" ? eq(plans.isDraft, false) : undefined,
             q.search
               ? ilike(
                   plans.title,

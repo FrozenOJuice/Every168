@@ -36,11 +36,16 @@ test("builder validates fields, copies set targets and preserves collapsed cards
     name: "Add exercise",
     exact: true,
   });
-  await expect(addExercise).toBeFocused();
+  if (testInfo.project.name === "phone")
+    await expect(addExercise).toBeFocused();
+  else
+    await expect(
+      workout.locator(".fitness-builder-library-hint"),
+    ).toBeFocused();
   await expect(
     workout.getByText("Add at least one exercise.", { exact: true }),
   ).toBeVisible();
-  await addExercise.click();
+  if (testInfo.project.name === "phone") await addExercise.click();
   const library = page.getByRole("complementary", {
     name: "Exercise library panel",
   });
@@ -61,7 +66,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
     .getByRole("button", { name: "Advanced editor", exact: true })
     .click();
   await first.getByLabel("Target reps", { exact: true }).fill("0");
-  await first.getByLabel("Target load (kg)", { exact: true }).fill("-1");
+  await first.getByLabel("Target weight (kg)", { exact: true }).fill("-1");
   await card
     .getByRole("button", { name: "Collapse Bench press exercise", exact: true })
     .click();
@@ -71,18 +76,18 @@ test("builder validates fields, copies set targets and preserves collapsed cards
     first.getByLabel("Target reps", { exact: true }),
   ).toHaveAttribute("aria-invalid", "true");
   await expect(
-    first.getByLabel("Target load (kg)", { exact: true }),
+    first.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveAttribute("aria-invalid", "true");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await first.getByLabel("Target reps", { exact: true }).fill("8");
-  await first.getByLabel("Target load (kg)", { exact: true }).fill("40");
+  await first.getByLabel("Target weight (kg)", { exact: true }).fill("40");
   await card.getByRole("button", { name: "Add set", exact: true }).click();
   const second = rows.nth(1);
   await expect(second.getByLabel("Target reps", { exact: true })).toHaveValue(
     "8",
   );
   await expect(
-    second.getByLabel("Target load (kg)", { exact: true }),
+    second.getByLabel("Target weight (kg)", { exact: true }),
   ).toHaveValue("40");
   await second.getByLabel("Target reps", { exact: true }).fill("10");
   await card
@@ -101,7 +106,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
     card.getByRole("button", { name: "Remove set 1", exact: true }),
   ).toBeDisabled();
   await first.getByLabel("Target reps", { exact: true }).fill("");
-  await first.getByLabel("Target load (kg)", { exact: true }).fill("");
+  await first.getByLabel("Target weight (kg)", { exact: true }).fill("");
   await save.click();
   await expect(page).toHaveURL(/\/fitness$/);
   const plans = await (await page.request.get("/api/v1/strength-plans")).json();

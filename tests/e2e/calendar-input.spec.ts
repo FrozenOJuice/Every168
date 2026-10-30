@@ -1,3 +1,4 @@
+import { expectCalendarField } from "./helpers/calendar-form";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 const date = "2026-09-07";
@@ -121,9 +122,7 @@ test("arrows navigate five-minute slots across hours and days; day selection kee
   );
   await page.keyboard.press("Enter");
   const draft = page.getByRole("dialog", { name: "Add plan", exact: true });
-  await expect(draft.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-06T23:55",
-  );
+  await expectCalendarField(draft, "Start", "2026-09-06T23:55");
   await page.keyboard.press("Escape");
   await expect(slot(page, "2026-09-06", 23)).toBeFocused();
   await heading(page, "2026-09-06").focus();
@@ -441,11 +440,11 @@ test("Actions resolves selected plan data without a rendered plan anchor and ret
   await menu(page)
     .getByRole("menuitem", { name: "Add plan here", exact: true })
     .click();
-  await expect(
-    page
-      .getByRole("dialog", { name: "Add plan", exact: true })
-      .getByLabel("Start", { exact: true }),
-  ).toHaveValue(`${date}T10:05`);
+  await expectCalendarField(
+    page.getByRole("dialog", { name: "Add plan", exact: true }),
+    "Start",
+    `${date}T10:05`,
+  );
   await page.keyboard.press("Escape");
   await heading(page, date).press("Space");
   await page.keyboard.press("Escape");

@@ -288,7 +288,43 @@ test("mixed selected plans move together, retry once, and keep group undo/redo a
   await page.keyboard.press("Shift+F10");
   await page.getByRole("menuitem", { name: "Move…", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "Move selected plans" });
-  await editor.getByLabel("Destination date").fill("2026-09-08");
+  await editor
+    .getByRole("button", { name: "Destination date", exact: true })
+    .click();
+  await editor
+    .getByRole("dialog", { name: "Choose day", exact: true })
+    .getByRole("button", { name: /September 8, 2026/ })
+    .click();
+  await editor.getByRole("button", { name: "Start time", exact: true }).click();
+  await expect(
+    editor.getByRole("dialog", { name: "Choose start time", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(editor).toBeVisible();
+  await expect(editor.getByRole("dialog")).toHaveCount(0);
+  await editor.getByRole("button", { name: "Start time", exact: true }).click();
+  const timePicker = editor.getByRole("dialog", {
+    name: "Choose start time",
+    exact: true,
+  });
+  await timePicker
+    .getByRole("listbox", { name: "Hour", exact: true })
+    .press("Home");
+  await timePicker
+    .getByRole("listbox", { name: "Minute", exact: true })
+    .press("Home");
+  await timePicker
+    .getByRole("listbox", { name: "AM/PM", exact: true })
+    .press("End");
+  await timePicker
+    .getByRole("button", { name: "Set time", exact: true })
+    .click();
+  await expect(
+    editor.getByRole("button", { name: "Start time", exact: true }),
+  ).toHaveText("1:00 PM");
+  await page.screenshot({
+    path: testInfo.outputPath("move-selected-plans.png"),
+  });
   expect(
     (await new AxeBuilder({ page }).include('[role="dialog"]').analyze())
       .violations,
@@ -297,6 +333,18 @@ test("mixed selected plans move together, retry once, and keep group undo/redo a
   await expect(editor).toHaveCount(0);
   expect(
     (await blocks(page)).every((b) => b.startsAt.includes("2026-09-08")),
+  ).toBe(true);
+  const moved = await blocks(page);
+  expect(moved.find((b) => b.title === "First")?.startsAt).toBe(
+    "2026-09-08T13:00:00.000Z",
+  );
+  expect(moved.find((b) => b.title === "Second")?.startsAt).toBe(
+    "2026-09-08T15:00:00.000Z",
+  );
+  expect(
+    moved.every(
+      (b) => Date.parse(b.endsAt) - Date.parse(b.startsAt) === 60 * 60 * 1000,
+    ),
   ).toBe(true);
 });
 

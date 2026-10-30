@@ -1,3 +1,8 @@
+import { saveCalendarPlan } from "./helpers/calendar-form";
+import {
+  fillCalendarField,
+  selectCalendarRepeat,
+} from "./helpers/calendar-form";
 import { expect, test, type Page, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import type { Week, CalendarItem } from "@168hours/contracts";
@@ -73,11 +78,9 @@ test("existing timed plans gain repetition and consistent edit, delete and stop 
   await expect(editor.getByLabel("Start time", { exact: true })).toHaveValue(
     "09:00",
   );
-  await editor.getByLabel("Repeat", { exact: true }).selectOption("daily");
-  await editor.getByLabel("Repeat through", { exact: true }).fill("2026-09-10");
-  await editor
-    .getByRole("button", { name: "Create repeating plan", exact: true })
-    .click();
+  await selectCalendarRepeat(editor, "daily");
+  await fillCalendarField(editor, "Repeat through", "2026-09-10");
+  await saveCalendarPlan(editor);
   await expect(editor).toHaveCount(0);
   await expect.poll(async () => (await blocks(page)).length).toBe(4);
   expect((await blocks(page)).some((b) => b.id === original.id)).toBe(true);
@@ -148,9 +151,9 @@ test("all-day repetition preserves individual edits and supports series editing,
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await editor.getByLabel("Title", { exact: true }).fill("Holiday");
   await editor.getByLabel("All day", { exact: true }).check();
-  await editor.getByLabel("Date", { exact: true }).fill("2026-09-07");
-  await editor.getByLabel("Repeat", { exact: true }).selectOption("daily");
-  await editor.getByLabel("Repeat through", { exact: true }).fill("2026-09-10");
+  await fillCalendarField(editor, "Date", "2026-09-07");
+  await selectCalendarRepeat(editor, "daily");
+  await fillCalendarField(editor, "Repeat through", "2026-09-10");
   await expect(editor).toContainText("4 plans will be added");
   await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(editor).toHaveCount(0);

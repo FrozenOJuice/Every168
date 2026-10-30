@@ -31,6 +31,8 @@ export const recordedProgressSetSchema = z.object({
   loggingType: exerciseLoggingTypeSchema.optional(),
   position: z.number().int().nonnegative().optional(),
   id: idSchema,
+  completed: z.boolean().optional(),
+  skipped: z.boolean().optional(),
   reps: z.number().nullable(),
   weightKg: z.number().nullable(),
   durationSeconds: z.number().nullable(),
@@ -40,6 +42,8 @@ export const recordedProgressSetSchema = z.object({
 export const progressSessionSchema = strengthMetricsSchema.extend({
   id: idSchema,
   title: z.string(),
+  notes: z.string().nullable().optional(),
+  exerciseNotes: z.array(z.string()).optional(),
   sets: z.array(recordedProgressSetSchema),
   startedAt: instantSchema,
   endedAt: instantSchema,
@@ -117,3 +121,36 @@ export const workoutComparisonSchema = z.object({
   previous: comparisonWorkoutSchema.nullable(),
 });
 export type WorkoutComparison = z.infer<typeof workoutComparisonSchema>;
+
+export const weightRecordsQuery = z.object({
+  beforeWeight: z.coerce.number().min(0).max(2000).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+export type WeightRecordsQuery = z.infer<typeof weightRecordsQuery>;
+export const weightRecordSchema = progressRecordSchema
+  .omit({ metric: true })
+  .extend({
+    metric: z.literal("repsAtWeight"),
+    totalReps: z.number().int().nonnegative(),
+    weightKg: z.number(),
+    reps: z.number(),
+  });
+export const weightRecordsSchema = z.object({
+  items: z.array(weightRecordSchema),
+  nextWeight: z.number().nullable(),
+});
+export type WeightRecords = z.infer<typeof weightRecordsSchema>;
+export const workoutRecordSchema = z.object({
+  exerciseId: idSchema,
+  workoutExerciseId: idSchema,
+  setId: idSchema,
+  metric: z.enum(["load", "reps", "repsAtWeight", "duration", "distance"]),
+  value: z.number(),
+  weightKg: z.number().nullable(),
+  reps: z.number().nullable(),
+  first: z.boolean(),
+});
+export const workoutRecordsSchema = z.object({
+  records: z.array(workoutRecordSchema),
+});
+export type WorkoutRecords = z.infer<typeof workoutRecordsSchema>;

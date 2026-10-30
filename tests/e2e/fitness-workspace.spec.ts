@@ -61,7 +61,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   await page.getByRole("option", { name: "Name A–Z", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Hidden", exact: true }),
-  ).toHaveText("");
+  ).toHaveText("Hidden");
   await page.getByRole("button", { name: /^Filters/ }).click();
   await expect(sortButton).not.toBeVisible();
   const muscleRow = page
@@ -665,8 +665,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   ]);
   expect(updated.exercises[0].sets[0].targetReps).toBe(8);
   await page
-    .locator(".fitness-workout-builder")
-    .getByRole("button", { name: "Back to Training", exact: true })
+    .getByRole("button", { name: "Back to Fitness", exact: true })
     .click();
   await expect(page).toHaveURL("/fitness");
   await expect(

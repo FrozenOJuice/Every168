@@ -1,3 +1,8 @@
+import { saveCalendarPlan } from "./helpers/calendar-form";
+import {
+  expectCalendarField,
+  fillCalendarField,
+} from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -91,11 +96,9 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(dialog.getByLabel("Goal (optional)")).toHaveCount(0);
   await expect(dialog.getByLabel("All day", { exact: true })).toBeChecked();
   await page.getByLabel("Title", { exact: true }).fill("Conference");
-  await expect(dialog.getByLabel("Date", { exact: true })).toHaveValue(
-    "2026-09-07",
-  );
+  await expectCalendarField(dialog, "Date", "2026-09-07");
   await dialog.getByLabel("Spans multiple days").check();
-  await page.getByLabel("Last day", { exact: true }).fill("2026-09-08");
+  await fillCalendarField(page, "Last day", "2026-09-08");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(
@@ -133,8 +136,8 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(schedule.getByLabel("Title", { exact: true })).toHaveValue(
     "Read paper",
   );
-  await schedule.getByLabel("Start", { exact: true }).fill("2026-09-07T14:00");
-  await schedule.getByLabel("End", { exact: true }).fill("2026-09-07T15:00");
+  await fillCalendarField(schedule, "Start", "2026-09-07T14:00");
+  await fillCalendarField(schedule, "End", "2026-09-07T15:00");
   await schedule.getByRole("button", { name: "Create block" }).click();
   await expect(schedule).toHaveCount(0);
   await expect(page).toHaveURL(/date=2026-09-07&view=day/);
@@ -145,12 +148,10 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(dialog.getByLabel("Category", { exact: true })).toHaveCount(0);
   await expect(dialog.getByLabel("Goal (optional)")).toHaveCount(0);
   await page.getByLabel("Title", { exact: true }).fill("Training routine");
-  await expect(page.getByLabel("Repeat", { exact: true })).toHaveValue(
-    "weekly",
-  );
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T13:00");
-  await page.getByLabel("End", { exact: true }).fill("2026-09-07T14:00");
-  await page.getByLabel("Repeat through").fill("2026-09-11");
+  await expectCalendarField(page, "Repeat", "weekly");
+  await fillCalendarField(page, "Start", "2026-09-07T13:00");
+  await fillCalendarField(page, "End", "2026-09-07T14:00");
+  await fillCalendarField(page, "Repeat through", "2026-09-11");
   await dialog
     .getByRole("group", { name: "Repeat on" })
     .getByRole("button", { name: "Wed" })
@@ -163,9 +164,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     "3 plans will be added",
   );
   await audit("recurring-form");
-  await dialog
-    .getByRole("button", { name: "Create repeating plan", exact: true })
-    .click();
+  await saveCalendarPlan(dialog);
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole("status")).toContainText("3 occurrences saved");
   await day
@@ -237,9 +236,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(dialog.locator(".search-results li")).toHaveCount(1);
   await audit("calendar-search");
   await dialog.locator(".search-results button").click();
-  await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-09-21T09:00",
-  );
+  await expectCalendarField(page, "Start", "2026-09-21T09:00");
   await close();
   await page
     .getByRole("button", { name: "Search and filter calendar" })
@@ -516,26 +513,35 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     await page.mouse.up();
     await expect(draft).toBeVisible();
     await expect(dialog).toHaveAttribute("aria-modal", "false");
-    await dialog.getByText("Other plans", { exact: true }).click();
+    await expect(dialog.getByText("Other plans", { exact: true })).toHaveCount(
+      0,
+    );
     await expect(
       dialog.getByRole("button", { name: "Repeating plan", exact: true }),
     ).toHaveCount(0);
-    await dialog.getByText("Other plans", { exact: true }).click();
-    await expect(dialog.getByLabel("Repeat", { exact: true })).toHaveValue(
-      "never",
+    await expect(dialog.getByText("Other plans", { exact: true })).toHaveCount(
+      0,
     );
+    await expectCalendarField(dialog, "Repeat", "never");
     await expect(page.locator("dialog[open]")).toHaveCount(0);
-    await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-      "2026-09-21T16:10",
-    );
-    await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-      "2026-09-21T16:35",
-    );
+    await expectCalendarField(page, "Start", "2026-09-21T16:10");
+    await expectCalendarField(page, "End", "2026-09-21T16:35");
     await page.getByLabel("Title", { exact: true }).fill("Dragged plan");
     await expect(draft).toContainText("Dragged plan");
     const popoverBox = (await dialog.boundingBox())!;
     const draftBox = (await draft.boundingBox())!;
-    expect(popoverBox.x).toBeGreaterThanOrEqual(draftBox.x + draftBox.width);
+    if (
+      draftBox.x + draftBox.width + popoverBox.width + 10 <=
+      page.viewportSize()!.width - 12
+    )
+      expect(popoverBox.x).toBeGreaterThanOrEqual(draftBox.x + draftBox.width);
+    expect(popoverBox.x).toBeGreaterThanOrEqual(12);
+    expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(
+      page.viewportSize()!.width - 12,
+    );
+    expect(popoverBox.y + popoverBox.height).toBeLessThanOrEqual(
+      page.viewportSize()!.height - 12,
+    );
     await audit("plan-popover");
     const createKeys: string[] = [];
     await page.route("**/api/v1/time-blocks", async (route) => {
@@ -552,7 +558,9 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       dialog.getByRole("button", { name: "Retry save" }),
     ).toBeVisible();
     await page.keyboard.press("Escape");
-    await page.getByRole("link", { name: "Week", exact: true }).click();
+    // The wider popup may cover the view tabs; verify the same navigation guard by keyboard.
+    await page.getByRole("link", { name: "Week", exact: true }).focus();
+    await page.getByRole("link", { name: "Week", exact: true }).press("Enter");
     await expect(dialog).toBeVisible();
     await expect(page).toHaveURL(/view=day/);
     await expect(draft).toBeVisible();
@@ -587,12 +595,8 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       "20px",
     );
     await page.mouse.up();
-    await expect(page.getByLabel("Start", { exact: true })).toHaveValue(
-      "2026-09-21T17:05",
-    );
-    await expect(page.getByLabel("End", { exact: true })).toHaveValue(
-      "2026-09-21T17:25",
-    );
+    await expectCalendarField(page, "Start", "2026-09-21T17:05");
+    await expectCalendarField(page, "End", "2026-09-21T17:25");
     await close();
     const weekRecord = weekGrid.getByRole("button", {
       name: /Drag me.*planned/,
@@ -740,7 +744,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(
     dialog.getByText("The all-day plan stays on the calendar."),
   ).toBeVisible();
-  await page.getByLabel("Start", { exact: true }).fill("2026-09-07T15:00");
+  await fillCalendarField(page, "Start", "2026-09-07T15:00");
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(
     day.getByRole("button", { name: /Conference, all day/ }),

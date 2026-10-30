@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+// The shared Fitness workspace keeps the library mounted across exercise-detail routes.
 export default function Page() {
-  redirect("/fitness#exercises");
+  return null;
 }

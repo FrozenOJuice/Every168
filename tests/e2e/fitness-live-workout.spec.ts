@@ -139,8 +139,8 @@ test("choose and reorder live exercises, confirm targets, adjust results and rec
     benchCard.getByRole("button", { name: /Set [23]: unfinished/ }),
   ).toHaveCount(0);
 
-  await expect(benchSet.getByLabel("Actual load (kg)")).toHaveValue("40");
-  await benchSet.getByLabel("Actual load (kg)").fill("20");
+  await expect(benchSet.getByLabel("Actual weight (kg)")).toHaveValue("40");
+  await benchSet.getByLabel("Actual weight (kg)").fill("20");
   await expect(benchSet.locator(".fitness-live-target")).toHaveText(
     "Planned: 1×12 | 40 kg",
   );
@@ -150,12 +150,12 @@ test("choose and reorder live exercises, confirm targets, adjust results and rec
   await expect(
     benchCard.locator(".fitness-exercise-target-summary"),
   ).toContainText("40 kg");
-  await benchSet.getByLabel("Actual load (kg)").fill("40");
+  await benchSet.getByLabel("Actual weight (kg)").fill("40");
   await benchSet
-    .getByRole("button", { name: "Actual load unit", exact: true })
+    .getByRole("button", { name: "Actual weight unit", exact: true })
     .click();
   await page.getByRole("option", { name: "lb", exact: true }).click();
-  await expect(benchSet.getByLabel("Actual load (lb)")).toHaveValue("88.18");
+  await expect(benchSet.getByLabel("Actual weight (lb)")).toHaveValue("88.18");
   await expect(benchSet.locator(".fitness-live-target")).toContainText(
     "88.18 lb",
   );
@@ -249,9 +249,7 @@ test("choose and reorder live exercises, confirm targets, adjust results and rec
     ),
   ).toEqual(restBeforeOtherActions);
 
-  await page
-    .getByRole("button", { name: "Finish workout", exact: true })
-    .scrollIntoViewIfNeeded();
+  await cards.last().scrollIntoViewIfNeeded();
   const statusBounds = await page.locator(".fitness-live-status").boundingBox();
   expect(statusBounds!.y).toBeGreaterThanOrEqual(
     testInfo.project.name === "phone" ? 64 : 0,
@@ -452,7 +450,7 @@ test("choose and reorder live exercises, confirm targets, adjust results and rec
     .getByRole("button", { name: "Edit results of set 1", exact: true })
     .click();
   await saved();
-  await benchSet.getByLabel("Actual load (kg)").fill("0");
+  await benchSet.getByLabel("Actual weight (kg)").fill("0");
   await benchSet.getByLabel("Actual reps").fill("0");
   await page.reload();
   await expect(benchSet.getByLabel("Actual reps")).toHaveValue("0");
@@ -652,7 +650,7 @@ test("both skipped sets can be completed later and disabled actions use a normal
       current.getByLabel("Actual reps", { exact: true }),
     ).toHaveValue("12");
     await expect(
-      current.getByLabel("Actual load (kg)", { exact: true }),
+      current.getByLabel("Actual weight (kg)", { exact: true }),
     ).toHaveValue("20");
     await complete.click();
     await saved();
@@ -673,7 +671,7 @@ test("both skipped sets can be completed later and disabled actions use a normal
   await saved();
   await saved();
   await current.getByLabel("Actual reps", { exact: true }).fill("");
-  await current.getByLabel("Actual load (kg)", { exact: true }).fill("");
+  await current.getByLabel("Actual weight (kg)", { exact: true }).fill("");
   await saved();
   const unavailable = current.getByRole("button", {
     name: "Complete set",
@@ -756,7 +754,13 @@ test("follow the workout from planned targets through the next exercise to finis
     name: "Current set",
     exact: true,
   });
-  await current.getByLabel("Actual load (kg)").fill("20");
+  const initialFinish = page
+    .getByRole("group", { name: "Workout controls", exact: true })
+    .getByRole("button", { name: "Finish workout", exact: true });
+  await expect(initialFinish).toBeVisible();
+  await expect(initialFinish).toBeDisabled();
+  await expect(initialFinish).not.toHaveClass(/primary/);
+  await current.getByLabel("Actual weight (kg)").fill("20");
   await expect(current.locator(".fitness-live-target")).toHaveText(
     "Planned: 1×12 | 50 kg",
   );
@@ -776,7 +780,7 @@ test("follow the workout from planned targets through the next exercise to finis
   await expect(
     current.getByRole("heading", { name: "Set 1 of 1" }),
   ).toBeFocused();
-  await expect(current.getByLabel("Actual load (kg)")).toHaveValue("50");
+  await expect(current.getByLabel("Actual weight (kg)")).toHaveValue("50");
   await current
     .getByRole("button", { name: "Complete set", exact: true })
     .click();
@@ -787,8 +791,28 @@ test("follow the workout from planned targets through the next exercise to finis
     name: "Finish workout",
     exact: true,
   });
+  await expect(finish).toHaveCount(1);
+  await expect(
+    page
+      .getByRole("group", { name: "Workout controls", exact: true })
+      .getByRole("button", { name: "Finish workout", exact: true }),
+  ).toBeVisible();
   await expect(finish).toHaveClass(/primary/);
   await expect(finish).toBeEnabled();
+  await expect(finish).toBeFocused();
+  await page
+    .getByRole("button", { name: "Pause workout", exact: true })
+    .click();
+  const resume = page.getByRole("button", {
+    name: "Resume workout",
+    exact: true,
+  });
+  await expect(resume).not.toHaveClass(/primary/);
+  await expect(finish).toHaveClass(/primary/);
+  await page.screenshot({
+    path: testInfo.outputPath("finish-ready-controls.png"),
+  });
+  await resume.click();
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   const finishKeys: string[] = [];
   let releaseFinish!: () => void;

@@ -123,9 +123,16 @@ test("History opens the shared workout summary with actual results and correctio
   await expect(results).toContainText("2 skipped sets · 1 unfinished set");
   await expect(results).toContainText("October 25, 2026");
   await expect(results).toContainText("October 26, 2026");
-  await expect(results).toContainText("UTC");
+  await expect(results).not.toContainText("UTC");
   await expect(results).toContainText("Kept a steady pace.");
-  await expect(results).not.toContainText("999");
+  expect(
+    (
+      await results
+        .locator(".fitness-review-result, .fitness-summary-set-actual")
+        .allTextContents()
+    ).join(" "),
+  ).not.toContain("999");
+  await expect(results).toContainText("Planned: 1×12 | 999 kg");
   await results
     .getByRole("button", { name: "Show all sets", exact: true })
     .click();
@@ -134,7 +141,7 @@ test("History opens the shared workout summary with actual results and correctio
   });
   await expect(benchSets).toBeVisible();
   await expect(benchSets).toContainText("8 reps · 0 kg");
-  await expect(benchSets).toContainText("6 reps · Load not recorded");
+  await expect(benchSets).toContainText("6 reps · Weight not recorded");
   await expect(benchSets).toContainText("Skipped");
   await expect(benchSets).toContainText("Unfinished");
   await expect(
@@ -254,15 +261,18 @@ test("History opens the shared workout summary with actual results and correctio
     .getByRole("spinbutton", { name: "Actual reps", exact: true })
     .fill("10");
   await firstSet
-    .getByRole("spinbutton", { name: "Actual load (kg)", exact: true })
+    .getByRole("spinbutton", { name: "Actual weight (kg)", exact: true })
     .fill("20");
   await expect(firstSet).toContainText("Planned:");
   await firstSet
-    .getByRole("button", { name: "Actual load unit", exact: true })
+    .getByRole("button", { name: "Actual weight unit", exact: true })
     .click();
   await page.getByRole("option", { name: "lb", exact: true }).click();
   await expect(
-    firstSet.getByRole("spinbutton", { name: "Actual load (lb)", exact: true }),
+    firstSet.getByRole("spinbutton", {
+      name: "Actual weight (lb)",
+      exact: true,
+    }),
   ).toHaveValue("44.09");
   await expect(
     page
@@ -270,7 +280,7 @@ test("History opens the shared workout summary with actual results and correctio
       .locator(".fitness-exercise-target-summary"),
   ).toContainText("44.09 lb");
   await firstSet
-    .getByRole("button", { name: "Actual load unit", exact: true })
+    .getByRole("button", { name: "Actual weight unit", exact: true })
     .click();
   await page.getByRole("option", { name: "kg", exact: true }).click();
 
@@ -436,9 +446,14 @@ test("History opens the shared workout summary with actual results and correctio
     .click();
   await expect(repeatDialog).not.toBeVisible();
   expect(repeatRequests).toHaveLength(0);
-  await expect(page).toHaveURL(new RegExp(`/fitness/session/${session.id}$`));
+  await expect
+    .poll(() => new URL(page.url()).pathname)
+    .toBe(`/fitness/session/${session.id}`);
+  expect(new URL(page.url()).searchParams.get("returnHistory")).toBe(
+    "/fitness/history",
+  );
   await page
-    .getByRole("link", { name: "Back to history", exact: true })
+    .getByRole("link", { name: "Back to History", exact: true })
     .click();
   await expect(
     page.getByRole("link", { name: /Corrected evening workout/ }),
@@ -453,8 +468,10 @@ test("History opens the shared workout summary with actual results and correctio
   await repeatDialog
     .getByRole("button", { name: "Start workout", exact: true })
     .click();
-  await expect.poll(() => page.url().split("/").at(-1)).not.toBe(session.id);
-  const repeatedId = page.url().split("/").at(-1);
+  await expect
+    .poll(() => new URL(page.url()).pathname.split("/").at(-1))
+    .not.toBe(session.id);
+  const repeatedId = new URL(page.url()).pathname.split("/").at(-1);
   const repeated = await (
     await page.request.get(`/api/v1/strength-workouts/${repeatedId}`)
   ).json();

@@ -1,7 +1,7 @@
 "use client";
 import { useLayoutEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { ExerciseLoggingType } from "@168hours/contracts";
+import type { Exercise, ExerciseLoggingType } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { Loading, ErrorState } from "@/components/ui/feedback";
 import { ArrowLeft } from "lucide-react";
@@ -11,13 +11,17 @@ export function ExerciseHelp({
   onClose,
   history = false,
   mode,
-  backLabel = "Back to exercises",
+  backLabel = "Back to Exercises",
+  compact = false,
+  onChoose,
 }: {
   id: string;
   onClose: () => void;
   history?: boolean;
   mode?: ExerciseLoggingType;
   backLabel?: string;
+  compact?: boolean;
+  onChoose?: (exercise: Exercise) => void;
 }) {
   const query = useQuery({
     queryKey: ["fitness", "exercise", id],
@@ -81,11 +85,14 @@ export function ExerciseHelp({
         ),
       }}
       onClose={onClose}
+      onChoose={onChoose}
       backLabel={backLabel}
       onDuplicated={() => {}}
       initialHistory={history}
       initialMode={mode}
       workoutContext
+      standalone={!compact}
+      reference={compact}
     />
   );
 }

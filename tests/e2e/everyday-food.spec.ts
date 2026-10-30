@@ -173,8 +173,11 @@ test("create food, recipe and saved meal, adjust a logged meal and retain histor
     .click();
   await expect(dialog(page)).toHaveCount(0);
   await expect(totals).toContainText("175 kcal");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete entry", exact: true }).click();
+  await page
+    .getByRole("dialog", { name: /^Delete .* from your log\?$/ })
+    .getByRole("button", { name: "Delete", exact: true })
+    .click();
   await expect(
     page.getByText("No food recorded for this day.", { exact: true }),
   ).toBeVisible();
@@ -266,14 +269,20 @@ test("forms validate, protect unsaved changes and retry uncertain logs without d
   await dialog(page)
     .getByLabel("Food name", { exact: true })
     .fill("Unsaved food");
-  page.once("dialog", (d) => d.dismiss());
   await dialog(page)
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();
+  await page
+    .getByRole("dialog", { name: "Discard unsaved changes?", exact: true })
+    .getByRole("button", { name: "Keep editing", exact: true })
+    .click();
   await expect(dialog(page)).toBeVisible();
-  page.once("dialog", (d) => d.accept());
   await dialog(page)
     .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Discard unsaved changes?", exact: true })
+    .getByRole("button", { name: "Discard", exact: true })
     .click();
   await expect(dialog(page)).toHaveCount(0);
   await view(page, "Daily log");

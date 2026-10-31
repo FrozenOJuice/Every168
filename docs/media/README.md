@@ -29,6 +29,14 @@ These are genuine browser captures of the local Every168 application, using synt
 
 <img src="screenshots/live-workout-responsive.png" width="390" alt="Live workout in a 390px-wide responsive browser viewport" />
 
+## Social preview
+
+![Every168 social preview with genuine Calendar and Fitness captures](social-preview.png)
+
+The 1280×640 [social preview](social-preview.png) combines the original Every168 wordmark with cropped versions of the Calendar Week and Live workout captures above. It is a designed cover using genuine synthetic-data screenshots, with no redrawn or generated application UI. It is uploaded in the repository's Settings → Social preview.
+
+Run `pnpm portfolio:social` after installing Playwright Chromium to regenerate it from the existing captures. The [composition script](../../scripts/social-preview.mjs) requires no server, database or external service and checks the dimensions and GitHub's 1 MB size limit. Regenerate it after refreshing its source captures. Existing project and Lucide/Feather notices below also apply to the composition.
+
 ## Reproduce
 
 ```bash

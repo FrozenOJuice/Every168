@@ -99,9 +99,9 @@ Every168 refers to the 168 hours in every week. The identity pairs the existing 
 
 The owner should confirm the first-person authorship wording before publishing it.
 
-**Social preview concept**
+**Social preview**
 
-Use a 1280×640 composition made from the actual Week and live-workout captures, the Every168 wordmark and the existing off-white/green palette. Keep text to “Plan your week. Record your training.” Do not add a live-demo badge or imply hosting. This is a concept; no synthetic application mockup is presented as a screenshot.
+The [1280×640 repository social preview](media/social-preview.png) combines the genuine Week and live-workout captures, the Every168 wordmark and the existing off-white/green palette. “Plan your week. Record your training.” introduces the two core domains without implying a hosted demo. It is uploaded in GitHub Settings → Social preview. Run `pnpm portfolio:social` to reproduce it; [provenance and source captures](media/README.md#social-preview) remain documented.
 
 **Optional 90-second recording**
 

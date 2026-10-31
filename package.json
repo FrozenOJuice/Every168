@@ -45,7 +45,8 @@
     "test:e2e:production": "playwright test --config playwright.production.config.ts",
     "verify:beta": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm audit --prod && RELEASE_SCOPE=core pnpm build && pnpm test:e2e:beta",
     "brand:assets": "node scripts/brand-assets.mjs",
-    "portfolio:capture": "playwright test --config playwright.portfolio.config.ts"
+    "portfolio:capture": "playwright test --config playwright.portfolio.config.ts",
+    "portfolio:social": "node scripts/social-preview.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

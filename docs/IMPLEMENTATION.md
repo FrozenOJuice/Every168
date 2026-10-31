@@ -2,6 +2,12 @@
 
 **Current objective (2026-10-30):** Every168 repository/portfolio preparation, with public deployment deferred. The dated entries below preserve earlier scope and verification snapshots. Current onboarding is in LOCAL_DEVELOPMENT.md; the prior remediation assessment is historical release-preparation evidence.
 
+## Repository social preview, complete (2026-10-30)
+
+Added a 1280×640 opaque PNG featuring the original Every168 wordmark and genuine Calendar Week/Live workout captures from the synthetic portfolio fixture. The composition uses the established system typography and semantic palette; it crops existing captures without redrawing UI, querying account data or implying a hosted demo. Added a local Chromium renderer (`pnpm portfolio:social`) and refreshed the gallery, brand guide and case study. Existing MIT and Lucide/Feather notices remain applicable.
+
+Uploaded the 98,934-byte image through GitHub Settings → Social preview and visually confirmed it in the settings page. The renderer checked image decoding, dimensions and the 1 MB limit. Source lint, repository formatting, local documentation links and diff whitespace were checked. Application suites were not repeated for this asset/documentation-only change. No app behavior, authentication, database, deployment or repository visibility changed.
+
 ## Public MIT portfolio repository, complete (2026-10-30)
 
 Owner explicitly chose to retain MIT and make FrozenOJuice/Every168 public. Rechecked clean local/remote main at `f330dd1`, configured admin access, MIT detection and the current/reachable-history credential-pattern scan; no matches, committed real environment files or personal commit-email identities were found. The known generic GitHub noreply committer address remains correctly classified.

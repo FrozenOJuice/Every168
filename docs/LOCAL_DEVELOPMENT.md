@@ -1,6 +1,6 @@
 # Every168 local development
 
-The public-facing product name is Every168. Keep the existing `168hours` repository/checkout path, `@168hours/*` package filters, `hours_*` database roles/volumes and recovery keys; they are technical identifiers, not alternate product names. No domain or sender address is implied by the rebrand. See [brand identity and compatibility](BRAND.md).
+The public-facing product name is Every168. Clone `FrozenOJuice/Every168` into `Every168`. Existing local checkout folders may keep their name; `@168hours/*` package filters, `hours_*` database roles/volumes and recovery keys remain technical identifiers, not alternate product names. No domain or sender address is implied by the rebrand. See [brand identity and compatibility](BRAND.md).
 
 Current presentation scope: Calendar and Fitness. Public deployment is deferred. Use synthetic accounts and never point tests or capture tooling at personal or production data.
 

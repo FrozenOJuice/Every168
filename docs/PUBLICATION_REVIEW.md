@@ -1,0 +1,77 @@
+# Every168 publication review
+
+Review date: 2026-10-30. Scope: source, documentation and genuine synthetic-data screenshots in `FrozenOJuice/Every168`. No deployment, visibility change, history rewrite or distribution of application binaries is part of this handoff.
+
+## Repository identity and history
+
+- Current clone URL: `https://github.com/FrozenOJuice/Every168.git`; the checkout directory in onboarding is `Every168`. GitHub confirms this repository and its existing `main` branch. The old remote URL was updated locally to the canonical name; the GitHub repository itself was not renamed by this work.
+- Root/private workspace package names, security headers, recovery keys, reserved `.invalid` navigation sentinels, database roles/volumes and the original build-spec filename stay unchanged. They are internal compatibility names, not alternate product names.
+- Existing history is preserved. Earlier audit/spec/implementation snapshots retain the names and commands used at the time. Current instructions use the canonical Every168 clone name.
+- The starting working tree was clean at `9447842`. The fetched `origin/main` matched that commit. The reviewed payload contains publication references, review/inventory, screenshot and verification-record changes plus the two test-reliability fixes described below. Only new commits and a normal fast-forward push are authorized; no force push or visibility change.
+
+## Publication safety
+
+The current tracked file set and every locally reachable Git blob were inspected for supported private-key/provider-token formats, non-placeholder environment secrets and non-local credential-bearing PostgreSQL URLs. Commit messages were checked with the same patterns. No matching credentials were found. A pattern scan is not a guarantee covering every secret format or unfetched/unreachable objects.
+
+- Real `.env` / `.env.local` files remain ignored. Only safe example environments are versioned. Local Compose/fixture passwords are explicit disposable examples bound to loopback, not credentials for a public service.
+- No committed node_modules, Next/build output, test reports, database dumps, private keys, font files, videos or archive artifacts were found in current paths or reachable history paths.
+- Personal-email and machine-user-path candidate review found no real account email or absolute user directory in tracked content. The `/Users/Audit` match in `docs/verification.md` describes the Admin interface's Overview/Users/Audit sections; it is not a filesystem path. Historical generic `/tmp` audit paths are retained as provenance.
+- Screenshots contain synthetic records from the real API, not the owner's account. The ten screenshots and Apple PNG have no PNG text/EXIF metadata chunks. The SVGs contain geometric artwork/text, not embedded private files or external font requests.
+- Existing Git author/committer metadata contains two email identities, one non-noreply. This is existing author attribution, not an application account dataset or credential. It is preserved with history; no address is repeated here. New commits use the already configured GitHub noreply identity. The repository remains private; review that historical identity before any later public-visibility change.
+- Copyright attribution in LICENSE and upstream icon notices is intentional and remains intact. No personal records, credentials or private deployment addresses were added to the report or dependency inventory.
+
+## Licensing
+
+**Assessment for this source/screenshot repository:** the existing MIT license remains appropriate for the project's own code, documentation and original geometric brand assets. The file matches the standard MIT grant/notice structure and its existing copyright holder is preserved. No copied third-party source, bundled font, external exercise artwork or vendor/native binary requiring a different project license was identified. This is an evidence-based repository review, not a trademark, ownership-chain or legal-clearance certification.
+
+| Redistributed material                                             | Provenance and treatment                                                                                                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application code, tests, scripts, SQL migrations and documentation | Project source under the existing root [MIT license](../LICENSE). Internal workspaces inherit the root terms; private package names were not republished as npm packages.     |
+| E mark, wordmark, SVG icon, ICO and Apple icon                     | Original project geometry/system-font text; [source assets and reproduction](BRAND.md#assets-and-reproduction). No third-party logo was substituted or external font bundled. |
+| Ten screenshots                                                    | Genuine local application renders with synthetic data; [gallery/provenance](media/README.md). They are not a separate dataset or claim about real users.                      |
+| Lucide UI/placeholder icons, including Feather-derived glyphs      | ISC and applicable Feather MIT notices are retained in full in [LUCIDE-LICENSE.txt](media/LUCIDE-LICENSE.txt), byte-for-byte matching the installed `lucide-react` license.   |
+| Other dependency code/native assets                                | Downloaded by the package manager, not copied into Git. Their individual licenses remain in force; the root MIT does not relicense them.                                      |
+
+Primary terms consulted: [OSI MIT text](https://opensource.org/license/mit), [Lucide/Feather license](https://lucide.dev/license), [Mozilla MPL guidance](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) and [sharp-libvips upstream licensing/provenance](https://github.com/lovell/sharp-libvips#licences). Installed notices, including Recharts and Victory/D3 vendor notices, were inspected in their package locations; those vendor files are not included in this Git repository.
+
+### Dependency inventory and limits
+
+The [versioned inventory](DEPENDENCY_LICENSES.json) follows the API/web resolved production graph, deduplicating peer instances by package name/version. It covers **381 entries: 272 installed third-party versions, three source workspaces, and 106 uninstalled optional-platform versions checked against exact public npm metadata**. Every entry has a license field; optional metadata retrieval had zero failures. Filesystem paths, author addresses, tarballs and vendor code are excluded from the inventory.
+
+The original checkout's `pnpm licenses list --prod --json` failed with `ERR_PNPM_MISSING_PACKAGE_INDEX_FILE`. After a frozen online installation in a clean source copy, the same filtered API/web command succeeded and reported 270 unique package versions. Every one is included in the versioned inventory with no license disagreements. The inventory additionally follows the shared workspace utility dependencies (`@js-temporal/polyfill` and `jsbi`) and exact uninstalled optional-platform metadata. This replaces the earlier broad installed-directory snapshot that included stale/tooling versions; the initial command failure is not hidden.
+
+Besides MIT/ISC/Apache/BSD families, the resolved graph includes MPL-2.0 Lightning CSS, CC-BY-4.0 caniuse-lite, LGPL libvips and combined-license optional sharp packages. These were not reclassified as MIT. No resulting vendor/native bundles are committed or attached as release artifacts, so no conflicting copied-source/binary package was identified in this source-only handoff. If compiled bundles, native libraries, Docker images or desktop installers are distributed later, retain upstream license/attribution/source notices and separately check the applicable MPL/LGPL/CC-BY obligations for those actual contents. Do not treat this metadata inventory as a binary compliance bundle.
+
+No unresolved missing notice or unlicensed tracked asset was identified for the current source/screenshot scope. Future artwork/catalogue imports and any third-party source modification require a new review. Domain ownership and trademark availability were not checked or claimed.
+
+## Documentation and onboarding
+
+README, case study, brand guide, development guide, documentation index and gallery are checked against the implemented Calendar/Fitness scope. Preview modules remain documented and retained. Development allows unverified local sign-in; test/production retain verification. Real recovery/verification email delivery still needs operator configuration. The isolated showcase uses captured in-memory mail and a separate test database.
+
+A fresh versionable-source copy passed the documented online `pnpm install --frozen-lockfile` command in 13.6 seconds, with no lockfile changes. Its first `pnpm setup:env` created both environments with mode 0600; a second run preserved their hashes. The initial offline attempt failed with `ERR_PNPM_NO_OFFLINE_TARBALL`: the disposable copy selected a different, cold store. Offline onboarding is not required or advertised. Existing local migration/provisioning commands and their dated fresh-database/restricted-role verification remain documented; the current full gate applies/checks the test schema. No development data reset, production provisioning or hosted-mailbox verification was performed.
+
+## Final verification
+
+The first `pnpm verify:beta` attempt passed lint, formatting, types, 196 unit tests, six architecture tests, 161 integration tests, the production dependency audit and both builds. Its browser phase recorded a failure in the repeating-plan Undo/Redo case: after series deletion, the API already returned zero records while the editor was still closing, so the immediate shortcut was intentionally ignored by the open-editor guard. The trace contains no undo request for that key press. The fixture now explicitly waits for the editor to disappear before issuing Undo; data assertions and timeouts are unchanged. No application behavior was changed.
+
+That attempt was stopped after preserving the failure trace: 28 browser cases passed, one failed, one was interrupted and 77 had not run; aggregate exit was 130. It is not reported as a successful gate. The corrected fixture then passed 2/2 on desktop/phone. A second aggregate attempt stopped in the password-storage unit test after the default five-second limit (195 passed, one timed out). The unit runner had no explicit worker cap; unit concurrency is now capped at four to bound startup/resource pressure. Scrypt parameters, assertions, file isolation and test timeout remain unchanged. The bounded unit/architecture check passed 196+6. The next complete gate passed with the results below; no earlier totals substitute for that final run.
+
+### Completed final run
+
+| Check                          | Actual result                                                                                                                                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm verify:beta`             | Passed, exit 0: full lint/boundaries, formatting, workspace types, 196 unit tests in 47 files, six architecture tests, 161 integration tests in 35 files, production dependency audit, API/web builds and 107 browser cases across desktop/phone/targeted tablet. |
+| Production dependency audit    | No known vulnerabilities reported by this run. This is an advisory snapshot, not a security certification.                                                                                                                                                        |
+| Corrected Undo/Redo fixture    | 2/2 targeted desktop/phone cases passed before the final aggregate; both also passed within the final full gate.                                                                                                                                                  |
+| Explicit production build      | API and core web build passed with the isolated test API origin, for the following built-server smoke.                                                                                                                                                            |
+| Production-built browser smoke | 4/4 passed: account lifecycle, branding, complete scheduled-workout journey and CSP/nonces/hydration with passing explicit page-error/CSP assertions.                                                                                                             |
+| Genuine screenshot capture     | 1/1 passed; all ten frames recreated, nine at 1440×1000 and one at 390×844. No text/EXIF PNG chunks; current Week image visually reviewed. Gallery total is 1,025,948 bytes.                                                                                      |
+| Documentation links            | 137 local file/image/heading targets resolved, zero broken targets. The canonical repository was confirmed through GitHub and Git fetch; primary license sources were consulted. Arbitrary external URLs were not exhaustively crawled.                           |
+| Clean-source onboarding        | Frozen online install, private environment creation and non-overwrite checks passed; the clean-copy license CLI succeeded with 270 versions cross-checked.                                                                                                        |
+| Final static checks            | Formatting, diff whitespace, sanitized inventory/count checks and current/reachable-history secret-pattern checks passed.                                                                                                                                         |
+
+The completed development-server run emitted non-failing color-environment notices and connection-reset diagnostics during development-server tests. The integration suite also deliberately logs an idle-transaction connection failure during its fault-injection coverage. These are retained as observed diagnostics, not counted as clean logs or test failures. The production smoke's explicit error/CSP assertions passed.
+
+### Git handoff
+
+The two reviewed commits separate test synchronization/resource bounds from publication documentation/licensing evidence. The existing main history remains the parent chain; no amend, squash, rebase, force push, repository rename, deployment or visibility change is part of this work. Final commit identifiers, remote/local SHA comparison and clean-tree confirmation are reported in the handoff after synchronization. Historical author attribution and future public-visibility/name/binary-distribution decisions remain as described above.

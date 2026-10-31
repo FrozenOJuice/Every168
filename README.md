@@ -65,13 +65,13 @@ The [case study](docs/PORTFOLIO_CASE_STUDY.md) explains the tradeoffs and the fa
 
 ## Run locally
 
-The product is Every168; the existing repository URL, checkout name and private `@168hours/*` workspace packages remain unchanged. See the [brand guide](docs/BRAND.md) for identity and compatibility decisions.
+Clone the Every168 repository below. Private `@168hours/*` workspace packages retain their internal names for compatibility. See the [brand guide](docs/BRAND.md) for identity and compatibility decisions.
 
 Requires Node.js **22.12+**, **pnpm 9.15.9**, and Docker Compose.
 
 ```bash
-git clone https://github.com/FrozenOJuice/168hours.git
-cd 168hours
+git clone https://github.com/FrozenOJuice/Every168.git
+cd Every168
 pnpm install --frozen-lockfile
 pnpm setup:env
 pnpm db:up
@@ -133,4 +133,4 @@ Exercise illustrations and a larger catalogue are deferred; the current interfac
 
 ## License
 
-[MIT](LICENSE). Third-party dependencies retain their licenses. The [screenshot provenance and icon notices](docs/media/README.md#provenance-and-licensing) document the visual assets shown here; future artwork needs its own rights review.
+[MIT](LICENSE). Third-party dependencies retain their licenses. The [screenshot provenance and icon notices](docs/media/README.md#provenance-and-licensing) document the visual assets shown here; future artwork needs its own rights review. The [publication and licensing review](docs/PUBLICATION_REVIEW.md) records the dependency inventory, safety findings and verification results.

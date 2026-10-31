@@ -75,4 +75,4 @@ This is a repository-hygiene review, separate from the earlier application audit
 
 These findings support review of the local repository; they are not approval of public application hosting or a guarantee that every historical secret pattern has been detected.
 
-The pnpm license-list command did not complete because local package-index metadata was missing. The fallback metadata review and its redistribution limits are recorded with the media provenance; it is not a blanket license-clearance claim.
+The completed [publication review](PUBLICATION_REVIEW.md) records the fresh current/history safety scan, intentional author metadata, asset provenance and source-only licensing assessment. The [production dependency inventory](DEPENDENCY_LICENSES.json) covers 381 unique versions with complete license fields, using installed and optional-platform registry metadata. The original pnpm license command failure is retained as evidence; metadata completeness does not replace the notices/source obligations of any future binary distribution.

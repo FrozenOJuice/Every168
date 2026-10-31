@@ -2,7 +2,7 @@
 
 **Current objective (2026-10-30):** present the working Calendar/Fitness app as a local software-engineering portfolio. No public deployment is being pursued. The local implementation, not an older remote branch, defines the current behavior.
 
-Current identity: **Every168**. The repository URL and compatibility identifiers remain unchanged; historical records retain the name used when they were written.
+Current identity: **Every168**. The repository is `FrozenOJuice/Every168`; internal compatibility identifiers remain unchanged, and historical records retain the name used when they were written.
 
 ## Start here
 
@@ -23,6 +23,10 @@ Current identity: **Every168**. The repository URL and compatibility identifiers
 - [Features](FEATURES.md) is the owner's full-app reference, including retained preview features and Needs work notes.
 - [Build specification](../168HOURS_BUILD_SPEC.md) records the original constraints and accumulated owner approvals; later explicit instructions take precedence.
 - [Implementation record](IMPLEMENTATION.md) preserves historical work and actual check results. Read its dated entries as snapshots, not a single current test total.
+
+## Publication handoff
+
+[Publication and licensing review](PUBLICATION_REVIEW.md) records the current safety findings, source/asset licensing scope and final verification results. Its [dependency inventory](DEPENDENCY_LICENSES.json) describes exact production versions without private filesystem paths or vendored packages.
 
 ## Historical release work
 

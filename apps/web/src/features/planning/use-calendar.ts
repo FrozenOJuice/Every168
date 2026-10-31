@@ -1,3 +1,4 @@
+import { calendarBlocks } from "./calendar-records";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { weekRange, addDays } from "@168hours/domain-utils";
 import { useMe } from "@/features/identity/me";
@@ -42,6 +43,7 @@ export function useCalendar(date: string, view: CalendarView) {
   const weeks = queries.flatMap((query) => (query.data ? [query.data] : []));
   return {
     weeks,
+    blocks: calendarBlocks(weeks),
     activity: activity.data,
     activityError: activity.error,
     activityPending: activity.isPending,

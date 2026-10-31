@@ -1,6 +1,9 @@
 import {
+  clickCalendarEditorAction,
   expectCalendarField,
   fillCalendarField,
+  openCalendarEditorActions,
+  openCalendarPlan,
   showCalendarNotes,
 } from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
@@ -12,7 +15,7 @@ test("hover preview follows fast pointer jumps and labels the slice above", asyn
   page,
 }) => {
   await page.clock.setFixedTime(new Date("2026-10-08T20:00:00Z"));
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),
@@ -180,7 +183,7 @@ test("hover preview follows fast pointer jumps and labels the slice above", asyn
 
 test("view tabs follow the selected day or time", async ({ page }) => {
   await page.clock.setFixedTime(new Date("2026-10-08T20:00:00Z"));
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),
@@ -259,7 +262,7 @@ test("dragging the time axis adjusts Day and Week spacing and can reset it", asy
   page,
 }, testInfo) => {
   await page.clock.setFixedTime(new Date("2026-10-08T20:00:00Z"));
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),
@@ -543,7 +546,7 @@ test("Day and Week show quarter-hour guides at higher zoom", async ({
   page,
 }, testInfo) => {
   await page.clock.setFixedTime(new Date("2026-10-08T20:00:00Z"));
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),
@@ -610,7 +613,7 @@ test("day, week and month calendars keep planning focused", async ({
     Origin: "http://localhost:3100",
     "Idempotency-Key": randomUUID(),
   });
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: headers(),
     data: {
       name: "Calendar member",
@@ -1247,7 +1250,7 @@ test("day, week and month calendars keep planning focused", async ({
   await openMonthDay("2026-09-15");
   await expect(page).toHaveURL(/date=2026-09-15.*view=day/);
   await expect(day).toBeVisible();
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await expectCalendarField(page, "Start", "2026-09-15T14:00");
   await page.getByLabel("Title", { exact: true }).fill("Month planning check");
   await page.getByRole("button", { name: "Save", exact: true }).click();
@@ -1292,14 +1295,14 @@ test("day, week and month calendars keep planning focused", async ({
   await expect(
     day.getByRole("button", { name: /Clock change reading/ }),
   ).toContainText("1:45 AM MDT – 1:15 AM MST");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await expect(day.locator("[data-calendar-draft]")).toContainText(
     "2:00 PM MST - 3:00 PM MST",
   );
   await page.keyboard.press("Escape");
   await expect(day.locator("[data-calendar-draft]")).toHaveCount(0);
   await page.goto("/?date=2026-09-07");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await expectCalendarField(page, "Start", "2026-09-07T14:00");
   await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
   await fillCalendarField(page, "End", "2026-09-07T08:00");
@@ -1366,10 +1369,10 @@ test("day, week and month calendars keep planning focused", async ({
   await day
     .getByRole("button", { name: /Quarter-hour plan.*planned/ })
     .dblclick();
-  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
-  await page.getByRole("button", { name: "Duplicate", exact: true }).click();
+  await openCalendarEditorActions(page.getByRole("dialog"));
+  await clickCalendarEditorAction(page, "Duplicate");
   await expect(
-    page.getByRole("dialog", { name: "Duplicate block" }),
+    page.getByRole("dialog", { name: "Duplicate plan" }),
   ).toBeVisible();
   await expectCalendarField(page, "Start", "2026-09-11T21:15");
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
@@ -1437,8 +1440,8 @@ test("day, week and month calendars keep planning focused", async ({
   await day
     .getByRole("button", { name: /Copied quarter-hour plan/ })
     .dblclick();
-  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
-  await page.getByRole("button", { name: "Delete block", exact: true }).click();
+  await openCalendarEditorActions(page.getByRole("dialog"));
+  await clickCalendarEditorAction(page, "Delete block");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     day.getByRole("button", { name: /Copied quarter-hour plan/ }),

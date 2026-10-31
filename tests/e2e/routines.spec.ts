@@ -11,7 +11,7 @@ test("routines are editable ordered checklists with saved progress", async ({
   };
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers,
         data: {
           name: "Routine test",

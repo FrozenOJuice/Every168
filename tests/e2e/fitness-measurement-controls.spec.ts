@@ -27,7 +27,7 @@ test("measurement placement, duration units and steppers stay consistent", async
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Measurements",
     email: `controls-${randomUUID()}@example.com`,
     password: "Synthetic-controls-password-123",

@@ -23,6 +23,7 @@ export function CalendarPlanPopover({
   container,
   width: preferredWidth = 320,
   className = "",
+  headerActions,
 }: {
   date?: string;
   recordId?: string;
@@ -34,6 +35,7 @@ export function CalendarPlanPopover({
   container?: Element | null;
   width?: number;
   className?: string;
+  headerActions?: ReactNode;
 }) {
   const parentBusy = useContext(FormBusyContext);
   const ref = useRef<HTMLDivElement>(null);
@@ -153,7 +155,7 @@ export function CalendarPlanPopover({
       if (
         event.target instanceof Element &&
         panel.contains(event.target) &&
-        event.target.closest('[role="dialog"]') !== panel
+        event.target.closest('[role="dialog"], [role="menu"]') !== panel
       )
         return;
       event.preventDefault();
@@ -191,15 +193,18 @@ export function CalendarPlanPopover({
     >
       <div className="row between">
         <h2 id={titleId}>{title}</h2>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Close dialog"
-          disabled={busy}
-          onClick={onClose}
-        >
-          <X size={18} aria-hidden="true" />
-        </button>
+        <div className="row calendar-popover-header-actions">
+          {headerActions}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close dialog"
+            disabled={busy}
+            onClick={onClose}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
       </div>
       <FormBusyContext.Provider value={reportBusy}>
         {children}

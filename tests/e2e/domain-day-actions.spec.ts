@@ -1,3 +1,7 @@
+import {
+  fillCalendarField,
+  openCalendarEditorActions,
+} from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -17,7 +21,7 @@ async function fixture(page: Page, extra = false) {
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Day actions",
     email: `day-actions-${randomUUID()}@example.com`,
     password: "Synthetic-day-actions-123",
@@ -129,7 +133,8 @@ test("Day plans share Calendar selection, inline editing, delete/Undo and source
   const planned = day
     .locator(`[data-calendar-record="${scheduled.timeBlockId}"]`)
     .first();
-  await expect(day.locator(".day-at-a-glance-next")).toBeVisible();
+  await expect(day.locator(".day-at-a-glance-next")).toHaveCount(0);
+  await expect(planned).toContainText("Workout completed");
   await expect(
     day
       .getByRole("heading", { name: "Coming up", exact: true })
@@ -145,13 +150,16 @@ test("Day plans share Calendar selection, inline editing, delete/Undo and source
     .getByRole("menuitem", { name: "Edit plan", exact: true })
     .click();
   await expect(editor(page)).toBeVisible();
+  await openCalendarEditorActions(editor(page));
+  await expect(
+    editor(page).getByRole("menu", { name: "Plan actions", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(editor(page)).toBeVisible();
+  await expect(editor(page).getByRole("menu")).toHaveCount(0);
   await expect(page).toHaveURL(/fitness\?date=2026-10-24/);
-  await editor(page)
-    .getByLabel("Start", { exact: true })
-    .fill("2026-10-24T18:00");
-  await editor(page)
-    .getByLabel("End", { exact: true })
-    .fill("2026-10-24T19:00");
+  await fillCalendarField(editor(page), "Start", "2026-10-24T18:00");
+  await fillCalendarField(editor(page), "End", "2026-10-24T19:00");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({ path: info.outputPath("inline-plan-editor.png") });
   await editor(page).getByRole("button", { name: "Save", exact: true }).click();

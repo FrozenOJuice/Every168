@@ -14,7 +14,7 @@ async function setup(page: Page) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Exercise regression",
     email: `exercise-regression-${randomUUID()}@example.com`,
     password: "Synthetic-regression-password-123",

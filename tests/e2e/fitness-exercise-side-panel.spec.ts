@@ -16,7 +16,7 @@ test("workout exercise details use the library pane and preserve the draft", asy
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Exercise panel",
     email: `panel-${randomUUID()}@example.com`,
     password: "Synthetic-panel-password-123",

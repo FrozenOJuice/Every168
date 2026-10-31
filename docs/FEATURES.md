@@ -10,11 +10,13 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Keep notes as short, specific bullets; omit empty Needs work headings. These notes describe gaps and limits for review, not commitments to implement everything listed.
 - When an item is implemented, update the feature bullets and remove or revise its Needs work note.
 
-The default first-release scope is Calendar and Fitness workouts/exercises. Tasks, Training Programs, Food (including water/weight logging) and Assistant are retained for later. Their entry points and direct pages are disabled, along with deferred domain APIs and Calendar contributions/actions. Existing Calendar reservations and recorded time remain intact. `RELEASE_SCOPE=preview` explicitly enables the retained features; the detailed Tasks/Training programs/Food/Assistant bullets below describe that preview scope.
+The default first-release scope is Calendar and Fitness workouts/exercises. Goals, Routines, Unscheduled plans, Calendar Templates, Tasks, Training Programs, Food (including water/weight logging), legacy cardio entry points and Assistant are retained for later. Their entry points and direct pages are disabled, along with deferred domain APIs and Calendar contributions/actions. Existing Calendar reservations and recorded time remain intact. `RELEASE_SCOPE=preview` explicitly enables the retained features; the detailed Templates/Tasks/Training programs/Food/Assistant bullets below describe that preview scope.
 
 ## Account access
 
-- Register with a name, email, and password.
+- Register with a name, email, and password, then verify email ownership before signing in. Signup never signs in automatically.
+- Request a verification email or password reset without exposing whether an account exists. Recovery links expire and work once. Password resets revoke existing sessions.
+- Change the password in Settings using the current password; successful changes sign out every session.
 - Log in with email and password; show or hide the password while typing.
 - Open Calendar after signing in.
 - Stay signed in between visits while the session is valid.
@@ -23,7 +25,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 
 ### Needs work
 
-- Password recovery and email verification are not available.
+- Public email delivery needs an owner-configured Resend sender/key and real-inbox acceptance testing.
 
 ## Calendar
 
@@ -35,7 +37,8 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Use the top-right arrows to move one day, week, or month at a time.
 - Today returns to the current date in the active view.
 - Switching views follows the selected date: a selected Month day opens its week or day; a selected Week time slice opens that day.
-- Dates, times, and week boundaries follow account settings.
+- Dates, times, and week boundaries follow account settings. Unchanged saved clock times retain their exact instants when editing across a repeated DST hour; newly entered ambiguous or missing times require correction.
+- Calendar plan and manual-time writes retain their exact pending request in account-specific tab storage before sending. After refresh, Retry same change confirms the original request without creating a duplicate and restores its Undo action.
 - Overflow lists support the same plan selection, editing, copy/paste, deletion, right-click actions, and undo/redo as the calendar, including mixed timed/all-day groups.
 
 #### Day
@@ -47,6 +50,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Ongoing activity appears as Now, and the next upcoming item appears as Next.
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up show the complete timed activity list. The highlighted Next activity also remains in Coming up. Plan cards omit repeated standalone Planned labels; recorded activity retains its identifying details.
+- If workout-completion lookup fails, the Day feed keeps its activity list and offers a retry while withholding unconfirmed Now/Next plan emphasis.
 - Workout activity opens its Fitness session for review or correction. In preview scope, Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
 - A reservation whose linked scheduled workout is finished stays visible with Workout completed and keeps its planned time. It is omitted from Now/Next emphasis, allowing the next unfinished activity to take priority. Completion follows the linked session even when recorded time falls in another week; unrelated recorded time does not complete a workout reservation. This applies to Calendar and the shared domain Day panels.
 
@@ -61,6 +65,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 
 #### Month
 
+- A plan crossing week boundaries has one command identity while its continuation remains visible on each date.
 - The month grid fits the available screen area.
 - Click a day cell to select it; double-click or press Enter on a focused cell to open Day view.
 - Plans show their title on the left and start time on the right; long titles end in an ellipsis.
@@ -71,7 +76,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 
 #### Date dropdowns
 
-- Open beneath the date button, centered on it.
+- Open beneath the date button and shift inside narrow viewports to retain usable date targets.
 - Close by choosing a date, clicking outside, or pressing Escape.
 
 ### Time grid and zoom
@@ -138,8 +143,8 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Hovering shows the slice's time above it and a quick-action + at its right edge.
 - Double-click an empty slice to open a new plan draft there.
 - Drag across empty time to create a draft; its block changes size while dragging.
-- Add in the top-left toolbar opens a new plan draft.
-- Add uses the selected slice's time, or the current hour on the selected/viewed date when no precise time is selected.
+- Add in the top-left toolbar opens a menu with Add plan and enabled domain scheduling actions. Choose Add plan for a new draft.
+- New plan drafts use the selected slice’s time, or the current hour on the selected/viewed date when no precise time is selected.
 - Add and double-click drafts start with a one-hour duration; dragging sets the duration directly.
 - Creation opens a compact, anchored form up to 380px wide, with tighter desktop spacing and touch-sized controls on phones. Labels sit above the title and timing fields. Date buttons use the shared calendar; start/end times use scrolling hour/minute controls. Moving Start preserves the chosen duration.
 - The same creation form handles timed and all-day plans; switch modes with All day. Notes are directly available, with no More details or Other plans disclosure.
@@ -148,15 +153,23 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Plans can overlap and continue past midnight.
 - Passing a plan's scheduled time does not automatically record activity.
 
+#### Scheduling from a domain
+
+- Add → Schedule workout searches ready reusable workouts from Fitness, with further results available through Load more. Drafts are excluded; empty and failed searches provide guidance and retry.
+- Scheduling carries the selected Calendar date and exact five-minute time into the shared Fitness scheduling form. Without a selected time, it rounds the current clock up to the next quarter hour on the viewed date. Review start/end, duration and workout notes before saving.
+- Change workout returns to the retained search; changed timing requires discard confirmation. Scheduling uses Fitness’s normal validation and persistent same-request retry, creates one linked reservation with its own workout snapshot, and leaves the reusable workout and recorded sessions unchanged.
+- Success returns to the reserved date in the current Calendar view with a toast. The reservation’s editor provides the normal Start/Continue workout or finished-summary action.
+- Calendar shows scheduling actions only for registered, enabled sources. Fitness is the first supported domain; deferred domains add no empty menu options.
+
 #### Editing and moving
 
-- Double-click a plan, or press Enter when it is focused, to open its compact editor.
-- Change its title, date, start/end times, and notes; notes are under More details.
+- Double-click a plan, or press Enter when it is focused, to open the same compact 380px form layout as creation. The header and bottom Cancel/Save actions remain visible while longer content scrolls.
+- Edit title, timing and directly visible notes using the shared Calendar date pickers and scrolling time controls. Moving Start preserves duration; changing End resizes it. Cancel leaves the stored plan unchanged, and pending/uncertain saves lock fields, header actions and dismissal until confirmed or retried.
 - Toggle All day when editing to convert the existing plan, keeping its identity, title, and notes. Saving replaces its previous mode; cancelling leaves it unchanged.
 - Turning off All day gives one continuous plan with editable start/end dates and times, including any nights between them.
 - Turning on All day covers the dates occupied by the timed plan; an end exactly at midnight does not add another day.
 - Mode changes support undo and redo as one action, with the same occurrence scopes for repeating plans.
-- Use Duplicate in a timed plan's actions to open a separate draft with the same details.
+- The header Plan actions menu contains precise calendar adjustment, Repeat, Duplicate and Delete plan as applicable; Escape closes the menu before the editor. Duplicate opens a separate draft with copied details and the next local date.
 - Drag a timed block to another time or day, preserving its duration.
 - Drag any plan in a selected group to move the whole group, including mixed timed/all-day selections. Dragging an unselected plan moves only that plan.
 - Group moves preserve relative local dates, clock-time spacing, and each duration. All-day plans shift by dates and keep their type and span; a time-only move leaves their dates unchanged.
@@ -166,8 +179,9 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Drag the top or bottom edge to resize a block; its height changes during the drag.
 - Release to save a move or resize; press Escape to cancel.
 - In Month view, moving a timed plan to another day preserves its clock time.
-- The editor also provides move/resize controls for touch use and precise time entry.
+- The Plan actions menu also provides calendar move/resize controls for touch use; shared date/time fields provide precise entry.
 - Resizing changes only the grabbed plan. Moving a group changes only selected repeating occurrences, leaving their series rules unchanged.
+- Linked workout/task actions remain separate from saving the reservation. Linked recorded-time navigation sits in the scrolling form body; source-owned recorded activity remains read-only here and opens its own review workspace.
 
 #### Small blocks
 
@@ -180,7 +194,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 
 #### All-day plans
 
-- Create an all-day plan from Calendar tools or the plan editor.
+- Choose Add → Add plan and enable All day; the all-day row’s context menu also offers Add all-day plan.
 - Use one date or a multi-day span.
 - Day and Week show these in the All day row, with compact title-only blocks.
 - Select and copy an all-day plan individually or together with timed plans.
@@ -198,6 +212,8 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Add repetition while creating a plan, or choose Repeat from an existing plan's editor. The original plan becomes the first occurrence.
 - Choose an end date and preview the occurrences before saving.
 - An occurrence's editor shows its repeating schedule and provides Edit repeating rule.
+- The compact rule editor uses shared date calendars and scrolling time controls, visible notes, account-ordered weekdays, and a fixed Cancel/Save footer. Time zone settings remain available separately.
+- Stop repeating and scoped Delete actions live in the header menu; stopping opens a dedicated last-date form.
 - Converting one occurrence keeps it in the series as an individual edit. Series changes preserve individually converted occurrences by default; Replace individual edits applies the series mode to them too.
 - Editing, moving, resizing, or deleting one repeating plan offers This occurrence, This and following occurrences, or Entire series.
 - This and following starts a separate series at the chosen occurrence; earlier occurrences keep their original rule.
@@ -271,7 +287,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 - Redo restores the exact saved plans and their identities, independently of the clipboard. Each group action stays one history step.
 - Sign-out clears history. Fresh browser visits start empty; history stays local to the tab.
 - Conflicting newer changes stop undo/redo without advancing history. Interrupted history requests can be retried after refresh with the original request key.
-- Applying a template can be undone and redone as one action, including after a refresh in the same signed-in browser session.
+- In preview scope, applying a template can be undone and redone as one action, including after a refresh in the same signed-in browser session.
 - Creating, splitting, editing, stopping, or deleting repeating plans is one undo action. Undo restores previous rules, individual edits, and excluded dates; undoing conversion restores the original standalone plan.
 - Fitness session records retain their actual start/finish range and one source link. Paused intervals are excluded from recorded-time and category totals, clipped to the viewed range; record details explain the exclusion.
 - Activity created through Calendar forms can be undone, including food, water, weight, cardio, workout starts, and manually recorded time. Undo removes the original activity record as well as its Calendar entry.
@@ -289,15 +305,16 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Task
 
 - Search opens a compact panel; clicking outside or pressing Escape closes it.
 - Search by title and filter by record type.
-- Optionally limit results by date; browse further results from calendar history.
+- Optionally limit history results with clearable From/Through date calendars; the collapsed date control summarizes the active range and opens when validation needs attention. Browse further results from calendar history.
 - Apply filters to the visible calendar and clear them to show everything again.
 
-### Templates and quick actions
+### Templates and preview logging (preview scope)
 
-- Open Actions → Calendar tools for Repeating plan, All-day plan and Templates. Preview scope also offers Quick actions.
-- Save a named template from a day, week, or date range.
-- Rename or delete saved templates.
-- Choose a start date and number of cycles, preview, then apply a template to create independent plans.
+- Templates is deferred from first release: its menu and read/write APIs are disabled, with existing templates and code retained. In preview scope, open Templates directly from Actions → Templates. All-day and repeating options live in Add → Add plan; there is no separate Calendar tools screen. Preview scope exposes Quick actions directly in Actions.
+- Save a named template from a day, week, or date range using shared date calendars and compact forms with fixed bottom actions.
+- Browse template cards with their day span; use their header menus to rename or delete.
+- Choose a start date and number of cycles, then review plans grouped by date in a scrollable preview before applying. Back retains the chosen destination and cycles.
+- Applying creates independent plans without replacing existing plans. Pending or uncertain writes prevent dismissal and offer retry with the same request.
 - Preview-only Quick actions log water or weight using the chosen date/time; first-release scope hides these tools and the grid shortcut buttons.
 - The + beside a five-minute slice also opens quick actions; it hides while creating a block by dragging.
 - Point-in-time activity can appear as a moment without occupying a duration block.
@@ -597,7 +614,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Exercise history and statistics
 
-- Each exercise’s History view puts Latest session first, compact Personal records second, and All sessions third. The embedded sections use headings beneath Your history; Latest session pairs its title with the source link and presents results before notes. Record cards place the main result beside relevant context (such as weight with reps or reps at a weight), followed by a source-workout button containing its date. Latest session, personal records, Reps by weight and All sessions reuse one workout reference: an outlined bold workout-title link with the muted date beneath the name inside the same button and a right arrow, without a separate View workout subtitle. Clicking the title, date or other button content navigates; surrounding rows do not. All sessions uses compact non-clickable rows without separator lines, whose workout-title button includes a grouped actual-results summary such as 3×12 | 50 kg beside the name, wrapping beneath it when needed; the date and account-local start time sit beneath the name inside the button, distinguishing same-day sessions without separate date headings. This replaces the standalone completed-set count. The summary uses confirmed completed sets and their captured measurements/preferred units, excludes skipped/unfinished values and keeps missing results explicit; it does not repeat individual sets or add secondary navigation controls. Record cards stack on smaller screens. Load six sessions initially and use Load older sessions for more. Exercises without finished sessions show one explanatory empty state instead of empty records/statistics/measurement controls. Latest session retains workout/exercise notes and set order; skipped/unfinished rows show their outcome without treating entered values as recorded results. The familiar Show measurements selector controls visible Reps, Weight, Duration, Distance and Laps without excluding sessions or sets; start with the union of recorded measurements, or the measurements from an exercise reference. Keep at least one selected. Missing or unselected-at-recording values say Not recorded. There is no separate Progress tab.
+- Each exercise’s History view puts Latest session first, compact Personal records second, and All sessions third. The embedded sections use headings beneath Your history; Latest session pairs its title with the source link and presents results before notes. Record cards place the main result beside relevant context (such as weight with reps or reps at a weight), followed by a source-workout button containing its date. Latest session, personal records, Reps by weight and All sessions reuse one workout reference: an outlined bold workout-title link with the muted date beneath the name inside the same button and a right arrow, without a separate View workout subtitle. Clicking the title, date or other button content navigates; surrounding rows do not. All sessions uses compact non-clickable rows without separator lines, whose workout-title button includes a grouped actual-results summary such as 3×12 | 50 kg beside the name, wrapping beneath it when needed; the date and account-local start time sit beneath the name inside the button, distinguishing same-day sessions without separate date headings. This replaces the standalone completed-set count. The summary uses confirmed completed sets and their captured measurements/preferred units, excludes skipped/unfinished values and keeps missing results explicit; it does not repeat individual sets or add secondary navigation controls. Record cards stack on smaller screens. Load six sessions initially and use Load older sessions for more. Failed pagination retains loaded results and offers Retry older sessions; background refresh failures retain the last loaded data. Exercises without finished sessions show one explanatory empty state instead of empty records/statistics/measurement controls. Latest session retains workout/exercise notes and set order; skipped/unfinished rows show their outcome without treating entered values as recorded results. The familiar Show measurements selector controls visible Reps, Weight, Duration, Distance and Laps without excluding sessions or sets; contextual return navigation retains the selected measurements. Start with the union of recorded measurements, or the measurements from an exercise reference. Keep at least one selected. Missing or unselected-at-recording values say Not recorded. There is no separate Progress tab.
 - Workout History groups finished sessions under one account-local date heading, merging same-day results across loaded pages. Each date group has one lightly bordered white surface with compact divided rows and no status controls. Workout names and exercise/completed-set counts sit on the left; workout duration is emphasized on the right with the quieter start time beneath it. Long names wrap naturally, with timing aligned to the row’s top. Workout durations display whole seconds without exposing timestamp fractions; stored timestamps retain their precision. Skipped/unfinished sets do not inflate completed counts; corrections and deletions update the list. Full-width shared workout search and the outlined centered Load older workouts action match Training. Empty results distinguish no matches from no finished sessions; failed pagination retains loaded rows with a targeted retry.
 - Opening a finished session from History carries its search and selected week into Back to History. Returning restores loaded pages, scroll position and the originating row’s keyboard focus, including after refreshing the summary. Optional position recovery is scoped to the account and browser tab; navigation remains available without storage. Session deletion retains the originating History search and week.
 - Weekly totals is a permanent section beneath the Workout history list, without a show/hide button. The compact header places week navigation at the top right, with This week immediately to its left; on narrow screens the controls stay together in a right-aligned row below the title. Workouts, Workout time and Completed sets share an unboxed recap strip on desktop and compact label/value rows on phones. Workout time uses whole minutes (45m or 2h 15m; under a minute shows <1m). Weight volume is omitted from Weekly totals. Empty weeks show No finished workouts this week instead of zero/unknown metric cards. Previous/next buttons, a shared custom week picker and an outlined This week action retain History search while changing the week. Weeks follow account timezone and week-start preferences. Date ranges share a trailing year within one year (Oct 26 - Nov 1, 2026) and show both years across New Year (Dec 28, 2026 - Jan 3, 2027). The report omits the explanatory paragraph beneath its metrics.
@@ -611,6 +628,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ### Needs work
 
+- Training cards still label paused sessions In progress, and All sessions summaries do not yet follow the exercise measurement visibility selector. These minor presentation refinements are deferred.
 - Sessions started before starting-snapshot storage was introduced cannot restore their original setup; no baseline is inferred from their already-edited state.
 
 - The workout creation layout is an owner-requested experiment and may be reverted after review.

@@ -17,7 +17,7 @@ test("Exercises is its own Fitness tab and returns from details to the retained 
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Exercise navigation",
     email: `exercise-nav-${randomUUID()}@example.com`,
     password: "Synthetic-exercise-password-123",

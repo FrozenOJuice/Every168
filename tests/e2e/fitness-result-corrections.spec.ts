@@ -17,7 +17,7 @@ test("result corrections explain outcomes and explicitly save pause corrections 
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Results correction",
     email: `corrections-${randomUUID()}@example.com`,
     password: "Synthetic-corrections-password-123",

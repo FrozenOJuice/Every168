@@ -57,11 +57,11 @@ export function ExerciseProgressPage({
   }, [q.isPending, onReady]);
   useRestoreExerciseWorkoutPosition(
     id,
-    !recordsOnly && !q.isPending && !q.error,
+    !recordsOnly && !q.isPending && !!q.data,
     root,
   );
   if (q.isPending) return <Loading />;
-  if (q.error)
+  if (!q.data)
     return <ErrorState error={q.error} retry={() => void q.refetch()} />;
   const data = q.data.pages[0]!;
   const sessions = q.data.pages.flatMap((p) => p.sessions.items);
@@ -249,13 +249,31 @@ export function ExerciseProgressPage({
               </ul>
             </section>
           )}
+          {q.error && q.data && (
+            <div role="alert">
+              <p className="error">
+                {q.isFetchNextPageError
+                  ? "Could not load older sessions. Your loaded history is still available."
+                  : "Could not refresh history. Showing the last loaded results."}
+              </p>
+              {!q.isFetchNextPageError && (
+                <button className="button" onClick={() => void q.refetch()}>
+                  Retry refresh
+                </button>
+              )}
+            </div>
+          )}
           {!recordsOnly && q.hasNextPage && (
             <button
               className="button"
               disabled={q.isFetchingNextPage}
               onClick={() => void q.fetchNextPage()}
             >
-              {q.isFetchingNextPage ? "Loading…" : "Load older sessions"}
+              {q.isFetchingNextPage
+                ? "Loading…"
+                : q.isFetchNextPageError
+                  ? "Retry older sessions"
+                  : "Load older sessions"}
             </button>
           )}
         </>

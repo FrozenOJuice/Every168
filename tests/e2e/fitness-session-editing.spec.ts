@@ -17,7 +17,7 @@ test("live setup uses creator cards and exercise help returns directly with sess
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Session editing",
     email: `session-edit-${randomUUID()}@example.com`,
     password: "Synthetic-session-edit-password-123",
@@ -523,7 +523,7 @@ test("restoring starting setup confirms logged removals and survives reload", as
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Restore workout",
     email: `restore-${randomUUID()}@example.com`,
     password: "Synthetic-restore-password-123",
@@ -640,7 +640,7 @@ test("Done editing flushes pending changes and keeps save failures in a tidy ret
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Done editing",
     email: `done-${randomUUID()}@example.com`,
     password: "Synthetic-done-password-123",

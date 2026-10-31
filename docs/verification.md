@@ -98,3 +98,11 @@ Month picker checks verify that all twelve months form a three-column, four-row 
 Date dropdown alignment checks compare each popup's center with its title button in Day, Week and Month and verify viewport containment and legible month labels at 320px.
 View-switch checks select a Month day and open its Week and Day, select a five-minute Week slot and open its Day, verify the viewed-date fallback without a selection, and confirm the selection clears after navigation.
 Day/Week density checks verify 60px hour rows, five-minute selection and live drag/resize geometry, preserved scroll positions, and readable blocks across desktop, phone and tablet.
+
+## Public beta release gate
+
+Run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration`, `pnpm audit --prod`, `pnpm build` and `pnpm test:e2e:beta` sequentially around database/browser suites. The beta browser config runs core scope on desktop and phone, including account lifecycle, owner isolation, release gates, Calendar/DST/recovery, and Fitness history/corrections/navigation. The original preview suite remains available for retained feature development. Browser registration fixtures use test-executable-only mail capture and real verification; production createApp has no test registration/mail routes.
+
+The beta config also exposes a tablet project restricted to release-boundary and Calendar picker/DST regressions. Production-like HTTP/CSP and actual deployment acceptance are distinct; follow PUBLIC_BETA_DEPLOYMENT.md. Never run independent integration/browser processes against the same test database concurrently.
+
+`pnpm verify:beta` runs the ordered local application release gate. For the built-web security smoke, build with `API_URL=http://127.0.0.1:3101 RELEASE_SCOPE=core pnpm build`, then run `pnpm test:e2e:production`; it runs account lifecycle, the full scheduled-workout journey, and CSP/nonce/header/hydration checks using production Next.js with the isolated test API and synthetic email capture. Production API cookie attributes remain covered separately by session-security integration tests. Neither test validates a public TLS edge or real provider delivery.

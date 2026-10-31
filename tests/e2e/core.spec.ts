@@ -1,4 +1,8 @@
-import { showCalendarNotes } from "./helpers/calendar-form";
+import {
+  openCalendarEditorActions,
+  openCalendarPlan,
+  showCalendarNotes,
+} from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { test, expect } from "@playwright/test";
 import type { Block } from "@168hours/contracts";
@@ -21,15 +25,29 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await expect(page).toHaveURL(/login/);
   await page.getByRole("link", { name: "Create an account" }).click();
   await page.getByLabel("Name", { exact: true }).fill("Browser member");
-  await page
-    .getByLabel("Email", { exact: true })
-    .fill("browser-" + randomUUID() + "@example.com");
+  const email = "browser-" + randomUUID() + "@example.com";
+  await page.getByLabel("Email", { exact: true }).fill(email);
   await page
     .getByLabel("Password", { exact: true })
     .fill("Synthetic-browser-password-123");
   await page
     .getByRole("button", { name: "Create account", exact: true })
     .click();
+  await expect(page.getByRole("status")).toContainText("Check your email");
+  const inbox = await (
+    await page.request.get(
+      `/api/__test/mail?email=${encodeURIComponent(email)}`,
+    )
+  ).json();
+  await page.goto(`/verify-email#token=${inbox[0].token}`);
+  await page.getByRole("button", { name: "Verify email", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Email verified");
+  await page.goto("/login");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Synthetic-browser-password-123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }),
   ).toBeVisible();
@@ -55,7 +73,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
     fullPage: true,
   });
   await page.getByRole("link", { name: "Calendar", exact: true }).click();
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await page.getByLabel("Title", { exact: true }).fill("Read a chapter");
   await showCalendarNotes(page);
   await expect(page.getByLabel("Category", { exact: true })).toHaveCount(0);
@@ -75,7 +93,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
     .getByRole("button", { name: /Read a chapter.*planned/ })
     .dblclick();
   await showCalendarNotes(page);
-  await page.getByRole("dialog").getByText("Actions", { exact: true }).click();
+  await openCalendarEditorActions(page.getByRole("dialog"));
   await expect(page.getByRole("button", { name: "Log actual" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);

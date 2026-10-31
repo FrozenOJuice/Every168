@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { authInput } from "@168hours/contracts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,6 +12,7 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
     password: "",
   });
   const cache = useQueryClient();
+  const [registered, setRegistered] = useState(false);
   return (
     <div className="auth-page">
       <div className="auth-intro">
@@ -41,12 +43,22 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
             ? "A fresh page for your next week."
             : "Pick up where you left off."}
         </p>
+        {registered && (
+          <p role="status" className="success">
+            Check your email to verify your account before signing in. If you
+            already have an account, sign in or reset your password.
+          </p>
+        )}
         <Form
           retrySafe={false}
           form={form}
           onSubmit={async (input) => {
-            if (signUp) await api.signUp(input);
-            else await api.signIn(input);
+            if (signUp) {
+              await api.signUp(input);
+              setRegistered(true);
+              form.reset();
+              return;
+            } else await api.signIn(input);
             cache.clear();
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Clear the document and router cache across account changes.
             window.location.assign("/");
@@ -63,6 +75,12 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
           />
           <Submit>{signUp ? "Create account" : "Sign in"}</Submit>
         </Form>
+        {!signUp && (
+          <p>
+            <Link href="/forgot-password">Forgot password?</Link> ·{" "}
+            <Link href="/verify-email">Resend verification email</Link>
+          </p>
+        )}
         <p className="auth-switch">
           {signUp ? "Already have an account?" : "New to 168Hours?"}{" "}
           <Link href={signUp ? "/login" : "/signup"}>

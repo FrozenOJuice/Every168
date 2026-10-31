@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("numeric replacement, adding sets and mixed summaries survive saving", async ({
   page,
 }, info) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Following sets",

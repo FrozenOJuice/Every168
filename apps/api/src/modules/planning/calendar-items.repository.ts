@@ -74,13 +74,14 @@ export function calendarItemsRepository(db: Database) {
       const q = databaseFor(db, context).select().from(t).where(owned(u, id));
       return (await (context ? q.for("update") : q))[0];
     },
-    range(u: string, from: string, to: string) {
+    range(u: string, from: string, to: string, includeUnscheduled = true) {
       return db
         .select()
         .from(t)
         .where(
           and(
             eq(t.userId, u),
+            includeUnscheduled ? undefined : eq(t.kind, "all_day"),
             lte(t.date, to),
             or(gte(t.endDate, from), and(isNull(t.endDate), gte(t.date, from))),
           ),

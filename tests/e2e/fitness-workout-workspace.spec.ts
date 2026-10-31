@@ -17,7 +17,7 @@ test("inline exercise library follows programs and preserves workout drafts", as
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Connected fitness",
     email: `flow-${randomUUID()}@example.com`,
     password: "Synthetic-workout-password-123",

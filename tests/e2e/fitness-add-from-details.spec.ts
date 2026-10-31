@@ -17,7 +17,7 @@ test("adding from details confirms saved changes, retries safely and offers cont
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Add tester",
     email: `add-${randomUUID()}@example.com`,
     password: "Synthetic-add-password-123",
@@ -207,7 +207,7 @@ test("workout search covers unloaded results and the bounded chooser keeps selec
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Search tester",
     email: `search-${randomUUID()}@example.com`,
     password: "Synthetic-search-password-123",

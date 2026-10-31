@@ -8,7 +8,7 @@ import {
 import { CalendarDateField, CalendarChoiceField } from "./calendar-form-fields";
 import { invalidateCalendar } from "./invalidate-calendar";
 import { z } from "zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWatch } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,7 +21,6 @@ import {
 import {
   daysBetween,
   expandPlannedSeries,
-  localInputToInstant,
   weekday,
 } from "@168hours/domain-utils";
 import { useMe } from "@/features/identity/me";
@@ -30,6 +29,7 @@ import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { formatDate, localTimeField } from "@/lib/format";
 import {
   editorTimes,
+  calendarInstant,
   elapsedMilliseconds,
   endAfter,
   coveredPlanDates,
@@ -60,8 +60,10 @@ export function TimeForm({
   initialRepeat = "never",
   allowAllDay = false,
   initialAllDay = false,
-  composer = false,
+  eventLayout = false,
   onCancel,
+  leading,
+  trailing,
 }: TimeEditor & {
   onSaved: (result: CalendarSaveResult) => void;
   compact?: boolean;
@@ -71,14 +73,21 @@ export function TimeForm({
   initialRepeat?: "never" | "weekly";
   allowAllDay?: boolean;
   initialAllDay?: boolean;
-  composer?: boolean;
+  eventLayout?: boolean;
   onCancel?: () => void;
+  leading?: ReactNode;
+  trailing?: ReactNode;
 }) {
   const [scope, setScope] = useState<OccurrenceScope>("this");
   const [preserve, setPreserve] = useState(true);
   const { preferences } = useMe();
   const [settings] = useState(() => preferences);
   const { timezone, weekStartsOn } = settings;
+  const [savedTimes] = useState(() =>
+    item && !duplicateOf
+      ? { startsAt: item.startsAt, endsAt: item.endsAt }
+      : undefined,
+  );
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
   const schema = z
@@ -117,7 +126,10 @@ export function TimeForm({
       }
       if (!value.allDay)
         for (const field of ["startsAt", "endsAt"] as const) {
-          const result = localTimeField(timezone).safeParse(value[field]);
+          const result = localTimeField(
+            timezone,
+            savedTimes?.[field],
+          ).safeParse(value[field]);
           if (!result.success)
             context.addIssue({
               code: "custom",
@@ -236,7 +248,8 @@ export function TimeForm({
   });
   let selectedDuration: number | null = null;
   try {
-    selectedDuration = elapsedMilliseconds(start, end, timezone) / 60000;
+    selectedDuration =
+      elapsedMilliseconds(start, end, timezone, savedTimes) / 60000;
   } catch {
     /* Incomplete or invalid local input remains editable. */
   }
@@ -286,8 +299,8 @@ export function TimeForm({
       return;
     }
     try {
-      const startsAt = localInputToInstant(start, timezone);
-      const endsAt = localInputToInstant(end, timezone);
+      const startsAt = calendarInstant(start, timezone, savedTimes?.startsAt);
+      const endsAt = calendarInstant(end, timezone, savedTimes?.endsAt);
       if (Date.parse(endsAt) > Date.parse(startsAt))
         onDraftChange({ title, startsAt, endsAt });
     } catch {
@@ -303,6 +316,7 @@ export function TimeForm({
     hasPreview,
     previewStart,
     previewEnd,
+    savedTimes,
     onDraftChange,
   ]);
   const repeatDays = Array.from(
@@ -330,10 +344,14 @@ export function TimeForm({
       : `${interval === 1 ? "Every week" : `Every ${interval} weeks`} on ${repeatDays.join(", ")}`;
   function setEnd(start: string, milliseconds: number) {
     try {
-      form.setValue("endsAt", endAfter(start, milliseconds, timezone), {
-        shouldDirty: true,
-        shouldValidate: form.formState.isSubmitted,
-      });
+      form.setValue(
+        "endsAt",
+        endAfter(start, milliseconds, timezone, savedTimes?.startsAt),
+        {
+          shouldDirty: true,
+          shouldValidate: form.formState.isSubmitted,
+        },
+      );
     } catch {
       /* The field validator explains missing/repeated clock times on submit. */
     }
@@ -344,7 +362,7 @@ export function TimeForm({
     <Form
       form={form}
       footer={
-        composer ? (
+        eventLayout ? (
           <>
             <button type="button" className="button" onClick={onCancel}>
               Cancel
@@ -376,8 +394,16 @@ export function TimeForm({
                   categoryId: v.categoryId,
                   goalId: v.goalId,
                   notes: v.notes,
-                  startsAt: localInputToInstant(v.startsAt, timezone),
-                  endsAt: localInputToInstant(v.endsAt, timezone),
+                  startsAt: calendarInstant(
+                    v.startsAt,
+                    timezone,
+                    savedTimes?.startsAt,
+                  ),
+                  endsAt: calendarInstant(
+                    v.endsAt,
+                    timezone,
+                    savedTimes?.endsAt,
+                  ),
                 }),
               };
           const result = await convertPlan(
@@ -503,8 +529,8 @@ export function TimeForm({
         const times = {
           title: v.title,
           categoryId: v.categoryId,
-          startsAt: localInputToInstant(v.startsAt, timezone),
-          endsAt: localInputToInstant(v.endsAt, timezone),
+          startsAt: calendarInstant(v.startsAt, timezone, savedTimes?.startsAt),
+          endsAt: calendarInstant(v.endsAt, timezone, savedTimes?.endsAt),
         };
         if (Date.parse(times.endsAt) <= Date.parse(times.startsAt)) {
           form.setError("endsAt", { message: "End must be after start." });
@@ -523,7 +549,8 @@ export function TimeForm({
               Number(v.startsAt.slice(11, 13)) * 60 +
               Number(v.startsAt.slice(14, 16)),
             durationMinutes:
-              elapsedMilliseconds(v.startsAt, v.endsAt, timezone) / 60000,
+              elapsedMilliseconds(v.startsAt, v.endsAt, timezone, savedTimes) /
+              60000,
             frequency: v.repeat === "custom" ? v.repeatFrequency : v.repeat,
             interval: v.repeat === "custom" ? v.repeatInterval : 1,
             weekdays: v.repeatWeekdays,
@@ -623,6 +650,7 @@ export function TimeForm({
         onSaved({ kind: "timed", startsAt: times.startsAt });
       }}
     >
+      {leading}
       {duplicateOf && (
         <p className="notice">
           New plan copied from {duplicateOf.title}. Review the date and details
@@ -653,8 +681,16 @@ export function TimeForm({
               if (event.target.checked) {
                 try {
                   const dates = coveredPlanDates(
-                    localInputToInstant(form.getValues("startsAt"), timezone),
-                    localInputToInstant(form.getValues("endsAt"), timezone),
+                    calendarInstant(
+                      form.getValues("startsAt"),
+                      timezone,
+                      savedTimes?.startsAt,
+                    ),
+                    calendarInstant(
+                      form.getValues("endsAt"),
+                      timezone,
+                      savedTimes?.endsAt,
+                    ),
                     timezone,
                   );
                   timedRange.current = {
@@ -710,6 +746,7 @@ export function TimeForm({
                       next,
                       form.getValues("endsAt"),
                       timezone,
+                      savedTimes,
                     );
                   } catch {
                     /* Validate clock-change choices on save. */
@@ -731,7 +768,7 @@ export function TimeForm({
       )}
       {allDay ? (
         <div key="all-day" className="calendar-all-day-fields">
-          {composer ? (
+          {eventLayout ? (
             <CalendarDateField
               name="allDayDate"
               label="Date"
@@ -766,7 +803,7 @@ export function TimeForm({
             Spans multiple days
           </label>
           {spansMultipleDays &&
-            (composer ? (
+            (eventLayout ? (
               <CalendarDateField
                 name="allDayEndDate"
                 label="Last day"
@@ -783,7 +820,7 @@ export function TimeForm({
             ))}
           <small>All-day plans do not allocate hours.</small>
         </div>
-      ) : composer ? (
+      ) : eventLayout ? (
         <div key="timed" className="calendar-event-timing">
           <CalendarDateField
             name="startsAt"
@@ -803,6 +840,7 @@ export function TimeForm({
                   form.getValues("startsAt"),
                   value,
                   timezone,
+                  savedTimes,
                 );
                 if (next > 0) duration.current = next;
               } catch {
@@ -829,6 +867,7 @@ export function TimeForm({
                   form.getValues("startsAt"),
                   value,
                   timezone,
+                  savedTimes,
                 );
                 if (next > 0) duration.current = next;
               } catch {
@@ -865,7 +904,7 @@ export function TimeForm({
       )}
       {kind === "block" && allowRepeat && (
         <div className="calendar-repeat-fields">
-          {composer ? (
+          {eventLayout ? (
             <CalendarChoiceField
               name="repeat"
               label="Repeat"
@@ -912,7 +951,7 @@ export function TimeForm({
             <>
               {repeat === "custom" && (
                 <div className="form-grid">
-                  {composer ? (
+                  {eventLayout ? (
                     <CalendarChoiceField
                       name="repeatFrequency"
                       label="Repeat by"
@@ -976,7 +1015,7 @@ export function TimeForm({
                   )}
                 </div>
               )}
-              {composer ? (
+              {eventLayout ? (
                 <CalendarDateField
                   name="repeatUntil"
                   label="Repeat through"
@@ -1030,7 +1069,7 @@ export function TimeForm({
         </div>
       )}
       {kind === "block" &&
-        (composer ? (
+        (eventLayout ? (
           <Field
             name="notes"
             label="Notes (optional)"
@@ -1055,7 +1094,8 @@ export function TimeForm({
           Linked to planned block: {linkedBlock.title}
         </p>
       )}
-      {!composer && (
+      {trailing}
+      {!eventLayout && (
         <Submit>
           {allDay && !compact
             ? "Create all-day plan"

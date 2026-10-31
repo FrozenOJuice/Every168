@@ -16,7 +16,7 @@ test("exercise editors keep one editable set through removal, mode changes and r
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Minimum sets",
     email: `minimum-${randomUUID()}@example.com`,
     password: "Synthetic-minimum-password-123",

@@ -18,7 +18,7 @@ test("exercise removal undo restores the right occurrence and preserves other ed
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Removal tester",
     email: `remove-${randomUUID()}@example.com`,
     password: "Synthetic-removal-password-123",

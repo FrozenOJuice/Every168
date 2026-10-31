@@ -16,7 +16,7 @@ test("fixed admin accounts manage users, review aggregates and audit safe retrie
   const memberEmail = "admin-target-" + randomUUID() + "@example.com";
   let memberId: string | undefined;
   try {
-    const signup = await memberContext.post("/api/auth/sign-up/email", {
+    const signup = await memberContext.post("/api/__test/register", {
       data: { name: "Admin target", email: memberEmail, password },
     });
     expect(signup.status()).toBe(200);

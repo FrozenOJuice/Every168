@@ -164,7 +164,12 @@ export function CalendarDayFeed({
   const workoutFinished = (entry: (typeof feed)[number]) =>
     entry.record?.kind === "block" &&
     finishedWorkoutBlocks.has(entry.record.item.id);
-  const next = upcoming.find((entry) => !workoutFinished(entry));
+  const statusKnown = workoutLinks.isSuccess && !workoutLinks.error;
+  const completionUnknown = (entry: (typeof feed)[number]) =>
+    !statusKnown && entry.record?.kind === "block";
+  const next = upcoming.find(
+    (entry) => !completionUnknown(entry) && !workoutFinished(entry),
+  );
   const groups = [
     {
       title: "Earlier",
@@ -187,10 +192,22 @@ export function CalendarDayFeed({
     },
   ];
   const happeningNow = groups[1]!.entries.filter(
-    (entry) => !workoutFinished(entry),
+    (entry) => !completionUnknown(entry) && !workoutFinished(entry),
   );
   return (
     <section className="calendar-day-feed" aria-label="Day activity">
+      {workoutLinks.error && (
+        <div role="alert">
+          <p className="error">Could not load workout completion status.</p>
+          <button
+            className="button"
+            disabled={workoutLinks.isFetching}
+            onClick={() => void workoutLinks.refetch()}
+          >
+            Retry workout status
+          </button>
+        </div>
+      )}
       {(happeningNow.length > 0 || next) && (
         <div className="day-at-a-glance">
           {happeningNow.map((entry) => (

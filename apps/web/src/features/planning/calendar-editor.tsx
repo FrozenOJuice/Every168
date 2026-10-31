@@ -8,7 +8,11 @@ import Link from "next/link";
 import { ScheduledWorkoutAction } from "@/features/fitness/scheduled-workout-action";
 import { CalendarComposer } from "./calendar-composer";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
-import type { CalendarDraft, CalendarSaveResult } from "./calendar-layout";
+import type {
+  CalendarDraft,
+  CalendarSaveResult,
+  TimeEditor,
+} from "./calendar-layout";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { useRouter } from "next/navigation";
 import { calendarHref } from "./calendar-layout";
@@ -18,11 +22,12 @@ import type { Block, CalendarItem, Week } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { useState } from "react";
+import type { ContextMenuAction } from "@/components/ui/context-menu";
+import { CalendarEditorActions } from "./calendar-editor-actions";
 import { formatDate, formatTime } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
 import { CalendarRepeatSummary } from "./calendar-repeating";
 import { TimeForm } from "./time-form";
-import type { TimeEditor } from "./calendar-layout";
 
 export function CalendarEditor({
   editor,
@@ -48,21 +53,19 @@ export function CalendarEditor({
   onRepeat: (block: Block | CalendarItem) => void;
 }) {
   const confirm = useConfirm();
-
   const interaction = useCalendarInteractions(),
     router = useRouter();
   const cache = useQueryClient();
   const [formBusy, setFormBusy] = useState(false);
   const { kind, item } = editor;
-  const plan =
-    editor.allDayItem ??
-    (kind === "block" && item && "seriesId" in item ? item : undefined);
+  const timedPlan =
+    kind === "block" && item && "seriesId" in item ? item : undefined;
+  const plan = editor.allDayItem ?? timedPlan;
   const automatic =
     item && "sourceType" in item && item.sourceType !== "manual";
-  const linked =
-    kind === "block" && item
-      ? week.entries.filter((entry) => entry.timeBlockId === item.id)
-      : [];
+  const linked = timedPlan
+    ? week.entries.filter((entry) => entry.timeBlockId === timedPlan.id)
+    : [];
   const linkedPlan =
     item && "timeBlockId" in item
       ? week.blocks.find((block) => block.id === item.timeBlockId)
@@ -77,6 +80,78 @@ export function CalendarEditor({
       onClose();
     },
   });
+  const busy = formBusy || remove.isPending || !!interaction?.busy;
+  const actions: ContextMenuAction[] = [];
+  if (editor.allDayItem) {
+    const allDay = editor.allDayItem;
+    if (!allDay.seriesId)
+      actions.push({ label: "Repeat…", run: () => onRepeat(allDay) });
+    actions.push(
+      {
+        label: "Create timed copy…",
+        run: () =>
+          onChange({ kind: "block", date: allDay.date!, fromItem: allDay }),
+      },
+      { separator: true },
+      {
+        label: "Delete plan",
+        destructive: true,
+        run: () => {
+          interaction?.deleteItem(allDay);
+          onClose();
+        },
+      },
+    );
+  } else if (item && !automatic) {
+    if (timedPlan) {
+      actions.push({
+        label: "Move or resize on calendar",
+        run: () => {
+          interaction?.adjust(timedPlan.id);
+          onClose();
+          router.push(
+            calendarHref(localDate(timedPlan.startsAt, week.timezone), "day"),
+            { scroll: false },
+          );
+        },
+      });
+      if (!timedPlan.seriesId)
+        actions.push({ label: "Repeat…", run: () => onRepeat(timedPlan) });
+      actions.push(
+        {
+          label: "Duplicate",
+          run: () =>
+            onChange({
+              kind: "block",
+              date: editor.date,
+              duplicateOf: timedPlan,
+            }),
+        },
+        { separator: true },
+      );
+    }
+    actions.push({
+      label: kind === "block" ? "Delete plan" : "Delete recorded time",
+      destructive: true,
+      run: () => {
+        if (timedPlan && interaction) {
+          interaction.deleteBlock(timedPlan);
+          onClose();
+          return;
+        }
+        void (async () => {
+          if (
+            await confirm(
+              kind === "block"
+                ? "Delete this planned block? Recorded time will remain."
+                : "Delete this recorded time entry?",
+            )
+          )
+            remove.mutate();
+        })();
+      },
+    });
+  }
   if (composer)
     return (
       <CalendarComposer
@@ -91,223 +166,137 @@ export function CalendarEditor({
       container={container}
       date={editor.date}
       recordId={plan?.id ?? item?.id ?? editor.duplicateOf?.id}
-      busy={remove.isPending}
+      width={automatic ? 320 : 380}
+      className={automatic ? undefined : "calendar-event-editor"}
+      busy={remove.isPending || interaction?.busy}
       onBusyChange={setFormBusy}
+      headerActions={
+        actions.length ? (
+          <CalendarEditorActions
+            label={kind === "block" ? "Plan actions" : "Recorded time actions"}
+            actions={actions}
+            disabled={busy}
+          />
+        ) : undefined
+      }
       title={
         automatic
           ? "Recorded activity"
           : item || plan
             ? "Edit " + (kind === "block" ? "plan" : "recorded time")
             : editor.duplicateOf
-              ? "Duplicate block"
+              ? "Duplicate plan"
               : kind === "block"
-                ? "Add time block"
+                ? "Add plan"
                 : "Record actual time"
       }
       onClose={onClose}
     >
-      {plan?.seriesId && (
-        <CalendarRepeatSummary
-          id={plan.seriesId}
-          disabled={formBusy || remove.isPending || interaction?.busy}
-          onEdit={() => onSeries(plan.seriesId!)}
-        />
-      )}
       {automatic ? (
-        <div className="stack">
-          <div>
-            <h3>{item.title}</h3>
-            <p>
-              {formatDate(localDate(item.startsAt, week.timezone))} ·{" "}
-              {formatTime(item.startsAt, week.timezone)} –{" "}
-              {formatTime(item.endsAt, week.timezone)}
-            </p>
-            {"excludedIntervals" in item &&
-              !!item.excludedIntervals?.length && (
-                <p className="muted text-small">
-                  Paused intervals are excluded from recorded time totals.
-                </p>
-              )}
-            <p className="muted text-small">
-              {"sourceType" in item && item.sourceType === "strength_workout"
-                ? "Recorded from Fitness. Open the session to review or correct it."
-                : item.sourceType === "task_time" && features.tasks
-                  ? "Recorded from Tasks. Open Tasks to review or correct it."
-                  : "Recorded activity. Its editing workspace is not available yet."}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <TimeForm
-          {...editor}
-          compact
-          allowAllDay={kind === "block"}
-          onSaved={onSaved}
-          disabled={remove.isPending}
-        />
-      )}
-      {automatic &&
-        "sourceType" in item &&
-        item.sourceType === "strength_workout" && (
-          <Link
-            className="button primary"
-            href={`/fitness/session/${item.sourceId}`}
-          >
-            Open session
-          </Link>
-        )}
-      {plan && <ScheduledWorkoutAction blockId={plan.id} />}
-      {features.tasks && plan && <TaskBlockAction blockId={plan.id} />}
-      {features.tasks &&
-        automatic &&
-        "sourceType" in item &&
-        item.sourceType === "task_time" && (
-          <TaskTimeAction sourceId={item.sourceId!} />
-        )}
-      {editor.allDayItem && (
-        <details className="calendar-block-actions">
-          <summary>Actions</summary>
-          <fieldset
-            className="editor-actions"
-            disabled={formBusy || interaction?.busy}
-          >
-            {!editor.allDayItem.seriesId && (
-              <button
-                className="button"
-                onClick={() => onRepeat(editor.allDayItem!)}
-              >
-                Repeat…
-              </button>
-            )}
-            <button
-              className="button"
-              onClick={() =>
-                onChange({
-                  kind: "block",
-                  date: editor.allDayItem!.date!,
-                  fromItem: editor.allDayItem,
-                })
-              }
-            >
-              Create timed copy…
-            </button>
-            <button
-              className="button danger"
-              onClick={() => {
-                interaction?.deleteItem(editor.allDayItem!);
-                onClose();
-              }}
-            >
-              Delete plan
-            </button>
-          </fieldset>
-        </details>
-      )}
-      {linkedPlan && (
-        <p className="notice">
-          Linked plan: {linkedPlan.title}. Planned and recorded time are
-          summarized separately.
-        </p>
-      )}
-      {linked.length > 0 && (
-        <div className="linked-records">
-          <h3>Linked recorded time</h3>
-          <ul>
-            {linked.map((entry) => (
-              <li key={entry.id}>
-                <button
-                  className="text-button"
-                  disabled={formBusy || remove.isPending || interaction?.busy}
-                  onClick={() =>
-                    onChange({ kind: "entry", item: entry, date: editor.date })
-                  }
-                >
-                  {entry.title} · {formatTime(entry.startsAt, week.timezone)} –{" "}
-                  {formatTime(entry.endsAt, week.timezone)}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {item && !automatic && (
-        <details className="calendar-block-actions">
-          <summary>Actions</summary>
-          <fieldset
-            className="editor-actions"
-            disabled={formBusy || remove.isPending || interaction?.busy}
-          >
-            {kind === "block" && "goalId" in item && (
-              <>
-                <button
-                  className="button"
-                  disabled={interaction?.busy}
-                  onClick={() => {
-                    interaction?.adjust(item.id);
-                    onClose();
-                    router.push(
-                      calendarHref(
-                        localDate(item.startsAt, week.timezone),
-                        "day",
-                      ),
-                      { scroll: false },
-                    );
-                  }}
-                >
-                  Move or resize on calendar
-                </button>
-                {!item.seriesId && (
-                  <button
-                    className="button"
-                    disabled={formBusy || interaction?.busy}
-                    onClick={() => onRepeat(item)}
-                  >
-                    Repeat…
-                  </button>
+        <>
+          <div className="stack">
+            <div>
+              <h3>{item.title}</h3>
+              <p>
+                {formatDate(localDate(item.startsAt, week.timezone))} ·{" "}
+                {formatTime(item.startsAt, week.timezone)} –{" "}
+                {formatTime(item.endsAt, week.timezone)}
+              </p>
+              {"excludedIntervals" in item &&
+                !!item.excludedIntervals?.length && (
+                  <p className="muted text-small">
+                    Paused intervals are excluded from recorded time totals.
+                  </p>
                 )}
-                <button
-                  className="button"
-                  disabled={remove.isPending}
-                  onClick={() =>
-                    onChange({
-                      kind: "block",
-                      date: editor.date,
-                      duplicateOf: item,
-                    })
-                  }
-                >
-                  Duplicate
-                </button>
-              </>
-            )}
-            <button
-              className="button danger"
-              disabled={remove.isPending}
-              onClick={async () => {
-                if (
-                  kind === "block" &&
-                  item &&
-                  "goalId" in item &&
-                  interaction
-                ) {
-                  interaction.deleteBlock(item);
-                  onClose();
-                  return;
-                }
-                if (
-                  await confirm(
-                    kind === "block"
-                      ? "Delete this planned block? Recorded time will remain."
-                      : "Delete this recorded time entry?",
-                  )
-                )
-                  remove.mutate();
-              }}
+              <p className="muted text-small">
+                {"sourceType" in item && item.sourceType === "strength_workout"
+                  ? "Recorded from Fitness. Open the session to review or correct it."
+                  : item.sourceType === "task_time" && features.tasks
+                    ? "Recorded from Tasks. Open Tasks to review or correct it."
+                    : "Recorded activity. Its editing workspace is not available yet."}
+              </p>
+            </div>
+          </div>
+          {"sourceType" in item && item.sourceType === "strength_workout" && (
+            <Link
+              className="button primary"
+              href={`/fitness/session/${item.sourceId}`}
             >
-              Delete {kind === "block" ? "block" : "recorded time"}
-            </button>
-          </fieldset>
-        </details>
+              Open session
+            </Link>
+          )}
+          {features.tasks &&
+            "sourceType" in item &&
+            item.sourceType === "task_time" && (
+              <TaskTimeAction sourceId={item.sourceId!} />
+            )}
+        </>
+      ) : (
+        <>
+          {timedPlan && (
+            <fieldset className="calendar-event-source-actions" disabled={busy}>
+              <ScheduledWorkoutAction blockId={timedPlan.id} disabled={busy} />
+              {features.tasks && (
+                <TaskBlockAction blockId={timedPlan.id} disabled={busy} />
+              )}
+            </fieldset>
+          )}
+          <TimeForm
+            {...editor}
+            compact
+            eventLayout
+            onCancel={onClose}
+            allowAllDay={kind === "block"}
+            onSaved={onSaved}
+            disabled={remove.isPending}
+            leading={
+              plan?.seriesId ? (
+                <CalendarRepeatSummary
+                  id={plan.seriesId}
+                  disabled={busy}
+                  onEdit={() => onSeries(plan.seriesId!)}
+                />
+              ) : undefined
+            }
+            trailing={
+              <>
+                {linkedPlan && (
+                  <p className="notice">
+                    Linked plan: {linkedPlan.title}. Planned and recorded time
+                    are summarized separately.
+                  </p>
+                )}
+                {linked.length > 0 && (
+                  <div className="linked-records">
+                    <h3>Linked recorded time</h3>
+                    <ul>
+                      {linked.map((entry) => (
+                        <li key={entry.id}>
+                          <button
+                            type="button"
+                            className="button"
+                            disabled={busy}
+                            onClick={() =>
+                              onChange({
+                                kind: "entry",
+                                item: entry,
+                                date: editor.date,
+                              })
+                            }
+                          >
+                            {entry.title} ·{" "}
+                            {formatTime(entry.startsAt, week.timezone)} –{" "}
+                            {formatTime(entry.endsAt, week.timezone)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            }
+          />
+        </>
       )}
       <CommandError command={remove} />
     </CalendarPlanPopover>

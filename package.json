@@ -8,7 +8,15 @@
   },
   "pnpm": {
     "overrides": {
-      "@esbuild-kit/core-utils>esbuild": "0.25.12"
+      "@esbuild-kit/core-utils>esbuild": "0.25.12",
+      "body-parser": "2.4.0",
+      "ip-address": "10.7.4",
+      "source-map-js": "1.2.2",
+      "qs": "6.16.1",
+      "vite": "8.3.3",
+      "brace-expansion@<2": "1.1.21",
+      "brace-expansion@^5": "5.0.12",
+      "esbuild@>=0.27.3 <0.28.1": "0.28.2"
     }
   },
   "scripts": {
@@ -32,20 +40,24 @@
     "verify": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e",
     "setup:env": "node scripts/setup-env.mjs",
     "db:provision": "pnpm --filter @168hours/api db:provision",
-    "admin:create": "pnpm --filter @168hours/api admin:create"
+    "admin:create": "pnpm --filter @168hours/api admin:create",
+    "test:e2e:beta": "playwright test --config playwright.beta.config.ts",
+    "test:e2e:production": "playwright test --config playwright.production.config.ts",
+    "verify:beta": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm audit --prod && RELEASE_SCOPE=core pnpm build && pnpm test:e2e:beta"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "@types/node": "22.20.2",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.5",
+    "eslint-config-next": "16.4.3",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.9.6",
     "tsup": "8.5.1",
     "tsx": "4.23.13",
     "typescript": "6.0.2",
     "typescript-eslint": "8.70.0",
-    "vitest": "5.0.0"
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
   }
 }

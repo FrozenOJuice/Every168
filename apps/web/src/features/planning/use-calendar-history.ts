@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@/lib/use-hydrated";
 import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Block } from "@168hours/contracts";
@@ -36,6 +37,7 @@ export function useCalendarHistory(
 ) {
   const { user } = useMe();
   const owner = user.id;
+  const hydrated = useHydrated();
   const history = useSyncExternalStore(
     subscribeCalendarHistory,
     () => getCalendarHistory(owner),
@@ -109,7 +111,10 @@ export function useCalendarHistory(
     command: {
       ...command,
       isPending:
-        command.isPending || pending !== null || !calendarHistoryReady(owner),
+        command.isPending ||
+        pending !== null ||
+        !hydrated ||
+        !calendarHistoryReady(owner),
       error:
         command.error ??
         (recovered

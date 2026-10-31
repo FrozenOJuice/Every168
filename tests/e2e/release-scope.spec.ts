@@ -9,7 +9,7 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     info.config.metadata.releaseScope !== "core",
     "Run with playwright.release.config.ts for the first-release boundary.",
   );
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Release scope",
@@ -35,19 +35,15 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     .locator(".calendar-toolbar")
     .getByRole("button", { name: "Actions", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
-    .click();
-  const tools = page.getByRole("dialog", {
-    name: "Calendar tools",
-    exact: true,
-  });
   await expect(
-    tools.getByRole("button", { name: /Quick actions/ }),
+    page.getByRole("menuitem", { name: "Calendar tools…", exact: true }),
   ).toHaveCount(0);
   await expect(
-    tools.getByRole("button", { name: /Add repeating plan/ }),
-  ).toBeVisible();
+    page.getByRole("menuitem", { name: /Quick actions/ }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("menuitem", { name: "Templates…", exact: true }),
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
   await navigation.getByRole("link", { name: "Fitness", exact: true }).click();
   await expect(
@@ -83,6 +79,9 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     "/food",
     "/food?view=recipe",
     "/assistant",
+    "/goals",
+    "/routines",
+    "/unscheduled",
     "/tasks",
     `/tasks?task=${randomUUID()}`,
     `/tasks?view=projects&project=${randomUUID()}`,
@@ -106,6 +105,13 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     "tasks?date=2026-10-27&view=all",
     "task-projects",
     `tasks/${randomUUID()}`,
+    "goals",
+    "routines",
+    "calendar/backlog",
+    "calendar/search?kind=unscheduled",
+    "cardio-activities",
+    "calendar/templates",
+    `calendar/templates/${randomUUID()}/preview?targetDate=2026-10-27`,
     "training-programs",
     `training-program-for-session/${randomUUID()}`,
   ]) {
@@ -131,7 +137,7 @@ test("My workouts fills responsive rows and paginates a shorter phone list", asy
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Workout layout",
     email: `workout-layout-${randomUUID()}@example.com`,
     password: "Synthetic-layout-password-123",
@@ -235,7 +241,7 @@ test("core Calendar never requests deferred Task actions for retained plans or r
     info.config.metadata.releaseScope !== "core",
     "Use the release config.",
   );
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Retained Calendar",

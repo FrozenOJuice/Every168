@@ -1,3 +1,4 @@
+import type { RunInTransaction } from "../../shared/transactions.js";
 import { workoutSeconds } from "@168hours/domain-utils";
 import { measurementsFor } from "@168hours/contracts";
 import { addDays, localDate, weekRange } from "@168hours/domain-utils";
@@ -81,18 +82,19 @@ export function strengthProgressService(
   identity: IdentityService,
   exercises: ExerciseService,
   strength: StrengthService,
+  readSnapshot: RunInTransaction,
 ) {
   return {
-    async overview(u: string, date?: string) {
+    async overview(u: string, date?: string, weeks = 12) {
       const { timezone, weekStartsOn } = await identity.getPreferences(u);
       const current = weekRange(
         date ?? localDate(new Date(), timezone),
         timezone,
         weekStartsOn,
       );
-      const ranges = Array.from({ length: 12 }, (_, i) =>
+      const ranges = Array.from({ length: weeks }, (_, i) =>
         weekRange(
-          addDays(current.weekStart, (i - 11) * 7),
+          addDays(current.weekStart, (i - weeks + 1) * 7),
           timezone,
           weekStartsOn,
         ),
@@ -125,31 +127,44 @@ export function strengthProgressService(
         : { records: [] };
     },
     async comparison(u: string, id: string) {
-      const current = await strength.get(u, id);
-      const previousId = await repo.previousMatching(u, id, current.startedAt);
-      const previous = previousId ? await strength.get(u, previousId) : null;
-      // Repeated occurrences with identical selections match in occurrence order.
-      const signature = (e: SavedWorkout["exercises"][number]) =>
-        e.exerciseId +
-        ":" +
-        e.loggingType +
-        (e.sets.some((s) => s.measurementOverride !== null)
-          ? ":" +
-            e.sets.map((s) => s.measurementOverride ?? e.loggingType).join(";")
-          : "");
-      if (previous) {
-        const remaining = [...previous.exercises];
-        previous.exercises = current.exercises.map((e) => {
-          const index = remaining.findIndex(
-            (candidate) => signature(candidate) === signature(e),
-          );
-          return remaining.splice(index, 1)[0]!;
-        });
-      }
-      return {
-        current: summarize(current),
-        previous: previous ? summarize(previous) : null,
-      };
+      return readSnapshot(async (context) => {
+        const current = await strength.get(u, id, context);
+        const previousId = await repo.previousMatching(
+          u,
+          id,
+          current.startedAt,
+          context,
+        );
+        const previous = previousId
+          ? await strength.get(u, previousId, context)
+          : null;
+        // Repeated occurrences with identical selections match in occurrence order.
+        const signature = (e: SavedWorkout["exercises"][number]) =>
+          e.exerciseId +
+          ":" +
+          e.loggingType +
+          (e.sets.some((s) => s.measurementOverride !== null)
+            ? ":" +
+              e.sets
+                .map((s) => s.measurementOverride ?? e.loggingType)
+                .join(";")
+            : "");
+        if (previous) {
+          const remaining = [...previous.exercises];
+          previous.exercises = current.exercises.map((e) => {
+            const index = remaining.findIndex(
+              (candidate) => signature(candidate) === signature(e),
+            );
+            if (index < 0)
+              throw new Error("Inconsistent workout comparison signature");
+            return remaining.splice(index, 1)[0]!;
+          });
+        }
+        return {
+          current: summarize(current),
+          previous: previous ? summarize(previous) : null,
+        };
+      });
     },
   };
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@/lib/use-hydrated";
 import {
   createContext,
   useContext,
@@ -48,6 +49,7 @@ export function Form<T extends FieldValues>({
   retrySafe = true,
   disabled = false,
   footer,
+  onInvalid,
 }: {
   form: UseFormReturn<T>;
   retrySafe?: boolean;
@@ -55,16 +57,19 @@ export function Form<T extends FieldValues>({
   onSubmit: (values: T, requestKey: string) => Promise<void>;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  onInvalid?: () => void;
 }) {
   const [pending, setPending] = useState<{ values: T; key: string } | null>(
     null,
   );
   const [saving, setSaving] = useState(false);
+  const ready = useHydrated();
   const [stale, setStale] = useState(false);
   const running = useRef(false);
   const reportBusy = useContext(FormBusyContext);
   useEffect(() => {
     reportBusy?.(saving || !!pending);
+    return () => reportBusy?.(false);
   }, [saving, pending, reportBusy]);
   async function save(values: T) {
     if (running.current) return;
@@ -106,7 +111,7 @@ export function Form<T extends FieldValues>({
     <>
       <fieldset
         className="form-stack"
-        disabled={disabled || !!pending || saving}
+        disabled={!ready || disabled || !!pending || saving}
       >
         {children}
       </fieldset>
@@ -144,17 +149,19 @@ export function Form<T extends FieldValues>({
   );
   return (
     <FormProvider {...form}>
-      <FormDisabledContext.Provider value={disabled || !!pending || saving}>
+      <FormDisabledContext.Provider
+        value={!ready || disabled || !!pending || saving}
+      >
         <form
           noValidate
-          onSubmit={(event) => void form.handleSubmit(save)(event)}
+          onSubmit={(event) => void form.handleSubmit(save, onInvalid)(event)}
           className="form-stack"
         >
           {footer ? <div className="form-scroll-body">{body}</div> : body}
           {footer && (
             <fieldset
               className="form-footer"
-              disabled={disabled || !!pending || saving}
+              disabled={!ready || disabled || !!pending || saving}
             >
               {footer}
             </fieldset>

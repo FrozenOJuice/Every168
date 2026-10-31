@@ -48,7 +48,7 @@ test("compact workout cards expose removal and reorder exercises and sets by han
   test.setTimeout(120000);
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Card member",

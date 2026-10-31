@@ -17,7 +17,7 @@ test("workout previews stay compact and new workouts reset filters while the cur
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Overview tester",
     email: `overview-${randomUUID()}@example.com`,
     password: "Synthetic-overview-password-123",

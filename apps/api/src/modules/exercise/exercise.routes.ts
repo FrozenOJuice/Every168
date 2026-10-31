@@ -42,6 +42,7 @@ export function exerciseRoutes(
   plans: StrengthPlansService,
   writes: WritesService,
   progress: StrengthProgressService,
+  cardioEnabled: boolean,
 ) {
   const r = Router();
   r.get("/strength-plans/day-links", async (req, res) =>
@@ -57,6 +58,7 @@ export function exerciseRoutes(
       await progress.overview(
         currentUser(res).id,
         fitnessProgressQuery.parse(req.query).date,
+        fitnessProgressQuery.parse(req.query).weeks,
       ),
     ),
   );
@@ -338,47 +340,49 @@ export function exerciseRoutes(
       { versioned: true },
     ),
   );
-  r.get("/cardio-activities", async (req, res) =>
-    res.json(
-      await cardio.list(
-        currentUser(res).id,
-        cardioHistoryQuery.parse(req.query),
+  if (cardioEnabled) {
+    r.get("/cardio-activities", async (req, res) =>
+      res.json(
+        await cardio.list(
+          currentUser(res).id,
+          cardioHistoryQuery.parse(req.query),
+        ),
       ),
-    ),
-  );
-  r.post(
-    "/cardio-activities",
-    mutation(
-      writes,
-      cardioInput,
-      ({ userId, input, context }) => cardio.create(userId, input, context),
-      { status: 201 },
-    ),
-  );
-  r.get("/cardio-activities/:id", async (req, res) =>
-    res.json(
-      await cardio.get(currentUser(res).id, idSchema.parse(req.params.id)),
-    ),
-  );
-  r.put(
-    "/cardio-activities/:id",
-    mutation(
-      writes,
-      cardioInput,
-      ({ userId, id, input, version, context }) =>
-        cardio.update(userId, id, input, version, context),
-      { versioned: true },
-    ),
-  );
-  r.delete(
-    "/cardio-activities/:id",
-    mutation(
-      writes,
-      emptyInput,
-      ({ userId, id, version, context }) =>
-        cardio.remove(userId, id, version, context),
-      { versioned: true },
-    ),
-  );
+    );
+    r.post(
+      "/cardio-activities",
+      mutation(
+        writes,
+        cardioInput,
+        ({ userId, input, context }) => cardio.create(userId, input, context),
+        { status: 201 },
+      ),
+    );
+    r.get("/cardio-activities/:id", async (req, res) =>
+      res.json(
+        await cardio.get(currentUser(res).id, idSchema.parse(req.params.id)),
+      ),
+    );
+    r.put(
+      "/cardio-activities/:id",
+      mutation(
+        writes,
+        cardioInput,
+        ({ userId, id, input, version, context }) =>
+          cardio.update(userId, id, input, version, context),
+        { versioned: true },
+      ),
+    );
+    r.delete(
+      "/cardio-activities/:id",
+      mutation(
+        writes,
+        emptyInput,
+        ({ userId, id, version, context }) =>
+          cardio.remove(userId, id, version, context),
+        { versioned: true },
+      ),
+    );
+  }
   return r;
 }

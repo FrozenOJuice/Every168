@@ -17,7 +17,7 @@ test("Live previous session stays compact and opens history without losing curre
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Previous session",
     email: `recall-${randomUUID()}@example.com`,
     password: "Synthetic-recall-password-123",

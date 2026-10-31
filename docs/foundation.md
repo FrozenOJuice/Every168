@@ -49,7 +49,7 @@ pnpm dev
 
 Runtime receives schema usage, table SELECT/INSERT/UPDATE/DELETE and sequence access. It does not receive public schema CREATE, role creation, table ownership, or migration-schema access. Migrations refresh grants for existing and future tables. A production runtime role with elevated privileges or application-table ownership is rejected at startup.
 
-Production provisioning uses deployment-specific strong credentials and a role created by an administrator; do not use the local provisioning command or local passwords. Run migrations using migration credentials and provide only runtime credentials to the running API. Migration/runtime URLs must address the same database. Backup/restore exercises and deployment automation are phase 3 work.
+Production provisioning uses deployment-specific strong credentials and a role created by an administrator; do not use the local provisioning command or local passwords. Run migrations using migration credentials and provide only runtime credentials to the running API. Migration/runtime URLs must address the same database. The synthetic local fresh-migration/dump/restore rehearsal is recorded in FIRST_RELEASE_REMEDIATION.md. Actual hosting, encrypted off-host backups, restore acceptance and release operations follow PUBLIC_BETA_DEPLOYMENT.md and still require owner configuration.
 
 ## Layer enforcement and tests
 

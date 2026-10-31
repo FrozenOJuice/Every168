@@ -42,6 +42,8 @@ export const envSchema = z
           : v,
       )
       .pipe(z.array(z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]))),
+    EMAIL_API_KEY: z.string().min(1).optional(),
+    EMAIL_FROM: z.email().max(254).optional(),
     BETTER_AUTH_SECRET: z
       .string()
       .min(32)
@@ -53,6 +55,12 @@ export const envSchema = z
       .default("info"),
   })
   .superRefine((v, ctx) => {
+    if (v.NODE_ENV === "production" && (!v.EMAIL_API_KEY || !v.EMAIL_FROM))
+      ctx.addIssue({
+        code: "custom",
+        path: ["EMAIL_API_KEY"],
+        message: "Production requires account email delivery configuration",
+      });
     if (v.BETTER_AUTH_URL !== v.WEB_ORIGIN)
       ctx.addIssue({
         code: "custom",

@@ -16,7 +16,7 @@ test("creator reference shares the details layout and returns to the retained wo
     expect(r.ok()).toBe(true);
     return r.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Reference layout",
     email: `reference-layout-${randomUUID()}@example.com`,
     password: "Synthetic-reference-password-123",

@@ -22,7 +22,7 @@ test("mixed activities retain independent intent, measurements, recovery and pro
     expect(result.ok()).toBe(true);
     return result.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Mixed training",
     email: `mixed-${randomUUID()}@example.com`,
     password: "Synthetic-fitness-password-123",
@@ -193,7 +193,7 @@ test("mixed activities retain independent intent, measurements, recovery and pro
 test("custom activity defaults accept distance measurements without intent fields", async ({
   page,
 }) => {
-  const response = await page.request.post("/api/auth/sign-up/email", {
+  const response = await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Activity creator",

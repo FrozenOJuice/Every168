@@ -2,7 +2,13 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-export function TaskBlockAction({ blockId }: { blockId: string }) {
+export function TaskBlockAction({
+  blockId,
+  disabled = false,
+}: {
+  blockId: string;
+  disabled?: boolean;
+}) {
   const query = useQuery({
     queryKey: ["tasks", "for-block", blockId],
     queryFn: () => api.getTaskForBlock(blockId),
@@ -11,13 +17,26 @@ export function TaskBlockAction({ blockId }: { blockId: string }) {
     return (
       <p role="alert">
         Could not load task link.{" "}
-        <button className="text-button" onClick={() => void query.refetch()}>
+        <button
+          type="button"
+          disabled={disabled}
+          className="text-button"
+          onClick={() => void query.refetch()}
+        >
           Retry task link
         </button>
       </p>
     );
   return query.data?.taskId ? (
-    <Link className="button" href={`/tasks?task=${query.data.taskId}`}>
+    <Link
+      className="button"
+      href={`/tasks?task=${query.data.taskId}`}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : undefined}
+      onClick={(event) => {
+        if (disabled) event.preventDefault();
+      }}
+    >
       Open task
     </Link>
   ) : null;

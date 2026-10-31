@@ -1,3 +1,5 @@
+import type { TransactionContext } from "../../shared/transactions.js";
+import { databaseFor } from "../../infrastructure/database/transactions.js";
 import { measurementsFor, type ExerciseMeasurement } from "@168hours/contracts";
 import {
   and,
@@ -625,12 +627,17 @@ export function strengthProgressRepository(db: Database) {
         { isolationLevel: "repeatable read", accessMode: "read only" },
       );
     },
-    async previousMatching(u: string, id: string, startedAt: Date) {
+    async previousMatching(
+      u: string,
+      id: string,
+      startedAt: Date,
+      context?: TransactionContext,
+    ) {
       // Match the multiset of exercise identities and captured measurements; order may change.
       const entrySignature = sql`${entries.exerciseId}::text || ':' || ${entries.loggingType} || coalesce((select ':' || string_agg(coalesce(${sets.measurementOverride}, ${entries.loggingType}), ';' order by ${sets.position}) from ${sets} where ${sets.workoutExerciseId} = ${entries.id} and ${sets.userId} = ${u} having bool_or(${sets.measurementOverride} is not null)), '')`;
       const signature = (workout: typeof workouts.id | string) =>
         sql`(select string_agg(${entrySignature}, ',' order by ${entrySignature}) from ${entries} where ${entries.workoutId} = ${workout} and ${entries.userId} = ${u})`;
-      const [previous] = await db
+      const [previous] = await databaseFor(db, context)
         .select({ id: workouts.id })
         .from(workouts)
         .where(

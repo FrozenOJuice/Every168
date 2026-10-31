@@ -1,3 +1,9 @@
+import { accountSecurityRepository } from "./modules/identity/account-security.repository.js";
+import { accountSecurityService } from "./modules/identity/account-security.service.js";
+import {
+  emailDelivery,
+  type EmailDelivery,
+} from "./infrastructure/email/delivery.js";
 import { releaseFeatures } from "@168hours/contracts";
 import { tasksRepository } from "./modules/tasks/tasks.repository.js";
 import { tasksService } from "./modules/tasks/tasks.service.js";
@@ -54,13 +60,22 @@ import { envSchema, type ConfigInput } from "./infrastructure/config/env.js";
 import { createAuth } from "./shared/auth/auth.js";
 import { identityRepository } from "./modules/identity/identity.repository.js";
 import { identityService } from "./modules/identity/identity.service.js";
-export function compose(input: ConfigInput) {
+export function compose(
+  input: ConfigInput,
+  overrides: { sendEmail?: EmailDelivery } = {},
+) {
   const config = envSchema.parse(input);
   const features = releaseFeatures(config.RELEASE_SCOPE);
   const logger = createLogger(config.LOG_LEVEL);
   const { db, pool } = createDatabase(config.DATABASE_URL, config, logger);
   const runInTransaction = transactionRunner(db);
   const identity = identityService(identityRepository(db));
+  const accountSecurity = accountSecurityService(
+    accountSecurityRepository(db),
+    runInTransaction,
+    overrides.sendEmail ?? emailDelivery(config),
+    logger,
+  );
   const categories = categoriesService(categoriesRepository(db));
   const goals = goalsService(goalsRepository(db), categories);
   const planning = planningService(
@@ -91,6 +106,7 @@ export function compose(input: ConfigInput) {
     goals,
     planning,
     runInTransaction,
+    features.unscheduled,
   );
   const series = seriesService(
     seriesRepository(db),
@@ -119,6 +135,7 @@ export function compose(input: ConfigInput) {
   const calendarSearch = calendarSearchService(
     calendarSearchRepository(db),
     identity,
+    features.unscheduled,
   );
   const nutrition = nutritionService(
     nutritionRepository(db),
@@ -148,6 +165,10 @@ export function compose(input: ConfigInput) {
     identity,
     exercises,
     strength,
+    transactionRunner(db, {
+      isolationLevel: "repeatable read",
+      accessMode: "read only",
+    }),
   );
   const strengthPlans = strengthPlansService(
     strengthPlansRepo,
@@ -219,6 +240,7 @@ export function compose(input: ConfigInput) {
     },
   );
   return {
+    accountSecurity,
     tasks,
     admin,
     metrics,

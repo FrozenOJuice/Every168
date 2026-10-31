@@ -7,7 +7,7 @@ test("builder validates fields, copies set targets and preserves collapsed cards
 }, testInfo) => {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Builder member",

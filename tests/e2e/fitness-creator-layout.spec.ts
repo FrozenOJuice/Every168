@@ -7,7 +7,7 @@ test("creator navigation precedes mobile views and basic unit fields have room",
 }, info) => {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Creator layout",

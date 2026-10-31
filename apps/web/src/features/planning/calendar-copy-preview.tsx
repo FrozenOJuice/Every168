@@ -2,47 +2,67 @@ import type { CopyPreview } from "@168hours/contracts";
 import { formatTime, formatDate } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
 export function CalendarCopyPreview({ preview }: { preview: CopyPreview }) {
-  const count = preview.blocks.length + preview.items.length;
+  const records = [
+    ...preview.blocks.map((b, index) => ({
+      key: `b${index}`,
+      date: localDate(b.startsAt, preview.timezone),
+      order: b.startsAt,
+      title: b.title,
+      detail: `${formatTime(b.startsAt, preview.timezone)} - ${localDate(b.startsAt, preview.timezone) !== localDate(b.endsAt, preview.timezone) ? formatDate(localDate(b.endsAt, preview.timezone)) + " " : ""}${formatTime(b.endsAt, preview.timezone)}`,
+    })),
+    ...preview.items.map((item, index) => ({
+      key: `i${index}`,
+      date: item.date ?? preview.targetDate,
+      order: "",
+      title: item.title,
+      detail: `${item.kind === "all_day" ? "All day" : "Any time"}${item.endDate && item.endDate !== item.date ? ` through ${formatDate(item.endDate)}` : ""}`,
+    })),
+  ].sort(
+    (a, b) => a.date.localeCompare(b.date) || a.order.localeCompare(b.order),
+  );
+  const dates = [...new Set(records.map((record) => record.date))];
   return (
-    <div className="stack">
-      <p>
+    <div className="calendar-template-preview">
+      <div className="calendar-template-preview-total">
         <strong>
-          {count} {count === 1 ? "plan" : "plans"}
-        </strong>{" "}
-        will be added starting {formatDate(preview.targetDate)}.
-      </p>
+          {records.length} {records.length === 1 ? "plan" : "plans"} will be
+          added
+        </strong>
+        <span>
+          Starting{" "}
+          {formatDate(preview.targetDate, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })}
+        </span>
+      </div>
       <p className="muted text-small">
-        Existing plans remain. Copies are independent plans; recorded activity
-        and repeating rules are excluded. Repeated clock times use the first
-        occurrence.
+        Existing plans stay. Copies exclude recorded activity and repeating
+        rules.
       </p>
-      <ol className="copy-preview-list">
-        {preview.blocks.map((b, index) => (
-          <li key={"b" + index}>
-            <strong>{b.title}</strong>
-            <small>
-              {localDate(b.startsAt, preview.timezone)} ·{" "}
-              {formatTime(b.startsAt, preview.timezone)} –{" "}
-              {localDate(b.startsAt, preview.timezone) !==
-              localDate(b.endsAt, preview.timezone)
-                ? localDate(b.endsAt, preview.timezone) + " "
-                : ""}
-              {formatTime(b.endsAt, preview.timezone)}
-            </small>
-          </li>
-        ))}
-        {preview.items.map((i, index) => (
-          <li key={"i" + index}>
-            <strong>{i.title}</strong>
-            <small>
-              {i.date}
-              {i.endDate && i.endDate !== i.date
-                ? " – " + i.endDate
-                : ""} · {i.kind === "all_day" ? "All day" : "Any time"}
-            </small>
-          </li>
-        ))}
-      </ol>
+      {dates.map((date) => (
+        <section key={date} className="calendar-template-preview-day">
+          <h4>
+            {formatDate(date, {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </h4>
+          <ol>
+            {records
+              .filter((record) => record.date === date)
+              .map((record) => (
+                <li key={record.key}>
+                  <strong>{record.title}</strong>
+                  <span>{record.detail}</span>
+                </li>
+              ))}
+          </ol>
+        </section>
+      ))}
     </div>
   );
 }

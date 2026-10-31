@@ -17,7 +17,7 @@ test("summary surfaces records and outcomes, keeps long phone metrics readable a
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Summary polish",
     email: `summary-polish-${randomUUID()}@example.com`,
     password: "Synthetic-polish-password-123",

@@ -54,7 +54,12 @@ export function CalendarRepeatSummary({
         {q.data ? repeatSummary(q.data) : "Repeating plan"}
         {q.isError ? " · Rule unavailable" : ""}
       </small>
-      <button className="text-button" disabled={disabled} onClick={onEdit}>
+      <button
+        type="button"
+        className="button"
+        disabled={disabled}
+        onClick={onEdit}
+      >
         Edit repeating rule
       </button>
     </div>

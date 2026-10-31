@@ -1,4 +1,5 @@
 "use client";
+import { CalendarWriteNotice } from "@/features/planning/calendar-write-notice";
 import { features } from "@/lib/release";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -71,6 +72,7 @@ export function AppShell({
             <AccountMenu user={me.user} />
           </aside>
           <main id="main" className="main-content" tabIndex={-1}>
+            <CalendarWriteNotice />
             {children}
           </main>
           {features.assistant && <AssistantLauncher />}

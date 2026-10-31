@@ -1,3 +1,4 @@
+import { fillCalendarField } from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -20,7 +21,7 @@ async function setup(page: Page) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "Program tester",
     email: `program-${randomUUID()}@example.com`,
     password: "Synthetic-program-password-123",
@@ -122,8 +123,8 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
     .getByRole("button", { name: "Schedule next workout", exact: true })
     .click();
   let dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-26T09:00");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-26T10:00");
+  await fillCalendarField(dialog, "Start", "2026-10-26T09:00");
+  await fillCalendarField(dialog, "End", "2026-10-26T10:00");
   await dialog
     .getByRole("button", { name: "Save schedule", exact: true })
     .click();
@@ -134,8 +135,8 @@ test("program creation, reorder, Calendar rescheduling, skipping, completion and
   ).json();
   await page.getByRole("button", { name: "Reschedule", exact: true }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-27T09:00");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-27T10:00");
+  await fillCalendarField(dialog, "Start", "2026-10-27T09:00");
+  await fillCalendarField(dialog, "End", "2026-10-27T10:00");
   await dialog
     .getByRole("button", { name: "Save schedule", exact: true })
     .click();

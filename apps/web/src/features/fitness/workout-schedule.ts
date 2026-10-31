@@ -14,6 +14,7 @@ export function initialWorkoutSchedule(
   date: string,
   now: Date,
   timezone: string,
+  placement?: { minute?: number; durationMinutes?: number },
 ): ScheduleFields {
   const localTime = instantToLocalInput(now, timezone).slice(11);
   // Round the selected day's wall clock, carrying midnight into the following day.
@@ -21,17 +22,20 @@ export function initialWorkoutSchedule(
   const minutes =
     clock.getUTCMinutes() +
     (now.getUTCSeconds() || now.getUTCMilliseconds() ? 1 : 0);
-  clock.setUTCMinutes(Math.ceil(minutes / 15) * 15);
+  if (placement?.minute !== undefined)
+    clock.setUTCHours(0, placement.minute, 0, 0);
+  else clock.setUTCMinutes(Math.ceil(minutes / 15) * 15);
+  const duration = (placement?.durationMinutes ?? 60) * 60000;
   const start = clock.toISOString().slice(0, 16);
   let end: string;
   try {
     end = instantToLocalInput(
-      new Date(Date.parse(localInputToInstant(start, timezone)) + 3600000),
+      new Date(Date.parse(localInputToInstant(start, timezone)) + duration),
       timezone,
     );
   } catch {
     // Keep invalid clock-change times visible for explicit correction.
-    end = new Date(Date.parse(`${start}:00Z`) + 3600000)
+    end = new Date(Date.parse(`${start}:00Z`) + duration)
       .toISOString()
       .slice(0, 16);
   }

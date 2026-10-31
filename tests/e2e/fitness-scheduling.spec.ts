@@ -16,7 +16,7 @@ test("schedule uses the selected day, preserves duration, validates inline and c
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Schedule tester",
     email: `schedule-${randomUUID()}@example.com`,
     password: "Synthetic-schedule-password-123",

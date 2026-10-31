@@ -1,6 +1,8 @@
-import { saveCalendarPlan } from "./helpers/calendar-form";
 import {
+  clickCalendarEditorAction,
   fillCalendarField,
+  openCalendarPlan,
+  saveCalendarPlan,
   selectCalendarRepeat,
 } from "./helpers/calendar-form";
 import { expect, test, type Page } from "@playwright/test";
@@ -14,7 +16,7 @@ const headers = (version?: number) => ({
 async function start(page: Page) {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Calendar redo",
@@ -55,7 +57,7 @@ async function items(page: Page): Promise<CalendarItem[]> {
 }
 async function create(page: Page, title: string, allDay = false) {
   await ready(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   const editor = page.getByRole("dialog");
   await editor.getByLabel("Title", { exact: true }).fill(title);
   if (allDay) await editor.getByLabel("All day", { exact: true }).check();
@@ -337,7 +339,7 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
   page,
 }) => {
   await start(page);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   const editor = page.getByRole("dialog");
   await editor.getByLabel("Title", { exact: true }).fill("Series original");
   await fillCalendarField(editor, "Start", "2026-09-07T09:00");
@@ -387,9 +389,7 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
   await editor
     .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
-  await editor
-    .getByRole("button", { name: "Delete entire series", exact: true })
-    .click();
+  await clickCalendarEditorAction(editor, "Delete entire series");
   await expect.poll(() => blocks(page)).toHaveLength(0);
   await step(page, "Control+z");
   await expect.poll(() => blocks(page)).toHaveLength(2);

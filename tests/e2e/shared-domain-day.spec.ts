@@ -17,7 +17,7 @@ test("domains share a clean Day panel with consistent controls and recovered edi
     expect(r.ok()).toBe(true);
     return r.json();
   };
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Shared day",

@@ -331,6 +331,7 @@ export function ExerciseDetails({
           </SectionHeading>
           {item.exercise ? (
             <ExerciseProgressPage
+              key={initialMode ?? "all"}
               id={item.exercise.id}
               initialMode={initialMode}
               embedded

@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("custom exercise settings reset with confirmation and can be adjusted afterward", async ({
   page,
 }, info) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Basic reset",
@@ -149,7 +149,7 @@ test("reset summary stays compact with every target category and many sets", asy
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Compact reset",
     email: `compact-reset-${randomUUID()}@example.com`,
     password: "Synthetic-basic-password-123",

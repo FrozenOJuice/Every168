@@ -27,7 +27,7 @@ test("scheduled workout travels through Calendar, logging, pause, summary, corre
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Complete journey",
     email: `journey-${randomUUID()}@example.com`,
     password: "Synthetic-journey-password-123",
@@ -67,7 +67,7 @@ test("scheduled workout travels through Calendar, logging, pause, summary, corre
       },
     ],
   });
-  const now = new Date();
+  const now = new Date("2026-10-29T16:00:00Z");
   const date = localDate(now, "America/Edmonton");
   await page.clock.install({ time: now });
   await write("/api/v1/time-blocks", {

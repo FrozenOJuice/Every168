@@ -1,11 +1,12 @@
+import {
+  expectCalendarField,
+  fillCalendarField,
+  openCalendarPlan,
+  selectCalendarRepeat,
+} from "./helpers/calendar-form";
 import { test, expect, type Page, type Locator } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import AxeBuilder from "@axe-core/playwright";
-import {
-  fillCalendarField,
-  expectCalendarField,
-  selectCalendarRepeat,
-} from "./helpers/calendar-form";
 const headers = () => ({
   Origin: "http://localhost:3100",
   "Idempotency-Key": randomUUID(),
@@ -13,7 +14,7 @@ const headers = () => ({
 async function start(page: Page) {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Event creator",
@@ -28,7 +29,7 @@ async function start(page: Page) {
     "aria-busy",
     "false",
   );
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   return page.getByRole("dialog", { name: "Add plan", exact: true });
 }
 async function footerVisible(page: Page, dialog: Locator) {
@@ -64,11 +65,8 @@ test("timed creation has visible notes, custom timing, pinned actions and same-k
   await fillCalendarField(dialog, "End", "2026-09-09T01:00");
   await footerVisible(page, dialog);
   expect(
-    (
-      await new AxeBuilder({ page })
-        .include(".calendar-event-composer")
-        .analyze()
-    ).violations,
+    (await new AxeBuilder({ page }).include(".calendar-event-editor").analyze())
+      .violations,
   ).toEqual([]);
   await page.screenshot({ path: info.outputPath("timed-creator.png") });
   const keys: string[] = [];
@@ -144,11 +142,8 @@ test("all-day repeating creation scrolls fields with actions fixed and validates
   await footerVisible(page, dialog);
   await page.screenshot({ path: info.outputPath("repeating-creator.png") });
   expect(
-    (
-      await new AxeBuilder({ page })
-        .include(".calendar-event-composer")
-        .analyze()
-    ).violations,
+    (await new AxeBuilder({ page }).include(".calendar-event-editor").analyze())
+      .violations,
   ).toEqual([]);
   await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).toHaveCount(0);

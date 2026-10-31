@@ -37,7 +37,7 @@ it("stores salted credentials and exposes only public user fields in auth respon
   expect(first!.password).not.toBe(second!.password);
   expect(first!.password).not.toContain(password);
   const [record] = await deps.db.select().from(user).where(eq(user.id, a.id));
-  expect(record!.emailVerified).toBe(false);
+  expect(record!.emailVerified).toBe(true);
   const login = await post("sign-in/email", {
     email: a.email.toUpperCase(),
     password,
@@ -56,7 +56,7 @@ it("stores salted credentials and exposes only public user fields in auth respon
   expect(wrong.body.error.message).toBe(missing.body.error.message);
 });
 
-it.each(["accounts", "sessions"] as const)(
+it.each(["accounts"] as const)(
   "rolls back signup if inserting into %s fails, allowing a clean retry",
   async (table) => {
     const email = `rollback-${randomUUID()}@example.com`;
@@ -94,9 +94,6 @@ it("rejects unrequested auth capabilities, unknown fields, excessive inputs and 
   const fresh = await serve();
   for (const path of [
     "update-user",
-    "change-password",
-    "request-password-reset",
-    "reset-password",
     "delete-user",
     "revoke-session",
     "sign-in/social",
@@ -168,4 +165,36 @@ it("rejects missing, foreign, null and cross-site origins even before a login co
       .send({})
       .expect(403);
   }
+});
+
+it("retains the verified account and existing sessions when a new session insertion fails", async () => {
+  const member = await signUp();
+  const before = await deps.pool.query(
+    "select id from sessions where user_id=$1",
+    [member.id],
+  );
+  await deps.pool.query(
+    `CREATE FUNCTION beta_fail_session() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${member.id}'::uuid THEN RAISE EXCEPTION 'Synthetic failure' USING ERRCODE='57P03'; END IF; RETURN NEW; END $$`,
+  );
+  try {
+    await deps.pool.query(
+      "CREATE TRIGGER beta_fail_session BEFORE INSERT ON sessions FOR EACH ROW EXECUTE FUNCTION beta_fail_session()",
+    );
+    await post("sign-in/email", { email: member.email, password }).expect(503);
+    const after = await deps.pool.query(
+      "select id from sessions where user_id=$1",
+      [member.id],
+    );
+    expect(after.rows).toEqual(before.rows);
+    await request(app)
+      .get("/api/v1/me")
+      .set("Cookie", member.cookie)
+      .expect(200);
+  } finally {
+    await deps.pool.query(
+      "DROP TRIGGER IF EXISTS beta_fail_session ON sessions",
+    );
+    await deps.pool.query("DROP FUNCTION beta_fail_session()");
+  }
+  await post("sign-in/email", { email: member.email, password }).expect(200);
 });

@@ -16,7 +16,7 @@ This document records the agreed direction and priority order. It describes futu
 
 ## Domains: useful experiences of their own
 
-- First-release navigation contains Calendar and Fitness. Tasks, Food, Assistant and Training Programs are deferred behind preview scope, with their code and data retained. The first Strength workflow covers reusable workouts, optional scheduling, set-by-set session logging, and review. The old Exercise UI remains retired; Everyday Food reuses the retained nutrition, hydration and body services. Tasks includes the existing reusable Routines; Unscheduled Calendar plans remain available separately. Goals are deferred.
+- First-release navigation contains Calendar and Fitness. Goals, Routines, Unscheduled plans, Calendar Templates, Tasks, Food, Assistant and Training Programs are deferred behind preview scope, with their code and data retained. The first Strength workflow covers reusable workouts, optional scheduling, set-by-set session logging, and review. The old Exercise UI remains retired; Everyday Food reuses the retained nutrition, hydration and body services. Preview Tasks includes reusable Routines; preview retains standalone Unscheduled plans and Goals.
 
 - Work toward three built-in workspaces around Calendar: Fitness, Food, and Tasks.
 - Fitness covers workout planning, sessions, sets, reps, rest, and progress. Fitness is the product workspace name; the existing Exercise backend module supplies its canonical records and services.

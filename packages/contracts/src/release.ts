@@ -1,8 +1,13 @@
 export type ReleaseScope = "core" | "preview";
 
-/** Deferred domains stay implemented, but are unavailable in the first release. */
+/** Deferred features stay implemented, but are unavailable in the first release. */
 export function releaseFeatures(scope: ReleaseScope = "core") {
   return {
+    goals: scope === "preview",
+    routines: scope === "preview",
+    unscheduled: scope === "preview",
+    legacyCardio: scope === "preview",
+    calendarTemplates: scope === "preview",
     tasks: scope === "preview",
     food: scope === "preview",
     assistant: scope === "preview",

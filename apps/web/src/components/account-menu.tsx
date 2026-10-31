@@ -1,4 +1,5 @@
 "use client";
+import { clearCalendarWrites } from "@/features/planning/calendar-write-recovery";
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,6 +30,7 @@ export function AccountMenu({ user }: { user: Me["user"] }) {
     try {
       await api.signOut();
       clearCalendarHistory();
+      clearCalendarWrites();
       cache.clear();
       // Clear the document and router cache across account changes.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination

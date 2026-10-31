@@ -257,7 +257,14 @@ it("rejects conversion that would drop clock-gap occurrences or use another acco
     weekdays: [1],
   };
   const created = (await a.post("calendar/series", rule).expect(201)).body;
-  const source = (await a.get("calendar/items/" + created.items[0].id)).body;
+  const occurrences = (
+    await a.get("calendar/items?from=2027-03-13&to=2027-03-16")
+  ).body;
+  const first = occurrences.find(
+    (item: { date: string }) => item.date === "2027-03-13",
+  );
+  expect(first).toBeDefined();
+  const source = (await a.get("calendar/items/" + first.id)).body;
   const input = {
     source: { kind: "item", id: source.id, version: source.version },
     scope: "all",

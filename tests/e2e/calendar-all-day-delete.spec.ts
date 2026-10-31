@@ -1,3 +1,7 @@
+import {
+  clickCalendarEditorAction,
+  openCalendarEditorActions,
+} from "./helpers/calendar-form";
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -10,7 +14,7 @@ test("delete one all-day plan from selection or editor and undo without confirma
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "All-day deletion test",
@@ -85,10 +89,8 @@ test("delete one all-day plan from selection or editor and undo without confirma
         await route.continue();
       });
     }
-    await editor.getByText("Actions", { exact: true }).click();
-    await editor
-      .getByRole("button", { name: "Delete plan", exact: true })
-      .click();
+    await openCalendarEditorActions(editor);
+    await clickCalendarEditorAction(editor, "Delete plan");
     await expect(editor).toHaveCount(0);
     if (view === "day") {
       const retry = page.getByRole("button", { name: "Retry same change" });

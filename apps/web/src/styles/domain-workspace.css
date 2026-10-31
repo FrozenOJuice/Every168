@@ -1231,7 +1231,7 @@ html:has(.fitness-workspace)::-webkit-scrollbar-track,
 .fitness-set-editor-row > .fitness-set-configuration {
   grid-column: 1 / -1;
   min-width: 0;
-  width: min(100%, 100cqw);
+  width: min(100%, calc(100cqw - 10px));
   position: sticky;
   left: 0;
 }

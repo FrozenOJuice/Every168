@@ -22,7 +22,7 @@ async function seed(page: Page, finished = false) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "Fitness regression",
     email: `fitness-integrity-${randomUUID()}@example.com`,
     password: "Synthetic-fitness-password-123",

@@ -17,7 +17,7 @@ test("Basic preserves shared rest on count changes and rounds duration display w
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Basic values",
     email: `basic-values-${randomUUID()}@example.com`,
     password: "Synthetic-basic-password-123",

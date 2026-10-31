@@ -76,3 +76,23 @@ it("defaults to first-release scope and requires an explicit preview opt-in", ()
     "RELEASE_SCOPE",
   );
 });
+
+it("requires a configured sender and provider key for production account recovery", () => {
+  const production = {
+    ...valid,
+    NODE_ENV: "production",
+    WEB_ORIGIN: "https://hours.example",
+    BETTER_AUTH_URL: "https://hours.example",
+  };
+  expect(() => readConfig(production)).toThrow("email delivery configuration");
+  expect(() =>
+    readConfig({ ...production, EMAIL_FROM: "member@example.com" }),
+  ).toThrow("email delivery configuration");
+  expect(
+    readConfig({
+      ...production,
+      EMAIL_FROM: "member@example.com",
+      EMAIL_API_KEY: "synthetic-provider-test-key",
+    }).EMAIL_FROM,
+  ).toBe("member@example.com");
+});

@@ -21,7 +21,7 @@ async function setup(page: Page, withWorkouts = true) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "Progress test",
     email: `progress-${randomUUID()}@example.com`,
     password: "Synthetic-progress-password-123",

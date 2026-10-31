@@ -59,8 +59,8 @@ export function strengthService(
     },
     list: repo.list,
     latest: repo.latest,
-    async get(u: string, id: string) {
-      return found(await repo.get(u, id));
+    async get(u: string, id: string, context?: TransactionContext) {
+      return found(await repo.get(u, id, context));
     },
     async start(u: string, v: WorkoutStartInput, context?: TransactionContext) {
       if (v.linkedTimeBlockId)

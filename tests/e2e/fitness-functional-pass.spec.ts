@@ -1,3 +1,7 @@
+import {
+  expectCalendarField,
+  fillCalendarField,
+} from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -14,7 +18,7 @@ async function fixture(page: Page) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Functional pass",
     email: `functional-${randomUUID()}@example.com`,
     password: "Synthetic-functional-password-123",
@@ -478,8 +482,8 @@ test("program scheduling recovers its original request and reviewed times after 
     .getByRole("button", { name: "Schedule next workout", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-27T09:15");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-27T10:15");
+  await fillCalendarField(dialog, "Start", "2026-10-27T09:15");
+  await fillCalendarField(dialog, "End", "2026-10-27T10:15");
   const endpoint = `**/training-programs/${program.id}/schedule`;
   let key = "";
   await page.route(endpoint, async (route) => {
@@ -496,9 +500,7 @@ test("program scheduling recovers its original request and reviewed times after 
   await page.unroute(endpoint);
   page.on("dialog", (d) => d.accept());
   await page.reload();
-  await expect(dialog.getByLabel("Start", { exact: true })).toHaveValue(
-    "2026-10-27T09:15",
-  );
+  await expectCalendarField(dialog, "Start", "2026-10-27T09:15");
   let retryKey = "";
   page.on("request", (r) => {
     if (r.url().endsWith(`/training-programs/${program.id}/schedule`))

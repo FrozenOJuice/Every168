@@ -1,6 +1,10 @@
-import { saveCalendarPlan } from "./helpers/calendar-form";
 import {
+  clickCalendarEditorAction,
+  expectCalendarClock,
   fillCalendarField,
+  openCalendarEditorActions,
+  openCalendarPlan,
+  saveCalendarPlan,
   selectCalendarRepeat,
 } from "./helpers/calendar-form";
 import { expect, test, type Page, type Locator } from "@playwright/test";
@@ -14,7 +18,7 @@ const headers = () => ({
 async function start(page: Page) {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Repeating test",
@@ -54,7 +58,7 @@ async function items(page: Page): Promise<CalendarItem[]> {
 
 test("existing timed plans gain repetition and consistent edit, delete and stop scopes with undo", async ({
   page,
-}) => {
+}, info) => {
   await start(page);
   const source = await page.request.post("/api/v1/time-blocks", {
     headers: headers(),
@@ -70,20 +74,37 @@ test("existing timed plans gain repetition and consistent edit, delete and stop 
   await ready(page);
   const editor = page.getByRole("dialog");
   await block(page, "Focus").dblclick();
-  await editor.getByText("Actions", { exact: true }).click();
-  await editor.getByRole("button", { name: "Repeat…", exact: true }).click();
+  await openCalendarEditorActions(editor);
+  await clickCalendarEditorAction(editor, "Repeat…");
   await expect(editor.getByLabel("Title", { exact: true })).toHaveValue(
     "Focus",
   );
-  await expect(editor.getByLabel("Start time", { exact: true })).toHaveValue(
-    "09:00",
-  );
+  await expectCalendarClock(editor, "Start time", "09:00");
+  await editor.getByRole("button", { name: "Start time", exact: true }).click();
+  const time = page.getByRole("dialog", {
+    name: "Choose start time",
+    exact: true,
+  });
+  await time
+    .getByRole("listbox", { name: "Hour", exact: true })
+    .press("ArrowDown");
+  await time.getByRole("button", { name: "Set time", exact: true }).click();
+  await editor.getByLabel("Duration (minutes)").fill("90");
+  await editor.getByLabel("Notes (optional)").fill("Keep a relaxed pace.");
+  await page.screenshot({ path: info.outputPath("repeating-rule.png") });
   await selectCalendarRepeat(editor, "daily");
   await fillCalendarField(editor, "Repeat through", "2026-09-10");
   await saveCalendarPlan(editor);
   await expect(editor).toHaveCount(0);
   await expect.poll(async () => (await blocks(page)).length).toBe(4);
   expect((await blocks(page)).some((b) => b.id === original.id)).toBe(true);
+  expect(
+    (await blocks(page)).every(
+      (block) =>
+        block.startsAt.includes("T10:00") &&
+        Date.parse(block.endsAt) - Date.parse(block.startsAt) === 90 * 60000,
+    ),
+  ).toBe(true);
   await page.keyboard.press("Meta+z");
   await expect.poll(async () => (await blocks(page)).length).toBe(1);
   expect((await blocks(page))[0]).toMatchObject({
@@ -127,12 +148,11 @@ test("existing timed plans gain repetition and consistent edit, delete and stop 
   await editor
     .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
-  await editor
-    .getByLabel("Last repeating date", { exact: true })
-    .fill("2026-09-08");
+  await clickCalendarEditorAction(editor, "Stop repeating…");
+  await fillCalendarField(editor, "Last repeating date", "2026-09-08");
   await editor
     .getByRole("button", {
-      name: "Stop repeating after this date",
+      name: "Stop repeating",
       exact: true,
     })
     .click();
@@ -148,7 +168,7 @@ test("all-day repetition preserves individual edits and supports series editing,
 }) => {
   await start(page);
   const editor = page.getByRole("dialog");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await editor.getByLabel("Title", { exact: true }).fill("Holiday");
   await editor.getByLabel("All day", { exact: true }).check();
   await fillCalendarField(editor, "Date", "2026-09-07");
@@ -331,10 +351,8 @@ test("repeating moves and resizes choose scope and retry the original command sa
   await ready(page);
   if (touch) {
     await target().dblclick();
-    await dialog.getByText("Actions", { exact: true }).click();
-    await dialog
-      .getByRole("button", { name: "Move or resize on calendar" })
-      .click();
+    await openCalendarEditorActions(dialog);
+    await clickCalendarEditorAction(dialog, "Move or resize on calendar");
     await page.getByRole("button", { name: "Resize end", exact: true }).click();
   }
   await drag(

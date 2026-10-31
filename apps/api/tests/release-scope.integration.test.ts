@@ -268,3 +268,207 @@ it("defers all Tasks endpoints and feed contributions while retaining preview da
     ),
   ).toBe(true);
 });
+
+it("defers every template endpoint while retaining preview data and Calendar copying", async () => {
+  const { cookie } = await signUp();
+  const post = (server: typeof app, path: string, data: object) =>
+    request(server)
+      .post(`/api/v1/${path}`)
+      .set("Cookie", cookie)
+      .set("Origin", origin)
+      .set(commandHeaders())
+      .send(data);
+  const plan = (
+    await post(app, "time-blocks", {
+      title: "Retained template source",
+      startsAt: "2026-10-27T12:00:00Z",
+      endsAt: "2026-10-27T13:00:00Z",
+    }).expect(201)
+  ).body;
+  const template = (
+    await post(previewApp, "calendar/templates", {
+      name: "Retained template",
+      sourceDate: "2026-10-27",
+      span: "day",
+    }).expect(201)
+  ).body;
+  for (const path of [
+    "calendar/templates",
+    `calendar/templates/${template.id}`,
+    `calendar/templates/${template.id}/preview?targetDate=2026-10-28`,
+  ])
+    await request(app).get(`/api/v1/${path}`).set("Cookie", cookie).expect(404);
+  for (const [method, path] of [
+    ["post", "calendar/templates"],
+    ["put", `calendar/templates/${template.id}`],
+    ["delete", `calendar/templates/${template.id}`],
+    ["post", `calendar/templates/${template.id}/apply`],
+  ] as const)
+    await request(app)
+      [method](`/api/v1/${path}`)
+      .set("Cookie", cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(template.version))
+      .send({})
+      .expect(404);
+  const retained = (
+    await request(previewApp)
+      .get(`/api/v1/calendar/templates/${template.id}`)
+      .set("Cookie", cookie)
+      .expect(200)
+  ).body;
+  expect(retained.name).toBe("Retained template");
+  expect(retained.version).toBe(template.version);
+  await request(app)
+    .get(`/api/v1/time-blocks/${plan.id}`)
+    .set("Cookie", cookie)
+    .expect(200);
+  const copy = {
+    span: "single",
+    sourceDate: "2026-10-27",
+    sourceId: plan.id,
+    sourceKind: "block",
+    targetDate: "2026-10-28",
+  };
+  const preview = (
+    await request(app)
+      .get(`/api/v1/calendar/copy-preview?${new URLSearchParams(copy)}`)
+      .set("Cookie", cookie)
+      .expect(200)
+  ).body;
+  await post(app, "calendar/copy", { ...copy, token: preview.token }).expect(
+    201,
+  );
+});
+
+it("gates standalone planning features and shared unscheduled operations while preserving all-day data", async () => {
+  const { cookie } = await signUp();
+  const write = (
+    server: typeof app,
+    path: string,
+    data: object,
+    method: "post" | "put" = "post",
+    version = 1,
+  ) =>
+    request(server)
+      [method](`/api/v1/${path}`)
+      .set("Cookie", cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(version))
+      .send(data);
+  const goal = (
+    await write(previewApp, "goals", { title: "Retained goal" }).expect(201)
+  ).body;
+  const routine = (
+    await write(previewApp, "routines", {
+      name: "Retained routine",
+      steps: ["First step"],
+    }).expect(201)
+  ).body;
+  const input = {
+    title: "Deferred backlog",
+    kind: "unscheduled",
+    date: null,
+    endDate: null,
+  };
+  const backlog = (await write(previewApp, "calendar/items", input).expect(201))
+    .body;
+  const dated = (
+    await write(previewApp, "calendar/items", {
+      ...input,
+      title: "Deferred dated",
+      date: "2026-10-27",
+    }).expect(201)
+  ).body;
+  const allDay = (
+    await write(app, "calendar/items", {
+      title: "Core all day",
+      kind: "all_day",
+      date: "2026-10-27",
+      endDate: "2026-10-27",
+    }).expect(201)
+  ).body;
+  for (const path of [
+    "goals",
+    `goals/${goal.id}`,
+    "routines",
+    `routines/${routine.id}`,
+    "calendar/backlog",
+    `calendar/items/${backlog.id}`,
+    `calendar/items/${dated.id}`,
+    "cardio-activities",
+  ])
+    await request(app).get(`/api/v1/${path}`).set("Cookie", cookie).expect(404);
+  for (const [path, data] of [
+    ["goals", { title: "No goal" }],
+    ["routines", { name: "No routine", steps: [] }],
+    ["calendar/items", input],
+    [
+      `calendar/items/${backlog.id}/schedule`,
+      {
+        title: "No schedule",
+        startsAt: "2026-10-27T12:00:00Z",
+        endsAt: "2026-10-27T13:00:00Z",
+      },
+    ],
+  ] as const)
+    await write(app, path, data).expect(404);
+  await write(
+    app,
+    `calendar/items/${allDay.id}`,
+    { ...input, date: "2026-10-27" },
+    "put",
+    allDay.version,
+  ).expect(404);
+  for (const item of [backlog, dated]) {
+    await write(
+      app,
+      `calendar/items/${item.id}`,
+      { ...input, title: "Do not update" },
+      "put",
+      item.version,
+    ).expect(404);
+    await request(app)
+      .delete(`/api/v1/calendar/items/${item.id}`)
+      .set("Cookie", cookie)
+      .set("Origin", origin)
+      .set(commandHeaders(item.version))
+      .expect(404);
+    await request(previewApp)
+      .get(`/api/v1/calendar/items/${item.id}`)
+      .set("Cookie", cookie)
+      .expect(200);
+  }
+  const range = (
+    await request(app)
+      .get("/api/v1/calendar/items?from=2026-10-27&to=2026-10-27")
+      .set("Cookie", cookie)
+      .expect(200)
+  ).body;
+  expect(range.map((row: { id: string }) => row.id)).toEqual([allDay.id]);
+  const search = (
+    await request(app)
+      .get("/api/v1/calendar/search?kind=all")
+      .set("Cookie", cookie)
+      .expect(200)
+  ).body;
+  expect(
+    search.items.some(
+      (row: { kind: string; item: { kind?: string } }) =>
+        row.kind === "item" && row.item.kind === "unscheduled",
+    ),
+  ).toBe(false);
+  await request(app)
+    .get("/api/v1/calendar/search?kind=unscheduled")
+    .set("Cookie", cookie)
+    .expect(404);
+  for (const path of [`goals/${goal.id}`, `routines/${routine.id}`])
+    for (const method of ["put", "delete"] as const)
+      await request(app)
+        [method](`/api/v1/${path}`)
+        .set("Cookie", cookie)
+        .set("Origin", origin)
+        .set(commandHeaders())
+        .send({})
+        .expect(404);
+});

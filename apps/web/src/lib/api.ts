@@ -1,2 +1,3 @@
 import { createClient } from "@168hours/api-client";
-export const api = createClient();
+import { calendarRecoveryFetch } from "@/features/planning/calendar-write-recovery";
+export const api = createClient({ fetch: calendarRecoveryFetch });

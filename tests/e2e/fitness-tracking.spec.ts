@@ -12,7 +12,7 @@ test("exercise-specific fields, advanced values and rest lines work in building 
 }, testInfo) => {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Tracking member",

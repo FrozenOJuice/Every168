@@ -17,7 +17,7 @@ test("summary exercise references return to the same workout repeatedly and navi
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Summary references",
     email: `summary-reference-${randomUUID()}@example.com`,
     password: "Synthetic-reference-password-123",

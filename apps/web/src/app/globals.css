@@ -414,6 +414,7 @@ p a:not(.button),
 }
 .password-toggle {
   position: absolute;
+  z-index: 2;
   right: 2px;
   top: 50%;
   transform: translateY(-50%);

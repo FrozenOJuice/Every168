@@ -16,21 +16,38 @@ export function inputAtMinute(date: string, minute: number) {
   return `${day}T${String(Math.floor(time / 60)).padStart(2, "0")}:${String(time % 60).padStart(2, "0")}`;
 }
 
+/** An unchanged saved local display already has an exact, disambiguated instant. */
+export function calendarInstant(
+  value: string,
+  timezone: string,
+  saved?: string,
+) {
+  return saved && instantToLocalInput(saved, timezone) === value
+    ? saved
+    : localInputToInstant(value, timezone);
+}
+
 export function elapsedMilliseconds(
   start: string,
   end: string,
   timezone: string,
+  saved?: { startsAt: string; endsAt: string },
 ) {
   return (
-    Date.parse(localInputToInstant(end, timezone)) -
-    Date.parse(localInputToInstant(start, timezone))
+    Date.parse(calendarInstant(end, timezone, saved?.endsAt)) -
+    Date.parse(calendarInstant(start, timezone, saved?.startsAt))
   );
 }
 
 /** Moving a start preserves elapsed duration, including across a clock change. */
-export function endAfter(start: string, duration: number, timezone: string) {
+export function endAfter(
+  start: string,
+  duration: number,
+  timezone: string,
+  savedStart?: string,
+) {
   const instant = new Date(
-    Date.parse(localInputToInstant(start, timezone)) + duration,
+    Date.parse(calendarInstant(start, timezone, savedStart)) + duration,
   );
   return instantToLocalInput(instant.toISOString(), timezone);
 }

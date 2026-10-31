@@ -39,7 +39,7 @@ async function start(page: Page, view = "week", upcoming = false) {
   );
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Calendar list actions",

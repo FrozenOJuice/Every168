@@ -18,7 +18,7 @@ test("pause freezes logging and both timers through refresh, resumes and exclude
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Pause training",
     email: `pause-${randomUUID()}@example.com`,
     password: "Synthetic-pause-password-123",

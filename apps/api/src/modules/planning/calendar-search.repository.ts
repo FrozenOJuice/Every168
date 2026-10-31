@@ -28,6 +28,7 @@ export function calendarSearchRepository(db: Database) {
       q: CalendarSearchQuery,
       from?: string,
       to?: string,
+      includeUnscheduled = true,
     ) {
       let cursor: z.infer<typeof cursorSchema> | undefined;
       if (q.cursor)
@@ -101,7 +102,11 @@ export function calendarSearchRepository(db: Database) {
                     and(
                       eq(i.userId, u),
                       ilike(i.title, pattern),
-                      q.kind !== "all" ? eq(i.kind, q.kind) : undefined,
+                      q.kind !== "all"
+                        ? eq(i.kind, q.kind)
+                        : includeUnscheduled
+                          ? undefined
+                          : eq(i.kind, "all_day"),
                       q.categoryId
                         ? q.categoryId === "none"
                           ? isNull(i.categoryId)

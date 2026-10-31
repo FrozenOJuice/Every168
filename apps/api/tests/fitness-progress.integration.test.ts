@@ -154,6 +154,12 @@ it("summarizes local weeks across DST without counting targets, active or skippe
   );
   expect(overview.weekStart).toBe("2026-03-08");
   expect(overview.weeks).toHaveLength(12);
+  const visible = fitnessOverviewSchema.parse(
+    (await a.get("fitness-progress?date=2026-03-11&weeks=1").expect(200)).body,
+  );
+  expect(visible.weeks).toHaveLength(1);
+  expect(visible.weeks[0]).toEqual(overview.weeks.at(-1));
+  await a.get("fitness-progress?weeks=13").expect(422);
   expect(overview.weeks.at(-1)).toMatchObject({
     workoutCount: 2,
     durationSeconds: 7200,

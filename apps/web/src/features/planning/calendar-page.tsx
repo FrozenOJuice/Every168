@@ -1,4 +1,6 @@
 "use client";
+import { features } from "@/lib/release";
+import { calendarSchedulingSources } from "./calendar-scheduling";
 import { CalendarSourceLink } from "./calendar-source-link";
 import { CalendarDayFeed } from "./calendar-day-feed";
 import { useCallback, useRef, useState } from "react";
@@ -75,7 +77,7 @@ export function CalendarPage({
   const query = useCalendar(selected, view);
   const selection = useCalendarSelection(
     scope,
-    query.weeks.flatMap((week) => week.blocks),
+    query.blocks,
     query.items,
     preferences.timezone,
   );
@@ -223,7 +225,7 @@ export function CalendarPage({
       scope={scope}
       timezone={preferences.timezone}
       hourHeight={hourHeight}
-      blocks={query.weeks.flatMap((week) => week.blocks)}
+      blocks={query.blocks}
       items={query.items}
       selection={selection}
       editorOpen={!!editor || !!overlay}
@@ -243,7 +245,7 @@ export function CalendarPage({
       >
         <CalendarContextMenus
           date={selected}
-          blocks={query.weeks.flatMap((week) => week.blocks)}
+          blocks={query.blocks}
           items={query.items}
           timezone={preferences.timezone}
           selectedDays={selectedDays}
@@ -258,10 +260,29 @@ export function CalendarPage({
             else addRecord(date);
           }}
           onOpen={openRecord}
-          onTools={() => {
-            setNotice("");
-            setOverlay({ mode: "tools" });
-          }}
+          onTemplates={
+            features.calendarTemplates
+              ? () => {
+                  setNotice("");
+                  setOverlay({
+                    mode: "templates",
+                    date: selectedTime?.date ?? selected,
+                  });
+                }
+              : undefined
+          }
+          onQuick={
+            features.food
+              ? () => {
+                  setNotice("");
+                  setOverlay({
+                    mode: "quick",
+                    date: selectedTime?.date ?? selected,
+                    minute: selectedTime?.minute,
+                  });
+                }
+              : undefined
+          }
           onResetZoom={() => changeHourHeight(HOUR_HEIGHT)}
         >
           <div className="calendar-surface" ref={calendarSurface}>
@@ -271,6 +292,19 @@ export function CalendarPage({
               weekStart={query.selectedWeek}
               today={today}
               view={view}
+              schedulingSources={calendarSchedulingSources}
+              onScheduleSource={(sourceId) => {
+                setNotice("");
+                setDraft(null);
+                setEditor(null);
+                setListDate(null);
+                setOverlay({
+                  mode: "schedule-source",
+                  sourceId,
+                  date: selectedTime?.date ?? selected,
+                  minute: selectedTime?.minute,
+                });
+              }}
               onAdd={() =>
                 addRecord(selectedTime?.date ?? selected, selectedTime?.minute)
               }
@@ -436,23 +470,6 @@ export function CalendarPage({
               onFilter={setFilter}
               onOpen={openSearch}
               searchAnchor={searchAnchor}
-              onAddRepeating={() =>
-                addRecord(
-                  selectedTime?.date ?? selected,
-                  selectedTime?.minute,
-                  undefined,
-                  true,
-                )
-              }
-              onAddAllDay={() =>
-                addRecord(
-                  selectedTime?.date ?? selected,
-                  selectedTime?.minute,
-                  undefined,
-                  false,
-                  true,
-                )
-              }
               onSchedule={schedule}
               onSaved={(message, target) => {
                 setOverlay(null);

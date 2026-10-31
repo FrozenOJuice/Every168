@@ -52,7 +52,8 @@ export function CalendarContextMenus({
   onAdd,
   onOpen,
   onResetZoom,
-  onTools,
+  onTemplates,
+  onQuick,
   overlayContainer,
 }: {
   children: ReactNode;
@@ -68,7 +69,8 @@ export function CalendarContextMenus({
   onAdd: (date: string, minute?: number, allDay?: boolean) => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   onResetZoom: () => void;
-  onTools: () => void;
+  onTemplates?: () => void;
+  onQuick?: () => void;
   overlayContainer?: Element | null;
 }) {
   const interaction = useCalendarInteractions()!;
@@ -232,7 +234,8 @@ export function CalendarContextMenus({
         timezone,
         interaction,
         clipboard,
-        onTools,
+        onTemplates,
+        onQuick,
         onAdd,
         onOpen,
         onMove: setMovePlans,

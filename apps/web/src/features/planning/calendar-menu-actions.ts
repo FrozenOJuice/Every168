@@ -17,7 +17,8 @@ export function calendarMenuActions({
   timezone,
   interaction,
   clipboard,
-  onTools,
+  onTemplates,
+  onQuick,
   onAdd,
   onOpen,
   onMove,
@@ -33,7 +34,8 @@ export function calendarMenuActions({
   timezone: string;
   interaction: NonNullable<ReturnType<typeof useCalendarInteractions>>;
   clipboard: NonNullable<ReturnType<typeof useCalendarClipboard>>;
-  onTools: () => void;
+  onTemplates?: () => void;
+  onQuick?: () => void;
   onAdd: (date: string, minute?: number, allDay?: boolean) => void;
   onOpen: (record: CalendarDisplayRecord, date: string) => void;
   onMove: (plans: PlanSelection[]) => void;
@@ -136,10 +138,11 @@ export function calendarMenuActions({
     });
     paste(target.days.length > 1 ? "Paste" : "Paste into day", target.date);
   } else actions.push({ label: "Reset zoom", shortcut: "R", run: onResetZoom });
-  if (fromToolbar)
+  if (fromToolbar && (onTemplates || onQuick))
     actions.push(
       { separator: true },
-      { label: "Calendar tools…", run: onTools },
+      ...(onTemplates ? [{ label: "Templates…", run: onTemplates }] : []),
+      ...(onQuick ? [{ label: "Quick actions…", run: onQuick }] : []),
     );
   actions.push(
     { separator: true },

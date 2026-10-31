@@ -3,7 +3,7 @@ import {
   useConfirm,
 } from "@/components/ui/confirmation-provider";
 import { z } from "zod";
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useWatch } from "react-hook-form";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -15,8 +15,17 @@ import {
 import { api } from "@/lib/api";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { Dialog } from "@/components/ui/dialog";
-import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
+import {
+  Form,
+  Field,
+  Submit,
+  useZodForm,
+  FormBusyContext,
+} from "@/components/ui/form";
 import { ErrorState, Loading } from "@/components/ui/feedback";
+import { useMe } from "@/features/identity/me";
+import { CalendarDateField, CalendarChoiceField } from "./calendar-form-fields";
+import { CalendarEditorActions } from "./calendar-editor-actions";
 import { CalendarCopyPreview } from "./calendar-copy-preview";
 import { useCalendarInteractions } from "./calendar-interactions";
 import { invalidateCalendar } from "./invalidate-calendar";
@@ -28,6 +37,9 @@ type Review = {
   preferencesVersion: number;
   cycles: number;
 };
+const templateSpan = (template: Template) =>
+  `${template.span === "range" ? template.rangeDays : template.span === "week" ? 7 : 1}-day template`;
+
 export function CalendarTemplates({
   date,
   onClose,
@@ -38,6 +50,30 @@ export function CalendarTemplates({
   onSaved: (message: string, date?: string) => void;
 }) {
   const [review, setReview] = useState<Review | null>(null);
+  const [selected, setSelected] = useState<Template | null>(null);
+  const [capture, setCapture] = useState(false);
+  const [formBusy, setFormBusy] = useState(false);
+  const dialog = useRef<HTMLDialogElement | null>(null);
+  const stage = review
+    ? "review"
+    : capture
+      ? "capture"
+      : selected
+        ? "apply"
+        : "library";
+  useLayoutEffect(() => {
+    const selector =
+      stage === "review"
+        ? ".calendar-template-body h3"
+        : stage === "capture"
+          ? 'input[name="name"]'
+          : stage === "apply"
+            ? ".calendar-template-stage button"
+            : ".calendar-template-body button";
+    dialog.current
+      ?.querySelector<HTMLElement>(selector)
+      ?.focus({ preventScroll: true });
+  }, [stage]);
   const cache = useQueryClient();
   const interaction = useCalendarInteractions();
   const apply = useCommand({
@@ -52,77 +88,132 @@ export function CalendarTemplates({
         key,
       ),
     }),
-    onSuccess: async (outcome) => {
+    onSuccess: async ({ key, result }) => {
       interaction?.history.record({
         kind: "copy",
-        key: outcome.key,
-        blocks: outcome.result.createdBlocks.map(({ id, version }) => ({
+        key,
+        blocks: result.createdBlocks.map(({ id, version }) => ({
           id,
           version,
         })),
-        items: outcome.result.createdItems,
+        items: result.createdItems,
       });
       interaction?.showNotice("Template applied", {
-        undoKey: outcome.key,
+        undoKey: key,
         kind: "change",
       });
       await invalidateCalendar(cache);
-      onSaved(
-        `${outcome.result.count} plans added.`,
-        outcome.result.targetDate,
-      );
+      onSaved(`${result.count} plans added.`, result.targetDate);
     },
   });
+  const busy = formBusy || apply.isPending;
   return (
-    <Dialog title="Templates" onClose={onClose}>
-      {review ? (
-        <>
-          <CalendarCopyPreview preview={review.preview} />
-          <div className="editor-actions">
-            <button
-              className="button"
-              disabled={apply.isPending}
-              onClick={() => setReview(null)}
-            >
-              Back
-            </button>
-            <button
-              className="button primary"
-              disabled={
-                apply.isPending ||
-                review.preview.blocks.length + review.preview.items.length === 0
-              }
-              onClick={() => apply.mutate(review)}
-            >
-              Add these plans
-            </button>
-          </div>
-          <CommandError command={apply} />
-        </>
-      ) : (
-        <>
-          <p className="muted text-small">
-            Save a pattern of up to 31 days, then place it once or in cycles.
-          </p>
-          <TemplateLibrary date={date} onReview={setReview} />
-        </>
-      )}
+    <Dialog
+      title={
+        review
+          ? "Review template"
+          : capture
+            ? "Save template"
+            : selected
+              ? "Use template"
+              : "Templates"
+      }
+      dialogRef={(element) => {
+        dialog.current = element;
+      }}
+      className="calendar-template-dialog"
+      busy={busy}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <FormBusyContext.Provider value={setFormBusy}>
+        {capture ? (
+          <CaptureForm
+            date={date}
+            onCancel={() => setCapture(false)}
+            onSaved={() => setCapture(false)}
+          />
+        ) : (
+          <>
+            {selected ? (
+              <div className="calendar-template-stage" hidden={!!review}>
+                <div className="calendar-template-context">
+                  <h3>{selected.name}</h3>
+                  <small>{templateSpan(selected)}</small>
+                </div>
+                <ApplyForm
+                  template={selected}
+                  date={date}
+                  onCancel={() => setSelected(null)}
+                  onReview={setReview}
+                />
+              </div>
+            ) : (
+              <TemplateLibrary
+                onSelect={setSelected}
+                onCapture={() => setCapture(true)}
+                onClose={onClose}
+                onBusy={setFormBusy}
+              />
+            )}
+            {review && (
+              <>
+                <div
+                  className="calendar-template-body"
+                  role="region"
+                  aria-label="Plans to add"
+                  tabIndex={0}
+                >
+                  <h3 tabIndex={-1}>{review.template.name}</h3>
+                  <CalendarCopyPreview preview={review.preview} />
+                  <CommandError command={apply} />
+                </div>
+                <div className="form-footer">
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={busy}
+                    onClick={() => setReview(null)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    className="button primary"
+                    disabled={
+                      busy ||
+                      review.preview.blocks.length +
+                        review.preview.items.length ===
+                        0
+                    }
+                    onClick={() => apply.mutate(review)}
+                  >
+                    Apply template
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </FormBusyContext.Provider>
     </Dialog>
   );
 }
 function TemplateLibrary({
-  date,
-  onReview,
+  onSelect,
+  onCapture,
+  onClose,
+  onBusy,
 }: {
-  date: string;
-  onReview: (review: Review) => void;
+  onSelect: (template: Template) => void;
+  onCapture: () => void;
+  onClose: () => void;
+  onBusy: (busy: boolean) => void;
 }) {
-  const prompt = useTextPrompt();
-  const confirm = useConfirm();
-
-  const cache = useQueryClient();
-  const [selected, setSelected] = useState<Template | null>(null),
-    [capture, setCapture] = useState(false);
+  const prompt = useTextPrompt(),
+    confirm = useConfirm(),
+    cache = useQueryClient();
   const q = useInfiniteQuery({
     queryKey: ["calendar-templates"],
     initialPageParam: undefined as string | undefined,
@@ -146,122 +237,143 @@ function TemplateLibrary({
     onSuccess: () =>
       cache.invalidateQueries({ queryKey: ["calendar-templates"] }),
   });
-  if (selected)
-    return (
-      <>
-        <button className="button" onClick={() => setSelected(null)}>
-          Back to templates
-        </button>
-        <h3>{selected.name}</h3>
-        <ApplyForm template={selected} date={date} onReview={onReview} />
-      </>
-    );
-  if (capture)
-    return (
-      <>
-        <button className="button" onClick={() => setCapture(false)}>
-          Back to templates
-        </button>
-        <CaptureForm date={date} onSaved={() => setCapture(false)} />
-      </>
-    );
+  const busy = remove.isPending || rename.isPending;
+  useEffect(() => {
+    onBusy(busy);
+    return () => onBusy(false);
+  }, [busy, onBusy]);
+  const items = q.data?.pages.flatMap((page) => page.items) ?? [];
   return (
-    <div className="stack">
-      <button className="button primary" onClick={() => setCapture(true)}>
-        Save calendar as template
-      </button>
-      {q.isPending && <Loading />}
-      {q.error && <ErrorState error={q.error} retry={() => void q.refetch()} />}
-      <ul className="record-list">
-        {q.data?.pages
-          .flatMap((p) => p.items)
-          .map((t) => (
-            <li key={t.id}>
-              <div>
-                <strong>{t.name}</strong>
-                <small>
-                  {t.span === "range"
-                    ? `${t.rangeDays}-day`
-                    : t.span === "week"
-                      ? "7-day"
-                      : "1-day"}{" "}
-                  template
-                </small>
+    <>
+      <div className="calendar-template-body">
+        <p className="muted text-small">
+          Reuse a day, week or repeating pattern of plans.
+        </p>
+        <button
+          type="button"
+          className="button primary"
+          disabled={busy}
+          onClick={onCapture}
+        >
+          Save calendar as template
+        </button>
+        {q.isPending && <Loading />}
+        {q.error && (
+          <ErrorState error={q.error} retry={() => void q.refetch()} />
+        )}
+        <ul className="calendar-template-list">
+          {items.map((template) => (
+            <li key={template.id}>
+              <div className="row between">
+                <div>
+                  <strong>{template.name}</strong>
+                  <small>{templateSpan(template)}</small>
+                </div>
+                <CalendarEditorActions
+                  label={`Template actions for ${template.name}`}
+                  disabled={busy}
+                  actions={[
+                    {
+                      label: "Rename",
+                      run: () => {
+                        void (async () => {
+                          const name = (
+                            await prompt("Template name", template.name)
+                          )?.trim();
+                          if (name) rename.mutate({ template, name });
+                        })();
+                      },
+                    },
+                    {
+                      label: "Delete",
+                      destructive: true,
+                      run: () => {
+                        void (async () => {
+                          if (
+                            await confirm(
+                              "Delete this template? Applied plans will remain.",
+                            )
+                          )
+                            remove.mutate(template);
+                        })();
+                      },
+                    },
+                  ]}
+                />
               </div>
-              <div className="row wrap">
-                <button className="button" onClick={() => setSelected(t)}>
-                  Use template
-                </button>
-                <button
-                  className="button"
-                  disabled={rename.isPending}
-                  onClick={async () => {
-                    const name = (
-                      await prompt("Template name", t.name)
-                    )?.trim();
-                    if (name) rename.mutate({ template: t, name });
-                  }}
-                >
-                  Rename
-                </button>
-                <button
-                  className="button danger"
-                  disabled={remove.isPending}
-                  onClick={async () => {
-                    if (
-                      await confirm(
-                        "Delete this template? Applied plans will remain.",
-                      )
-                    )
-                      remove.mutate(t);
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => onSelect(template)}
+              >
+                Use template
+              </button>
             </li>
           ))}
-      </ul>
-      {!q.isPending && !q.error && !q.data?.pages[0]?.items.length && (
-        <p>No saved templates.</p>
-      )}
-      {q.hasNextPage && (
+        </ul>
+        {!q.isPending && !q.error && !items.length && (
+          <p className="empty">
+            No saved templates. Save a calendar pattern to reuse it later.
+          </p>
+        )}
+        {q.hasNextPage && (
+          <button
+            type="button"
+            className="button"
+            disabled={busy || q.isFetchingNextPage}
+            onClick={() => void q.fetchNextPage()}
+          >
+            Load more
+          </button>
+        )}
+        <CommandError command={remove} />
+        <CommandError command={rename} />
+      </div>
+      <div className="form-footer">
         <button
+          type="button"
           className="button"
-          disabled={q.isFetchingNextPage}
-          onClick={() => void q.fetchNextPage()}
+          disabled={busy}
+          onClick={onClose}
         >
-          Load more
+          Cancel
         </button>
-      )}
-      <CommandError command={remove} />
-      <CommandError command={rename} />
-    </div>
+      </div>
+    </>
   );
 }
 function ApplyForm({
   template,
   date,
+  onCancel,
   onReview,
 }: {
   template: Template;
   date: string;
+  onCancel: () => void;
   onReview: (review: Review) => void;
 }) {
+  const { preferences } = useMe();
   const form = useZodForm(
     z.object({
       targetDate: dateSchema,
       cycles: z.coerce.number().int().min(1).max(52),
     }),
-    {
-      targetDate: date,
-      cycles: 1,
-    },
+    { targetDate: date, cycles: 1 },
   );
   return (
     <Form
       form={form}
       retrySafe={false}
+      footer={
+        <>
+          <button type="button" className="button" onClick={onCancel}>
+            Back to templates
+          </button>
+          <Submit>Preview template</Submit>
+        </>
+      }
       onSubmit={async (v) => {
         const preview = await api.previewCalendarTemplate(
           template.id,
@@ -277,24 +389,54 @@ function ApplyForm({
         });
       }}
     >
-      <Field name="targetDate" label="Apply to date" type="date" />
-      <Field name="cycles" label="Cycles" type="number" min={1} max={52} />
-      <Submit>Preview template</Submit>
+      <CalendarDateField
+        name="targetDate"
+        label="Apply to date"
+        timezone={preferences.timezone}
+      />
+      <Field
+        name="cycles"
+        label="Cycles"
+        type="number"
+        min={1}
+        max={52}
+        help={`Each cycle repeats the ${templateSpan(template).replace(" template", "")} pattern.`}
+      />
     </Form>
   );
 }
-function CaptureForm({ date, onSaved }: { date: string; onSaved: () => void }) {
-  const cache = useQueryClient(),
-    form = useZodForm(templateCaptureInput, {
-      name: "",
-      sourceDate: date,
-      span: "week",
-      sourceEndDate: undefined,
-    });
-  const span = useWatch({ control: form.control, name: "span" });
+function CaptureForm({
+  date,
+  onSaved,
+  onCancel,
+}: {
+  date: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const { preferences } = useMe();
+  const cache = useQueryClient();
+  const form = useZodForm(templateCaptureInput, {
+    name: "",
+    sourceDate: date,
+    span: "week",
+    sourceEndDate: undefined,
+  });
+  const [span, sourceDate] = useWatch({
+    control: form.control,
+    name: ["span", "sourceDate"],
+  });
   return (
     <Form
       form={form}
+      footer={
+        <>
+          <button type="button" className="button" onClick={onCancel}>
+            Cancel
+          </button>
+          <Submit>Save template</Submit>
+        </>
+      }
       onSubmit={async (v, key) => {
         await api.captureCalendarTemplate(v, key);
         await cache.invalidateQueries({ queryKey: ["calendar-templates"] });
@@ -302,16 +444,32 @@ function CaptureForm({ date, onSaved }: { date: string; onSaved: () => void }) {
       }}
     >
       <Field name="name" label="Template name" />
-      <Field name="span" label="Save">
-        <option value="day">Day</option>
-        <option value="week">Week</option>
-        <option value="range">Date range</option>
-      </Field>
-      <Field name="sourceDate" label="Source date" type="date" />
+      <CalendarChoiceField
+        name="span"
+        label="Save"
+        options={[
+          { value: "day", label: "Day" },
+          { value: "week", label: "Week" },
+          { value: "range", label: "Date range" },
+        ]}
+        onChange={(value) => {
+          if (value === "range" && !form.getValues("sourceEndDate"))
+            form.setValue("sourceEndDate", sourceDate);
+        }}
+      />
+      <CalendarDateField
+        name="sourceDate"
+        label="Source date"
+        timezone={preferences.timezone}
+      />
       {span === "range" && (
-        <Field name="sourceEndDate" label="Through" type="date" required />
+        <CalendarDateField
+          name="sourceEndDate"
+          label="Through"
+          timezone={preferences.timezone}
+          fallbackDate={sourceDate}
+        />
       )}
-      <Submit>Save template</Submit>
     </Form>
   );
 }

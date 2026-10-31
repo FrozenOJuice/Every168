@@ -1,5 +1,6 @@
 "use client";
 
+import type { CalendarScheduleContext } from "@/features/workspace/calendar-scheduling";
 import { useId, useState } from "react";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -30,24 +31,36 @@ export function ScheduleWorkout({
   plan,
   onClose,
   onScheduled,
+  initialContext,
+  onChooseAnother,
 }: {
   plan: StrengthPlan;
+  initialContext?: CalendarScheduleContext;
+  onChooseAnother?: () => void;
   onClose: () => void;
   onScheduled: (schedule: StrengthScheduleInput) => void;
 }) {
   const {
     user,
-    preferences: { timezone },
+    preferences: { timezone: accountTimezone },
   } = useMe();
   const { date } = useDomainDay();
+  const [timezone] = useState(
+    () => initialContext?.timezone ?? accountTimezone,
+  );
   const cache = useQueryClient();
   const id = useId();
   const [defaults] = useState(() =>
-    initialWorkoutSchedule(date, new Date(), timezone),
+    initialWorkoutSchedule(
+      initialContext?.date ?? date,
+      new Date(),
+      timezone,
+      initialContext,
+    ),
   );
   const [fields, setFields] = useState(defaults);
   const [errors, setErrors] = useState<ScheduleErrors>({});
-  const [cancelling, setCancelling] = useState(false);
+  const [cancelling, setCancelling] = useState<(() => void) | null>(null);
   const command = useCommand({
     persistence: {
       key: `168hours:schedule:${user.id}:${plan.id}`,
@@ -85,12 +98,13 @@ export function ScheduleWorkout({
       : fields;
   const duration = formatWorkoutScheduleDuration(shown, timezone);
   useUnsavedChanges(command.isPending, "Wait for scheduling to finish.", true);
-  function cancel() {
+  function requestClose(target: () => void) {
     if (command.isPending) return;
     if (fields.start !== defaults.start || fields.end !== defaults.end)
-      setCancelling(true);
-    else onClose();
+      setCancelling(() => target);
+    else target();
   }
+  const cancel = () => requestClose(onClose);
   return (
     <Dialog title="Schedule workout" onClose={cancel}>
       {cancelling && (
@@ -98,8 +112,8 @@ export function ScheduleWorkout({
           title="Discard schedule changes?"
           action="Discard changes"
           danger
-          onCancel={() => setCancelling(false)}
-          onConfirm={onClose}
+          onCancel={() => setCancelling(null)}
+          onConfirm={cancelling}
         />
       )}
       <form
@@ -125,7 +139,23 @@ export function ScheduleWorkout({
       >
         <div className="fitness-schedule-context">
           <strong>{plan.title}</strong>
+          {onChooseAnother && (
+            <button
+              type="button"
+              className="button"
+              disabled={command.isPending}
+              onClick={() => requestClose(onChooseAnother)}
+            >
+              Change workout
+            </button>
+          )}
         </div>
+        {plan.notes && (
+          <div className="calendar-schedule-notes">
+            <strong>Workout notes</strong>
+            <p>{plan.notes}</p>
+          </div>
+        )}
         {(["start", "end"] as const).map((kind) => (
           <fieldset
             className="fitness-schedule-field"

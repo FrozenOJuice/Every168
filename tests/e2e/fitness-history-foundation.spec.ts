@@ -22,7 +22,7 @@ test("history preserves actual outcomes, targets and notes, with sourced records
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "History review",
     email: `history-${randomUUID()}@example.com`,
     password: "Synthetic-history-password-123",
@@ -276,7 +276,7 @@ test("history preserves actual outcomes, targets and notes, with sourced records
     }
     await back.click();
     await expect(page).toHaveURL(
-      new RegExp(`/fitness/exercises/${exercise.id}\\?`),
+      new RegExp(`/fitness/exercises/${exercise.id}(?:\\?|$)`),
     );
     await expect(
       history.getByRole("checkbox", { name: "Duration", exact: true }),
@@ -324,9 +324,12 @@ test("history preserves actual outcomes, targets and notes, with sourced records
   await page
     .getByRole("button", { name: "Show all sets", exact: true })
     .click();
-  await expect(page.locator(".fitness-summary-record")).toHaveText([
-    "First recorded result",
-  ]);
+  await expect(
+    page.locator(".fitness-summary-highlights .fitness-summary-record"),
+  ).toHaveText(["First recorded result"]);
+  await expect(
+    page.locator(".fitness-review-exercise ol .fitness-summary-record"),
+  ).toHaveText(["First recorded result"]);
   const empty = await write("post", "/api/v1/exercises", {
     name: "Unused exercise",
     loggingType: "reps_load",

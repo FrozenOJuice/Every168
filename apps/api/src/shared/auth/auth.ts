@@ -15,6 +15,8 @@ export function createAuth(db: Database, config: Config, logger: Logger) {
     trustedOrigins: [config.WEB_ORIGIN],
     emailAndPassword: {
       enabled: true,
+      requireEmailVerification: true,
+      autoSignIn: false,
       minPasswordLength: 12,
       maxPasswordLength: 128,
       password: { hash: hashPassword, verify: verifyPassword },

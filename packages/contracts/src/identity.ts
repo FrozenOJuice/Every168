@@ -48,3 +48,19 @@ export const authSessionSchema = z
   .nullable();
 export type Preferences = z.infer<typeof preferencesInput>;
 export type Me = z.infer<typeof meSchema>;
+
+export const accountEmailInput = z
+  .object({ email: signInInput.shape.email })
+  .strict();
+export const accountTokenInput = z
+  .object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
+  .strict();
+export const resetPasswordInput = accountTokenInput.extend({
+  newPassword: authInput.shape.password,
+});
+export const changePasswordInput = z
+  .object({
+    currentPassword: signInInput.shape.password,
+    newPassword: authInput.shape.password,
+  })
+  .strict();

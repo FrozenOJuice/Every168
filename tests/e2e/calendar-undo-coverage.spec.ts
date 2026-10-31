@@ -1,6 +1,8 @@
-import { saveCalendarPlan } from "./helpers/calendar-form";
 import {
+  clickCalendarEditorAction,
   fillCalendarField,
+  openCalendarPlan,
+  saveCalendarPlan,
   selectCalendarRepeat,
   showCalendarNotes,
 } from "./helpers/calendar-form";
@@ -14,7 +16,7 @@ const headers = () => ({
 async function signUp(page: Page) {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Calendar undo coverage",
@@ -41,7 +43,7 @@ test("undo all-day creation, edits and deletion in sequence", async ({
       name: `${title}, all day, 2026-09-07`,
       exact: true,
     });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await dialog
     .getByLabel("Title", { exact: true })
     .fill("Original all-day plan");
@@ -102,7 +104,7 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
     grid
       .locator(".grid-record")
       .getByRole("button", { name: new RegExp(`${title}.*planned`) });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await dialog.getByLabel("Title", { exact: true }).fill("Original series");
   await fillCalendarField(dialog, "Start", "2026-09-07T09:00");
   await fillCalendarField(dialog, "End", "2026-09-07T10:00");
@@ -131,9 +133,7 @@ test("undo whole-series deletion and edits, occurrence edit, then creation", asy
   await dialog
     .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
-  await dialog
-    .getByRole("button", { name: "Delete entire series", exact: true })
-    .click();
+  await clickCalendarEditorAction(dialog, "Delete entire series");
   await expect(dialog).toHaveCount(0);
   await expect(plan("Revised series")).toHaveCount(0);
   await expect(page.locator(".calendar-interactions")).toHaveAttribute(
@@ -176,9 +176,9 @@ test("undo activity logged through Calendar quick actions at its source", async 
   ]) {
     await page.getByRole("button", { name: "Actions", exact: true }).click();
     await page
-      .getByRole("menuitem", { name: "Calendar tools…", exact: true })
+      .getByRole("menuitem", { name: "Quick actions…", exact: true })
       .click();
-    await dialog.getByRole("button", { name: /^Quick actions/ }).click();
+
     await dialog.getByRole("button", { name: action, exact: true }).click();
     if (path === "weight-entries")
       await dialog.getByLabel(/^Weight \(/).fill("75");

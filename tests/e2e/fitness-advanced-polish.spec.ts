@@ -17,7 +17,7 @@ test("Advanced copies set units, keeps phone values readable and contains its fo
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Advanced polish",
     email: `advanced-polish-${randomUUID()}@example.com`,
     password: "Synthetic-advanced-password-123",

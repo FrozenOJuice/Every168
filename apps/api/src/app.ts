@@ -23,6 +23,7 @@ import { requireSession, requireOrigin } from "./shared/auth/middleware.js";
 import { identityRoutes } from "./modules/identity/identity.routes.js";
 import { AppError } from "./shared/errors/app-error.js";
 export function createApp({
+  accountSecurity,
   tasks,
   admin,
   metrics,
@@ -84,12 +85,29 @@ export function createApp({
     "/api/auth/sign-up/email",
     apiRateLimit(config.NODE_ENV === "test" ? 100 : 10),
   );
+  for (const path of [
+    "request-password-reset",
+    "send-verification-email",
+    "reset-password",
+    "verify-email",
+    "change-password",
+  ])
+    app.post(
+      `/api/auth/${path}`,
+      apiRateLimit(config.NODE_ENV === "test" ? 100 : 5),
+    );
   app.all(
     "/api/auth/*splat",
     express.raw({ type: () => true, limit: "256kb", inflate: false }),
-    authHandler(auth, config.BETTER_AUTH_URL, config.WEB_ORIGIN, identity),
+    authHandler(
+      auth,
+      config.BETTER_AUTH_URL,
+      config.WEB_ORIGIN,
+      identity,
+      accountSecurity,
+    ),
   );
-  app.use(express.json({ limit: "256kb" }));
+  app.use(express.json({ limit: "256kb", inflate: false }));
   app.use(
     "/api/v1",
     requireOrigin(config.WEB_ORIGIN),
@@ -106,10 +124,12 @@ export function createApp({
       calendarSearch,
       writes,
       calendarActivity,
+      features.calendarTemplates,
+      features.unscheduled,
     ),
-    routinesRoutes(routines, writes),
+    ...(features.routines ? [routinesRoutes(routines, writes)] : []),
     ...(features.tasks ? [tasksRoutes(tasks, writes)] : []),
-    goalsRoutes(goals, writes),
+    ...(features.goals ? [goalsRoutes(goals, writes)] : []),
     ...(features.food
       ? [
           dashboardRoutes(dashboard),
@@ -128,6 +148,7 @@ export function createApp({
       strengthPlans,
       writes,
       fitnessProgress,
+      features.legacyCardio,
     ),
   );
   app.use((_req, _res, next) =>

@@ -1,3 +1,4 @@
+import { fillCalendarField } from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -5,7 +6,7 @@ test.use({ actionTimeout: 10000 });
 test("Tasks captures, organizes projects, schedules work, logs time and repeats without losing history", async ({
   page,
 }, info) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Tasks member",
@@ -97,8 +98,8 @@ test("Tasks captures, organizes projects, schedules work, logs time and repeats 
   await dialog
     .getByRole("button", { name: "Schedule work", exact: true })
     .click();
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-23T09:00");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-23T10:00");
+  await fillCalendarField(dialog, "Start", "2026-10-23T09:00");
+  await fillCalendarField(dialog, "End", "2026-10-23T10:00");
   await dialog
     .getByRole("button", { name: "Schedule work", exact: true })
     .click();
@@ -111,8 +112,8 @@ test("Tasks captures, organizes projects, schedules work, logs time and repeats 
   await dialog
     .getByRole("button", { name: "Log actual time", exact: true })
     .click();
-  await dialog.getByLabel("Start", { exact: true }).fill("2026-10-23T09:05");
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-23T09:35");
+  await fillCalendarField(dialog, "Start", "2026-10-23T09:05");
+  await fillCalendarField(dialog, "End", "2026-10-23T09:35");
   await dialog
     .getByRole("button", { name: "Save actual time", exact: true })
     .click();
@@ -120,7 +121,7 @@ test("Tasks captures, organizes projects, schedules work, logs time and repeats 
   await dialog
     .getByRole("button", { name: "Correct time", exact: true })
     .click();
-  await dialog.getByLabel("End", { exact: true }).fill("2026-10-23T09:45");
+  await fillCalendarField(dialog, "End", "2026-10-23T09:45");
   await dialog
     .getByRole("button", { name: "Save correction", exact: true })
     .click();
@@ -194,7 +195,7 @@ test("Tasks captures, organizes projects, schedules work, logs time and repeats 
 test("Task forms validate, protect drafts, retain stale edits and retry uncertain writes", async ({
   page,
 }) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Task forms",
@@ -267,7 +268,7 @@ test("Task forms validate, protect drafts, retain stale edits and retry uncertai
 test("Quick capture keeps an uncertain save through day changes and blocks leaving before retry", async ({
   page,
 }) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Quick tasks",

@@ -1,4 +1,5 @@
 "use client";
+import { calendarBlocks } from "./calendar-records";
 
 import {
   createContext,
@@ -160,7 +161,7 @@ export function CalendarClipboard({
     setClipboardBusy?.(paste.isPending);
     return () => setClipboardBusy?.(false);
   }, [paste.isPending, setClipboardBusy]);
-  const allBlocks = weeks.flatMap((week) => week.blocks);
+  const allBlocks = calendarBlocks(weeks);
   function capture(
     kind: Clip["kind"],
     sourceDate: string,

@@ -20,7 +20,7 @@ async function setup(page: Page) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Everyday Food",
     email: `food-${randomUUID()}@example.com`,
     password: "Synthetic-food-password-123",

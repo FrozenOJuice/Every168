@@ -17,7 +17,7 @@ test("program creator searches all ready workouts and preserves off-page names, 
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Program creator",
     email: `program-creator-${randomUUID()}@example.com`,
     password: "Synthetic-program-password-123",

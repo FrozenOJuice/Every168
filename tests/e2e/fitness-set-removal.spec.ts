@@ -18,7 +18,7 @@ test("set Undo restores custom values and preserves subsequent edits", async ({
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Set removal tester",
     email: `set-remove-${randomUUID()}@example.com`,
     password: "Synthetic-removal-password-123",

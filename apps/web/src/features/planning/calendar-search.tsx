@@ -1,3 +1,5 @@
+import { features } from "@/lib/release";
+import { useWatch } from "react-hook-form";
 import { z } from "zod";
 import {
   useId,
@@ -12,7 +14,9 @@ import { calendarSearchQuery, type SearchRecord } from "@168hours/contracts";
 import { api } from "@/lib/api";
 import { Form, Field, Submit, useZodForm } from "@/components/ui/form";
 import { Loading, ErrorState } from "@/components/ui/feedback";
-import { formatTime } from "@/lib/format";
+import { X, ChevronDown } from "lucide-react";
+import { CalendarDateField } from "./calendar-form-fields";
+import { formatTime, formatDate } from "@/lib/format";
 import { useMe } from "@/features/identity/me";
 import { localDate } from "@168hours/domain-utils";
 import type { CalendarFilter } from "./calendar-filters";
@@ -31,6 +35,7 @@ export function CalendarSearch({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const [datesOpen, setDatesOpen] = useState(false);
   const [search, setSearch] = useState<ReturnType<
     typeof calendarSearchQuery.parse
   > | null>(null);
@@ -53,6 +58,7 @@ export function CalendarSearch({
     to: undefined,
     limit: 30,
   });
+  const [from, to] = useWatch({ control: form.control, name: ["from", "to"] });
   const q = useInfiniteQuery({
     queryKey: ["calendar-search", search],
     initialPageParam: undefined as string | undefined,
@@ -79,7 +85,7 @@ export function CalendarSearch({
       const leftEdge = (viewport?.offsetLeft ?? 0) + 8;
       const topEdge = (viewport?.offsetTop ?? 0) + 8;
       const viewportWidth = viewport?.width ?? innerWidth;
-      const width = Math.min(400, viewportWidth - 16);
+      const width = Math.min(380, viewportWidth - 16);
       const rightEdge = leftEdge + viewportWidth - 16;
       const bottomEdge = topEdge + (viewport?.height ?? innerHeight) - 16;
       const left = Math.max(leftEdge, Math.min(bounds.left, rightEdge - width));
@@ -117,6 +123,12 @@ export function CalendarSearch({
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      if (
+        event.target instanceof Element &&
+        element.contains(event.target) &&
+        event.target.closest('[role="dialog"]') !== element
+      )
+        return;
       event.preventDefault();
       event.stopPropagation();
       anchor.current?.focus({ preventScroll: true });
@@ -142,22 +154,19 @@ export function CalendarSearch({
           <h2 id={titleId}>Search calendar</h2>
           <p>Find plans and recorded time.</p>
         </div>
-        {filtered && (
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => {
-              onFilter({ q: "", kind: "all" });
-              onClose();
-            }}
-          >
-            Clear filter
-          </button>
-        )}
+        <button
+          className="icon-button"
+          type="button"
+          aria-label="Close search"
+          onClick={onClose}
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
       </div>
       <Form
         form={form}
         retrySafe={false}
+        onInvalid={() => setDatesOpen(true)}
         onSubmit={async (value) => setSearch(value)}
       >
         <Field name="q" label="Title contains" />
@@ -166,26 +175,48 @@ export function CalendarSearch({
           <option value="block">Planned time</option>
           <option value="entry">Recorded time</option>
           <option value="all_day">All-day plans</option>
-          <option value="unscheduled">Unscheduled plans</option>
+          {features.unscheduled && (
+            <option value="unscheduled">Unscheduled plans</option>
+          )}
         </Field>
-        <details className="calendar-search-dates">
-          <summary>Date range</summary>
-          <div className="form-grid">
-            <Field
-              name="from"
-              label="Starts on or after (optional)"
-              type="date"
-            />
-            <Field
-              name="to"
-              label="Starts on or before (optional)"
-              type="date"
-            />
-          </div>
-          <p>
-            Applies to Search all dates. Undated plans appear without a range.
-          </p>
-        </details>
+        <div className="calendar-search-dates">
+          <button
+            type="button"
+            className="button calendar-search-range-trigger"
+            aria-expanded={datesOpen}
+            aria-label="Date range"
+            aria-describedby={from || to ? `${titleId}-dates` : undefined}
+            onClick={() => setDatesOpen(!datesOpen)}
+          >
+            <span className="calendar-search-range-label">
+              <span>Date range</span>
+              {(from || to) && (
+                <small id={`${titleId}-dates`}>
+                  {from ? formatDate(from) : "Any date"} -{" "}
+                  {to ? formatDate(to) : "Any date"}
+                </small>
+              )}
+            </span>
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
+          {datesOpen && (
+            <div className="calendar-search-date-fields">
+              <CalendarDateField
+                name="from"
+                label="From (optional)"
+                timezone={preferences.timezone}
+                optional
+              />
+              <CalendarDateField
+                name="to"
+                label="Through (optional)"
+                timezone={preferences.timezone}
+                optional
+              />
+              <p className="muted text-small">Used when searching all dates.</p>
+            </div>
+          )}
+        </div>
         <div className="calendar-search-actions">
           <Submit>Search all dates</Submit>
           <button
@@ -201,6 +232,18 @@ export function CalendarSearch({
           </button>
         </div>
       </Form>
+      {filtered && (
+        <button
+          className="button calendar-search-clear"
+          type="button"
+          onClick={() => {
+            onFilter({ q: "", kind: "all" });
+            onClose();
+          }}
+        >
+          Clear filter
+        </button>
+      )}
       {search && (
         <section
           className="calendar-search-results"
@@ -217,17 +260,27 @@ export function CalendarSearch({
               <li key={record.kind + record.item.id}>
                 <button
                   className="calendar-search-result"
+                  type="button"
                   onClick={() => onOpen(record)}
                 >
                   <strong>{record.item.title}</strong>
                   <small>
                     {record.kind === "item"
-                      ? (record.item.date ?? "No date") +
+                      ? (record.item.date
+                          ? formatDate(record.item.date, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "No date") +
                         " · " +
                         (record.item.kind === "all_day"
                           ? "All day"
                           : "Unscheduled")
-                      : localDate(record.item.startsAt, preferences.timezone) +
+                      : formatDate(
+                          localDate(record.item.startsAt, preferences.timezone),
+                          { month: "short", day: "numeric", year: "numeric" },
+                        ) +
                         " · " +
                         formatTime(record.item.startsAt, preferences.timezone) +
                         " · " +

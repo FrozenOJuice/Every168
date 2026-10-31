@@ -10,7 +10,7 @@ test("short timed plans keep their duration and reveal details on interaction", 
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Short plans test",

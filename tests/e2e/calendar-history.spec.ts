@@ -1,4 +1,4 @@
-import { fillCalendarField } from "./helpers/calendar-form";
+import { fillCalendarField, openCalendarPlan } from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
@@ -13,7 +13,7 @@ test("calendar history undoes several changes to the same block safely", async (
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Calendar history",
@@ -30,7 +30,7 @@ test("calendar history undoes several changes to the same block safely", async (
     (await (await page.request.get("/api/v1/weeks/2026-09-07")).json()) as Week;
   const save = page.getByRole("button", { name: "Save", exact: true });
   const shortcut = testInfo.project.name === "desktop" ? "Meta+z" : "Control+z";
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await page.getByLabel("Title", { exact: true }).fill("First title");
   await save.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -106,7 +106,7 @@ test("calendar history undoes several changes to the same block safely", async (
   expect((await read()).blocks).toEqual([]);
 
   // An external edit must not be overwritten by this visit's older action.
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await page.getByLabel("Title", { exact: true }).fill("Local plan");
   await save.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);

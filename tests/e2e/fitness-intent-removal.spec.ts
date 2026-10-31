@@ -16,7 +16,7 @@ test("exercise and workout forms omit intent fields while saving existing tags i
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Intent removal",
     email: `intent-removal-${randomUUID()}@example.com`,
     password: "Synthetic-intent-password-123",

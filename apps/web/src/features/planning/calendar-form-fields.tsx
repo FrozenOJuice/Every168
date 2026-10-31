@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useContext, useId, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useController, useFormContext } from "react-hook-form";
-import { CalendarDays, Clock } from "lucide-react";
+import { CalendarDays, Clock, X } from "lucide-react";
 import { dateSchema } from "@168hours/contracts";
 import { localDate, weekRange } from "@168hours/domain-utils";
 import { useMe } from "@/features/identity/me";
@@ -19,11 +26,15 @@ export function CalendarDateField({
   timed = false,
   fallbackDate,
   onChange,
+  optional = false,
+  autoFocus = false,
 }: {
   name: string;
   label: string;
   timezone: string;
   timed?: boolean;
+  optional?: boolean;
+  autoFocus?: boolean;
   fallbackDate?: string;
   onChange?: (value: string) => void;
 }) {
@@ -36,6 +47,9 @@ export function CalendarDateField({
     fieldState: { error },
   } = useController({ name, control });
   const anchor = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (autoFocus) anchor.current?.focus({ preventScroll: true });
+  }, [autoFocus]);
   const [dateOpen, setDateOpen] = useState(false);
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [timeAnchor, setTimeAnchor] = useState<HTMLButtonElement | null>(null);
@@ -56,7 +70,9 @@ export function CalendarDateField({
   return (
     <div className="field calendar-event-date-field">
       <label htmlFor={id}>{label}</label>
-      <div className={timed ? "calendar-event-date-time" : undefined}>
+      <div
+        className={timed ? "calendar-event-date-time" : "calendar-date-control"}
+      >
         <button
           id={id}
           ref={(node) => {
@@ -71,11 +87,12 @@ export function CalendarDateField({
           data-invalid={!!error}
           aria-describedby={errorId}
           disabled={disabled}
-          onBlur={field.onBlur}
+          onBlur={() => field.onBlur()}
           onClick={(event) => {
             setContainer(
-              event.currentTarget.closest(".calendar-plan-popover") ??
-                event.currentTarget.closest("dialog[open]"),
+              event.currentTarget.closest(
+                ".calendar-plan-popover, .calendar-search-popover",
+              ) ?? event.currentTarget.closest("dialog[open]"),
             );
             closeTime();
             setDateOpen(!dateOpen);
@@ -90,6 +107,20 @@ export function CalendarDateField({
               })
             : "Choose date"}
         </button>
+        {optional && value && (
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={`Clear ${label.replace(" (optional)", "").toLowerCase()}`}
+            disabled={disabled}
+            onClick={() => {
+              change("");
+              closeDate();
+            }}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        )}
         {timed && (
           <button
             type="button"
@@ -100,7 +131,7 @@ export function CalendarDateField({
             data-invalid={!!error}
             aria-describedby={errorId}
             disabled={disabled}
-            onBlur={field.onBlur}
+            onBlur={() => field.onBlur()}
             onClick={(event) => {
               closeDate();
               setTimeAnchor(timeAnchor ? null : event.currentTarget);
@@ -178,7 +209,7 @@ export function CalendarChoiceField({
               value={option.value}
               checked={field.value === option.value}
               ref={option.value === options[0]?.value ? field.ref : undefined}
-              onBlur={field.onBlur}
+              onBlur={() => field.onBlur()}
               onChange={() => {
                 field.onChange(option.value);
                 onChange?.(option.value);
@@ -188,6 +219,62 @@ export function CalendarChoiceField({
           </label>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function CalendarTimeField({
+  name,
+  label,
+}: {
+  name: string;
+  label: string;
+}) {
+  const id = useId();
+  const { control, formState } = useFormContext();
+  const disabled = useContext(FormDisabledContext) || formState.isSubmitting;
+  const {
+    field,
+    fieldState: { error },
+  } = useController({ name, control });
+  const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
+  const close = useCallback(() => setAnchor(null), []);
+  const value = String(field.value ?? "");
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <button
+        id={id}
+        ref={(node) => field.ref(node)}
+        type="button"
+        className="button calendar-field-trigger"
+        aria-haspopup="dialog"
+        aria-expanded={!!anchor && !disabled}
+        data-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
+        disabled={disabled}
+        onBlur={() => field.onBlur()}
+        onClick={(event) => setAnchor(anchor ? null : event.currentTarget)}
+      >
+        <Clock size={18} aria-hidden="true" />
+        {/^\d{2}:\d{2}$/.test(value)
+          ? `${Number(value.slice(0, 2)) % 12 || 12}:${value.slice(3)} ${Number(value.slice(0, 2)) >= 12 ? "PM" : "AM"}`
+          : "Choose time"}
+      </button>
+      {error && (
+        <small className="error" role="alert" id={`${id}-error`}>
+          {error.message}
+        </small>
+      )}
+      {anchor && !disabled && (
+        <SessionTimePicker
+          label={`Choose ${label.toLowerCase()}`}
+          value={value}
+          anchor={anchor}
+          onClose={close}
+          onSelect={(value) => field.onChange(value)}
+        />
+      )}
     </div>
   );
 }

@@ -1,10 +1,11 @@
+import {
+  CalendarScheduling,
+  calendarSchedulingSources,
+} from "./calendar-scheduling";
+import { useMe } from "@/features/identity/me";
 import { features } from "@/lib/release";
 import type { Block, CalendarItem, SearchRecord } from "@168hours/contracts";
-import {
-  CalendarActions,
-  CalendarQuickActions,
-  type CalendarAction,
-} from "./calendar-actions";
+import { CalendarQuickActions, type CalendarAction } from "./calendar-actions";
 import { CalendarItemEditor } from "./calendar-item-editor";
 import { CalendarSeriesEditor } from "./calendar-series-editor";
 import { CalendarTemplates } from "./calendar-templates";
@@ -12,13 +13,14 @@ import { CalendarSearch } from "./calendar-search";
 import type { CalendarFilter } from "./calendar-filters";
 import type { RefObject } from "react";
 export type CalendarOverlay = {
-  mode: "tools" | "search" | Exclude<CalendarAction, "all_day">;
+  mode: "search" | "schedule-source" | Exclude<CalendarAction, "all_day">;
   date?: string;
   minute?: number;
   item?: CalendarItem;
   seriesId?: string;
   seriesSource?: Block | CalendarItem;
   occurrenceDate?: string;
+  sourceId?: string;
 };
 export function CalendarOverlays({
   overlay,
@@ -30,8 +32,6 @@ export function CalendarOverlays({
   filter,
   onFilter,
   searchAnchor,
-  onAddRepeating,
-  onAddAllDay,
 }: {
   overlay: CalendarOverlay;
   setOverlay: (overlay: CalendarOverlay | null) => void;
@@ -42,25 +42,27 @@ export function CalendarOverlays({
   filter: CalendarFilter;
   onFilter: (filter: CalendarFilter) => void;
   searchAnchor: RefObject<HTMLButtonElement | null>;
-  onAddRepeating: () => void;
-  onAddAllDay: () => void;
 }) {
+  const { preferences } = useMe();
   const close = () => setOverlay(null);
-  if (overlay.mode === "tools")
+  if (overlay.mode === "schedule-source") {
+    const source = calendarSchedulingSources.find(
+      (source) => source.id === overlay.sourceId,
+    );
+    if (!source) return null;
     return (
-      <CalendarActions
-        onClose={close}
-        onAction={(mode) => {
-          if (mode === "series") {
-            close();
-            onAddRepeating();
-          } else if (mode === "all_day") {
-            close();
-            onAddAllDay();
-          } else setOverlay({ mode });
+      <CalendarScheduling
+        source={source}
+        context={{
+          date,
+          minute: overlay.minute,
+          timezone: preferences.timezone,
         }}
+        onClose={close}
+        onScheduled={(result) => onSaved("", result.date)}
       />
     );
+  }
   if (overlay.mode === "search")
     return (
       <CalendarSearch
@@ -83,7 +85,9 @@ export function CalendarOverlays({
       />
     );
   if (overlay.mode === "templates")
-    return <CalendarTemplates date={date} onClose={close} onSaved={onSaved} />;
+    return features.calendarTemplates ? (
+      <CalendarTemplates date={date} onClose={close} onSaved={onSaved} />
+    ) : null;
   if (overlay.mode === "quick")
     return features.food ? (
       <CalendarQuickActions

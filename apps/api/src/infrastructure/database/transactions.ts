@@ -8,7 +8,10 @@ const active = new WeakMap<
   TransactionContext,
   { db: Database; tx: Transaction }
 >();
-export function transactionRunner(db: Database): RunInTransaction {
+export function transactionRunner(
+  db: Database,
+  options?: { isolationLevel: "repeatable read"; accessMode: "read only" },
+): RunInTransaction {
   return (work, existing) => {
     if (existing) {
       databaseFor(db, existing);
@@ -22,7 +25,7 @@ export function transactionRunner(db: Database): RunInTransaction {
       } finally {
         active.delete(context);
       }
-    });
+    }, options);
   };
 }
 /** Only persistence code may resolve a scope to the underlying transaction. */

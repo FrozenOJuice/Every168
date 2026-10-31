@@ -9,7 +9,7 @@ test("workout creation keeps save actions fixed and saves unfinished drafts", as
   test.setTimeout(120000);
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Draft member",
@@ -140,7 +140,7 @@ test("Back to Fitness leaves unchanged workouts and offers draft, discard and ke
   test.setTimeout(90000);
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Cancel member",

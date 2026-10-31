@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("recovery toast pauses for interaction, expires without losing edits and keeps discard reachable", async ({
   page,
 }, info) => {
-  const response = await page.request.post("/api/auth/sign-up/email", {
+  const response = await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Toast workflow",

@@ -17,7 +17,7 @@ test("workout reference reuses personal records and reps by weight without sessi
     expect(r.ok(), await r.text()).toBe(true);
     return r.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Reference records",
     email: `reference-records-${randomUUID()}@example.com`,
     password: "Synthetic-reference-password-123",

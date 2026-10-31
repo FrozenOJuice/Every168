@@ -126,3 +126,22 @@ it("all-day covered dates exclude a midnight ending and include overnight portio
     coveredPlanDates("2026-09-07T22:00:00Z", "2026-09-09T02:00:00Z", "UTC"),
   ).toEqual({ date: "2026-09-07", endDate: "2026-09-09" });
 });
+
+it("retains exact saved instants in both repeated-hour occurrences while rejecting newly ambiguous inputs", async () => {
+  const { calendarInstant } = await import("./calendar-times");
+  for (const stored of [
+    "2026-11-01T07:30:12.123Z",
+    "2026-11-01T08:30:12.123Z",
+  ]) {
+    expect(calendarInstant("2026-11-01T01:30", timezone, stored)).toBe(stored);
+    expect(() =>
+      calendarInstant("2026-11-01T01:35", timezone, stored),
+    ).toThrow();
+  }
+  expect(
+    elapsedMilliseconds("2026-11-01T01:30", "2026-11-01T01:30", timezone, {
+      startsAt: "2026-11-01T07:30:00Z",
+      endsAt: "2026-11-01T08:30:00Z",
+    }),
+  ).toBe(3600000);
+});

@@ -22,7 +22,7 @@ test("History opens the shared workout summary with actual results and correctio
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "Summary test",
     email: `summary-${randomUUID()}@example.com`,
     password: "Synthetic-summary-password-123",

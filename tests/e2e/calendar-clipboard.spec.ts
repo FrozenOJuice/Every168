@@ -10,7 +10,7 @@ test("copy selected days with gaps and paste one block at a selected time", asyn
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Clipboard test",
@@ -354,7 +354,7 @@ test("a copied block keeps its captured details after the source changes and is 
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Clipboard snapshot test",
@@ -436,7 +436,7 @@ test("failed keyboard copy and paste show notices, and uncertain paste retries s
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Clipboard error test",

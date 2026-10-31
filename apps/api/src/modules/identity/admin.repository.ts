@@ -123,7 +123,9 @@ export function adminRepository(db: Database) {
     ) {
       const tx = databaseFor(db, context);
       const id = randomUUID();
-      await tx.insert(user).values({ id, ...input, accountType: "admin" });
+      await tx
+        .insert(user)
+        .values({ id, ...input, accountType: "admin", emailVerified: true });
       await tx.insert(account).values({
         userId: id,
         accountId: id,

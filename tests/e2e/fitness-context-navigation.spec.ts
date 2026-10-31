@@ -16,7 +16,7 @@ async function setup(page: Page) {
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Context navigation",
     email: `context-${randomUUID()}@example.com`,
     password: "Synthetic-context-password-123",

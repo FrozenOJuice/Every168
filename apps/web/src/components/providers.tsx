@@ -1,4 +1,5 @@
 "use client";
+import { clearCalendarWrites } from "@/features/planning/calendar-write-recovery";
 import { useState } from "react";
 import {
   QueryClient,
@@ -17,6 +18,7 @@ function handleError(error: Error) {
     !window.location.pathname.startsWith("/login")
   ) {
     clearCalendarHistory();
+    clearCalendarWrites();
     // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Clear the document and router cache across account changes.
     window.location.assign("/login");
   }

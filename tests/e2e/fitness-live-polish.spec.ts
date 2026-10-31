@@ -17,7 +17,7 @@ test("adjust running rest, switch mid-exercise and finish early", async ({
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Live polish",
     email: `polish-${randomUUID()}@example.com`,
     password: "Synthetic-live-password-123",

@@ -11,7 +11,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Recovery member",
@@ -165,7 +165,7 @@ test("unsaved workout edits recover across navigation and refresh without overwr
   });
   await title.fill("Storage unavailable");
   await expect(workspace.getByRole("alert")).toHaveText(
-    "Recovery storage is unavailable. Save draft before leaving.",
+    "Recovery storage is unavailable. Keep this page open and enable storage before saving.",
   );
 });
 
@@ -186,7 +186,7 @@ test("uncertain workout creation and updates retain their original intent across
     )
       hydrationErrors.push(message.text());
   });
-  const signup = await page.request.post("/api/auth/sign-up/email", {
+  const signup = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),

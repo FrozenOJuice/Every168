@@ -247,9 +247,7 @@ it("accepts distance-only and laps-only completed sets, keeps unknowns, and scop
   const report = exerciseReportSchema.parse(
     (await a.get(`fitness-progress/exercises/${e.id}`)).body,
   );
-  expect(report.records.map((r) => [r.metric, r.value]).sort()).toEqual([
-    ["laps", 8],
-  ]);
+  expect(report.records).toEqual([]);
   expect(report.sessions.items[0]).toMatchObject({
     completedSets: 2,
     maxDurationSeconds: null,

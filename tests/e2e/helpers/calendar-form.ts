@@ -146,3 +146,66 @@ export async function saveCalendarPlan(root: Root) {
       .getByRole("button", { name: "Create repeating plan", exact: true })
       .click();
 }
+
+export async function openCalendarPlan(root: Root) {
+  await root.getByRole("button", { name: "Add", exact: true }).click();
+  await root
+    .getByRole("menu", { name: "Add to Calendar", exact: true })
+    .getByRole("menuitem", { name: "Add plan", exact: true })
+    .click();
+}
+
+export async function openCalendarEditorActions(root: Root) {
+  const trigger = root.getByRole("button", {
+    name: /^(Plan actions|Recorded time actions|Repeating plan actions)$/,
+  });
+  if (await trigger.count()) await trigger.click();
+  else await root.getByText("Actions", { exact: true }).click();
+}
+export async function clickCalendarEditorAction(root: Root, label: string) {
+  const currentLabel = label === "Delete block" ? "Delete plan" : label;
+  const item = root.getByRole("menuitem", { name: currentLabel, exact: true });
+  if (await item.count()) await item.click();
+  else {
+    const button = root.getByRole("button", { name: label, exact: true });
+    if (await button.count()) await button.click();
+    else {
+      await openCalendarEditorActions(root);
+      await item.click();
+    }
+  }
+}
+
+export async function selectCalendarChoice(
+  root: Root,
+  label: string,
+  value: string,
+) {
+  const group = root.getByRole("radiogroup", { name: label, exact: true });
+  const labels: Record<string, string> = {
+    day: "Day",
+    week: "Week",
+    range: "Date range",
+    daily: "Daily",
+    weekly: "Weekly",
+  };
+  if (await group.count())
+    await group
+      .getByRole("radio", { name: labels[value], exact: true })
+      .check();
+  else await field(root, label).selectOption(value);
+}
+export async function expectCalendarClock(
+  root: Root,
+  label: string,
+  value: string,
+) {
+  const button = root.getByRole("button", { name: label, exact: true });
+  if (!(await button.count())) {
+    await expect(field(root, label)).toHaveValue(value);
+    return;
+  }
+  await expect(button).toHaveText(
+    `${Number(value.slice(0, 2)) % 12 || 12}:${value.slice(3)} ${Number(value.slice(0, 2)) >= 12 ? "PM" : "AM"}`,
+  );
+}

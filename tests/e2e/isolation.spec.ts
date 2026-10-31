@@ -18,7 +18,7 @@ test("second browser account cannot access known private record IDs", async ({
     for (const context of [first, second]) {
       const email = "isolation-" + randomUUID() + "@example.com";
       emails.push(email);
-      const signup = await context.request.post("/api/auth/sign-up/email", {
+      const signup = await context.request.post("/api/__test/register", {
         headers: {
           Origin: "http://localhost:3100",
           "Idempotency-Key": randomUUID(),

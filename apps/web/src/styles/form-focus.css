@@ -38,6 +38,7 @@ input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
 /* Segmented fields draw above their children so units/icons cannot cover the ring. */
 :is(
   .fitness-search,
+  .calendar-source-search,
   .fitness-select-option-search,
   .fitness-number-control,
   .fitness-notes-editor,
@@ -65,6 +66,7 @@ input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
 }
 :is(
   .fitness-search,
+  .calendar-source-search,
   .fitness-select-option-search,
   .fitness-number-control,
   .password-field
@@ -78,6 +80,7 @@ input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
 }
 :is(
     .fitness-search,
+    .calendar-source-search,
     .fitness-select-option-search,
     .fitness-number-control,
     .password-field
@@ -95,6 +98,7 @@ input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
 }
 :is(
     .fitness-search,
+    .calendar-source-search,
     .fitness-select-option-search,
     .fitness-number-control,
     .fitness-notes-editor,
@@ -128,6 +132,7 @@ input:is([type="checkbox"], [type="radio"], [type="range"]):focus-visible {
   }
   :is(
       .fitness-search,
+      .calendar-source-search,
       .fitness-select-option-search,
       .fitness-number-control,
       .password-field

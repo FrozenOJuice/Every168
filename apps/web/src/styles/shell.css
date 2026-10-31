@@ -230,3 +230,14 @@
     padding-right: 16px;
   }
 }
+
+.account-access-page {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  padding: 24px;
+}
+.account-access-page > .auth-card {
+  width: min(100%, 480px);
+  min-width: 0;
+}

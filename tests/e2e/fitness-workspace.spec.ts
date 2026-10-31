@@ -7,7 +7,7 @@ test("one Fitness workspace supports visual discovery, inline details and buildi
   test.setTimeout(90000);
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Library member",
@@ -984,7 +984,7 @@ test("library cards handle long custom names and equipment without overflowing",
 }, testInfo) => {
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: { Origin: "http://localhost:3100" },
         data: {
           name: "Library layout member",

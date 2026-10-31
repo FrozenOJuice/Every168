@@ -36,6 +36,13 @@ export function ContextMenu({
   anchorToggles?: boolean;
 }) {
   const menu = useRef<HTMLDivElement>(null);
+  const dialog = anchor.closest("dialog[open]");
+  // Explicit containers within a native dialog preserve nested popover dismissal;
+  // containers outside it must not move the menu out of the active top layer.
+  const target =
+    portalContainer && (!dialog || dialog.contains(portalContainer))
+      ? portalContainer
+      : (dialog ?? document.body);
   useLayoutEffect(() => {
     const element = menu.current!;
     const bounds = element.getBoundingClientRect();
@@ -176,6 +183,6 @@ export function ContextMenu({
         ),
       )}
     </div>,
-    anchor.closest("dialog[open]") ?? portalContainer ?? document.body,
+    target,
   );
 }

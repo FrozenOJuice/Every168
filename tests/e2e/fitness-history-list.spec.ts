@@ -23,7 +23,7 @@ test("History shows actual session context, retains loaded results and restores 
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "History list",
     email: `history-list-${randomUUID()}@example.com`,
     password: "Synthetic-history-password-123",

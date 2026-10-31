@@ -24,6 +24,7 @@ export function calendarItemsService(
   goals: GoalsService,
   planning: PlanningService,
   transaction: RunInTransaction,
+  allowUnscheduled: boolean,
 ) {
   async function validate(
     u: string,
@@ -31,17 +32,25 @@ export function calendarItemsService(
     context?: TransactionContext,
   ) {
     const v = calendarItemInput.parse(input);
+    if (!allowUnscheduled && v.kind === "unscheduled")
+      throw new AppError(404, "NOT_FOUND", "Plan not found.");
     if (v.categoryId) await categories.get(u, v.categoryId, context);
     if (v.goalId) await goals.get(u, v.goalId, context);
     return v;
   }
   return {
     async get(u: string, id: string, ctx?: TransactionContext) {
-      return found(await repo.get(u, id, ctx));
+      const item = found(await repo.get(u, id, ctx));
+      if (!allowUnscheduled && item.kind === "unscheduled")
+        throw new AppError(404, "NOT_FOUND", "Plan not found.");
+      return item;
     },
-    range: repo.range,
+    range: (u: string, from: string, to: string) =>
+      repo.range(u, from, to, allowUnscheduled),
     seriesState: repo.seriesState,
     backlog(u: string, q: PageQuery) {
+      if (!allowUnscheduled)
+        throw new AppError(404, "NOT_FOUND", "Route not found.");
       return repo.backlog(u, q);
     },
     async create(u: string, v: CalendarItemInput, ctx?: TransactionContext) {
@@ -91,6 +100,7 @@ export function calendarItemsService(
     },
     remove(u: string, id: string, version: number, ctx?: TransactionContext) {
       return transaction(async (tx) => {
+        await this.get(u, id, tx);
         await repo.remove(u, id, version, tx);
         return { ok: true as const };
       }, ctx);
@@ -125,8 +135,9 @@ export function calendarItemsService(
       ctx?: TransactionContext,
     ) {
       return transaction(async (tx) => {
-        assertRevision(await repo.get(u, id, tx), version);
+        assertRevision(await this.get(u, id, tx), version);
         const block = await planning.createBlock(u, v, tx);
+        await this.get(u, id, tx);
         await repo.remove(u, id, version, tx);
         return block;
       }, ctx);

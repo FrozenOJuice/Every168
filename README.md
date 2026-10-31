@@ -2,9 +2,9 @@
 
 A private planner for Calendar and Fitness. Plan your week, train and record actual time. Tasks remains available in preview scope.
 
-Core MVP with the owner-approved Calendar expansion. No AI, integrations, native app, social features, or external food services.
+Core MVP with the owner-approved Calendar expansion. No AI, external calendar integrations, native app, social features, or external food services. Account email uses Resend.
 
-The default first-release scope hides Tasks, Training Programs, Food (including water/weight logging) and Assistant. Their code and data are retained. Set `RELEASE_SCOPE=preview` in both app environment files and restart/rebuild the web and API to work on those deferred features; leave it unset or use `core` for the release app. Core scope also disables their direct pages/APIs, program links, task-specific Calendar actions/activity and Food measurement shortcuts/Calendar activity contributions. Existing Calendar reservations and recorded time remain intact.
+The default first-release scope hides Goals, Routines, Unscheduled plans, legacy cardio entry points, Calendar Templates, Tasks, Training Programs, Food (including water/weight logging) and Assistant. Their code and data are retained. Set `RELEASE_SCOPE=preview` in both app environment files and restart/rebuild the web and API to work on those deferred features; leave it unset or use `core` for the release app. Core scope also disables template APIs and their direct pages/APIs, program links, task-specific Calendar actions/activity and Food measurement shortcuts/Calendar activity contributions. Existing Calendar reservations and recorded time remain intact.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ pnpm db:provision
 pnpm dev
 ```
 
-Open **http://localhost:3000** and create an account. Open the account menu → Settings to select your timezone and units and create categories. Calendar is your home: choose Day, Week, or Month in its top toolbar. Week is the default on desktop and phone; the phone grid scrolls within the calendar. Previous/next arrows surround Today. Use Calendar tools (•••) for repeating plans, all-day/unscheduled plans, copying and templates; selected-date measurement quick actions are available in preview scope. The search control filters the visible calendar or searches plan/time history across dates. Day view includes Your day: plans, recorded sessions and task completion moments; preview scope also includes food, water and weight logs. Small moments never count as time spent; repeated moments collapse into groups. Week/Month show moment counts, and selecting one opens its day feed. Use Add → Plan for a short time-block form (More details is optional), or Add → Record to use a domain's logging form. Clicking a time carries it into the composer.
+Configure `EMAIL_API_KEY` and a verified plain-address `EMAIL_FROM` in `apps/api/.env` for Resend account emails, then open **http://localhost:3000**, create an account and verify its email before signing in. Local browser/integration tests use an isolated mail capture; the ordinary development server does not bypass verification. Open the account menu → Settings to select your timezone and units and create categories. Calendar is your home: choose Day, Week, or Month in its top toolbar. Week is the default on desktop and phone; the phone grid scrolls within the calendar. Previous/next arrows surround Today. Use Add → Add plan for timed, all-day or repeating plans, or Schedule workout for Fitness. Actions provides selection and copy/paste controls; Templates and measurement Quick actions are available only in preview scope. The search control filters the visible calendar or searches plan/time history across dates. Day view includes Your day: plans, recorded sessions and task completion moments; preview scope also includes food, water and weight logs. Small moments never count as time spent; repeated moments collapse into groups. Week/Month show moment counts, and selecting one opens its day feed. The compact plan form shows notes directly and keeps Save/Cancel at the bottom. Clicking a time carries it into the composer.
 
 `setup:env` creates `apps/api/.env` with a random authentication secret and `apps/web/.env.local`. It keeps existing files unchanged. Example files document the configuration. Do not commit the generated files. Use the same configured browser origin (`http://localhost:3000` by default) for cookies and write requests.
 
@@ -124,3 +124,5 @@ Authentication policy, session renewal/revocation, password storage, supported e
 Core writes use required revisions and durable retry receipts. After updating this checkout, run `pnpm db:migrate` and restart the API/web processes. See [write integrity](docs/decisions/003-write-integrity.md) for API headers, concurrency behavior and retry limits.
 
 Admins can permanently delete regular User accounts from **Admin → Users → Delete account**, after typing the account email. This removes its private records and sessions; audit history remains. Admin accounts are protected.
+
+Public-beta deployment preparation and owner acceptance: [deployment runbook](docs/PUBLIC_BETA_DEPLOYMENT.md). Verification commands and actual results: [remediation report](docs/FIRST_RELEASE_REMEDIATION.md).

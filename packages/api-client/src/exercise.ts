@@ -35,7 +35,9 @@ import { writeHeaders, body, query, type Http } from "./http";
 export function exerciseClient(http: Http) {
   return {
     getFitnessOverview: (date?: string) =>
-      http<FitnessOverview>("/api/v1/fitness-progress" + query({ date })),
+      http<FitnessOverview>(
+        "/api/v1/fitness-progress" + query({ date, weeks: 1 }),
+      ),
     getProgressExercises: (q: Partial<ProgressExerciseQuery> = {}) =>
       http<Page<ProgressExercise>>(
         "/api/v1/fitness-progress/exercises" + query(q),

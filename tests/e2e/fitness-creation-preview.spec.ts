@@ -5,7 +5,7 @@ import AxeBuilder from "@axe-core/playwright";
 test("creation preview keeps library beside draft and saves shared and individual set targets", async ({
   page,
 }, testInfo) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Creation preview",
@@ -925,7 +925,7 @@ test("adding to a long workout brings the exact new occurrence into view", async
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Addition focus",
     email: `focus-${randomUUID()}@example.com`,
     password: "Synthetic-focus-password-123",

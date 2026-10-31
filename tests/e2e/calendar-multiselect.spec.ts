@@ -10,7 +10,7 @@ test("select several calendar plans without triggering a drag or single-plan act
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Multi-select test",

@@ -41,6 +41,31 @@ export function createClient(options: ClientOptions = {}) {
         method: "POST",
         body: body({ email: input.email, password: input.password }),
       }),
+    requestPasswordReset: (email: string) =>
+      http<{ status: true }>("/api/auth/request-password-reset", {
+        method: "POST",
+        body: body({ email }),
+      }),
+    sendVerificationEmail: (email: string) =>
+      http<{ status: true }>("/api/auth/send-verification-email", {
+        method: "POST",
+        body: body({ email }),
+      }),
+    verifyEmail: (token: string) =>
+      http<{ status: true }>("/api/auth/verify-email", {
+        method: "POST",
+        body: body({ token }),
+      }),
+    resetPassword: (token: string, newPassword: string) =>
+      http<{ status: true }>("/api/auth/reset-password", {
+        method: "POST",
+        body: body({ token, newPassword }),
+      }),
+    changePassword: (currentPassword: string, newPassword: string) =>
+      http<{ status: true }>("/api/auth/change-password", {
+        method: "POST",
+        body: body({ currentPassword, newPassword }),
+      }),
     signOut: () =>
       http<unknown>("/api/auth/sign-out", { method: "POST", body: "{}" }),
   };

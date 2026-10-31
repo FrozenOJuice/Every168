@@ -11,7 +11,7 @@ async function start(page: Page, view = "day") {
   await page.clock.setFixedTime(new Date(`${date}T08:00:00Z`));
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Input review",
@@ -451,7 +451,7 @@ test("Actions resolves selected plan data without a rendered plan anchor and ret
   await expect(heading(page, date)).toHaveAttribute("aria-pressed", "false");
 });
 
-test("compact toolbar keeps selection and Calendar tools reachable without an extra controls row", async ({
+test("compact toolbar keeps selection and Templates reachable without an extra controls row", async ({
   page,
 }, info) => {
   await start(page);
@@ -469,22 +469,17 @@ test("compact toolbar keeps selection and Calendar tools reachable without an ex
   await expect(
     menu(page).getByRole("menuitem", { name: "Select multiple", exact: true }),
   ).toBeVisible();
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Calendar tools…", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    menu(page).getByRole("menuitem", { name: "Quick actions…", exact: true }),
+  ).toBeVisible();
   await menu(page)
-    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
+    .getByRole("menuitem", { name: "Templates…", exact: true })
     .click();
-  const tools = page.getByRole("dialog", {
-    name: "Calendar tools",
-    exact: true,
-  });
   await expect(
-    tools.getByRole("button", { name: /repeating plan/i }),
-  ).toBeVisible();
-  await expect(
-    tools.getByRole("button", { name: /all-day plan/i }),
-  ).toBeVisible();
-  await expect(tools.getByRole("button", { name: /Templates/ })).toBeVisible();
-  await expect(
-    tools.getByRole("button", { name: /Quick actions/ }),
+    page.getByRole("dialog", { name: "Templates", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(actions(page)).toBeFocused();

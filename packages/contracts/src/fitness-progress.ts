@@ -8,7 +8,10 @@ import {
 } from "./common";
 import { exerciseSchema, exerciseLoggingTypeSchema } from "./exercise";
 
-export const fitnessProgressQuery = z.object({ date: dateSchema.optional() });
+export const fitnessProgressQuery = z.object({
+  date: dateSchema.optional(),
+  weeks: z.coerce.number().int().min(1).max(12).default(12),
+});
 export const exerciseReportQuery = pageQuerySchema.extend({
   loggingType: exerciseLoggingTypeSchema.optional(),
   allMeasurements: z.enum(["true", "false"]).optional(),

@@ -3,7 +3,10 @@ import { createApp } from "../app.js";
 import type { Dependencies } from "../composition.js";
 import { errorDiagnostics } from "./logging/diagnostics.js";
 
-export async function startServer(deps: Dependencies) {
+export async function startServer(
+  deps: Dependencies,
+  handler = createApp(deps),
+) {
   const { config, logger, pool, databaseHealth, lifecycle } = deps;
   const server = createServer(
     {
@@ -12,7 +15,7 @@ export async function startServer(deps: Dependencies) {
       keepAliveTimeout: 5000,
       connectionsCheckingInterval: 1000,
     },
-    createApp(deps),
+    handler,
   );
   // Also bounds stalled responses/idle sockets; database work has its own limits.
   server.setTimeout(30000, (socket) => socket.destroy());

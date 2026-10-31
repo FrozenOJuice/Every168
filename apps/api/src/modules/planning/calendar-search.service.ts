@@ -1,3 +1,4 @@
+import { AppError } from "../../shared/errors/app-error.js";
 import {
   calendarSearchQuery,
   type CalendarSearchQuery,
@@ -8,16 +9,20 @@ import type { calendarSearchRepository } from "./calendar-search.repository.js";
 export function calendarSearchService(
   repo: ReturnType<typeof calendarSearchRepository>,
   identity: IdentityService,
+  allowUnscheduled: boolean,
 ) {
   return {
     async search(u: string, input: CalendarSearchQuery) {
       const q = calendarSearchQuery.parse(input),
         prefs = await identity.getPreferences(u);
+      if (!allowUnscheduled && q.kind === "unscheduled")
+        throw new AppError(404, "NOT_FOUND", "Search type not available.");
       return repo.search(
         u,
         q,
         q.from ? dayRange(q.from, prefs.timezone).startsAt : undefined,
         q.to ? dayRange(addDays(q.to, 1), prefs.timezone).startsAt : undefined,
+        allowUnscheduled,
       );
     },
   };

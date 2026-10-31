@@ -17,7 +17,7 @@ test("library explains visibility and empty states and extends every sort withou
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Library polish",
     email: `library-polish-${randomUUID()}@example.com`,
     password: "Synthetic-library-password-123",

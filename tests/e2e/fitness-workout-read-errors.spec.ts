@@ -16,7 +16,7 @@ test("workout pagination and refresh failures retain cards and retry the failed 
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Workout read errors",
     email: `workout-reads-${randomUUID()}@example.com`,
     password: "Synthetic-workout-password-123",

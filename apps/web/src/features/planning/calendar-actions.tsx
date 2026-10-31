@@ -1,4 +1,3 @@
-import { features } from "@/lib/release";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
@@ -6,43 +5,6 @@ import { formatDate } from "@/lib/format";
 import { useCalendarInteractions } from "./calendar-interactions";
 export type CalendarAction =
   "series" | "all_day" | "unscheduled" | "templates" | "quick";
-export function CalendarActions({
-  onClose,
-  onAction,
-}: {
-  onClose: () => void;
-  onAction: (action: CalendarAction) => void;
-}) {
-  return (
-    <Dialog title="Calendar tools" onClose={onClose}>
-      <div className="calendar-action-list">
-        {(
-          [
-            ["series", "Add repeating plan", "Daily or weekly routines."],
-            [
-              "all_day",
-              "Add all-day plan",
-              "A date or several days without allocated hours.",
-            ],
-            ["templates", "Templates", "Save and apply calendar patterns."],
-            ["quick", "Quick actions", "Log water or weight."],
-          ] as const
-        )
-          .filter(([id]) => id !== "quick" || features.food)
-          .map(([id, title, description]) => (
-            <button
-              className="calendar-record"
-              key={id}
-              onClick={() => onAction(id)}
-            >
-              <strong>{title}</strong>
-              <small>{description}</small>
-            </button>
-          ))}
-      </div>
-    </Dialog>
-  );
-}
 const quickTitles = {
   water: "Log water",
   weight: "Log weight",

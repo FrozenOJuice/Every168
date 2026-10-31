@@ -17,7 +17,7 @@ test("Food keeps a shared Calendar day beside its workspace", async ({
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Food workspace",
     email: `food-day-${randomUUID()}@example.com`,
     password: "Synthetic-food-password-123",

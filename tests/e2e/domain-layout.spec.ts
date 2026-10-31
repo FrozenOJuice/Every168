@@ -5,7 +5,7 @@ test.use({ actionTimeout: 10000 });
 test("domains share a full-height day rail and Fitness separates training, library and progress", async ({
   page,
 }, info) => {
-  await page.request.post("/api/auth/sign-up/email", {
+  await page.request.post("/api/__test/register", {
     headers: { Origin: "http://localhost:3100" },
     data: {
       name: "Domain layout",

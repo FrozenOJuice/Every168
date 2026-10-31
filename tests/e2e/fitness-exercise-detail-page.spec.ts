@@ -17,7 +17,7 @@ test("exercise details have a dedicated route and restore library context", asyn
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await post("/api/auth/sign-up/email", {
+  await post("/api/__test/register", {
     name: "Detail tester",
     email: `details-${randomUUID()}@example.com`,
     password: "Synthetic-details-password-123",

@@ -42,6 +42,8 @@ export function calendarRoutes(
   search: CalendarSearchService,
   writes: WritesService,
   activity: CalendarActivityService,
+  templatesEnabled: boolean,
+  unscheduledEnabled: boolean,
 ) {
   const r = Router();
   r.post(
@@ -66,14 +68,16 @@ export function calendarRoutes(
     const q = calendarRangeQuery.parse(req.query);
     res.json(await items.range(currentUser(res).id, q.from, q.to));
   });
-  r.get("/calendar/backlog", async (req, res) =>
-    res.json(
-      await items.backlog(
-        currentUser(res).id,
-        pageQuerySchema.parse(req.query),
+  if (unscheduledEnabled) {
+    r.get("/calendar/backlog", async (req, res) =>
+      res.json(
+        await items.backlog(
+          currentUser(res).id,
+          pageQuerySchema.parse(req.query),
+        ),
       ),
-    ),
-  );
+    );
+  }
   r.get("/calendar/items/:id", async (req, res) =>
     res.json(
       await items.get(currentUser(res).id, idSchema.parse(req.params.id)),
@@ -108,16 +112,18 @@ export function calendarRoutes(
       { versioned: true },
     ),
   );
-  r.post(
-    "/calendar/items/:id/schedule",
-    mutation(
-      writes,
-      blockInput,
-      ({ userId, id, input, version, context }) =>
-        items.schedule(userId, id, input, version, context),
-      { versioned: true, status: 201 },
-    ),
-  );
+  if (unscheduledEnabled) {
+    r.post(
+      "/calendar/items/:id/schedule",
+      mutation(
+        writes,
+        blockInput,
+        ({ userId, id, input, version, context }) =>
+          items.schedule(userId, id, input, version, context),
+        { versioned: true, status: 201 },
+      ),
+    );
+  }
   r.post(
     "/calendar/series/undo",
     mutation(writes, seriesUndoInput, ({ userId, input, context }) =>
@@ -238,80 +244,83 @@ export function calendarRoutes(
       selection.undoGroup(userId, input, context),
     ),
   );
-  r.get("/calendar/templates", async (req, res) =>
-    res.json(
-      await templates.list(
-        currentUser(res).id,
-        pageQuerySchema.parse(req.query),
-      ),
-    ),
-  );
-  r.get("/calendar/templates/:id", async (req, res) =>
-    res.json(
-      await templates.get(currentUser(res).id, idSchema.parse(req.params.id)),
-    ),
-  );
-  r.get("/calendar/templates/:id/preview", async (req, res) =>
-    res.json(
-      await templates.preview(
-        currentUser(res).id,
-        idSchema.parse(req.params.id),
-        dateSchema.parse(req.query.targetDate),
-        z.coerce
-          .number()
-          .int()
-          .min(1)
-          .max(52)
-          .parse(req.query.cycles ?? 1),
-      ),
-    ),
-  );
-  r.post(
-    "/calendar/templates",
-    mutation(
-      writes,
-      templateCaptureInput,
-      ({ userId, input, context }) => templates.capture(userId, input, context),
-      { status: 201 },
-    ),
-  );
-  r.put(
-    "/calendar/templates/:id",
-    mutation(
-      writes,
-      templateRenameInput,
-      ({ userId, id, input, version, context }) =>
-        templates.rename(userId, id, input.name, version, context),
-      { versioned: true },
-    ),
-  );
-  r.delete(
-    "/calendar/templates/:id",
-    mutation(
-      writes,
-      emptyInput,
-      ({ userId, id, version, context }) =>
-        templates.remove(userId, id, version, context),
-      { versioned: true },
-    ),
-  );
-  r.post(
-    "/calendar/templates/:id/apply",
-    mutation(
-      writes,
-      templateApplyInput,
-      ({ userId, id, input, version, context }) =>
-        templates.apply(
-          userId,
-          id,
-          input.targetDate,
-          input.cycles,
-          version,
-          input.preferencesVersion,
-          context,
+  if (templatesEnabled) {
+    r.get("/calendar/templates", async (req, res) =>
+      res.json(
+        await templates.list(
+          currentUser(res).id,
+          pageQuerySchema.parse(req.query),
         ),
-      { versioned: true, status: 201 },
-    ),
-  );
+      ),
+    );
+    r.get("/calendar/templates/:id", async (req, res) =>
+      res.json(
+        await templates.get(currentUser(res).id, idSchema.parse(req.params.id)),
+      ),
+    );
+    r.get("/calendar/templates/:id/preview", async (req, res) =>
+      res.json(
+        await templates.preview(
+          currentUser(res).id,
+          idSchema.parse(req.params.id),
+          dateSchema.parse(req.query.targetDate),
+          z.coerce
+            .number()
+            .int()
+            .min(1)
+            .max(52)
+            .parse(req.query.cycles ?? 1),
+        ),
+      ),
+    );
+    r.post(
+      "/calendar/templates",
+      mutation(
+        writes,
+        templateCaptureInput,
+        ({ userId, input, context }) =>
+          templates.capture(userId, input, context),
+        { status: 201 },
+      ),
+    );
+    r.put(
+      "/calendar/templates/:id",
+      mutation(
+        writes,
+        templateRenameInput,
+        ({ userId, id, input, version, context }) =>
+          templates.rename(userId, id, input.name, version, context),
+        { versioned: true },
+      ),
+    );
+    r.delete(
+      "/calendar/templates/:id",
+      mutation(
+        writes,
+        emptyInput,
+        ({ userId, id, version, context }) =>
+          templates.remove(userId, id, version, context),
+        { versioned: true },
+      ),
+    );
+    r.post(
+      "/calendar/templates/:id/apply",
+      mutation(
+        writes,
+        templateApplyInput,
+        ({ userId, id, input, version, context }) =>
+          templates.apply(
+            userId,
+            id,
+            input.targetDate,
+            input.cycles,
+            version,
+            input.preferencesVersion,
+            context,
+          ),
+        { versioned: true, status: 201 },
+      ),
+    );
+  }
   return r;
 }

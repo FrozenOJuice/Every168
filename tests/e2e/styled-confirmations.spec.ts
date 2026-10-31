@@ -20,7 +20,7 @@ async function account(page: Page) {
     expect(response.ok(), await response.text()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Styled confirmations",
     email: `styled-${randomUUID()}@example.com`,
     password: "Synthetic-confirmations-password-123",

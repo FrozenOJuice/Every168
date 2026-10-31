@@ -39,13 +39,13 @@ export function CalendarDatePicker({
       const rect = anchor.current?.getBoundingClientRect();
       if (!rect) return;
       const center = rect.left + rect.width / 2;
-      const width = Math.min(
-        280,
-        2 * Math.min(center - 8, window.innerWidth - center - 8),
-      );
+      const width = Math.min(320, window.innerWidth - 16);
       const height = panel.current?.offsetHeight ?? 320;
       setPosition({
-        left: center - width / 2,
+        left: Math.max(
+          8,
+          Math.min(center - width / 2, window.innerWidth - width - 8),
+        ),
         top: Math.max(
           8,
           Math.min(rect.bottom + 8, window.innerHeight - height - 8),
@@ -116,6 +116,14 @@ export function CalendarDatePicker({
     <div
       ref={panel}
       role="dialog"
+      onBlur={(event) => {
+        if (
+          event.relatedTarget &&
+          !event.currentTarget.contains(event.relatedTarget) &&
+          !anchor.current?.contains(event.relatedTarget)
+        )
+          onClose();
+      }}
       aria-modal="false"
       aria-label={
         view === "month"

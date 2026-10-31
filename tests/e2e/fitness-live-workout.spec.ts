@@ -26,7 +26,7 @@ test("choose and reorder live exercises, confirm targets, adjust results and rec
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Live training",
     email: `live-${randomUUID()}@example.com`,
     password: "Synthetic-live-password-123",
@@ -563,7 +563,7 @@ test("both skipped sets can be completed later and disabled actions use a normal
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Skipped sets",
     email: `skipped-${randomUUID()}@example.com`,
     password: "Synthetic-skipped-password-123",
@@ -729,7 +729,7 @@ test("follow the workout from planned targets through the next exercise to finis
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("/api/auth/sign-up/email", {
+  await write("/api/__test/register", {
     name: "Normal workout",
     email: `normal-${randomUUID()}@example.com`,
     password: "Synthetic-normal-password-123",

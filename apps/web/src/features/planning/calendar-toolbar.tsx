@@ -1,3 +1,5 @@
+import { ContextMenu } from "@/components/ui/context-menu";
+import type { CalendarSchedulingSource } from "@/features/workspace/calendar-scheduling";
 import Link from "next/link";
 import { CalendarActionButtons } from "./calendar-action-controls";
 import { useRouter } from "next/navigation";
@@ -15,6 +17,8 @@ export function CalendarToolbar({
   today,
   view,
   onAdd,
+  schedulingSources,
+  onScheduleSource,
   onToday,
   onJump,
   onSearch,
@@ -28,6 +32,8 @@ export function CalendarToolbar({
   today: string;
   view: CalendarView;
   onAdd: () => void;
+  schedulingSources: readonly CalendarSchedulingSource[];
+  onScheduleSource: (sourceId: string) => void;
   onToday: () => void;
   onJump: (date: string) => void;
   onSearch: () => void;
@@ -36,6 +42,8 @@ export function CalendarToolbar({
   filtered: boolean;
 }) {
   const [jump, setJump] = useState(false);
+  const [addAnchor, setAddAnchor] = useState<HTMLButtonElement | null>(null);
+  const closeAdd = useCallback(() => setAddAnchor(null), []);
   const dateButton = useRef<HTMLButtonElement>(null);
   const closeJump = useCallback(() => setJump(false), []);
   const router = useRouter();
@@ -56,7 +64,11 @@ export function CalendarToolbar({
           <div className="calendar-toolbar-actions">
             <button
               className="button primary calendar-add-block"
-              onClick={onAdd}
+              aria-haspopup="menu"
+              aria-expanded={!!addAnchor}
+              onClick={(event) =>
+                setAddAnchor(addAnchor ? null : event.currentTarget)
+              }
             >
               <Plus size={17} aria-hidden="true" />
               <span className="calendar-add-label">Add</span>
@@ -131,6 +143,23 @@ export function CalendarToolbar({
           </div>
         </div>
       </header>
+      {addAnchor && (
+        <ContextMenu
+          anchor={addAnchor}
+          x={addAnchor.getBoundingClientRect().left}
+          y={addAnchor.getBoundingClientRect().bottom + 6}
+          label="Add to Calendar"
+          onClose={closeAdd}
+          anchorToggles
+          actions={[
+            { label: "Add plan", run: onAdd },
+            ...schedulingSources.map((source) => ({
+              label: source.actionLabel,
+              run: () => onScheduleSource(source.id),
+            })),
+          ]}
+        />
+      )}
       {jump && (
         <CalendarDatePicker
           date={date}

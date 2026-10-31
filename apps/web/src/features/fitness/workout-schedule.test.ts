@@ -47,6 +47,24 @@ describe("workout scheduling dates", () => {
       ),
     ).toEqual({ start: "2026-10-31T00:00", end: "2026-10-31T01:00" });
   });
+  it("uses Calendar's exact selected minute and duration instead of rounding its placement", () => {
+    expect(
+      initialWorkoutSchedule(
+        "2026-10-30",
+        new Date("2026-10-28T15:07:00Z"),
+        zone,
+        { minute: 23 * 60 + 55, durationMinutes: 90 },
+      ),
+    ).toEqual({ start: "2026-10-30T23:55", end: "2026-10-31T01:25" });
+    expect(
+      initialWorkoutSchedule(
+        "2026-10-30",
+        new Date("2026-10-28T15:07:00Z"),
+        zone,
+        { minute: 0 },
+      ),
+    ).toEqual({ start: "2026-10-30T00:00", end: "2026-10-30T01:00" });
+  });
   it("shows elapsed duration across midnight and clock changes, without a misleading invalid total", () => {
     expect(
       formatWorkoutScheduleDuration(

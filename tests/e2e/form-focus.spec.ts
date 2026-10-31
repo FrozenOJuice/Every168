@@ -1,3 +1,4 @@
+import { openCalendarPlan } from "./helpers/calendar-form";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Locator } from "@playwright/test";
 
@@ -82,7 +83,7 @@ test("Fields keep a flush rounded focus ring across account, planning and Fitnes
   );
   await page.getByLabel("Password", { exact: true }).click();
   await page.screenshot({ path: info.outputPath("password-focus.png") });
-  const response = await page.request.post("/api/auth/sign-up/email", {
+  const response = await page.request.post("/api/__test/register", {
     headers: {
       Origin: "http://localhost:3100",
       "Idempotency-Key": randomUUID(),
@@ -162,7 +163,7 @@ test("Fields keep a flush rounded focus ring across account, planning and Fitnes
   await scan();
   await page.keyboard.press("Escape");
   await page.goto("/");
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await openCalendarPlan(page);
   await page.getByLabel("Title", { exact: true }).waitFor();
   await scan();
   await page.screenshot({ path: info.outputPath("calendar-focus.png") });

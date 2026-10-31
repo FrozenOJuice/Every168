@@ -19,7 +19,7 @@ async function setup(page: Page) {
     expect(response.ok()).toBe(true);
     return response.json();
   };
-  await write("post", "/api/auth/sign-up/email", {
+  await write("post", "/api/__test/register", {
     name: "UX pass",
     email: `ux-${randomUUID()}@example.com`,
     password: "Synthetic-ux-password-123",

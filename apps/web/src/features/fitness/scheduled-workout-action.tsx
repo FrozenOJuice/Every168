@@ -3,7 +3,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { BeginWorkout } from "./workout-actions";
-export function ScheduledWorkoutAction({ blockId }: { blockId: string }) {
+export function ScheduledWorkoutAction({
+  blockId,
+  disabled = false,
+}: {
+  blockId: string;
+  disabled?: boolean;
+}) {
   const q = useQuery({
     queryKey: ["fitness", "scheduled-block", blockId],
     queryFn: () => api.getStrengthPlanForBlock(blockId),
@@ -21,6 +27,8 @@ export function ScheduledWorkoutAction({ blockId }: { blockId: string }) {
       <p role="alert" className="error">
         Workout details could not load.{" "}
         <button
+          type="button"
+          disabled={disabled}
           className="button"
           onClick={() => void (q.error ? q.refetch() : session.refetch())}
         >
@@ -34,6 +42,11 @@ export function ScheduledWorkoutAction({ blockId }: { blockId: string }) {
         <Link
           className="button primary"
           href={`/fitness/session/${session.data.id}`}
+          aria-disabled={disabled}
+          tabIndex={disabled ? -1 : undefined}
+          onClick={(event) => {
+            if (disabled) event.preventDefault();
+          }}
         >
           View workout summary
         </Link>

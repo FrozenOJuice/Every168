@@ -25,7 +25,7 @@ export function CalendarComposer({
       onBusyChange={setBusy}
       title="Add plan"
       width={380}
-      className="calendar-event-composer"
+      className="calendar-event-editor"
       onClose={() => {
         if (!busy) onClose();
       }}
@@ -33,7 +33,7 @@ export function CalendarComposer({
       <TimeForm
         {...editor}
         compact
-        composer
+        eventLayout
         onCancel={onClose}
         allowRepeat
         allowAllDay

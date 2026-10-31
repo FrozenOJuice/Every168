@@ -1,3 +1,5 @@
+import { authUserSchema } from "@168hours/contracts";
+import type { AccountEmail } from "../src/infrastructure/email/delivery.js";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
@@ -18,16 +20,24 @@ export function testApp(releaseScope: "core" | "preview" = "preview") {
     throw new Error(
       "Integration tests require a separate database ending in _test",
     );
-  const deps = compose({
-    NODE_ENV: "test",
-    RELEASE_SCOPE: releaseScope,
-    PORT: 3001,
-    DATABASE_URL: url,
-    BETTER_AUTH_SECRET: "synthetic-integration-test-secret-at-least-32",
-    BETTER_AUTH_URL: origin,
-    WEB_ORIGIN: origin,
-    LOG_LEVEL: "silent",
-  });
+  const mail: AccountEmail[] = [];
+  const deps = compose(
+    {
+      NODE_ENV: "test",
+      RELEASE_SCOPE: releaseScope,
+      PORT: 3001,
+      DATABASE_URL: url,
+      BETTER_AUTH_SECRET: "synthetic-integration-test-secret-at-least-32",
+      BETTER_AUTH_URL: origin,
+      WEB_ORIGIN: origin,
+      LOG_LEVEL: "silent",
+    },
+    {
+      sendEmail: async (message) => {
+        mail.push(message);
+      },
+    },
+  );
   const app = createServer(createApp(deps));
   const servers = [app];
   async function listen(server: Server) {
@@ -69,19 +79,37 @@ export function testApp(releaseScope: "core" | "preview" = "preview") {
     input: { name?: string; email?: string; password?: string } = {},
   ) {
     const email = input.email ?? "test-" + randomUUID() + "@example.com";
-    const response = await request(app)
+    const name = input.name ?? "Test member";
+    const password = input.password ?? "Synthetic-test-password-123";
+    await request(app)
       .post("/api/auth/sign-up/email")
       .set("Origin", origin)
-      .send({
-        name: "Test member",
-        email,
-        password: "Synthetic-test-password-123",
-        ...input,
-      })
-      .expect((r) => {
-        if (r.status !== 200)
-          throw new Error("Sign up failed: " + JSON.stringify(r.body));
-      });
+      .send({ name, email, password })
+      .expect(200);
+    const message = [...mail]
+      .reverse()
+      .find((m) => m.to === email.trim().toLowerCase() && m.kind === "verify");
+    if (!message)
+      throw new Error("Synthetic verification email was not delivered");
+    await request(app)
+      .post("/api/auth/verify-email")
+      .set("Origin", origin)
+      .send({ token: message.token })
+      .expect(200);
+    const login = await deps.auth.api.signInEmail({
+      body: { email: email.trim().toLowerCase(), password },
+      headers: new Headers({ Origin: origin }),
+      asResponse: true,
+    });
+    if (!login.ok) throw new Error("Verified fixture login failed");
+    const data = await login.json();
+    const response = {
+      body: { user: authUserSchema.parse(data.user) },
+      headers: {
+        "set-cookie": login.headers.getSetCookie(),
+        "cache-control": "no-store",
+      },
+    };
     const raw = response.headers["set-cookie"];
     const cookies = Array.isArray(raw) ? raw : raw ? [raw] : [];
     const cookie = cookies.map((v) => v.split(";")[0]).join("; ");
@@ -114,7 +142,7 @@ export function testApp(releaseScope: "core" | "preview" = "preview") {
       cookie: cookies.map((value) => value.split(";")[0]).join("; "),
     };
   }
-  return { app, deps, signUp, serve, createAdmin };
+  return { app, deps, signUp, serve, createAdmin, mail };
 }
 
 /** Ordinary fixtures start at revision 1; tests advancing a record pass its returned revision explicitly. */

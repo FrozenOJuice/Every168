@@ -1,7 +1,12 @@
-import { saveCalendarPlan } from "./helpers/calendar-form";
 import {
+  clickCalendarEditorAction,
   expectCalendarField,
   fillCalendarField,
+  openCalendarEditorActions,
+  openCalendarPlan,
+  saveCalendarPlan,
+  selectCalendarChoice,
+  selectCalendarRepeat,
 } from "./helpers/calendar-form";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator } from "@playwright/test";
@@ -18,7 +23,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   });
   expect(
     (
-      await page.request.post("/api/auth/sign-up/email", {
+      await page.request.post("/api/__test/register", {
         headers: headers(),
         data: {
           name: "Calendar expansion",
@@ -59,11 +64,15 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await expect(day).toBeVisible();
   const dialog = page.getByRole("dialog");
   async function tool(name: string) {
+    if (name === "Add all-day plan" || name === "Add repeating plan") {
+      await openCalendarPlan(page);
+      if (name === "Add all-day plan")
+        await dialog.getByLabel("All day", { exact: true }).check();
+      else await selectCalendarRepeat(dialog, "weekly");
+      return;
+    }
     await page.getByRole("button", { name: "Actions", exact: true }).click();
-    await page
-      .getByRole("menuitem", { name: "Calendar tools…", exact: true })
-      .click();
-    await dialog.getByRole("button", { name: new RegExp("^" + name) }).click();
+    await page.getByRole("menuitem", { name: name + "…", exact: true }).click();
   }
   async function close() {
     await dialog
@@ -105,16 +114,16 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     day.getByRole("button", { name: /Conference, all day/ }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Actions", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "Calendar tools…", exact: true })
-    .click();
+  await expect(
+    page.getByRole("menuitem", { name: "Calendar tools…", exact: true }),
+  ).toHaveCount(0);
   await expect(
     dialog.getByRole("button", { name: "Add unscheduled plan" }),
   ).toHaveCount(0);
   await expect(
     dialog.getByRole("button", { name: "Unscheduled plans" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Close dialog" }).click();
+  await page.keyboard.press("Escape");
   await page.goto("/unscheduled");
   await expect(page).toHaveURL(/\/unscheduled$/);
   await page.getByRole("button", { name: "Add plan" }).click();
@@ -190,14 +199,14 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
     .getByRole("button", { name: "Save calendar as template" })
     .click();
   await page.getByLabel("Template name").fill("Study day");
-  await page.getByLabel("Save", { exact: true }).selectOption("day");
+  await selectCalendarChoice(page, "Save", "day");
   await dialog
     .getByRole("button", { name: "Save template", exact: true })
     .click();
   await dialog.getByRole("button", { name: "Use template" }).click();
-  await page.getByLabel("Apply to date").fill("2026-09-21");
+  await fillCalendarField(page, "Apply to date", "2026-09-21");
   await dialog.getByRole("button", { name: "Preview template" }).click();
-  await dialog.getByRole("button", { name: "Add these plans" }).click();
+  await dialog.getByRole("button", { name: "Apply template" }).click();
   await expect(page).toHaveURL(/date=2026-09-21/);
   const week: Week = await (
     await page.request.get("/api/v1/weeks/2026-09-21")
@@ -231,7 +240,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   await searchButton.click();
   await page.getByLabel("Title contains").fill("Drag me");
   await dialog.getByText("Date range", { exact: true }).click();
-  await page.getByLabel("Starts on or after (optional)").fill("2026-09-21");
+  await fillCalendarField(page, "From (optional)", "2026-09-21");
   await dialog.getByRole("button", { name: "Search all dates" }).click();
   await expect(dialog.locator(".search-results li")).toHaveCount(1);
   await audit("calendar-search");
@@ -392,10 +401,8 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   if (!touch) expect(moved.startsAt).toBe("2026-09-21T16:00:00.000Z");
   if (touch) {
     await record().dblclick();
-    await dialog.getByText("Actions", { exact: true }).click();
-    await dialog
-      .getByRole("button", { name: "Move or resize on calendar" })
-      .click();
+    await openCalendarEditorActions(dialog);
+    await clickCalendarEditorAction(dialog, "Move or resize on calendar");
     await page
       .getByRole("group", { name: "Adjust block" })
       .getByRole("button", { name: "Resize end", exact: true })
@@ -736,8 +743,8 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
   }
   await page.goto("/?date=2026-09-07&view=day");
   await day.getByRole("button", { name: /Conference, all day/ }).dblclick();
-  await dialog.getByText("Actions", { exact: true }).click();
-  await dialog.getByRole("button", { name: "Create timed copy…" }).click();
+  await openCalendarEditorActions(dialog);
+  await clickCalendarEditorAction(dialog, "Create timed copy…");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue(
     "Conference",
   );

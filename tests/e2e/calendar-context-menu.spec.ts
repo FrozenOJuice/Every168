@@ -252,6 +252,8 @@ test("Week empty-space destinations preserve selection and mixed clipboard types
     { kind: "all_day", date: "2026-09-08" },
   );
   const area = page.getByRole("group", { name: "All-day area for 2026-09-09" });
+  // A committed API read can precede completion of the UI's paste command.
+  await ready(page);
   await area.focus();
   await page.keyboard.press("Shift+F10");
   await expect(action(page, "Add all-day plan")).toBeFocused();
@@ -262,8 +264,11 @@ test("Week empty-space destinations preserve selection and mixed clipboard types
       (block) => block.startsAt === "2026-09-09T09:00:00.000Z",
     ),
   ).toBeTruthy();
+  await ready(page);
   await area.focus();
+  await expect(area).toBeFocused();
   await page.keyboard.press("Shift+F10");
+  await expect(action(page, "Add all-day plan")).toBeFocused();
   await choose(page, "Add all-day plan");
   const editor = page.getByRole("dialog");
   await expect(editor.getByLabel("All day", { exact: true })).toBeChecked();

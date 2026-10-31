@@ -626,7 +626,8 @@ test("day, week and month calendars keep planning focused", async ({
   const preferences = await page.request.put("/api/v1/preferences", {
     headers: { ...headers(), "If-Match": `"${me.preferences.version}"` },
     data: {
-      timezone: "America/Edmonton",
+      // The repeated-hour assertions below require seasonal Mountain time.
+      timezone: "America/Denver",
       weekStartsOn: 1,
       weightUnit: "kg",
       distanceUnit: "km",
@@ -739,6 +740,8 @@ test("day, week and month calendars keep planning focused", async ({
     "Calendar",
     "Fitness",
     "Food",
+    "Tasks",
+    "Assistant",
   ]);
   await expect(views.getByRole("link")).toHaveText(["Day", "Week", "Month"]);
   await expect(

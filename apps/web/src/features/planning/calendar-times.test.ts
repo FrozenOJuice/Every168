@@ -1,3 +1,4 @@
+// DST fixtures use Denver: Edmonton no longer falls back in tzdb 2026c+.
 import { describe, expect, it, vi } from "vitest";
 import { blockSchema } from "@168hours/contracts";
 import {
@@ -8,7 +9,7 @@ import {
   inputAtMinute,
 } from "./calendar-times";
 
-const timezone = "America/Edmonton";
+const timezone = "America/Denver";
 describe("calendar time drafts", () => {
   it("uses the current account-local hour rather than the system timezone or a fixed morning default", () => {
     expect(currentHourMinute("2026-10-08T02:37:00Z", timezone)).toBe(20 * 60);

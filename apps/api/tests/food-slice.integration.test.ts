@@ -244,19 +244,20 @@ it("restores foods with revisions and safe retries without rewriting historical 
   ).toBe(150);
 });
 
+// Denver retains the 25-hour fall date used by this boundary regression.
 it("reviews water and weight by measurement date, excludes later days, and isolates histories", async () => {
   const a = await member(),
     b = await member();
   await a
     .write("put", "preferences", {
-      timezone: "America/Edmonton",
+      timezone: "America/Denver",
       weekStartsOn: 1,
       weightUnit: "lb",
       distanceUnit: "km",
     })
     .expect(200);
   const date = "2026-11-01",
-    range = dayRange(date, "America/Edmonton");
+    range = dayRange(date, "America/Denver");
   expect(Date.parse(range.endsAt) - Date.parse(range.startsAt)).toBe(
     25 * 3600000,
   );

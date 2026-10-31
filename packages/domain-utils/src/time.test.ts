@@ -1,3 +1,4 @@
+// DST fixtures use Denver: Edmonton no longer falls back in tzdb 2026c+.
 import { describe, it, expect } from "vitest";
 import {
   weekRange,
@@ -15,8 +16,8 @@ import {
 } from "./units";
 describe("calendar time", () => {
   it("handles 167/169 hour DST weeks in local calendar time", () => {
-    const spring = weekRange("2026-03-08", "America/Edmonton", 1),
-      fall = weekRange("2026-11-01", "America/Edmonton", 1);
+    const spring = weekRange("2026-03-08", "America/Denver", 1),
+      fall = weekRange("2026-11-01", "America/Denver", 1);
     expect(
       (Date.parse(spring.endsAt) - Date.parse(spring.startsAt)) / 3600000,
     ).toBe(167);
@@ -24,16 +25,16 @@ describe("calendar time", () => {
       (Date.parse(fall.endsAt) - Date.parse(fall.startsAt)) / 3600000,
     ).toBe(169);
     expect(spring.weekStart).toBe("2026-03-02");
-    expect(weekRange("2026-03-08", "America/Edmonton", 0).weekStart).toBe(
+    expect(weekRange("2026-03-08", "America/Denver", 0).weekStart).toBe(
       "2026-03-08",
     );
   });
   it("rejects nonexistent and ambiguous local times rather than shifting them silently", () => {
     expect(() =>
-      localInputToInstant("2026-03-08T02:30", "America/Edmonton"),
+      localInputToInstant("2026-03-08T02:30", "America/Denver"),
     ).toThrow();
     expect(() =>
-      localInputToInstant("2026-11-01T01:30", "America/Edmonton"),
+      localInputToInstant("2026-11-01T01:30", "America/Denver"),
     ).toThrow();
   });
   it("clips and unions overlapping intervals", () => {

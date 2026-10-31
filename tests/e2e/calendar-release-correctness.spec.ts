@@ -1,3 +1,4 @@
+// DST fixtures use Denver: Edmonton no longer falls back in tzdb 2026c+.
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 const headers = () => ({
@@ -107,7 +108,7 @@ for (const [start, end] of [
   test(`saved repeated-hour edits preserve ${start} and ${end}`, async ({
     page,
   }) => {
-    await setup(page, "America/Edmonton");
+    await setup(page, "America/Denver");
     const plan = await create(page, start!, end!);
     await page.goto("/?date=2026-11-01&view=day");
     await expect(page.locator(".calendar-interactions")).toHaveAttribute(

@@ -2,6 +2,8 @@
 
 **Current objective (2026-10-30):** present the working Calendar/Fitness app as a local software-engineering portfolio. No public deployment is being pursued. The local implementation, not an older remote branch, defines the current behavior.
 
+The MIT-licensed source is now public on GitHub; the application still runs locally.
+
 Current identity: **Every168**. The repository is `FrozenOJuice/Every168`; internal compatibility identifiers remain unchanged, and historical records retain the name used when they were written.
 
 ## Start here

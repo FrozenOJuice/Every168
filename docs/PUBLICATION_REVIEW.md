@@ -1,5 +1,7 @@
 # Every168 publication review
 
+**Subsequent owner decision (2026-10-30):** following this review and the commit-email classification correction, the owner chose MIT and authorized making `FrozenOJuice/Every168` public. Public visibility and anonymous repository/README access were verified. This publishes the source repository; no hosted application was deployed. The review below preserves the scope and starting conditions of the earlier verification/handoff.
+
 Review date: 2026-10-30. Scope: source, documentation and genuine synthetic-data screenshots in `FrozenOJuice/Every168`. No deployment, visibility change, history rewrite or distribution of application binaries is part of this handoff.
 
 ## Repository identity and history

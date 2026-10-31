@@ -6,7 +6,7 @@
 
 Every168 is a full-stack Calendar and Fitness web application that connects weekly planning with detailed workout logging. Scheduled time, reusable workouts and recorded sessions stay separate, so a plan never silently becomes a completed activity.
 
-**Status:** working local portfolio project; no public deployment. The screenshots below are genuine application captures using synthetic data.
+**Status:** open-source portfolio project under MIT; no hosted deployment. The screenshots below are genuine application captures using synthetic data.
 
 ![Calendar Week view with planned work, learning and a scheduled workout](docs/media/screenshots/calendar-week.png)
 

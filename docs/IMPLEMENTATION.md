@@ -2,6 +2,12 @@
 
 **Current objective (2026-10-30):** Every168 repository/portfolio preparation, with public deployment deferred. The dated entries below preserve earlier scope and verification snapshots. Current onboarding is in LOCAL_DEVELOPMENT.md; the prior remediation assessment is historical release-preparation evidence.
 
+## Public MIT portfolio repository, complete (2026-10-30)
+
+Owner explicitly chose to retain MIT and make FrozenOJuice/Every168 public. Rechecked clean local/remote main at `f330dd1`, configured admin access, MIT detection and the current/reachable-history credential-pattern scan; no matches, committed real environment files or personal commit-email identities were found. The known generic GitHub noreply committer address remains correctly classified.
+
+Changed only repository visibility through GitHub CLI because the connector lacks that setting. GitHub reports `isPrivate=false` and MIT; anonymous API access and raw README fetch both returned HTTP 200, with the canonical Every168 clone URL present. Kept the license, repository name, existing commit history and app/data/configuration intact. Updated current portfolio status and the publication snapshot's subsequent-decision note. No application deployment, force push, history rewrite or business-logic change. Documentation formatting/links/whitespace were checked; application suites were not repeated for a visibility/documentation-only action.
+
 ## Commit-email privacy correction, complete (2026-10-30)
 
 Owner requested keeping their personal email out of public history. Manual review of all 26 currently reachable commits found that every author identity already uses GitHub users.noreply email. The single committer address outside that domain is GitHub's generic `noreply@github.com` on initial commit `b3d2834`; the GitHub connector confirms its committer account is `web-flow`. The configured owner email is also GitHub noreply. No personal author/committer email was found.

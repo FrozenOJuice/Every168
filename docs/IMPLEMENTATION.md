@@ -2,6 +2,12 @@
 
 **Current objective (2026-10-30):** Every168 repository/portfolio preparation, with public deployment deferred. The dated entries below preserve earlier scope and verification snapshots. Current onboarding is in LOCAL_DEVELOPMENT.md; the prior remediation assessment is historical release-preparation evidence.
 
+## Commit-email privacy correction, complete (2026-10-30)
+
+Owner requested keeping their personal email out of public history. Manual review of all 26 currently reachable commits found that every author identity already uses GitHub users.noreply email. The single committer address outside that domain is GitHub's generic `noreply@github.com` on initial commit `b3d2834`; the GitHub connector confirms its committer account is `web-flow`. The configured owner email is also GitHub noreply. No personal author/committer email was found.
+
+The earlier audit's domain-only classifier wrongly presented the generic GitHub service address as a potential personal email. Corrected the current security/publication reports; earlier dated entries retain their original observations with this explicit correction superseding their email-privacy warning. No commit-object rewriting, force push, mailmap substitution or GitHub privacy-setting change is needed or performed. Only this normal documentation correction is included under the existing publication-sync authorization. Source/app behavior is unchanged; checked metadata classification, documentation formatting/links and whitespace rather than repeating application suites.
+
 ## Publication finalization and GitHub synchronization, verification complete (2026-10-30)
 
 Owner explicitly authorized correcting repository references, current/history safety and asset/dependency licensing review, complete verification, logical commits and a normal push while preserving history. Started from clean `9447842`; fetched `FrozenOJuice/Every168` main matched that commit and the repository was private. Updated the local origin URL and present-day clone/directory references, preserving internal package/storage/security/database names and historical records.

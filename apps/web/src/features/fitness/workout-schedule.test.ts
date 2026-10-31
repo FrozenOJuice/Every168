@@ -1,3 +1,4 @@
+// DST fixtures use Denver: Edmonton no longer falls back in tzdb 2026c+.
 import { describe, expect, it } from "vitest";
 import {
   initialWorkoutSchedule,
@@ -7,7 +8,7 @@ import {
 } from "./workout-schedule";
 
 describe("workout scheduling dates", () => {
-  const zone = "America/Edmonton";
+  const zone = "America/Denver";
   it("uses the selected local day and handles an overnight default", () => {
     expect(
       initialWorkoutSchedule(

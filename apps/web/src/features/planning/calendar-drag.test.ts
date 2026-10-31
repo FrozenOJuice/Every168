@@ -60,7 +60,8 @@ it("moves a continuation relative to the original start date, including across D
       "move",
       { date: "2026-10-31" },
       { date: "2026-11-02" },
-      "America/Edmonton",
+      // Keep this fixture in a zone that still changes clocks in November.
+      "America/Denver",
     ),
   ).toEqual({
     startsAt: "2026-11-02T06:30:00Z",

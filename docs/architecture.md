@@ -70,7 +70,7 @@ History endpoints use stable keyset pagination with millisecond-precision timest
 
 ## Development and verification
 
-Verification runs locally through `pnpm verify`. The owner requested removal of the GitHub Actions workflow; no CI is configured.
+Verification remains available locally through `pnpm verify` and the core `pnpm verify:beta` gate. The [GitHub Actions workflow](../.github/workflows/ci.yml) runs quality checks and a separate sequential PostgreSQL integration/production-build/beta-browser job; see [verification](verification.md#github-actions).
 
 Compose separates durable `hours_dev` from ephemeral `hours_test`. Drizzle SQL history is kept in the repository as migration files; no schema push/synchronization is used. Configuration is validated before startup. The API checks schema/connectivity before listening, rejects elevated database roles in production, and uses bounded database waits. Local runtime credentials are separated from migration credentials using `db:provision`. Startup and shutdown failures are logged; draining is idempotent and bounded. `createApp` has no listening side effect, making Supertest integration tests straightforward. Playwright uses dedicated 3100/3101 servers and the isolated test database.
 

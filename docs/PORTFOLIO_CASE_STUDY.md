@@ -77,7 +77,7 @@ Useful lessons from the audit/remediation:
 - Reducing scope helped presentation and verification. Calendar/Fitness remain the default; retained modules are explicitly gated instead of appearing as unfinished main navigation.
 - Some frontend coordinators remain large. A targeted future extraction is reasonable; rewriting the architecture to improve a portfolio diagram would not be.
 
-No latency, concurrent-user capacity, accessibility certification or continuously green CI claim is made. CI was intentionally removed. Current verification commands remain local and reproducible.
+No latency, concurrent-user capacity or accessibility certification claim is made. The [CI workflow](../.github/workflows/ci.yml) now automates quality checks, isolated PostgreSQL integration tests, a core production build and beta browser coverage. Local verification commands remain reproducible; the dated counts above describe the earlier remediation run.
 
 ## Product identity
 

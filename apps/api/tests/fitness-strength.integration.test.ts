@@ -751,7 +751,8 @@ it("projects only owned linked workouts on the local day across midnight, resche
       "put",
       "preferences",
       {
-        timezone: "America/Vancouver",
+        // A Pacific zone that still falls back; Vancouver uses permanent -07.
+        timezone: "America/Los_Angeles",
         weekStartsOn: 1,
         weightUnit: "kg",
         distanceUnit: "km",

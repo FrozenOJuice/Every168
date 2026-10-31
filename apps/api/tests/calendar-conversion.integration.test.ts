@@ -241,13 +241,14 @@ it("keeps converted occurrences as mixed-mode exceptions and preserves/replaces 
   );
 });
 
+// This regression needs a zone that still has a spring clock gap in 2027.
 it("rejects conversion that would drop clock-gap occurrences or use another account's references, without partial changes", async () => {
   const a = api((await signUp()).cookie),
     b = api((await signUp()).cookie);
   const rule = {
     title: "Clock change",
     kind: "all_day",
-    timezone: "America/Edmonton",
+    timezone: "America/Denver",
     startDate: "2027-03-13",
     untilDate: "2027-03-15",
     startMinute: 0,
@@ -282,7 +283,7 @@ it("rejects conversion that would drop clock-gap occurrences or use another acco
   const rejected = await a.post("calendar/plans/convert", input).expect(422);
   expect(rejected.body.error.code).toBe("CONVERSION_TIME");
   await a
-    .post("calendar/plans/convert", { ...input, timezone: "America/Edmonton" })
+    .post("calendar/plans/convert", { ...input, timezone: "America/Denver" })
     .expect(409);
   const foreign = (await b.post("categories", { name: "Private" }).expect(201))
     .body;

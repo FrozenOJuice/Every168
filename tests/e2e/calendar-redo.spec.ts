@@ -390,6 +390,8 @@ test("repeating plans redo creation, occurrence edits, series edits and whole-se
     .getByRole("button", { name: "Edit repeating rule", exact: true })
     .click();
   await clickCalendarEditorAction(editor, "Delete entire series");
+  // The committed API result can precede editor teardown; shortcuts wait for the UI.
+  await expect(editor).toHaveCount(0);
   await expect.poll(() => blocks(page)).toHaveLength(0);
   await step(page, "Control+z");
   await expect.poll(() => blocks(page)).toHaveLength(2);

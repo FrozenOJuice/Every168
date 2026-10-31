@@ -18,8 +18,8 @@ export function emailDelivery(config: Config): EmailDelivery {
     const url = `${config.WEB_ORIGIN}/${kind === "verify" ? "verify-email" : "reset-password"}#token=${token}`;
     const subject =
       kind === "verify"
-        ? "Verify your 168Hours email"
-        : "Reset your 168Hours password";
+        ? "Verify your Every168 email"
+        : "Reset your Every168 password";
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
       signal: AbortSignal.timeout(10000),
@@ -28,7 +28,7 @@ export function emailDelivery(config: Config): EmailDelivery {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: config.EMAIL_FROM,
+        from: `Every168 <${config.EMAIL_FROM}>`,
         to: [to],
         subject,
         text: `${subject}\n\n${url}\n\n${kind === "verify" ? "This link expires in 24 hours." : "This link expires in 30 minutes."} If you did not request this, you can ignore this email.`,

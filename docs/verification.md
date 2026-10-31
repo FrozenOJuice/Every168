@@ -1,5 +1,7 @@
 # Verification
 
+Every168 uses the existing private workspace package names and isolated test databases. For the identity assets and compatibility decisions, see the [brand guide](BRAND.md). The core browser and production-web configurations include the branding regression across account access, metadata/icons and the authenticated shell. `pnpm portfolio:capture` verifies visible identity while recreating genuine synthetic-data screenshots.
+
 ## Automated commands
 
 From the repository root, after following README setup:
@@ -106,3 +108,7 @@ Run `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm test:
 The beta config also exposes a tablet project restricted to release-boundary and Calendar picker/DST regressions. Production-like HTTP/CSP and actual deployment acceptance are distinct; follow PUBLIC_BETA_DEPLOYMENT.md. Never run independent integration/browser processes against the same test database concurrently.
 
 `pnpm verify:beta` runs the ordered local application release gate. For the built-web security smoke, build with `API_URL=http://127.0.0.1:3101 RELEASE_SCOPE=core pnpm build`, then run `pnpm test:e2e:production`; it runs account lifecycle, the full scheduled-workout journey, and CSP/nonce/header/hydration checks using production Next.js with the isolated test API and synthetic email capture. Production API cookie attributes remain covered separately by session-security integration tests. Neither test validates a public TLS edge or real provider delivery.
+
+## Portfolio capture
+
+The current objective is local portfolio presentation; the release/deployment commands above remain historical verification tools. `pnpm portfolio:capture` uses the existing isolated test API and core-mode web app to create genuine synthetic-data screenshots. It is intentionally outside the normal E2E test directory, so ordinary regression runs do not overwrite versioned media. For an interactive review or recording, use `PORTFOLIO_PAUSE=1 pnpm portfolio:capture --headed`. See [local development](LOCAL_DEVELOPMENT.md#provider-free-showcase) and [media provenance](media/README.md).

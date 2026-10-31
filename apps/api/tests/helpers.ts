@@ -11,7 +11,10 @@ import { compose } from "../src/composition.js";
 import { createApp } from "../src/app.js";
 import { user } from "../src/modules/identity/identity.table.js";
 export const origin = "http://localhost:3000";
-export function testApp(releaseScope: "core" | "preview" = "preview") {
+export function testApp(
+  releaseScope: "core" | "preview" = "preview",
+  nodeEnv: "development" | "test" = "test",
+) {
   const url =
     process.env.TEST_DATABASE_URL ??
     "postgresql://hours:hours_test_only@localhost:54321/hours_test";
@@ -23,7 +26,7 @@ export function testApp(releaseScope: "core" | "preview" = "preview") {
   const mail: AccountEmail[] = [];
   const deps = compose(
     {
-      NODE_ENV: "test",
+      NODE_ENV: nodeEnv,
       RELEASE_SCOPE: releaseScope,
       PORT: 3001,
       DATABASE_URL: url,

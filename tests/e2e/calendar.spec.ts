@@ -720,7 +720,7 @@ test("day, week and month calendars keep planning focused", async ({
     await page.goto(`/?date=${date}&view=day`);
   }
   async function auditAndCapture(name: string) {
-    await expect(page).toHaveTitle("168Hours");
+    await expect(page).toHaveTitle("Every168");
     const accessibility = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();

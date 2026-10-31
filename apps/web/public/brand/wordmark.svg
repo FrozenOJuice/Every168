@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" role="img" aria-labelledby="title">
+  <title id="title">Every168</title>
+  <rect width="64" height="64" rx="16" fill="#196b57"/>
+  <path d="M20 20h24M20 32h18M20 44h24M20 20v24" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="80" y="44" fill="#1e2422" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="38" font-weight="750" letter-spacing="-1.5">Every<tspan fill="#196b57">168</tspan></text>
+</svg>

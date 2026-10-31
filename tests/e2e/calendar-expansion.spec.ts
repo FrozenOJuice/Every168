@@ -80,7 +80,7 @@ test("calendar routines, date-only plans, reuse, search, quick actions and adjus
       .click();
   }
   async function audit(name: string) {
-    await expect(page).toHaveTitle("168Hours");
+    await expect(page).toHaveTitle("Every168");
     expect(
       (
         await new AxeBuilder({ page })

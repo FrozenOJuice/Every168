@@ -3,7 +3,7 @@ import { errorDiagnostics } from "./diagnostics.js";
 export function createLogger(level: string, destination?: DestinationStream) {
   const options = {
     level,
-    base: { service: "168hours-api" },
+    base: { service: "every168-api" },
     redact: [
       "password",
       "token",

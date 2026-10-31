@@ -58,6 +58,7 @@ import { createDatabase } from "./infrastructure/database/client.js";
 import { createLogger } from "./infrastructure/logging/logger.js";
 import { envSchema, type ConfigInput } from "./infrastructure/config/env.js";
 import { createAuth } from "./shared/auth/auth.js";
+import { requiresEmailVerification } from "./shared/auth/auth-policy.js";
 import { identityRepository } from "./modules/identity/identity.repository.js";
 import { identityService } from "./modules/identity/identity.service.js";
 export function compose(
@@ -75,6 +76,7 @@ export function compose(
     runInTransaction,
     overrides.sendEmail ?? emailDelivery(config),
     logger,
+    requiresEmailVerification(config),
   );
   const categories = categoriesService(categoriesRepository(db));
   const goals = goalsService(goalsRepository(db), categories);

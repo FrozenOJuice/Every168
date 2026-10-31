@@ -1,128 +1,136 @@
-# 168Hours
+# Every168
 
-A private planner for Calendar and Fitness. Plan your week, train and record actual time. Tasks remains available in preview scope.
+<img src="apps/web/public/brand/wordmark.svg" width="280" height="64" alt="Every168 - a time-block E mark and wordmark" />
 
-Core MVP with the owner-approved Calendar expansion. No AI, external calendar integrations, native app, social features, or external food services. Account email uses Resend.
+**Plan your week. Record your training. Review what actually happened.**
 
-The default first-release scope hides Goals, Routines, Unscheduled plans, legacy cardio entry points, Calendar Templates, Tasks, Training Programs, Food (including water/weight logging) and Assistant. Their code and data are retained. Set `RELEASE_SCOPE=preview` in both app environment files and restart/rebuild the web and API to work on those deferred features; leave it unset or use `core` for the release app. Core scope also disables template APIs and their direct pages/APIs, program links, task-specific Calendar actions/activity and Food measurement shortcuts/Calendar activity contributions. Existing Calendar reservations and recorded time remain intact.
+Every168 is a full-stack Calendar and Fitness web application that connects weekly planning with detailed workout logging. Scheduled time, reusable workouts and recorded sessions stay separate, so a plan never silently becomes a completed activity.
+
+**Status:** working local portfolio project; no public deployment. The screenshots below are genuine application captures using synthetic data.
+
+![Calendar Week view with planned work, learning and a scheduled workout](docs/media/screenshots/calendar-week.png)
+
+## What it does
+
+- **Calendar:** Day, Week and Month views; timed and all-day plans; finite daily/weekly repetition; drag, resize, copy/paste, search, and Undo/Redo. Dates follow the account's timezone and week-start preference.
+- **Fitness:** a curated exercise library and custom exercises, reusable workout drafts, Basic/Advanced set editing, live set logging, rest timers, pause/resume, completed summaries and explicit result corrections.
+- **Connected review:** schedule a workout into Calendar, start it from its reservation, then review its actual results in History. Exercise records and previous-workout comparisons derive from completed sets; editing a reusable workout does not rewrite old sessions.
+
+<details>
+<summary><strong>See the workout workflow</strong></summary>
+
+### Prepare
+
+![Shared workout editor with planned targets and the exercise library](docs/media/screenshots/workout-builder.png)
+
+### Train
+
+![Live workout with completed sets, actual measurements and the shared Calendar day panel](docs/media/screenshots/live-workout.png)
+
+### Review
+
+![Completed workout summary with actual duration, results and sourced records](docs/media/screenshots/workout-summary.png)
+
+More views, including Month, plan editing, the library, exercise history and a responsive layout, are in the [screenshot gallery](docs/media/README.md).
+
+</details>
+
+## How it is engineered
+
+```mermaid
+flowchart LR
+    Web["Next.js + React<br/>typed API client"] -->|"same-origin /api"| API["Express modular monolith<br/>routes → services → repositories"]
+    API -->|"Drizzle / transactions"| DB[(PostgreSQL)]
+    Contracts["Shared Zod contracts"] -.-> Web
+    Contracts -.-> API
+```
+
+| Layer                  | Implementation                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| Web                    | Next.js App Router, React, TanStack Query, React Hook Form                               |
+| API                    | Node.js, Express 5, TypeScript in strict mode                                            |
+| Data                   | PostgreSQL, Drizzle ORM and versioned SQL migrations                                     |
+| Contracts and identity | Shared Zod schemas, typed API client, Better Auth database-backed sessions               |
+| Verification           | Vitest, Supertest with real PostgreSQL, Playwright, axe checks and import-boundary tests |
+
+Selected decisions:
+
+- **Modules without distributed systems.** Domain services own business rules; repositories own persistence. Cross-domain work uses public services, and automated checks enforce those boundaries. Next.js never imports API persistence.
+- **Safe retries and concurrent edits.** Expected revisions reject stale changes. Idempotency receipts commit with their effects; interrupted writes retain their exact request key and payload for retry.
+- **Local dates, exact instants.** Timezone-aware week boundaries handle DST. Unchanged saved timestamps retain their precision and offset through repeated-hour edits.
+- **History that preserves meaning.** Planned targets are distinct from completed results. Missing measurements remain unknown, and derived records recalculate after corrections or deletion.
+- **Private by account.** Reads, writes and reference lookups are owner-scoped. Verification/reset tokens expire and work once; credential changes revoke sessions. These protections have local regression coverage, not a public-security certification.
+
+The [case study](docs/PORTFOLIO_CASE_STUDY.md) explains the tradeoffs and the failure cases behind these decisions.
 
 ## Run locally
 
-Prerequisites: Node.js **22.12+** (Node 24 LTS recommended), **pnpm 9.15.9**, and Docker with Compose. Ports **3000**, **3001**, **54320**, and **54321** must be available. PostgreSQL ports bind to localhost.
+The product is Every168; the existing repository URL, checkout name and private `@168hours/*` workspace packages remain unchanged. See the [brand guide](docs/BRAND.md) for identity and compatibility decisions.
+
+Requires Node.js **22.12+**, **pnpm 9.15.9**, and Docker Compose.
 
 ```bash
+git clone https://github.com/FrozenOJuice/168hours.git
+cd 168hours
 pnpm install --frozen-lockfile
 pnpm setup:env
 pnpm db:up
 pnpm db:migrate
 pnpm db:provision
+```
+
+Local development temporarily allows sign-in without email verification; no Resend credentials are needed. Create an account, then sign in. Verification remains required in test/production, and real verification/reset emails need a configured Resend key and verified sender. Run:
+
+```bash
 pnpm dev
 ```
 
-Configure `EMAIL_API_KEY` and a verified plain-address `EMAIL_FROM` in `apps/api/.env` for Resend account emails, then open **http://localhost:3000**, create an account and verify its email before signing in. Local browser/integration tests use an isolated mail capture; the ordinary development server does not bypass verification. Open the account menu → Settings to select your timezone and units and create categories. Calendar is your home: choose Day, Week, or Month in its top toolbar. Week is the default on desktop and phone; the phone grid scrolls within the calendar. Previous/next arrows surround Today. Use Add → Add plan for timed, all-day or repeating plans, or Schedule workout for Fitness. Actions provides selection and copy/paste controls; Templates and measurement Quick actions are available only in preview scope. The search control filters the visible calendar or searches plan/time history across dates. Day view includes Your day: plans, recorded sessions and task completion moments; preview scope also includes food, water and weight logs. Small moments never count as time spent; repeated moments collapse into groups. Week/Month show moment counts, and selecting one opens its day feed. The compact plan form shows notes directly and keeps Save/Cancel at the bottom. Clicking a time carries it into the composer.
+Open **http://localhost:3000**. Configuration, ports, local database roles and troubleshooting are covered in the [local-development guide](docs/LOCAL_DEVELOPMENT.md).
 
-`setup:env` creates `apps/api/.env` with a random authentication secret and `apps/web/.env.local`. It keeps existing files unchanged. Example files document the configuration. Do not commit the generated files. Use the same configured browser origin (`http://localhost:3000` by default) for cookies and write requests.
+### Provider-free portfolio demo
 
-`db:provision` creates the restricted local `hours_app` login and updates `apps/api/.env`, keeping the admin connection in `MIGRATION_DATABASE_URL`. It preserves existing data. Run it once after initial migrations (or when upgrading an existing local setup), then restart the API. Subsequent migrations use the admin connection and refresh runtime grants.
-
-The browser calls `/api/*`; Next.js proxies it to the independent Express API at **http://127.0.0.1:3001**. Readiness is available through **http://localhost:3000/api/ready**. Development PostgreSQL is `hours_dev` on port 54320. Tests use `hours_test` on port 54321.
-
-Optional synthetic demo (never runs automatically):
-
-```bash
-SEED_PASSWORD='local-demo-password-123' pnpm db:seed
-```
-
-Sign in as `demo@example.com` with the password you supplied. The seed is limited to the local `hours_dev` database and leaves an existing demo account unchanged.
-
-## Admin setup
-
-Account types are fixed: public signup creates a User; the local operator command creates a new Admin. Existing accounts cannot be promoted or demoted.
-
-After applying migrations, run:
-
-```bash
-pnpm admin:create
-```
-
-Enter a new name/email and a password when prompted (password input is hidden). Sign in normally, then open **Account menu → Admin**. The command works only against local development/test databases and refuses production. It never converts an existing account.
-
-Admins can search account metadata, suspend/reactivate regular users and revoke their sessions. The Admin area includes aggregate usage statistics, system health and an immutable action history. Admins retain access only to their own personal plans, food, exercise and goals. Suspension keeps records and requires a new login after reactivation. Admin accounts cannot be suspended through the application.
-
-## Commands
-
-| Command                             | Purpose                                                                     |
-| ----------------------------------- | --------------------------------------------------------------------------- |
-| `pnpm install`                      | Install the workspace dependencies                                          |
-| `pnpm setup:env`                    | Create missing local environment files safely                               |
-| `pnpm db:up`                        | Start and wait for separate development/test PostgreSQL containers          |
-| `pnpm db:down`                      | Stop containers; keep the development volume; test storage is ephemeral     |
-| `pnpm db:generate`                  | Generate Drizzle SQL migrations from application schemas                    |
-| `pnpm db:migrate`                   | Apply tracked migrations to the configured development database             |
-| `pnpm db:provision`                 | Create restricted local runtime role and separate migration credentials     |
-| `pnpm db:seed`                      | Seed synthetic local demo data; requires `SEED_PASSWORD`                    |
-| `pnpm admin:create`                 | Interactively create a new fixed-type Admin in a local database             |
-| `pnpm dev`                          | Run API and web together                                                    |
-| `pnpm dev:api` / `pnpm dev:web`     | Run either app independently                                                |
-| `pnpm lint`                         | ESLint and workspace/domain import-boundary checks                          |
-| `pnpm format` / `pnpm format:check` | Apply/check Prettier formatting                                             |
-| `pnpm typecheck`                    | Strict TypeScript and Next.js route types                                   |
-| `pnpm test`                         | Pure calculation/configuration unit tests                                   |
-| `pnpm test:integration`             | Real PostgreSQL integration tests; apply migrations to the test DB          |
-| `pnpm test:e2e`                     | Complete Core + isolation browser flows at desktop, phone, and tablet sizes |
-| `pnpm build`                        | Build Express and Next.js for production execution                          |
-| `pnpm verify`                       | Lint, format, types, unit/integration tests, build, and browser tests       |
-
-CI has been removed at the owner’s request. All checks run locally with `pnpm verify`.
-
-Before the first browser verification:
+The isolated capture harness uses the existing test database and in-memory email delivery. It creates synthetic records through the real API and opens the actual application; it does not bypass authentication in the ordinary development server.
 
 ```bash
 pnpm exec playwright install chromium
-pnpm verify
+PORTFOLIO_PAUSE=1 pnpm portfolio:capture --headed
 ```
 
-On Linux, use `pnpm exec playwright install --with-deps chromium`. Browser tests start isolated servers on **3100/3101**, use `.next-e2e`, and require the test PostgreSQL container. They never use the development database. `TEST_DATABASE_URL` may override the test connection; the database name must end in `_test` and the URL must differ from `DATABASE_URL`.
+After capturing the gallery, Playwright pauses with the populated application open for exploration or a recording. Resume in its inspector to finish and stop the test servers. To regenerate screenshots without pausing, run `pnpm portfolio:capture`.
 
-To run built applications locally, use two terminals after `pnpm build`:
+## Testing and quality
 
 ```bash
-pnpm --filter @168hours/api start
-pnpm --filter @168hours/web start
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:integration
+pnpm test:e2e:beta
+pnpm build
 ```
 
-The full retained-feature browser suite runs explicitly in preview scope (`pnpm test:e2e`). Check the first-release boundary separately with `pnpm test:e2e:release`; it verifies core navigation, unavailable deferred pages/APIs and working Calendar/Fitness entry points. API integration fixtures explicitly use preview scope unless a test requests core scope.
+Browser checks require Chromium (`pnpm exec playwright install chromium`) and the separate test database; run database/browser suites sequentially.
 
-## Capabilities and deliberate limits
+`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. CI was intentionally removed; checks run locally.
 
-- Calendar-first home with Day, Week, and Month views and a full-height planning workspace. Two main destinations: Calendar and Fitness; account controls live in the account menu.
-- Timezone-aware seven-day planner, overlapping blocks, category labels and manual actual time linked to blocks. Canonical allocation and planned-versus-recorded totals remain available through the API. Sunday/Monday week starts. DST weeks show their actual 167/169-hour calendar coverage.
-- Goals with category/date links and active, completed, paused, archived states.
-- Preview-only: manual food library with archive/restore, immutable log snapshots, daily and meal nutrition, unknown-nutrient indicators, and searchable recent entries for repeat logging. Create a missing food without leaving the logging flow.
-- Strength exercise library with archive/restore, saved sessions, multiple exercises, editable/reorderable and repeatable sets, explicit finish times, and exercise progress. Search/filter workout and cardio histories; cardio supports optional distance and derived pace.
-- Preview-only: Food's daily page includes water quick-add buttons, editable water/weight records and histories, and a 30-day weight chart using actual measurements. Select a date to review meals and measurements together. Calendar quick actions reuse these forms alongside Exercise and Goals.
-- Separate user accounts with protected sessions, owner-scoped queries, and reference-ownership checks.
+Coverage includes two-account isolation, real PostgreSQL transactions, DST boundaries, interrupted-response recovery, concurrent workout corrections, keyboard/focus behavior and responsive layouts. See the [verification guide](docs/verification.md) for commands and the [dated remediation report](docs/FIRST_RELEASE_REMEDIATION.md) for recorded results and limitations. Test counts are evidence from those runs, not continuously updated badges.
 
-Save a workout before leaving; unsaved navigation warns you. Completing a strength workout or logging cardio records its actual time once, including when no planned block is linked. Linking supplies the block's category. Delete activity records from Exercise to remove their source time entry. Deleting a plan keeps recorded activity.
+## Status and limits
 
-Calendar dates and Day/Week/Month views are addressable in the URL. Click the date heading to jump, or Today to return to the current time. Grid taps select five-minute starts; dragging empty time in Day/Week shows a live plan draft in five-minute increments, then opens a compact tab beside the block; existing-block editing and toolbar creation use the same tab; the editor supports duration shortcuts, rescheduling and reviewable planned-block duplication. Busy weeks keep their grid with extra records in a day list; Month adapts its previews to available space and opens the same list. Overnight continuations and clock-change dates retain explicit local times. Planned blocks and recorded entries appear together; their accounting remains separate, and duplication never copies recorded time. Fitness supports direct links; Tasks and Food links are available in preview scope. See [UI standards](docs/ui-standards.md).
+Calendar, Fitness, authentication and settings are the presented scope. Goals, Routines, Templates, Training Programs, Tasks, Food and Assistant remain in the repository behind explicit `preview` scope. They are not part of this showcase.
 
-Click a planned block once to select it, double-click to open its compact tab, or press Enter when focused. Delete or Backspace deletes the selected block without an alert; recorded time remains. Undo several timed-block actions with repeated Cmd+Z or Ctrl+Z while Calendar stays open. No undo bar or action counter is shown. History includes creation/duplication, saved title/details/time edits, moving/resizing and deletion; changes from another tab are protected. History resets on leaving/reloading Calendar; date-only plans, whole-series operations, bulk reuse and recorded activity are outside this history. Dragging snaps the preview to the destination day and time in five-minute steps, with a ghost at its original position. Drag planned blocks in Day/Week to move them; drag their edges to resize with live size and time feedback, or drag empty space to open a draft. On touch screens, tap once to select and drag to move. For resizing, double-tap to open a block and choose **Move or resize on calendar**, then select Move, Resize start, or Resize end and drag the selected block. The form remains available for precise and keyboard editing. Month previews can be dragged to another date on desktop. Recorded activity is edited in its source domain. See [Calendar behavior and limits](docs/decisions/004-calendar-expansion.md) for recurrence, copying, templates and daylight saving rules.
+Exercise illustrations and a larger catalogue are deferred; the current interface uses visible placeholders. Recovery is scoped to the browser tab, not offline or cross-device synchronization. Physical-device Safari and screen-reader acceptance are not established by Chromium automation. Public hosting, real delivery acceptance and operational backup/restore verification are deferred.
 
-Histories page through newly recorded rows; displayed event times and weight chart points use measurement/activity dates. Local date/time forms reject nonexistent or ambiguous DST times with a clear error. Complex recurrence, external synchronization, offline writes, account recovery/verification emails, and public deployment remain outside this scope.
+## Technical documentation
 
-Direct package versions and the lockfile are pinned. ESLint 9.39.5 is retained for compatibility with Next.js's current plugins despite its upstream deprecation. See [architecture](docs/architecture.md), [verification](docs/verification.md), and [implementation status](docs/IMPLEMENTATION.md).
+- [Documentation index](docs/README.md)
+- [Portfolio case study](docs/PORTFOLIO_CASE_STUDY.md)
+- [Brand identity and retained identifiers](docs/BRAND.md)
+- [Implemented architecture](docs/architecture.md)
+- [Authentication and authorization](docs/security.md)
+- [Verification guide](docs/verification.md)
+- [Architecture decisions](docs/decisions/)
 
-## Backend foundation
+## License
 
-The API verifies database connectivity/schema and runtime permissions before listening. Readiness returns 503 on database failure; shutdown drains active requests with a ten-second deadline. Connection acquisition, statements, locks, idle transactions, and HTTP sockets have bounded waits. See [foundation operations](docs/foundation.md) for settings and deployment requirements.
-
-Forwarded IP headers are ignored by default. Local requests through Next.js share the loopback rate-limit bucket: 600 API requests/minute, and 10 signup or signin requests/minute per auth endpoint. For deployment, configure explicit trusted proxy addresses only after ensuring the edge overwrites untrusted forwarding headers. Limits live in the single API process and reset on restart.
-
-Authentication policy, session renewal/revocation, password storage, supported endpoints and the public-release boundary are documented in [docs/security.md](docs/security.md).
-
-Core writes use required revisions and durable retry receipts. After updating this checkout, run `pnpm db:migrate` and restart the API/web processes. See [write integrity](docs/decisions/003-write-integrity.md) for API headers, concurrency behavior and retry limits.
-
-Admins can permanently delete regular User accounts from **Admin → Users → Delete account**, after typing the account email. This removes its private records and sessions; audit history remains. Admin accounts are protected.
-
-Public-beta deployment preparation and owner acceptance: [deployment runbook](docs/PUBLIC_BETA_DEPLOYMENT.md). Verification commands and actual results: [remediation report](docs/FIRST_RELEASE_REMEDIATION.md).
+[MIT](LICENSE). Third-party dependencies retain their licenses. The [screenshot provenance and icon notices](docs/media/README.md#provenance-and-licensing) document the visual assets shown here; future artwork needs its own rights review.

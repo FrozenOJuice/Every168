@@ -1,4 +1,4 @@
-# 168Hours
+# Every168
 
 Read the complete `168HOURS_BUILD_SPEC.md` and `docs/IMPLEMENTATION.md` before changes. Implement only authorized Core work; stop at its completion gate.
 

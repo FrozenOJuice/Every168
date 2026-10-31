@@ -15,6 +15,7 @@ export function accountSecurityService(
   run: RunInTransaction,
   send: EmailDelivery,
   logger: Logger,
+  requireVerifiedEmail = true,
 ) {
   return {
     async request(email: string, kind: AccountTokenKind) {
@@ -70,7 +71,9 @@ export function accountSecurityService(
           "Your current password is incorrect.",
         );
       const next = await hashPassword(newPassword);
-      await run((context) => repo.change(userId, previous, next, context));
+      await run((context) =>
+        repo.change(userId, previous, next, context, requireVerifiedEmail),
+      );
     },
   };
 }

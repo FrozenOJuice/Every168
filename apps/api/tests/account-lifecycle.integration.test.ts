@@ -23,7 +23,7 @@ it("requires mailbox verification, keeps signup generic and consumes verificatio
   const input = { name: "Public beta", email, password };
   try {
     const response = await post("sign-up/email", input).expect(200);
-    expect(response.body).toEqual({ status: true });
+    expect(response.body).toEqual({ status: true, verificationRequired: true });
     expect(response.headers["set-cookie"]).toBeUndefined();
     await post("sign-in/email", { email, password }).expect(403);
     const message = last(email, "verify");

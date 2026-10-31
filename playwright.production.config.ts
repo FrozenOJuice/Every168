@@ -6,7 +6,7 @@ export default defineConfig({
   testDir: "./tests",
   metadata: { releaseScope: "core" },
   testMatch:
-    /(?:e2e\/(?:account-lifecycle|fitness-complete-journey)|production\/headers)\.spec\.ts$/,
+    /(?:e2e\/(?:branding|account-lifecycle|fitness-complete-journey)|production\/headers)\.spec\.ts$/,
   projects: base.projects?.filter((project) => project.name === "desktop"),
   webServer: (Array.isArray(base.webServer)
     ? base.webServer

@@ -10,21 +10,8 @@
   z-index: 20;
 }
 .sidebar .brand {
-  margin: 0 10px;
-  font-size: 1.55rem;
-}
-.brand-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: var(--primary);
-  border-radius: 50%;
-  margin-left: 3px;
-}
-.nav-caption {
-  margin: 10px 10px 36px;
-  font-size: 0.7rem;
-  color: var(--muted-foreground);
+  margin: 0 10px 32px;
+  font-size: 1.25rem;
 }
 .sidebar nav {
   display: flex;
@@ -171,9 +158,6 @@
   }
   .sidebar .brand {
     margin: 0;
-  }
-  .nav-caption {
-    display: none;
   }
   .sidebar nav {
     position: fixed;

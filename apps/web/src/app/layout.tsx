@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 export const metadata: Metadata = {
-  title: "168Hours",
-  description: "A little intention for your week.",
+  title: "Every168",
+  applicationName: "Every168",
+  description:
+    "Plan your week. Record your training. Review what actually happened.",
 };
 export default async function RootLayout({
   children,

@@ -1,5 +1,7 @@
 # 168Hours — Core-First Build Specification
 
+> Naming provenance: the current product is **Every168** (2026-10-30). Earlier product names and original technical identifiers below are preserved as recorded; this is not an alternate current brand.
+
 **Version:** 2.1\
 **Date:** October 14, 2026\
 **Repository:** `168hours`  

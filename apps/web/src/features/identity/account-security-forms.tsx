@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { BrandLink } from "@/components/brand";
 import { z } from "zod";
 import {
   accountEmailInput,
@@ -17,8 +18,9 @@ export function AccountEmailForm({
   const form = useZodForm(accountEmailInput, { email: "" });
   const [sent, setSent] = useState(false);
   return (
-    <div className="account-access-page">
+    <main className="account-access-page">
       <section className="auth-card">
+        <BrandLink />
         <h1>{verification ? "Verify your email" : "Reset your password"}</h1>
         <Form
           form={form}
@@ -42,7 +44,7 @@ export function AccountEmailForm({
         )}
         <Link href="/login">Back to sign in</Link>
       </section>
-    </div>
+    </main>
   );
 }
 export function AccountLinkForm({
@@ -72,8 +74,9 @@ export function AccountLinkForm({
     );
   }, []);
   return (
-    <div className="account-access-page">
+    <main className="account-access-page">
       <section className="auth-card">
+        <BrandLink />
         <h1>{verification ? "Verify your email" : "Choose a new password"}</h1>
         {done ? (
           <p role="status">
@@ -121,7 +124,7 @@ export function AccountLinkForm({
           </Link>
         )}
       </section>
-    </div>
+    </main>
   );
 }
 export function ChangePasswordForm() {

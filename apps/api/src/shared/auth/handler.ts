@@ -45,6 +45,9 @@ export function authHandler(
 ): RequestHandler {
   return async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
+    const verificationRequired =
+      auth.options.emailAndPassword?.requireEmailVerification !== false;
+    const signupResult = { status: true, verificationRequired };
     if (endpoints.get(req.path) !== req.method)
       throw new AppError(404, "NOT_FOUND", "Route not found.");
     // Express has already bounded the raw body, including chunked transfers.
@@ -102,7 +105,7 @@ export function authHandler(
         headers: fromNodeHeaders(req.headers),
         query: { disableRefresh: true, disableCookieCache: true },
       });
-      if (!active || !active.user.emailVerified)
+      if (!active || (verificationRequired && !active.user.emailVerified))
         throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
       await security.change(
         active.user.id,
@@ -170,8 +173,9 @@ export function authHandler(
           "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
         ].includes(parsed.data.code ?? "")
       ) {
-        await security.request(authInput.parse(body).email, "verify");
-        res.json({ status: true });
+        if (verificationRequired)
+          await security.request(authInput.parse(body).email, "verify");
+        res.json(signupResult);
         return;
       }
       if (response.status === 404)
@@ -193,8 +197,9 @@ export function authHandler(
     const data: unknown = await response.json();
     if (req.path === "/api/auth/sign-up/email") {
       // Better Auth may return a synthetic user for duplicate signup. Never expose or authorize that placeholder.
-      await security.request(authInput.parse(body).email, "verify");
-      res.json({ status: true });
+      if (verificationRequired)
+        await security.request(authInput.parse(body).email, "verify");
+      res.json(signupResult);
       return;
     }
     let output: unknown;

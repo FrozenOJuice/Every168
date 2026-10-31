@@ -1,12 +1,22 @@
 node_modules/
 .next/
 dist/
-.env
-.env.local
-.env.test
+.env*
+!.env.example
 *.tsbuildinfo
 playwright-report/
 test-results/
 coverage/
 .DS_Store
 .next-e2e/
+
+# Local capture/build caches, operational logs and private exports.
+.next-*/
+*.log
+*.dump
+*.backup
+*.sql.gz
+*.pem
+*.key
+*.p12
+*.pfx

@@ -19,7 +19,7 @@ export function createDatabase(
 ) {
   const pool = new pg.Pool({
     connectionString: url,
-    application_name: "168hours-api",
+    application_name: "every168-api",
     max: options?.DB_POOL_MAX ?? 10,
     connectionTimeoutMillis: options?.DB_CONNECT_TIMEOUT_MS ?? 3000,
     statement_timeout: options?.DB_STATEMENT_TIMEOUT_MS ?? 5000,

@@ -35,9 +35,29 @@
   font-size: 0.88rem;
   margin-bottom: 25px;
 }
-.auth-switch {
+.auth-assistance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 12px;
+}
+.auth-assistance a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   font-size: 0.8rem;
-  margin: 24px 0 0 !important;
+  font-weight: 600;
+  text-align: center;
+}
+.auth-switch {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.auth-switch .button {
+  width: 100%;
 }
 .week-mark {
   display: flex;

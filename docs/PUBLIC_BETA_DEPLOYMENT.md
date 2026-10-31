@@ -1,5 +1,9 @@
 # Public beta deployment and acceptance
 
+> Naming provenance: the current product is **Every168** (2026-10-30). Earlier product names and original technical identifiers below are preserved as recorded; this is not an alternate current brand.
+
+**Deferred operational reference (2026-10-30):** public deployment is no longer the current objective. This runbook is preserved for possible future authorized work; none of its infrastructure steps is required to view the local portfolio showcase. See LOCAL_DEVELOPMENT.md instead.
+
 This is an operator runbook, not evidence that a deployment exists. Do not open registration until the acceptance checklist has passed on the actual host. Calendar and Fitness are the public scope; retain `RELEASE_SCOPE=core` during both build and runtime.
 
 ## Hosting

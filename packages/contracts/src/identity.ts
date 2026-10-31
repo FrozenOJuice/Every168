@@ -64,3 +64,8 @@ export const changePasswordInput = z
     newPassword: authInput.shape.password,
   })
   .strict();
+
+export const signupResultSchema = z.object({
+  status: z.literal(true),
+  verificationRequired: z.boolean(),
+});

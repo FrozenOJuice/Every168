@@ -1,6 +1,8 @@
 # Product scope
 
-168Hours is a personal planning and tracking platform: **Calendar shows your life, domains provide depth, and AI connects the context between them.**
+**Current objective (2026-10-30):** local portfolio presentation through source, documentation and genuine synthetic-data captures. Public deployment is deferred. The default Calendar/Fitness scope and retained preview implementations are unchanged; the broader direction below is a roadmap, not a claim of implemented or hosted functionality.
+
+Every168 currently connects Calendar planning and Fitness logging. The broader direction is **Calendar as a shared overview, specialized domains for depth, and optional future AI to connect context**; the AI capability is not implemented.
 
 This document records the agreed direction and priority order. It describes future work as well as existing foundations; it does not authorize implementing every phase now. [FEATURES](FEATURES.md) lists what is currently available and what needs work. The [build specification](../168HOURS_BUILD_SPEC.md) retains the original Core requirements and technical constraints.
 

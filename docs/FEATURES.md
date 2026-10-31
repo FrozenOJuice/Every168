@@ -1,6 +1,6 @@
 # Features
 
-The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows.
+The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows. Current objective (2026-10-30): local Calendar/Fitness portfolio presentation; public deployment is deferred. Preview sections below remain the owner’s reference for retained functionality.
 
 Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness, Food and Tasks, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
@@ -14,7 +14,9 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 
 ## Account access
 
-- Register with a name, email, and password, then verify email ownership before signing in. Signup never signs in automatically.
+- Every168 identity is shared across navigation, sign-in, verification and password recovery, browser metadata/icons and account-email subjects.
+- Sign-in keeps password recovery secondary and gives account creation its own button. Verification resend appears after a verification-required signup or a sign-in verification error.
+- Register with a name, email, and password, then sign in separately. Email verification is temporarily not required in local development, including for existing unverified accounts; test and production still require it. Signup never signs in automatically.
 - Request a verification email or password reset without exposing whether an account exists. Recovery links expire and work once. Password resets revoke existing sessions.
 - Change the password in Settings using the current password; successful changes sign out every session.
 - Log in with email and password; show or hide the password while typing.
@@ -26,6 +28,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 ### Needs work
 
 - Public email delivery needs an owner-configured Resend sender/key and real-inbox acceptance testing.
+- The older `db:seed` dataset predates the current workout showcase. Its unverified account can sign in during development; use the isolated portfolio capture for the full current synthetic demonstration.
 
 ## Calendar
 

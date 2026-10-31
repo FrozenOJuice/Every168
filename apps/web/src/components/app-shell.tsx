@@ -2,6 +2,7 @@
 import { CalendarWriteNotice } from "@/features/planning/calendar-write-notice";
 import { features } from "@/lib/release";
 import Link from "next/link";
+import { BrandLink } from "./brand";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Dumbbell, Utensils, CheckSquare } from "lucide-react";
 import type { Me } from "@168hours/contracts";
@@ -37,11 +38,7 @@ export function AppShell({
             Skip to content
           </a>
           <aside className="sidebar">
-            <Link href="/" className="brand" aria-label="168Hours home">
-              168<span>Hours</span>
-              <span className="brand-dot" aria-hidden="true" />
-            </Link>
-            <p className="nav-caption">Your week, your way</p>
+            <BrandLink />
             <nav aria-label="Main navigation">
               {links
                 .filter(

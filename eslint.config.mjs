@@ -8,6 +8,7 @@ export default [
       "**/node_modules/**",
       "**/.next/**",
       "**/.next-e2e/**",
+      "**/.next-*/**",
       "**/dist/**",
       "**/next-env.d.ts",
       "**/drizzle/meta/**",

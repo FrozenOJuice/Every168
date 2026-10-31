@@ -1,6 +1,12 @@
 # Authentication and authorization
 
+Every168 retains existing session cookies, security headers and stored account data. The [brand guide](BRAND.md#compatibility-and-naming-audit) explains the deliberately unchanged internal names. Account emails use the Every168 display name and subjects with the operator-configured sender address and origin.
+
 Phase 2 keeps Better Auth responsible for credential authentication, signed cookies and session creation. Express owns the public HTTP boundary. Identity services handle application policy; their repository performs owner-scoped persistence. No JWT, bearer-token plugin or local-storage credentials are introduced. Account ownership and password recovery use the Identity service and Resend HTTPS delivery.
+
+## Development verification exception
+
+The owner temporarily disabled the email-verification requirement for `NODE_ENV=development` so local accounts can sign in without a configured delivery provider. Signup does not auto-sign-in, does not send a verification email automatically in development, and reports the requirement through the shared signup response contract. Existing unverified accounts also work; their persisted `emailVerified` value stays false. Private session access and authenticated password changes follow the same policy. Suspensions, ownership, password validation and session revocation remain enforced. Test and production always require verified email; production still requires delivery configuration. Explicit verification/reset requests retain their real token/delivery flow.
 
 ## HTTP contract
 
@@ -8,7 +14,7 @@ Only these exact endpoints and methods are public:
 
 | Method | Path                      | Success body                                                      |
 | ------ | ------------------------- | ----------------------------------------------------------------- |
-| POST   | `/api/auth/sign-up/email` | `{ status: true }` (generic; verification required)               |
+| POST   | `/api/auth/sign-up/email` | `{ status: true, verificationRequired: boolean }` (generic)       |
 | POST   | `/api/auth/sign-in/email` | `{ user: { id, name, email } }`                                   |
 | POST   | `/api/auth/sign-out`      | `{ success: true }`                                               |
 | GET    | `/api/auth/get-session`   | `{ user: { id, name, email }, session: { expiresAt } }` or `null` |
@@ -25,7 +31,7 @@ New passwords require 12–128 characters; long passphrases and password manager
 
 Node's asynchronous `crypto.scrypt` uses N=65536, r=8, p=2, 16 random salt bytes, a 64-byte result, and timing-safe comparison. This is one of the [OWASP scrypt parameter sets](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt). `scrypt-v1$` identifies this fixed configuration; unrecognized versions and malformed hashes fail closed. Passwords use NFKC normalization. Only the current versioned format is accepted; unversioned legacy hashes are rejected. Development/test data is disposable by owner instruction, so there is no legacy verification or login-upgrade path. No plaintext password or hash is logged or returned.
 
-Signup uses the [Drizzle adapter's transaction option](https://better-auth.com/docs/adapters/drizzle), keeping user and credential creation atomic. Public signup does not create a session; verified sign-in creates it separately. PostgreSQL fault-injection tests verify rollback and clean retry. The owner requested a clean slate; no credential backfill or compatibility migration is needed.
+Signup uses the [Drizzle adapter's transaction option](https://better-auth.com/docs/adapters/drizzle), keeping user and credential creation atomic. Public signup does not create a session; sign-in creates it separately under the environment verification policy above. PostgreSQL fault-injection tests verify rollback and clean retry. The owner requested a clean slate; no credential backfill or compatibility migration is needed.
 
 ## Sessions and logout
 
@@ -54,3 +60,19 @@ Admin account deletion is limited to regular User accounts and requires exact ta
 ## Browser security policy
 
 HTML is rendered per request with fresh script nonces and private/no-store responses. The enforced CSP permits nonce-authorized scripts and trusted descendants, denies eval in production, blocks framing/objects and restricts connections/resources to the application. Inline styles remain allowed for Calendar positioning and measurement geometry. Browser Zod validation initializes without JIT before application schemas, avoiding even a caught eval probe. Production smoke tests assert fresh matching nonces, successful interaction, no uncaught errors and no CSP violations; the full account and workout journeys also run against the built web server. HTTPS/HSTS and forwarding behavior through the actual public edge remain deployment acceptance requirements.
+
+## Portfolio repository review (2026-10-30)
+
+This is a repository-hygiene review, separate from the earlier application audit. Public deployment is deferred. No repository visibility, remote history, credentials or publishing settings were changed.
+
+- Pattern checks of versionable working-tree files and 2,104 locally reachable Git blobs across 22 commits found no matching private-key armor, supported provider-token patterns, non-placeholder environment secrets or non-local credential-bearing database URLs. No non-example environment file is tracked. The local `.env` and `.env.local` remain ignored and were not copied into presentation materials.
+- This was a local heuristic scan, not a comprehensive secret-detection guarantee: it did not fetch remote refs, inspect unreachable/reflog objects, validate tokens with providers or inspect external infrastructure. A fresh independent secret scan before public visibility is still appropriate.
+- One non-noreply email identity is present in existing commit author/committer metadata. The owner must decide whether that exposure is acceptable before publication. No email address is reproduced here and no history rewrite was performed.
+- Ignore rules now cover environment variants while permitting safe `.env.example` templates, plus common private key/export/log files and Next build caches. The web template was previously hidden by its nested ignore rule; making it versionable fixes a clean-checkout onboarding gap without exposing the real environment.
+- No compiled app/vendor bundle, dependency tree, database dump, real account export or private screenshot was found among tracked presentation assets. Portfolio screenshots use a unique synthetic account through the isolated local test API. They do not query development data or send external email.
+- The existing MIT project license is retained. Current visual assets are a text-based project icon, UI placeholders and actual screenshots. Lucide/Feather notices are retained beside the screenshots; no rights are assumed for future illustrations. See [media provenance](media/README.md#provenance-and-licensing).
+- The legacy local `db:seed` fixture does not establish email verification. It now works under the temporary development exception; the isolated capture harness remains the supported full synthetic showcase and uses verified sessions.
+
+These findings support review of the local repository; they are not approval of public application hosting or a guarantee that every historical secret pattern has been detected.
+
+The pnpm license-list command did not complete because local package-index metadata was missing. The fallback metadata review and its redistribution limits are recorded with the media provenance; it is not a blanket license-clearance claim.

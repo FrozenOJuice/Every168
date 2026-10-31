@@ -20,7 +20,11 @@ export function requireSession(
     });
     for (const cookie of headers.getSetCookie())
       res.append("Set-Cookie", cookie);
-    if (!session || !session.user.emailVerified)
+    if (
+      !session ||
+      (auth.options.emailAndPassword?.requireEmailVerification !== false &&
+        !session.user.emailVerified)
+    )
       throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
     const access = await identity.getAccess(session.user.id);
     if (!access || access.suspendedAt)

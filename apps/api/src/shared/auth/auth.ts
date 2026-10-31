@@ -1,3 +1,4 @@
+import { requiresEmailVerification } from "./auth-policy.js";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { Database } from "../../infrastructure/database/client.js";
@@ -8,14 +9,14 @@ import { errorDiagnostics } from "../../infrastructure/logging/diagnostics.js";
 import { hashPassword, verifyPassword } from "./password.js";
 export function createAuth(db: Database, config: Config, logger: Logger) {
   return betterAuth({
-    appName: "168Hours",
+    appName: "Every168",
     database: drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
     secret: config.BETTER_AUTH_SECRET,
     baseURL: config.BETTER_AUTH_URL,
     trustedOrigins: [config.WEB_ORIGIN],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: requiresEmailVerification(config),
       autoSignIn: false,
       minPasswordLength: 12,
       maxPasswordLength: 128,

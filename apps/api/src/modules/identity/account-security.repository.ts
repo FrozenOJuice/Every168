@@ -134,6 +134,7 @@ export function accountSecurityRepository(db: Database) {
       previous: string,
       next: string,
       context: TransactionContext,
+      requireVerifiedEmail = true,
     ) {
       const tx = databaseFor(db, context);
       const [owner] = await tx
@@ -141,7 +142,11 @@ export function accountSecurityRepository(db: Database) {
         .from(user)
         .where(eq(user.id, userId))
         .for("update");
-      if (!owner || owner.suspendedAt || !owner.emailVerified)
+      if (
+        !owner ||
+        owner.suspendedAt ||
+        (requireVerifiedEmail && !owner.emailVerified)
+      )
         throw new AppError(401, "UNAUTHORIZED", "Please sign in to continue.");
       const updated = await tx
         .update(account)

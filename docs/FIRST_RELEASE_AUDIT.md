@@ -1,5 +1,9 @@
 # 168Hours - Comprehensive First-Release Audit
 
+> Naming provenance: the current product is **Every168** (2026-10-30). Earlier product names and original technical identifiers below are preserved as recorded; this is not an alternate current brand.
+
+**Historical report:** this audit predates the fixes in FIRST_RELEASE_REMEDIATION.md. Its findings and original launch assessment are preserved as evidence. The owner changed the objective to a local portfolio on 2026-10-30; no public deployment is currently being pursued.
+
 Audit date: October 29, 2026. Target: Calendar, Fitness, Accounts and Settings responsive web release. Source: working tree based on `41467a3`, including the owner's existing uncommitted changes. This is a release-readiness assessment, not approval of a deployed environment.
 
 ## A. Executive summary

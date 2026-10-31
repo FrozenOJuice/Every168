@@ -1,5 +1,9 @@
 # First-release remediation
 
+> Naming provenance: the current product is **Every168** (2026-10-30). Earlier product names and original technical identifiers below are preserved as recorded; this is not an alternate current brand.
+
+**Historical release-preparation snapshot:** the fixes and actual results below remain useful evidence. On 2026-10-30 the owner deferred public deployment and chose local portfolio presentation. “Ready for deployment testing” records the earlier assessment, not an active deployment plan or a hosted-service claim.
+
 Target: publicly accessible Calendar/Fitness portfolio beta with open registration. This report addresses R01–R17 in [the historical audit](FIRST_RELEASE_AUDIT.md). Existing uncommitted work, data and retained preview implementations were preserved. No commit, push, deployment, paid provisioning or production-data operation was performed.
 
 ## Release assessment

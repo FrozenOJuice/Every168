@@ -1,6 +1,8 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { BrandLink } from "@/components/brand";
+import { ApiError } from "@168hours/api-client";
 import { authInput } from "@168hours/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -13,12 +15,12 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
   });
   const cache = useQueryClient();
   const [registered, setRegistered] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationRequired, setVerificationRequired] = useState(true);
   return (
-    <div className="auth-page">
+    <main className="auth-page">
       <div className="auth-intro">
-        <Link href="/" className="brand">
-          168<span>Hours</span>
-        </Link>
+        <BrandLink />
         <p className="eyebrow">Make room for what matters</p>
         <h1>
           Your week.
@@ -34,19 +36,15 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
             <span key={i}>{d}</span>
           ))}
         </div>
-        <p className="muted">168 hours. Yours to spend.</p>
+        <p className="muted">Every week. Room for what matters.</p>
       </div>
       <section className="auth-card">
         <h2>{signUp ? "Create your account" : "Welcome back"}</h2>
-        <p className="muted">
-          {signUp
-            ? "A fresh page for your next week."
-            : "Pick up where you left off."}
-        </p>
         {registered && (
           <p role="status" className="success">
-            Check your email to verify your account before signing in. If you
-            already have an account, sign in or reset your password.
+            {verificationRequired
+              ? "Check your email to verify your account before signing in. If you already have an account, sign in or reset your password."
+              : "You can now sign in with your email and password."}
           </p>
         )}
         <Form
@@ -54,11 +52,22 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
           form={form}
           onSubmit={async (input) => {
             if (signUp) {
-              await api.signUp(input);
+              const result = await api.signUp(input);
+              setVerificationRequired(result.verificationRequired);
               setRegistered(true);
               form.reset();
               return;
-            } else await api.signIn(input);
+            }
+            setNeedsVerification(false);
+            try {
+              await api.signIn(input);
+            } catch (error) {
+              setNeedsVerification(
+                error instanceof ApiError &&
+                  error.code === "EMAIL_NOT_VERIFIED",
+              );
+              throw error;
+            }
             cache.clear();
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- Clear the document and router cache across account changes.
             window.location.assign("/");
@@ -75,19 +84,20 @@ export function AuthForm({ signUp = false }: { signUp?: boolean }) {
           />
           <Submit>{signUp ? "Create account" : "Sign in"}</Submit>
         </Form>
-        {!signUp && (
-          <p>
-            <Link href="/forgot-password">Forgot password?</Link> ·{" "}
-            <Link href="/verify-email">Resend verification email</Link>
-          </p>
+        {(!signUp || (registered && verificationRequired)) && (
+          <div className="auth-assistance">
+            {!signUp && <Link href="/forgot-password">Forgot password?</Link>}
+            {(needsVerification || (registered && verificationRequired)) && (
+              <Link href="/verify-email">Resend verification email</Link>
+            )}
+          </div>
         )}
-        <p className="auth-switch">
-          {signUp ? "Already have an account?" : "New to 168Hours?"}{" "}
-          <Link href={signUp ? "/login" : "/signup"}>
+        <div className="auth-switch">
+          <Link className="button" href={signUp ? "/login" : "/signup"}>
             {signUp ? "Sign in" : "Create an account"}
           </Link>
-        </p>
+        </div>
       </section>
-    </div>
+    </main>
   );
 }

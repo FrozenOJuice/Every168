@@ -69,7 +69,7 @@ function usePageLabel() {
     "/goals": "Goals",
     "/unscheduled": "Unscheduled plans",
   };
-  return { page: names[path] ?? "168Hours", date: null };
+  return { page: names[path] ?? "Every168", date: null };
 }
 
 export type AssistantPageContext = {

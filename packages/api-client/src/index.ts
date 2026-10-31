@@ -8,6 +8,7 @@ import { goalsClient } from "./goals";
 import { planningClient } from "./planning";
 import { calendarClient } from "./calendar";
 import { routinesClient } from "./routines";
+import { signupResultSchema } from "@168hours/contracts";
 import type { Me, Preferences } from "@168hours/contracts";
 import { writeHeaders, createHttp, body, type ClientOptions } from "./http";
 export * from "./http";
@@ -35,7 +36,7 @@ export function createClient(options: ClientOptions = {}) {
       http<unknown>("/api/auth/sign-up/email", {
         method: "POST",
         body: body(input),
-      }),
+      }).then((result) => signupResultSchema.parse(result)),
     signIn: (input: { email: string; password: string }) =>
       http<unknown>("/api/auth/sign-in/email", {
         method: "POST",

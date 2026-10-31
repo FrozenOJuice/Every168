@@ -212,7 +212,7 @@ test("Core account, settings and planning flow", async ({ page }, testInfo) => {
   await expect(
     page.getByRole("region", { name: "Weekly time grid" }),
   ).toBeVisible();
-  await expect(page).toHaveTitle("168Hours");
+  await expect(page).toHaveTitle("Every168");
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: testInfo.outputPath("calendar.png"),

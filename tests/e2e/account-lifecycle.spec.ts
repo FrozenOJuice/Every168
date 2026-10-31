@@ -24,6 +24,20 @@ test("public signup verifies its mailbox, resets and changes credentials with se
     .click();
   await expect(page.getByRole("status")).toContainText("Check your email");
   expect((await page.request.get("/api/v1/me")).status()).toBe(401);
+  await expect(
+    page.getByRole("link", { name: "Resend verification email", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole("link", { name: "Resend verification email", exact: true }),
+  ).toHaveCount(0);
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Resend verification email", exact: true }),
+  ).toBeVisible();
   const verify = await mail("verify");
   await page.goto(`/verify-email#token=${verify.token}`);
   await page.getByRole("button", { name: "Verify email", exact: true }).click();

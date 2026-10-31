@@ -1,5 +1,146 @@
 # Implementation status
 
+**Current objective (2026-10-30):** Every168 repository/portfolio preparation, with public deployment deferred. The dated entries below preserve earlier scope and verification snapshots. Current onboarding is in LOCAL_DEVELOPMENT.md; the prior remediation assessment is historical release-preparation evidence.
+
+## Portfolio stopping-point check (2026-10-30)
+
+Owner asked whether Every168 is ready to leave as a portfolio and whether the repository is clean. Presentation/implemented Calendar-Fitness scope is a reasonable stopping point; Git still contains substantial staged, unstaged and untracked work requiring owner review/commit before publication. No commit, push or visibility change was authorized.
+
+Actual fresh checks: full formatting and diff whitespace passed; 126 local documentation/image links resolve; no generated build/vendor/test artifacts appeared in versionable paths, and real API/web environments remain ignored. The scoped secret-pattern review of current versionable files plus 22 locally reachable commits/2,144 blobs (27,955,974 bytes) found no supported secret matches or non-example environment files. It remains heuristic, without remote/unreachable-object/provider validation. One non-noreply commit-email identity remains an owner privacy choice; existing licensing/name-availability limitations remain documented. Refreshed all ten genuine synthetic-data captures after the final sidebar/sign-in copy edits: capture flow passed 1/1, and the updated Week/sign-in images were visually reviewed. Existing dated test/build evidence remains the engineering record; no broad test suite was rerun for this readiness review.
+
+## Sidebar tagline removal, complete (2026-10-30)
+
+Removed the owner-specified sidebar tagline and its unused desktop/mobile caption styles. Kept a 32px desktop gap between the brand and navigation; the existing mobile brand-margin override preserves compact-header layout. Checked changed-source ESLint/Prettier, source-reference removal and diff whitespace. No behavior, auth, data or staged changes; no commit/push/deployment.
+
+## Account-page copy simplification, complete (2026-10-30)
+
+Removed the owner-specified registration/sign-in subtitles and account-switch prompts from both auth forms, retaining their headings, recovery actions and secondary navigation buttons. Removed unused prompt styling. Actual checks: changed-source ESLint, Prettier and diff whitespace passed; genuine browser checks verified all four strings absent and headings/buttons retained at desktop and 320px on both routes, without horizontal overflow. Refreshed the genuine sign-in portfolio screenshot from the local app. No authentication behavior, schema, user data, staged changes, commit, push or deployment changed.
+
+## Sign-in footer hierarchy, complete (2026-10-30)
+
+Owner requested improving the recovery/registration links on the start page. Replaced the inline dot-separated link row with a centered, touch-sized Forgot password link and a distinct footer containing the muted account prompt plus a full-width standard secondary Create an account link-button. Signup uses the matching Sign in footer. Removed the always-visible verification-resend link; it now appears only after a verification-required signup or an `EMAIL_NOT_VERIFIED` sign-in response, preserving the required-verification recovery path while keeping ordinary development login uncluttered. No backend/auth-policy change.
+
+Actual checks: full zero-warning lint/import boundaries and workspace types; updated account-lifecycle browser journey **2/2 desktop/phone**, including initial hidden resend, relevant signup/error recovery, verification, reset, password changes and session revocation; standalone desktop and **320px** horizontal-fit/accessibility checks passed, with both screenshots visually reviewed. The first visual-check harness was corrected to use the explicit browser context required by axe; no application assertion was relaxed. The genuine synthetic-data portfolio capture passed **1/1** and refreshed the gallery, including the new sign-in footer. Final formatting, whitespace and 126 local documentation/image links passed. No new unit tests or broad backend rerun for this UI-only change; existing staged work is untouched, with no commit/push/deployment.
+
+## Temporary development email-verification exception, complete (2026-10-30)
+
+Owner requested disabling verification for now because local Resend sender/key are not configured. The exception is limited to `NODE_ENV=development`; test and production retain mandatory verification and production email-configuration validation. A single policy helper configures Better Auth and authenticated password-change service/repository enforcement; the HTTP/session boundary follows the same auth option. Existing unverified accounts can sign in and access owned routes, without changing persisted `emailVerified` values or weakening suspension, ownership, credentials or session revocation. No schema, migration, backfill or auth-cookie change.
+
+Signup remains generic and never signs in automatically. Its shared response contract now includes `verificationRequired`; development skips automatic verification-email requests and the form explains that the user can sign in immediately. Explicit verification/reset flows remain available and still need configured delivery. Added environment-policy unit coverage and a real-PostgreSQL development-account regression; updated mandatory-verification signup assertions and current README, local-development, security, feature and index documentation.
+
+Actual checks: full zero-warning lint/import boundaries; workspace typecheck; **196/196 unit tests plus 6/6 architecture tests**; **14/14 focused real-PostgreSQL authentication cases** across development access, required verification, account lifecycle, auth security and session security; API/core web production builds; **1/1 production-built account-lifecycle browser case**, retaining verification/reset/password-change/session-revocation coverage. Normal development browser signup displayed the immediate-sign-in message and signed in successfully; private `/api/v1/me` returned 200 while the stored verification flag remained false, with no page errors. Both uniquely named synthetic smoke accounts were removed using exact generated email/name matches; existing development data was untouched. No external email was sent by these checks.
+
+An initial unit run overlapped integration password hashing and hit the existing five-second scrypt test timeout; the full unit rerun after integration passed without weakening its assertions or timeout. The first local browser script filled fields before client navigation settled; an explicit login-URL/heading wait corrected that fixture, and the real flow passed. Final formatting, whitespace and local documentation links passed. Original staged work is preserved byte-for-byte; no commit, push, deployment, schema/data backfill or mail-provider provisioning. Password-reset/explicit verification email still requires configured delivery; the exception removes the development sign-in blocker only.
+
+## Local Next.js runtime mismatch, resolved (2026-10-30)
+
+The owner reported `routeModule.ensureInstrumentation is not a function`. The existing web development process had been running Next.js 16.3.5 for more than a day while the installed dependency/build templates were 16.4.3; `/login` returned HTTP 500. Stopped that specific stale web process and restarted the existing `pnpm dev:web` command on port 3000, leaving the API, configuration, caches, authentication and data unchanged. The new startup banner reports Next.js 16.4.3.
+
+Actual checks: `/login` and the proxied `/api/ready` return HTTP 200. A fresh Chromium smoke verifies the Every168 title/home link, interactive password-visibility control, normal unauthenticated root redirect and no page JavaScript errors. Documented the dependency-update restart requirement in LOCAL_DEVELOPMENT.md. No application source change or dependency update was needed, so the previously passing full suites were not repeated. Original staged work is preserved; no commit, push or deployment occurred. The restarted development web server remains running for the owner.
+
+## Every168 product rebrand, complete (2026-10-30)
+
+The owner authorized a cohesive rename of the public-facing product, keeping the existing repository/domain names, database compatibility, authentication behavior and prior work. Current identity is **Every168**. Earlier entries below retain their original naming and evidence.
+
+- Added a shared accessible `BrandLink` lockup to navigation and account access; renamed visible sign-in copy, metadata/application name, the retained Assistant context fallback and Better Auth's display name. Account-access screens now provide a main landmark. Calendar/Fitness layouts and all domain behavior remain unchanged.
+- Designed an original geometric E from three rounded time blocks, using the existing semantic palette and system sans-serif typography. Sources are `apps/web/public/brand/mark.svg` and `wordmark.svg`. `scripts/brand-assets.mjs` / `pnpm brand:assets` derive `app/icon.svg`, multi-size `favicon.ico` and the 180px `apple-icon.png` without a font or external asset dependency. UI home links have one explicit accessible name and a decorative image. The sidebar wordmark fits its established rail and responsive header.
+- Rebranded account-email subjects/body and sender display name, preserving the operator's verified address, configured origin, credential fragments, expiry, generic responses and verification/reset services. Updated observational API log/PostgreSQL connection labels to `every168-api`; no database/schema identifiers changed.
+- Updated README, case study, local development, documentation index, architecture/scope/features/security/verification and media provenance. Added `docs/BRAND.md` for exact naming, typography, palette, asset reproduction, retained identifiers and publication limitations. Preserved all historical audit/remediation/deployment/spec bodies, adding explicit naming-provenance notices. Future-feature notes and retained implementations stay intact.
+- Updated existing browser title assertions and portfolio tooling. Added focused email-wire tests and a responsive browser identity regression covering all five account-entry routes, metadata, icon retrieval, accessible navigation, horizontal fit, keyboard focus and account-access accessibility. The core and production browser configs include that regression. Capture tooling asserts Every168 identity for each authenticated frame and adds genuine sign-in capture to the original nine Calendar/Fitness views.
+- Retained the `168hours` repository/checkout/root package and private `@168hours/*` package graph, browser recovery/history keys, security headers, reserved `.invalid` navigation sentinels and build-spec filename. Their unchanged spellings are compatibility/maintenance decisions, not public product names. Database roles/volumes, migrations, auth cookie names and stored data are unchanged. No dependency versions, infrastructure, feature gates, deployment origin or sender mailbox ownership changed.
+
+Actual final checks: zero-warning full lint and import boundaries; formatting and diff whitespace; workspace types plus separate strict types for the capture/browser tooling; **193/193 unit tests in 46 files plus 6/6 architecture tests**; **160/160 real-PostgreSQL integration tests in 34 files**; API and core web production builds; **107/107 core browser cases** across desktop/phone/targeted tablet; **4/4 built-production browser cases** for account lifecycle, branding, the full scheduled-workout journey and enforced CSP/hydration; **3/3 preview-scope identity cases** across desktop/phone/tablet; **1/1 genuine portfolio capture flow**. The new browser checks include account-access accessibility and horizontal fit; existing workflow checks retain their keyboard, geometry and accessibility assertions. All suites ran against isolated local services, with database/browser/capture suites sequential. The full retained-feature preview browser suite and physical-device Safari were not rerun. Development logs retain non-failing color-environment warnings; the integration suite's intentional connection-timeout diagnostic uses the new service label.
+
+Captured and visually inspected ten PNGs: nine at 1440×1000 and one responsive live frame at 390×844, all device scale 1. Each previous gallery file has a new hash, and sign-in is newly captured. Total size is 1,041,723 bytes, with no PNG text metadata. The fixed-date records are synthetic and created via the actual owned API; development/user records are not queried or reset. All **126 local documentation/image/heading links** in 26 Markdown files resolve; external URLs were not exhaustively probed.
+
+Final naming audit covered 762 versionable files, with 548 legacy-name occurrences on 539 matching lines: 498 technical lines, 37 historical lines, three literal weekly-quantity explanations and one historical-context line; no unclassified/missed-branding match. `docs/BRAND.md` records each retained class and its rationale. Related split-word branding and negative runtime assertions were also reviewed. Original report/spec bodies, Git history, MIT notice, dependency lockfile and 83 checked configuration/migration files remain unchanged except the explicit provenance notices on historical documents. The standalone wordmark and canonical mark were visually checked; embedded ICO images have the expected 16/32/48px dimensions, and the generated app SVG matches its canonical source.
+
+No commit, push, deployment, visibility change, Git-history rewrite or production-data operation was performed. The original staged patch is preserved byte-for-byte against the start-of-rebrand fingerprint; generated Next configuration did not change. Remaining owner publication decisions are visual/name-availability review without any trademark/domain-ownership claim, the already documented commit-email exposure and first-person portfolio wording, and optional social-card/video creation. Existing dependency-license inventory limitations remain documented; no third-party artwork, font or dependency was added.
+
+<details>
+<summary>Rebrand file inventory (44 existing files modified, 10 files added)</summary>
+
+Modified relative to the start-of-rebrand working tree:
+
+- `168HOURS_BUILD_SPEC.md`
+- `AGENTS.md`
+- `README.md`
+- `apps/api/src/infrastructure/database/client.ts`
+- `apps/api/src/infrastructure/email/delivery.ts`
+- `apps/api/src/infrastructure/logging/logger.ts`
+- `apps/api/src/shared/auth/auth.ts`
+- `apps/web/src/app/globals.css`
+- `apps/web/src/app/icon.svg`
+- `apps/web/src/app/layout.tsx`
+- `apps/web/src/components/app-shell.tsx`
+- `apps/web/src/features/assistant/assistant-page-context.ts`
+- `apps/web/src/features/identity/account-security-forms.tsx`
+- `apps/web/src/features/identity/auth-form.tsx`
+- `apps/web/src/styles/shell.css`
+- `docs/FEATURES.md`
+- `docs/FIRST_RELEASE_AUDIT.md`
+- `docs/FIRST_RELEASE_REMEDIATION.md`
+- `docs/IMPLEMENTATION.md`
+- `docs/LOCAL_DEVELOPMENT.md`
+- `docs/PORTFOLIO_CASE_STUDY.md`
+- `docs/PUBLIC_BETA_DEPLOYMENT.md`
+- `docs/README.md`
+- `docs/SCOPE.md`
+- `docs/architecture.md`
+- `docs/media/README.md`
+- `docs/media/screenshots/calendar-month.png`
+- `docs/media/screenshots/calendar-week.png`
+- `docs/media/screenshots/exercise-history.png`
+- `docs/media/screenshots/exercise-library.png`
+- `docs/media/screenshots/live-workout-responsive.png`
+- `docs/media/screenshots/live-workout.png`
+- `docs/media/screenshots/plan-editor.png`
+- `docs/media/screenshots/workout-builder.png`
+- `docs/media/screenshots/workout-summary.png`
+- `docs/security.md`
+- `docs/verification.md`
+- `package.json`
+- `playwright.beta.config.ts`
+- `playwright.production.config.ts`
+- `tests/e2e/calendar-expansion.spec.ts`
+- `tests/e2e/calendar.spec.ts`
+- `tests/e2e/core.spec.ts`
+- `tests/portfolio/capture.spec.ts`
+
+Added during the rebrand:
+
+- `apps/api/src/infrastructure/email/delivery.test.ts`
+- `apps/web/public/brand/mark.svg`
+- `apps/web/public/brand/wordmark.svg`
+- `apps/web/src/app/apple-icon.png`
+- `apps/web/src/app/favicon.ico`
+- `apps/web/src/components/brand.tsx`
+- `docs/BRAND.md`
+- `docs/media/screenshots/sign-in.png`
+- `scripts/brand-assets.mjs`
+- `tests/e2e/branding.spec.ts`
+
+</details>
+
+## Portfolio repository preparation, complete (2026-10-30)
+
+The owner replaced the public-deployment objective with a local GitHub/documentation/screenshot portfolio. No application feature, schema, canonical service, dependency version or infrastructure implementation was changed. Prior staged work was preserved byte-for-byte; no files were deleted and no commit, push, visibility change, external account or deployment action occurred.
+
+- Rewrote README around the actual Calendar/Fitness workflow, genuine visuals, a high-level Mermaid diagram, selected engineering decisions and concise setup/check commands. Added `docs/LOCAL_DEVELOPMENT.md`, `docs/PORTFOLIO_CASE_STUDY.md` and `docs/README.md` for practical onboarding, design tradeoffs, presentation copy and document navigation. The case study includes repository description/topics, social-preview concept, website copy and an optional 90-second walkthrough.
+- Added `playwright.portfolio.config.ts` and `tests/portfolio/capture.spec.ts`, exposed by `pnpm portfolio:capture`. It reuses the existing test API and local PostgreSQL, performs real synthetic signup/verification with in-memory delivery, populates records through owned API routes and captures actual application renders. Both servers bind to loopback. Recording mode pauses only on explicit request and uses an advancing synthetic clock. The config stays outside the normal E2E directory, so ordinary checks do not overwrite versioned media.
+- Captured and visually reviewed nine PNGs under `docs/media/screenshots`: Week, Month, plan editing, exercise library, workout builder, live workout, completed summary, exercise history and a responsive live view. Eight are 1440×1000; the responsive view is 390×844, all device scale 1. Total size is 982,221 bytes; no PNG text metadata is embedded. Fixed fixture dates and all records are synthetic. Added `docs/media/README.md` for gallery/provenance and the installed Lucide/Feather notice in `docs/media/LUCIDE-LICENSE.txt`; root MIT terms remain unchanged and package metadata now declares MIT.
+- Reviewed 22 locally reachable commits and 2,104 Git blobs (26,700,532 bytes), plus versionable current files, using explicit secret patterns without printing values. No supported credential/private-key pattern or non-example environment file was found. One non-noreply author/committer email identity remains an owner publication decision. This is a heuristic local scan, not a guarantee covering unfetched refs, unreachable objects or every secret format.
+- Corrected nested ignore behavior that hid `apps/web/.env.example`; that existing safe template is now versionable. Real environments remain excluded. Root ignore rules also cover private exports/keys/logs and alternate Next caches; ESLint/Prettier exclude generated alternate caches as well. No generated application/vendor bundle or real data was added. Existing application source and the original staged patch were verified unchanged against the start-of-pass baseline.
+- Reconciled current architecture/scope/features/security/verification prose, clearly separated preview modules, and labelled earlier audit/remediation/deployment documents as historical/deferred references without deleting their evidence. The old `db:seed` account does not establish email verification; its unsupported sign-in limitation is documented rather than changing auth/seed behavior during a presentation task. The provider-free capture harness is the supported local showcase.
+
+Actual checks in this pass: credential-free source copy, frozen offline installation, first-run creation of both environment files with mode 0600 and non-overwrite on a second setup; successful final capture flow (1/1, including advancing-clock check); zero-warning lint/import boundaries; workspace typecheck and separate strict TypeScript check for the new capture tooling; 191/191 unit tests plus 6/6 architecture regressions; API and web production builds; formatting and whitespace; 106 local Markdown/image/heading-anchor references with no broken targets. External URLs were not exhaustively probed. Full integration and the broad beta browser suite were not rerun for documentation/tooling-only changes; their dated actual evidence remains in FIRST_RELEASE_REMEDIATION.md. The capture itself uses the real test database/API and eight requested workflows, without response/DOM substitution.
+
+License review: `pnpm licenses list --prod` failed on missing local package-index metadata, including in the clean source copy. A fallback read 631 installed name/version metadata entries (including tooling and retained versions), with no unspecified license fields; non-MIT families include MPL tools, LGPL native libvips and CC-BY compatibility data. This is not blanket redistribution clearance. No dependency tree or native/vendor binary is committed; Lucide/Feather notices accompany the screenshots. Future external artwork needs provenance/rights review.
+
+Remaining owner decisions: review existing commit-email exposure and presentation wording; optionally record a walkthrough or compose the proposed social card; review/stage/commit/publish only when desired. Public hosting, production credentials and operations are deferred, not required for the current portfolio. No new CI or infrastructure system was added.
+
+## Earlier feature-completion record
+
 Core C0–C6 and the owner-authorized foundation, authentication, data-integrity, UI, Calendar, Food, Exercise, Admin and Fitness workouts, progress, Training Programs and general activity-model passes, plus Everyday Food, the shared domain Calendar day panel, Everyday Tasks and the Assistant workspace/quick-chat preview, are complete. The owner-authorized Admin pass adds permanent account types, account management, aggregate statistics, operational health and an immutable action log. Remaining work in this authorized scope: none. Genuine blockers: none. CI remains removed; checks run locally. No AI integration, external integrations, native app, social features, notification delivery or background jobs were added.
 
 ## Templates deferred from first release, complete (2026-10-29)

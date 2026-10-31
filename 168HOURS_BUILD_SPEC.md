@@ -142,7 +142,7 @@
 
 **Owner-approved Calendar chrome removal:** Remove the Planned/Recorded/Moments legend and account-timezone caption below the Calendar toolbar. Routine action feedback, including Plan deleted, updated and restored, must not occupy visible Calendar space; keep screen-reader announcements and actionable error/retry controls.
 
-**Owner-approved tooling revision:** No CI workflow. Keep all verification commands runnable locally; this supersedes CI scaffolding/hosting requirements below.
+**Owner-approved tooling revision (2026-10-31):** Add GitHub Actions for quality checks, isolated PostgreSQL integration tests, production builds and the core beta browser suite. Keep all verification commands runnable locally. This supersedes the earlier removal of CI; no deployment is authorized.
 
 **Owner-approved Food slice:** Complete the manual Food experience end to end, including daily meals/nutrition, food library and repeat logging, hydration quick logs and history, and body-weight history/trends. These surfaces belong in Food and reuse the existing public domain services. Review backend ownership, validation, serving calculations, snapshots, date boundaries and safe writes before the responsive UI. Keep the exact palette and existing Calendar shortcuts. No barcode scanning, external food database, recipes/Kitchen, custom nutrition targets, or AI.
 
@@ -2496,7 +2496,7 @@ No Redis in Core.
 
 ## 29.1 Local verification
 
-The owner requested removal of CI. Do not scaffold or configure GitHub Actions. Keep the complete local verification command (`pnpm verify`):
+The owner has authorized GitHub Actions verification in `.github/workflows/ci.yml`. Keep the complete local verification command (`pnpm verify`) as well:
 
 ```text
 lint

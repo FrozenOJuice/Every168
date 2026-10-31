@@ -8,7 +8,12 @@ Every168 is a full-stack Calendar and Fitness web application that connects week
 
 **Status:** open-source portfolio project under MIT; no hosted deployment. The screenshots below are genuine application captures using synthetic data.
 
-![Calendar Week view with planned work, learning and a scheduled workout](docs/media/screenshots/calendar-week.png)
+<p>
+  <a href="docs/media/screenshots/calendar-week.png"><img src="docs/media/screenshots/calendar-week.png" width="49%" alt="Calendar Week with planned work, learning and a scheduled workout" /></a>
+  <a href="docs/media/screenshots/live-workout.png"><img src="docs/media/screenshots/live-workout.png" width="49%" alt="Live Fitness workout with completed sets, recorded measurements and rest controls" /></a>
+</p>
+
+Calendar planning and live workout logging. Open either image for the full-size capture.
 
 ## What it does
 
@@ -17,15 +22,11 @@ Every168 is a full-stack Calendar and Fitness web application that connects week
 - **Connected review:** schedule a workout into Calendar, start it from its reservation, then review its actual results in History. Exercise records and previous-workout comparisons derive from completed sets; editing a reusable workout does not rewrite old sessions.
 
 <details>
-<summary><strong>See the workout workflow</strong></summary>
+<summary><strong>Prepare and review a workout</strong></summary>
 
 ### Prepare
 
 ![Shared workout editor with planned targets and the exercise library](docs/media/screenshots/workout-builder.png)
-
-### Train
-
-![Live workout with completed sets, actual measurements and the shared Calendar day panel](docs/media/screenshots/live-workout.png)
 
 ### Review
 
@@ -67,7 +68,7 @@ The [case study](docs/PORTFOLIO_CASE_STUDY.md) explains the tradeoffs and the fa
 
 Clone the Every168 repository below. Private `@168hours/*` workspace packages retain their internal names for compatibility. See the [brand guide](docs/BRAND.md) for identity and compatibility decisions.
 
-Requires Node.js **22.12+**, **pnpm 9.15.9**, and Docker Compose.
+Requires Node.js **22.12+** (CI uses **24 LTS**), **pnpm 9.15.9**, and Docker Compose.
 
 ```bash
 git clone https://github.com/FrozenOJuice/Every168.git
@@ -102,6 +103,7 @@ After capturing the gallery, Playwright pauses with the populated application op
 
 ```bash
 pnpm lint
+pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm test:integration
@@ -111,7 +113,7 @@ pnpm build
 
 Browser checks require Chromium (`pnpm exec playwright install chromium`) and the separate test database; run database/browser suites sequentially.
 
-`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. CI was intentionally removed; checks run locally.
+`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main`, pull requests targeting `main` and manual dispatch. A Quality job checks lint/import boundaries, formatting, types, unit/architecture tests and production dependencies. A separate job runs integration tests, a production build and the beta browser suite sequentially against isolated PostgreSQL 18. Both use Node.js 24 LTS and pnpm 9.15.9; no real credentials or email provider are needed. Failed runs retain command logs and available Playwright reports, traces and screenshots for seven days.
 
 Coverage includes two-account isolation, real PostgreSQL transactions, DST boundaries, interrupted-response recovery, concurrent workout corrections, keyboard/focus behavior and responsive layouts. See the [verification guide](docs/verification.md) for commands and the [dated remediation report](docs/FIRST_RELEASE_REMEDIATION.md) for recorded results and limitations. Test counts are evidence from those runs, not continuously updated badges.
 

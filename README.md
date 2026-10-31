@@ -101,6 +101,8 @@ After capturing the gallery, Playwright pauses with the populated application op
 
 ## Testing and quality
 
+[![Pull request CI](https://github.com/FrozenOJuice/Every168/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/FrozenOJuice/Every168/actions/workflows/ci.yml?query=event%3Apull_request)
+
 ```bash
 pnpm lint
 pnpm format:check
@@ -113,7 +115,7 @@ pnpm build
 
 Browser checks require Chromium (`pnpm exec playwright install chromium`) and the separate test database; run database/browser suites sequentially.
 
-`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main`, pull requests targeting `main` and manual dispatch. A Quality job checks lint/import boundaries, formatting, types, unit/architecture tests and production dependencies. A separate job runs integration tests, a production build and the beta browser suite sequentially against isolated PostgreSQL 18. Both use Node.js 24 LTS and pnpm 9.15.9; no real credentials or email provider are needed. Failed runs retain command logs and available Playwright reports, traces and screenshots for seven days.
+`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main`, pull requests targeting `main` and manual dispatch. A Quality job checks lint/import boundaries, formatting, types, unit/architecture tests and production dependencies. A separate job runs integration tests, a production build and the beta browser suite sequentially against isolated PostgreSQL 18. Both use Node.js 24 LTS and pnpm 9.15.9; no real credentials or email provider are needed. Failed runs retain command logs and available Playwright reports, traces and screenshots for seven days. The badge reports pull-request runs.
 
 Coverage includes two-account isolation, real PostgreSQL transactions, DST boundaries, interrupted-response recovery, concurrent workout corrections, keyboard/focus behavior and responsive layouts. See the [verification guide](docs/verification.md) for commands and the [dated remediation report](docs/FIRST_RELEASE_REMEDIATION.md) for recorded results and limitations. Test counts are evidence from those runs, not continuously updated badges.
 

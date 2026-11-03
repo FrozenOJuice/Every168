@@ -687,6 +687,8 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Barcode scanning, external food lookup, pantry inventory and AI are not available.
 - Recipes use foods; meals can use foods and recipes. Nested recipes and meals within meals are not supported; gram-to-millilitre conversion is not inferred.
 - Edits use explicit saves and discard protection; unsaved Food forms do not recover after refresh. Historical entry corrections change amount/time/label; replace an incorrect food by deleting and logging it again.
+- Submitted Food saves also lose their retry receipt on refresh. A desktop/phone review reproduced a committed food creation followed by a lost response, refresh and manual re-entry producing a duplicate. Pending and uncertain inline actions need navigation/recovery protection as well.
+- Food library, food history, ingredient pickers and measurement histories need to keep loaded results visible when pagination or background refresh fails; source review found their general error state currently replaces the list.
 
 ## Admin
 

@@ -4,6 +4,26 @@ The public-facing product name is Every168. Clone `FrozenOJuice/Every168` into `
 
 Current presentation scope: Calendar and Fitness. Public deployment is deferred. Use synthetic accounts and never point tests or capture tooling at personal or production data.
 
+## Portfolio and development branches
+
+`main` holds the stable Calendar/Fitness portfolio. The annotated `portfolio-v1` tag preserves the merged portfolio baseline at `a86a4fd`; keep that tag fixed. Ongoing work starts from `develop`, with short-lived feature branches merged back into `develop` after review and relevant checks. Release changes reach `main` only when explicitly approved and verified. GitHub Actions checks pushes and pull requests targeting both branches; it does not deploy.
+
+Start a development session with a clean working tree:
+
+```bash
+git switch develop
+git pull --ff-only
+git switch -c feature/food-reliability
+```
+
+Use a separate checkout to run the original portfolio while working on development:
+
+```bash
+git worktree add --detach ../Every168-portfolio portfolio-v1
+```
+
+Each checkout needs its own dependency/environment setup. Worktrees do not isolate databases or ports; use separate local database configuration and available ports if running both at once. The normal development setup below remains unchanged. The next proposed milestone is the [Food assessment](FOOD_ASSESSMENT.md); its recommendations require a separately requested implementation slice.
+
 ## Requirements and installation
 
 Use Node.js 22.12+ and the pinned pnpm 9.15.9. Verification recorded in the remediation report used Node 26.0.0; repeat the checks on your chosen runtime. Docker Compose supplies PostgreSQL 18. Normal application ports are 3000/3001; PostgreSQL uses loopback ports 54320/54321. Browser tests/captures need free ports 3100/3101.

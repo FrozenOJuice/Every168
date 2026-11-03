@@ -1,6 +1,6 @@
 # Every168 documentation
 
-**Current objective (2026-10-30):** present the working Calendar/Fitness app as a local software-engineering portfolio. No public deployment is being pursued. The local implementation, not an older remote branch, defines the current behavior.
+**Current objective (2026-11-02):** preserve the Calendar/Fitness portfolio on `main` and `portfolio-v1`, continue development on `develop`, and assess the retained Food preview before its next implementation slice. Public deployment remains deferred.
 
 The MIT-licensed source is now public on GitHub; the application still runs locally.
 
@@ -21,6 +21,7 @@ Current identity: **Every168**. The repository is `FrozenOJuice/Every168`; inter
 
 ## Scope and owner references
 
+- [Food assessment](FOOD_ASSESSMENT.md) identifies the next proposed development milestone and its verification limits.
 - [Product scope](SCOPE.md) separates implemented scope from later direction.
 - [Features](FEATURES.md) is the owner's full-app reference, including retained preview features and Needs work notes.
 - [Build specification](../168HOURS_BUILD_SPEC.md) records the original constraints and accumulated owner approvals; later explicit instructions take precedence.

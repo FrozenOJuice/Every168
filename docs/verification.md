@@ -33,7 +33,7 @@ Foundation failure coverage and operational settings are detailed in [foundation
 
 ## GitHub Actions
 
-The [CI workflow](../.github/workflows/ci.yml) runs on pushes to main, pull requests targeting main and manual dispatch, using Ubuntu 24.04, Node.js 24 LTS, pinned pnpm 9.15.9 and frozen installs. Actions are pinned to reviewed release commit hashes. Workflow permissions are limited to read-only repository contents; checkout credentials are not persisted. No repository secrets or external email service are required.
+The [CI workflow](../.github/workflows/ci.yml) runs on pushes to main or develop, pull requests targeting either branch and manual dispatch, using Ubuntu 24.04, Node.js 24 LTS, pinned pnpm 9.15.9 and frozen installs. Actions are pinned to reviewed release commit hashes. Workflow permissions are limited to read-only repository contents; checkout credentials are not persisted. No repository secrets or external email service are required.
 
 - **Quality:** lint/import boundaries, formatting, workspace types, unit/architecture tests and production dependency audit.
 - **Integration and browser:** generate safe local environments, verify PostgreSQL 18 service readiness with a real authenticated query, install Chromium/system dependencies, then run integration tests, a core production build and the complete beta browser suite sequentially. The existing test harness migrates the isolated `hours_test` database, captures email in memory and enforces separation from `DATABASE_URL`. No development database service is started.

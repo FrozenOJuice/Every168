@@ -84,7 +84,8 @@ test("History shows actual session context, retains loaded results and restores 
     title: "Active mobility",
     startedAt: "2026-10-29T18:00:00Z",
   });
-  await page.goto("/fitness/history");
+  // Keep weekly recap assertions on the week containing these fixed-date records.
+  await page.goto("/fitness/history?date=2026-10-26");
   const rows = page.locator(".fitness-history-item");
   await expect(rows).toHaveCount(10);
   await expect(

@@ -34,7 +34,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 
 ### Views and navigation
 
-- Switch between Day, Week, and Month; Calendar opens in Week view by default.
+- Switch between Day, Week, and Month. A fresh visit opens the current week; returning through main navigation during the same app visit restores the last Calendar date, view and scroll position, including horizontal Week scrolling and the Day activity pane. The home logo returns there too. This memory is private to the mounted account and clears on reload/sign-out; explicit dated links take precedence.
 - The calendar fills the available workspace beside the navigation sidebar.
 - Add, Search, and Actions share the compact toolbar; selection controls do not take a separate row.
 - Use the top-right arrows to move one day, week, or month at a time.
@@ -54,7 +54,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up show the complete timed activity list. The highlighted Next activity also remains in Coming up. Plan cards omit repeated standalone Planned labels; recorded activity retains its identifying details.
 - If workout-completion lookup fails, the Day feed keeps its activity list and offers a retry while withholding unconfirmed Now/Next plan emphasis.
-- Workout activity opens its Fitness session for review or correction. In preview scope, Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
+- Workout activity opens its Fitness session for review or correction. Opening a recorded workout from Calendar’s grid, activity list or completed reservation gives its summary Back to Calendar, restoring the originating date, view and in-app scroll. History remains available through Fitness navigation. Workouts opened from History retain Back to History and its browse context; direct links default to History. In preview scope, Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
 - A reservation whose linked scheduled workout is finished stays visible with Workout completed and keeps its planned time. It is omitted from Now/Next emphasis, allowing the next unfinished activity to take priority. Completion follows the linked session even when recorded time falls in another week; unrelated recorded time does not complete a workout reservation. This applies to Calendar and the shared domain Day panels.
 
 #### Week
@@ -292,7 +292,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 - Conflicting newer changes stop undo/redo without advancing history. Interrupted history requests can be retried after refresh with the original request key.
 - In preview scope, applying a template can be undone and redone as one action, including after a refresh in the same signed-in browser session.
 - Creating, splitting, editing, stopping, or deleting repeating plans is one undo action. Undo restores previous rules, individual edits, and excluded dates; undoing conversion restores the original standalone plan.
-- Fitness session records retain their actual start/finish range and one source link. Paused intervals are excluded from recorded-time and category totals, clipped to the viewed range; record details explain the exclusion.
+- Fitness session records retain their actual start/finish range and one source link. Opening a recorded workout in the grid shows a compact Fitness summary with its name, separate dated start/finish rows, workout time and paused time when present, plus View workout. Both dates stay explicit for overnight sessions. Workout time and recorded-time/category totals exclude paused intervals; category totals clip to the viewed range. Review and corrections open the existing Fitness session.
 - Activity created through Calendar forms can be undone, including food, water, weight, cardio, workout starts, and manually recorded time. Undo removes the original activity record as well as its Calendar entry.
 - Undoing a paste removes all plans created by that paste; undoing a group deletion restores the group.
 - Undoing plan changes preserves recorded activity when restoring or removing plans.

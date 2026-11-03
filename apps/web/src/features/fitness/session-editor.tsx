@@ -1141,18 +1141,20 @@ function SessionEditor({
                     ? returnExercise.data
                       ? `Back to ${returnExercise.data.name}`
                       : "Back to exercise"
-                    : parent?.view === "summary"
-                      ? "Back to summary"
-                      : parent?.href.split("?")[0] === "/fitness"
-                        ? "Back to Fitness"
-                        : parent &&
-                            parent.href.split("?")[0] !== "/fitness/history"
-                          ? "Back to workout"
-                          : exerciseBackHref && !returnExercise.error
-                            ? returnExercise.data
-                              ? `Back to ${returnExercise.data.name}`
-                              : "Back to exercise"
-                            : "Back to History"}
+                    : parent?.href.startsWith("/?")
+                      ? "Back to Calendar"
+                      : parent?.view === "summary"
+                        ? "Back to summary"
+                        : parent?.href.split("?")[0] === "/fitness"
+                          ? "Back to Fitness"
+                          : parent &&
+                              parent.href.split("?")[0] !== "/fitness/history"
+                            ? "Back to workout"
+                            : exerciseBackHref && !returnExercise.error
+                              ? returnExercise.data
+                                ? `Back to ${returnExercise.data.name}`
+                                : "Back to exercise"
+                              : "Back to History"}
                 </Link>
                 <div className="fitness-session-tools">
                   {saveStatus}

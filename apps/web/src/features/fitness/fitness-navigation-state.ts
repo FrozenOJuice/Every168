@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { exerciseLoggingTypeSchema, idSchema } from "@168hours/contracts";
 import { parseExerciseWorkoutReturn } from "./exercise-workout-return";
+import { parseCalendarReturn } from "../planning/calendar-return";
 
 const route =
   /^\/fitness(?:\/(?:history|exercises(?:\/(?:[0-9a-f-]{36}|catalog\/[a-zA-Z0-9_-]+))?|session\/[0-9a-f-]{36}|workout\/(?:new|[0-9a-f-]{36})))?$/;
@@ -20,7 +21,15 @@ export function fitnessHref(value: unknown): string | undefined {
     return;
   return url.pathname + url.search;
 }
-const href = z.string().refine((value) => fitnessHref(value) === value);
+const href = z
+  .string()
+  .refine(
+    (value) =>
+      fitnessHref(value) === value || parseCalendarReturn(value) === value,
+  );
+const locationHref = z
+  .string()
+  .refine((value) => value === "/" || href.safeParse(value).success);
 export const libraryFilterSchema = z.object({
   search: z.string().max(160),
   sort: z.enum(["name_asc", "name_desc", "recent"]),
@@ -55,7 +64,7 @@ export type ScreenView = z.infer<typeof screenViews>;
 export const navigationNodeSchema = z.object({
   kind: z.enum(["screen", "exercise"]),
   href,
-  location: href,
+  location: locationHref,
   view: screenViews.default("default"),
   exerciseId: idSchema.optional(),
   catalogKey: z.string().max(100).optional(),
@@ -141,6 +150,10 @@ export function rootPath(href: string): FitnessNode[] {
       );
       return [screenNode("/fitness/exercises"), target, screenNode(href)];
     }
+    const calendar = parseCalendarReturn(
+      url.searchParams.get("returnCalendar"),
+    );
+    if (calendar) return [screenNode(calendar), screenNode(href)];
     const history = fitnessHref(url.searchParams.get("returnHistory"));
     return [
       screenNode(

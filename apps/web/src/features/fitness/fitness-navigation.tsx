@@ -16,6 +16,8 @@ import { z } from "zod";
 import { useMe } from "@/features/identity/me";
 import { Loading } from "@/components/ui/feedback";
 import { canNavigateAway } from "@/lib/use-unsaved-changes";
+import { useCalendarVisit } from "@/features/planning/calendar-visit";
+import { parseCalendarReturn } from "@/features/planning/calendar-return";
 import {
   fitnessHref,
   rootPath,
@@ -117,6 +119,7 @@ export function FitnessNavigationProvider({
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const { get: getCalendarVisit } = useCalendarVisit();
   const storageKey = `168hours:fitness-navigation:${user.id}`;
   const entries = useRef<FitnessEntry[]>([]);
   const [entry, setEntry] = useState<FitnessEntry | null>(null);
@@ -182,6 +185,15 @@ export function FitnessNavigationProvider({
     }
     if (current.current?.location === href) return;
     const path = rootPath(href);
+    const calendar = getCalendarVisit();
+    if (calendar && path[0]?.href === calendar.href) {
+      path[0] = {
+        ...path[0],
+        location: calendar.location,
+        entryKey: calendar.entryKey,
+        entryIndex: calendar.entryIndex,
+      };
+    }
     const previous = current.current?.path ?? [];
     const previousRoot = previous.find(
       (node) =>
@@ -196,7 +208,7 @@ export function FitnessNavigationProvider({
     )
       path[0] = previous.at(-1)!;
     stamp(path);
-  }, [stamp, user.id]);
+  }, [stamp, user.id, getCalendarVisit]);
   useLayoutEffect(() => {
     try {
       entries.current = z
@@ -258,8 +270,18 @@ export function FitnessNavigationProvider({
   }, [capture]);
   const travel = useCallback(
     async (path: FitnessNode[]) => {
-      const target = path.at(-1);
+      let target = path.at(-1);
       if (!target) return false;
+      const calendar = parseCalendarReturn(target.href);
+      // A fresh document has no Calendar visit memory. Honor the dated return
+      // URL rather than traversing an old bare-root entry that defaults to today.
+      if (calendar && getCalendarVisit()?.href !== calendar)
+        target = {
+          ...target,
+          location: calendar,
+          entryKey: undefined,
+          entryIndex: undefined,
+        };
       const navigation = window.navigation;
       if (
         navigation &&
@@ -309,7 +331,7 @@ export function FitnessNavigationProvider({
       }
       return true;
     },
-    [router, stamp],
+    [router, stamp, getCalendarVisit],
   );
   const back = useCallback(
     () => travel((current.current?.path ?? []).slice(0, -1)),

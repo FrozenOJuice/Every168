@@ -4,7 +4,6 @@ import {
   TaskBlockAction,
   TaskTimeAction,
 } from "@/features/tasks/calendar-task-actions";
-import Link from "next/link";
 import { ScheduledWorkoutAction } from "@/features/fitness/scheduled-workout-action";
 import { CalendarComposer } from "./calendar-composer";
 import { CalendarPlanPopover } from "./calendar-plan-popover";
@@ -28,6 +27,7 @@ import { formatDate, formatTime } from "@/lib/format";
 import { localDate } from "@168hours/domain-utils";
 import { CalendarRepeatSummary } from "./calendar-repeating";
 import { TimeForm } from "./time-form";
+import { CalendarRecordedWorkout } from "./calendar-recorded-workout";
 
 export function CalendarEditor({
   editor,
@@ -63,6 +63,7 @@ export function CalendarEditor({
   const plan = editor.allDayItem ?? timedPlan;
   const automatic =
     item && "sourceType" in item && item.sourceType !== "manual";
+  const recordedWorkout = automatic && item.sourceType === "strength_workout";
   const linked = timedPlan
     ? week.entries.filter((entry) => entry.timeBlockId === timedPlan.id)
     : [];
@@ -166,7 +167,7 @@ export function CalendarEditor({
       container={container}
       date={editor.date}
       recordId={plan?.id ?? item?.id ?? editor.duplicateOf?.id}
-      width={automatic ? 320 : 380}
+      width={recordedWorkout ? 360 : automatic ? 320 : 380}
       className={automatic ? undefined : "calendar-event-editor"}
       busy={remove.isPending || interaction?.busy}
       onBusyChange={setFormBusy}
@@ -180,19 +181,23 @@ export function CalendarEditor({
         ) : undefined
       }
       title={
-        automatic
-          ? "Recorded activity"
-          : item || plan
-            ? "Edit " + (kind === "block" ? "plan" : "recorded time")
-            : editor.duplicateOf
-              ? "Duplicate plan"
-              : kind === "block"
-                ? "Add plan"
-                : "Record actual time"
+        recordedWorkout
+          ? "Recorded workout"
+          : automatic
+            ? "Recorded activity"
+            : item || plan
+              ? "Edit " + (kind === "block" ? "plan" : "recorded time")
+              : editor.duplicateOf
+                ? "Duplicate plan"
+                : kind === "block"
+                  ? "Add plan"
+                  : "Record actual time"
       }
       onClose={onClose}
     >
-      {automatic ? (
+      {recordedWorkout ? (
+        <CalendarRecordedWorkout entry={item} timezone={week.timezone} />
+      ) : automatic ? (
         <>
           <div className="stack">
             <div>
@@ -209,22 +214,12 @@ export function CalendarEditor({
                   </p>
                 )}
               <p className="muted text-small">
-                {"sourceType" in item && item.sourceType === "strength_workout"
-                  ? "Recorded from Fitness. Open the session to review or correct it."
-                  : item.sourceType === "task_time" && features.tasks
-                    ? "Recorded from Tasks. Open Tasks to review or correct it."
-                    : "Recorded activity. Its editing workspace is not available yet."}
+                {item.sourceType === "task_time" && features.tasks
+                  ? "Recorded from Tasks. Open Tasks to review or correct it."
+                  : "Recorded activity. Its editing workspace is not available yet."}
               </p>
             </div>
           </div>
-          {"sourceType" in item && item.sourceType === "strength_workout" && (
-            <Link
-              className="button primary"
-              href={`/fitness/session/${item.sourceId}`}
-            >
-              Open session
-            </Link>
-          )}
           {features.tasks &&
             "sourceType" in item &&
             item.sourceType === "task_time" && (

@@ -14,6 +14,10 @@ import {
   AssistantNavigationLink,
 } from "@/features/assistant/assistant-preview";
 import { AssistantProvider } from "@/features/assistant/assistant-state";
+import {
+  CalendarVisitProvider,
+  useCalendarVisit,
+} from "@/features/planning/calendar-visit";
 
 const links = [
   ["/", "Calendar", CalendarDays],
@@ -29,7 +33,15 @@ export function AppShell({
   me: Me;
   children: React.ReactNode;
 }) {
+  return (
+    <CalendarVisitProvider key={me.user.id}>
+      <AccountShell me={me}>{children}</AccountShell>
+    </CalendarVisitProvider>
+  );
+}
+function AccountShell({ me, children }: { me: Me; children: React.ReactNode }) {
   const path = usePathname();
+  const calendar = useCalendarVisit();
   return (
     <MeProvider me={me}>
       <DomainDayProvider>
@@ -38,7 +50,7 @@ export function AppShell({
             Skip to content
           </a>
           <aside className="sidebar">
-            <BrandLink />
+            <BrandLink href={calendar.href ?? "/"} />
             <nav aria-label="Main navigation">
               {links
                 .filter(
@@ -49,7 +61,7 @@ export function AppShell({
                 .map(([href, label, Icon]) => (
                   <Link
                     key={href}
-                    href={href}
+                    href={href === "/" ? (calendar.href ?? href) : href}
                     aria-current={
                       (
                         href === "/"

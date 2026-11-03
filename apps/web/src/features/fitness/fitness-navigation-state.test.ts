@@ -95,3 +95,29 @@ it("gives direct links safe defaults and preserves valid exercise and History pa
     rootPath(`/fitness/exercises/catalog/bench-press`)[1]?.catalogKey,
   ).toBe("bench-press");
 });
+it("retains a validated Calendar parent through contextual workout and exercise visits", () => {
+  const calendar = "/?date=2026-10-28&view=month";
+  const destination = `${workout.href}?${new URLSearchParams({ returnCalendar: calendar })}`;
+  const path = rootPath(destination);
+  expect(path.map((node) => node.href)).toEqual([calendar, destination]);
+  expect(
+    navigationEntrySchema.safeParse({
+      token: exerciseId,
+      location: destination,
+      path,
+    }).success,
+  ).toBe(true);
+  const visit = visitFitnessNode(path, exercise);
+  expect(visitFitnessNode(visit.path, screenNode(destination)).path).toEqual(
+    path,
+  );
+  for (const invalid of [
+    "https://evil.invalid",
+    "/?date=2026-10-28&view=month&add=1",
+  ])
+    expect(
+      rootPath(
+        `${workout.href}?${new URLSearchParams({ returnCalendar: invalid })}`,
+      )[0]?.href,
+    ).toBe("/fitness/history");
+});

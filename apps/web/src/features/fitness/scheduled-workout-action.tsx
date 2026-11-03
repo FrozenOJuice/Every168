@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import { CalendarSourceLink as Link } from "@/features/planning/calendar-source-link";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { BeginWorkout } from "./workout-actions";

@@ -3,7 +3,8 @@ import { features } from "@/lib/release";
 import { calendarSchedulingSources } from "./calendar-scheduling";
 import { CalendarSourceLink } from "./calendar-source-link";
 import { CalendarDayFeed } from "./calendar-day-feed";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCalendarVisit } from "./calendar-visit";
 import { useRouter } from "next/navigation";
 import {
   dateSchema,
@@ -59,11 +60,18 @@ export function CalendarPage({
   const router = useRouter();
   const now = useCalendarClock(initialNow);
   const today = localDate(now, preferences.timezone);
-  const selected = dateSchema.safeParse(date).success ? date! : today;
+  const calendar = useCalendarVisit();
+  const [remembered] = useState(calendar.get);
+  const fallback =
+    !date && !requestedView && !add && remembered
+      ? new URL(remembered.href, "https://calendar.invalid").searchParams
+      : null;
+  const selected = dateSchema.safeParse(date).success
+    ? date!
+    : (fallback?.get("date") ?? today);
+  const resolvedView = requestedView ?? fallback?.get("view");
   const view: CalendarView =
-    requestedView === "month" || requestedView === "day"
-      ? requestedView
-      : "week";
+    resolvedView === "month" || resolvedView === "day" ? resolvedView : "week";
   const [editor, setEditor] = useState<TimeEditor | null>(
     add
       ? {
@@ -74,6 +82,7 @@ export function CalendarPage({
       : null,
   );
   const scope = `${view}:${selected}`;
+  const href = calendarHref(selected, view);
   const query = useCalendar(selected, view);
   const selection = useCalendarSelection(
     scope,
@@ -97,11 +106,24 @@ export function CalendarPage({
   const overlayContainer = listDate ? listPortal : null;
   const calendarSurface = useRef<HTMLDivElement>(null);
   const searchAnchor = useRef<HTMLButtonElement>(null);
-  const scrollPosition = useRef<CalendarScrollPosition>({});
+  const restored = remembered?.href === href ? remembered.position : undefined;
+  const outerScroll = useRef({
+    dayTop: restored?.dayTop ?? 0,
+    feedTop: restored?.feedTop ?? 0,
+  });
+  const outerRestored = useRef(false);
+  const scrollPosition = useRef<CalendarScrollPosition>(
+    restored
+      ? {
+          ...restored,
+          top:
+            restored.top === undefined
+              ? undefined
+              : (restored.top * HOUR_HEIGHT) / restored.hourHeight,
+        }
+      : {},
+  );
   const getScrollPosition = useCallback(() => scrollPosition.current, []);
-  const saveScrollPosition = useCallback((position: CalendarScrollPosition) => {
-    scrollPosition.current = position;
-  }, []);
   const [scrollReset, setScrollReset] = useState(0);
   const {
     hourHeight,
@@ -116,6 +138,29 @@ export function CalendarPage({
     calendarSurface,
     scrollPositionRef: scrollPosition,
   });
+  const { remember } = calendar;
+  const saveScrollPosition = useCallback(
+    (position: CalendarScrollPosition) => {
+      scrollPosition.current = position;
+      remember(href, { ...position, hourHeight, ...outerScroll.current });
+    },
+    [remember, href, hourHeight],
+  );
+  useLayoutEffect(() => {
+    remember(href, {
+      ...scrollPosition.current,
+      hourHeight,
+      ...outerScroll.current,
+    });
+  }, [remember, href, hourHeight]);
+  useLayoutEffect(() => {
+    if (!query.week || outerRestored.current) return;
+    outerRestored.current = true;
+    const day = calendarSurface.current?.querySelector(".calendar-day-layout");
+    const feed = calendarSurface.current?.querySelector(".calendar-day-feed");
+    if (day) day.scrollTop = outerScroll.current.dayTop;
+    if (feed) feed.scrollTop = outerScroll.current.feedTop;
+  }, [query.week]);
   const editorWeek = query.weeks.find(
     (week) => editor && week.days.some((day) => day.date === editor.date),
   );
@@ -285,7 +330,24 @@ export function CalendarPage({
           }
           onResetZoom={() => changeHourHeight(HOUR_HEIGHT)}
         >
-          <div className="calendar-surface" ref={calendarSurface}>
+          <div
+            className="calendar-surface"
+            ref={calendarSurface}
+            onScrollCapture={(event) => {
+              const target = event.target;
+              if (!(target instanceof HTMLElement)) return;
+              if (target.matches(".calendar-day-layout"))
+                outerScroll.current.dayTop = target.scrollTop;
+              else if (target.matches(".calendar-day-feed"))
+                outerScroll.current.feedTop = target.scrollTop;
+              else return;
+              remember(href, {
+                ...scrollPosition.current,
+                hourHeight,
+                ...outerScroll.current,
+              });
+            }}
+          >
             <CalendarToolbar
               date={selected}
               viewTargetDate={selectedTime?.date ?? selected}

@@ -1,6 +1,7 @@
 // DST fixtures use Denver: Edmonton no longer falls back in tzdb 2026c+.
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import AxeBuilder from "@axe-core/playwright";
 const headers = () => ({
   Origin: "http://localhost:3100",
   "Idempotency-Key": randomUUID(),
@@ -37,6 +38,101 @@ async function create(page: Page, startsAt: string, endsAt: string) {
   expect(r.status()).toBe(201);
   return r.json();
 }
+test("recorded workouts show clear overnight dates, active time and a Fitness link", async ({
+  page,
+}, info) => {
+  await setup(page, "America/Denver");
+  const write = async (path: string, data: object, version?: number) => {
+    const response = await page.request[version ? "put" : "post"](
+      `/api/v1/${path}`,
+      {
+        headers: {
+          ...headers(),
+          ...(version ? { "If-Match": `"${version}"` } : {}),
+        },
+        data,
+      },
+    );
+    expect(response.ok(), await response.text()).toBe(true);
+    return response.json();
+  };
+  const exercise = await write("exercises", { name: "Summary bench" });
+  const draft = await write("strength-workouts", {
+    title: "Upper Body",
+    startedAt: "2026-10-29T04:25:00Z",
+  });
+  const workout = await write(
+    `strength-workouts/${draft.id}`,
+    {
+      title: draft.title,
+      startedAt: draft.startedAt,
+      endedAt: "2026-10-29T20:26:00Z",
+      pauses: [
+        { startsAt: "2026-10-29T05:00:00Z", endsAt: "2026-10-29T06:00:00Z" },
+      ],
+      exercises: [
+        {
+          exerciseId: exercise.id,
+          loggingType: "reps_load",
+          sets: [{ reps: 12, weightKg: 50, completed: true }],
+        },
+      ],
+    },
+    draft.version,
+  );
+  if (info.project.name === "phone")
+    await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/?date=2026-10-29&view=day");
+  const record = page
+    .getByRole("region", { name: "Daily time grid" })
+    .getByRole("button", { name: /Upper Body.*recorded/ });
+  await record.click();
+  const summary = page.getByRole("dialog", {
+    name: "Recorded workout",
+    exact: true,
+  });
+  await expect(summary).toBeVisible();
+  await expect(
+    summary.getByRole("heading", { name: "Upper Body", exact: true }),
+  ).toBeVisible();
+  await expect(summary.locator("time").nth(0)).toHaveText(
+    "Oct 28, 2026 · 10:25 PM",
+  );
+  await expect(summary.locator("time").nth(1)).toHaveText(
+    "Oct 29, 2026 · 2:26 PM",
+  );
+  await expect(summary.locator(".calendar-workout-duration")).toContainText(
+    "15h 1m",
+  );
+  await expect(summary.locator(".calendar-workout-paused")).toHaveText(
+    "Time paused1h",
+  );
+  const link = summary.getByRole("link", { name: "View workout", exact: true });
+  await expect(link).toHaveAttribute(
+    "href",
+    `/fitness/session/${workout.id}?${new URLSearchParams({ returnCalendar: "/?date=2026-10-29&view=day" })}`,
+  );
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  const bounds = await summary.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+  await page.screenshot({ path: info.outputPath("recorded-workout.png") });
+  await page.keyboard.press("Escape");
+  await expect(summary).toHaveCount(0);
+  await expect(record).toBeFocused();
+  await record.click();
+  await link.click();
+  await expect(page).toHaveURL(new RegExp(`/fitness/session/${workout.id}`));
+  await expect(
+    page.getByRole("button", { name: "Correct results", exact: true }),
+  ).toBeVisible();
+  const saved = await (
+    await page.request.get(`/api/v1/strength-workouts/${workout.id}`)
+  ).json();
+  expect(saved.version).toBe(workout.version);
+});
 for (const [weekStartsOn, date, nextDate] of [
   [1, "2026-09-06", "2026-09-07"],
   [0, "2026-09-05", "2026-09-06"],

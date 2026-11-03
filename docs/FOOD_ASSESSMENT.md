@@ -4,13 +4,15 @@
 
 Food is already a usable vertical slice. Continue by hardening interrupted writes and read recovery, then bring its forms into the current Calendar/Fitness conventions. A new nutrition backend or a larger feature set is not the starting point.
 
-## Current foundation
+The owner subsequently authorized the reliability milestone. Submitted-write recovery, pending-action protection and retained-list retries are now implemented locally on `develop`; see the current verification entry in [IMPLEMENTATION](IMPLEMENTATION.md). The findings and reproduction evidence below describe the original assessment. The owner subsequently authorized Food’s return to default development navigation and APIs. Other deferred features remain gated, and public deployment is not authorized. Form polish remains separate work.
+
+## Foundation at assessment
 
 - Daily logging supports saved foods, meals, recipes and quick entries without a library definition. Corrections, copying, deletion, favourites, archive/restore, water, weight and searchable history are implemented.
 - Express routes validate shared contracts and call the canonical Nutrition service/repository. Hydration and Body remain separate services. Next.js uses the typed client; nutrition and daily calculations stay on the backend.
 - Logged nutrition is an independent snapshot. Recipe yield and portion scaling preserve unknown nutrients and explicit zero. Preparation edits resolve owned active ingredients; historical copying retains the recorded snapshot. Scheduling and eating remain distinct.
 - The shared Day panel already follows Calendar's selected date, domain/all activity filtering and responsive drawer. Food contributes recorded moments without inventing duration or duplicate time sources.
-- Food stays disabled in default `core` scope. `preview` also enables other deferred features; changing both applications to preview is a local review technique, not a Food-only release strategy.
+- At assessment, Food was disabled in default `core` scope. `preview` also enables other deferred features; changing both applications to preview is a local review technique, not a Food-only release strategy.
 
 ## Findings and priorities
 
@@ -25,7 +27,7 @@ Ordinary unsaved drafts also disappear on refresh; that is an existing documente
 
 ## Recommended milestone: Food reliability
 
-Start from `develop` on `feature/food-reliability`. Limit the first implementation slice to submitted-write recovery, pending-action protection and retained-list read recovery. Use existing contracts, services and recovery mechanisms unless a demonstrated defect requires a boundary change. Keep Food behind its current release gate.
+Work directly on `develop`, following the owner’s updated branch preference. Limit the first implementation slice to submitted-write recovery, pending-action protection and retained-list read recovery. Use existing contracts, services and recovery mechanisms unless a demonstrated defect requires a boundary change. Keep Food behind its current release gate.
 
 Acceptance criteria:
 
@@ -35,7 +37,7 @@ Acceptance criteria:
 4. Existing snapshot, unknown/zero, owner-isolation, timezone and Calendar-source tests remain passing. Add meaningful failure/recovery regressions on desktop and phone, including account switching and storage failure.
 5. Update FEATURES and actual verification evidence, then stop for review. Form polish and Food release promotion are subsequent scoped decisions.
 
-After reliability, review Food's normal creation/logging/editing flows visually beside current Calendar/Fitness. A later Food-only release decision must enable its web/API/Calendar surfaces consistently while leaving Tasks, Assistant and other deferred features gated. Add a focused preview Food browser gate to CI as part of that release work; the current CI browser job verifies core Calendar/Fitness, while its API integration job already includes retained Food tests.
+After reliability, review Food's normal creation/logging/editing flows visually beside current Calendar/Fitness. The subsequently authorized Food return enables web/API/Calendar surfaces consistently while leaving Tasks, Assistant and other deferred features gated. Food browser workflows now run in the core CI gate alongside Calendar/Fitness, including reliability and timezone cases; the API integration job also covers Food.
 
 Meal planning, shopping lists, targets, broader trends, lookup/barcodes, pantry and AI remain outside this milestone. Existing history ordering by entry creation time and corrections limited to amount/time/label are intentional behaviors, not new defects.
 
@@ -47,4 +49,4 @@ Meal planning, shopping lists, targets, broader trends, lookup/barcodes, pantry 
 - All **eight existing desktop/phone browser cases** passed across Everyday Food and the shared Food Day panel. They cover real browser → API → database → rendered results, including food/recipe/meal creation, historical nutrition, adjusted logging, copying/corrections/deletion, quick entries, water/weight, archive/restore, in-page uncertain retries, selected-day navigation, responsive fit and automated accessibility.
 - Two temporary desktop/phone probes reproduced the refresh defect: the server committed one food, its successful response was replaced with an uncertain 503, refresh removed the Retry save action, and manual re-entry created a second food with a different request key. Both probes passed their defect-reproduction assertions; they do not certify correct behavior. The temporary probe was removed afterward. Verification stopped at this confirmed recovery gap; the other findings remain source-review observations.
 
-No product code, schema, release policy or local development configuration changed. Tests use synthetic accounts and test-only in-memory email delivery; no external email or production operation occurs. This is a focused assessment, not a full security audit, all-browser visual review or a claim that the broader preview suite passes.
+The assessment itself changed no product code, schema, release policy or local development configuration. Tests use synthetic accounts and test-only in-memory email delivery; no external email or production operation occurs. This is a focused assessment, not a full security audit, all-browser visual review or a claim that the broader preview suite passes.

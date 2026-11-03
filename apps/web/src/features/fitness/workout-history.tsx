@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import Link from "next/link";
 import { useFitnessNavigation } from "./fitness-navigation";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -147,8 +148,7 @@ export function WorkoutHistory() {
             >
               <h3 id={`history-day-${day}`}>
                 <time dateTime={day}>
-                  {new Intl.DateTimeFormat("en", {
-                    timeZone: timezone,
+                  {zonedDateTimeFormat(timezone, {
                     weekday: "long",
                     month: "short",
                     day: "numeric",
@@ -158,8 +158,7 @@ export function WorkoutHistory() {
               </h3>
               <ul className="fitness-history-items">
                 {workouts.map((workout) => {
-                  const when = new Intl.DateTimeFormat("en", {
-                    timeZone: timezone,
+                  const when = zonedDateTimeFormat(timezone, {
                     timeStyle: "short",
                   }).format(new Date(workout.startedAt));
                   const duration = workout.endedAt

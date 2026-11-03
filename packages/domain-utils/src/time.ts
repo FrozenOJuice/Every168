@@ -1,4 +1,5 @@
 import { Temporal } from "@js-temporal/polyfill";
+import { resolveWallTime, wallTime } from "./timezone";
 
 /** Wall-clock plans skip missing times and use the first occurrence of a repeated time. */
 export function plannedInstant(
@@ -9,16 +10,14 @@ export function plannedInstant(
   const local = Temporal.PlainDate.from(date)
     .toPlainDateTime()
     .add({ milliseconds: Math.round(minute * 60000) });
-  const zoned = local.toZonedDateTime(timezone, { disambiguation: "earlier" });
-  return zoned.toPlainDateTime().equals(local)
-    ? zoned.toInstant().toString()
-    : null;
+  return resolveWallTime(local, timezone, "earlier")?.toString() ?? null;
 }
 
 export function localMinute(value: string | Date, timezone: string) {
-  const time = Temporal.Instant.from(
-    value instanceof Date ? value.toISOString() : value,
-  ).toZonedDateTimeISO(timezone);
+  const time = wallTime(
+    Temporal.Instant.from(value instanceof Date ? value.toISOString() : value),
+    timezone,
+  );
   return (
     time.hour * 60 + time.minute + time.second / 60 + time.millisecond / 60000
   );
@@ -35,8 +34,10 @@ export type Interval = { startsAt: string | Date; endsAt: string | Date };
 export const durationSeconds = (a: string | Date, b: string | Date) =>
   (new Date(b).getTime() - new Date(a).getTime()) / 1000;
 export function localDate(instant: string | Date, timeZone: string) {
-  return Temporal.Instant.from(new Date(instant).toISOString())
-    .toZonedDateTimeISO(timeZone)
+  return wallTime(
+    Temporal.Instant.from(new Date(instant).toISOString()),
+    timeZone,
+  )
     .toPlainDate()
     .toString();
 }
@@ -44,10 +45,18 @@ export function addDays(date: string, days: number) {
   return Temporal.PlainDate.from(date).add({ days }).toString();
 }
 export function dayRange(date: string, timeZone: string) {
-  const start = Temporal.PlainDate.from(date).toZonedDateTime(timeZone);
+  const day = Temporal.PlainDate.from(date);
   return {
-    startsAt: start.toInstant().toString(),
-    endsAt: start.add({ days: 1 }).toInstant().toString(),
+    startsAt: resolveWallTime(
+      day.toPlainDateTime(),
+      timeZone,
+      "compatible",
+    )!.toString(),
+    endsAt: resolveWallTime(
+      day.add({ days: 1 }).toPlainDateTime(),
+      timeZone,
+      "compatible",
+    )!.toString(),
   };
 }
 export function weekRange(
@@ -71,16 +80,17 @@ export function weekRange(
   };
 }
 export function localInputToInstant(value: string, timeZone: string) {
-  return Temporal.PlainDateTime.from(value)
-    .toZonedDateTime(timeZone, { disambiguation: "reject" })
-    .toInstant()
-    .toString();
+  return resolveWallTime(
+    Temporal.PlainDateTime.from(value),
+    timeZone,
+    "reject",
+  )!.toString();
 }
 export function instantToLocalInput(instant: string | Date, timeZone: string) {
-  return Temporal.Instant.from(new Date(instant).toISOString())
-    .toZonedDateTimeISO(timeZone)
-    .toPlainDateTime()
-    .toString({ smallestUnit: "minute" });
+  return wallTime(
+    Temporal.Instant.from(new Date(instant).toISOString()),
+    timeZone,
+  ).toString({ smallestUnit: "minute" });
 }
 export function clippedSeconds(interval: Interval, range: Interval) {
   return Math.max(

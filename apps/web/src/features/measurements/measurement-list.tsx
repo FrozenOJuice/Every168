@@ -4,7 +4,10 @@ import { useConfirm } from "@/components/ui/confirmation-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Water, Weight } from "@168hours/contracts";
 import { fromKilograms, localDate } from "@168hours/domain-utils";
-import { api } from "@/lib/api";
+import {
+  useMeasurementApi,
+  useFoodWritePending,
+} from "@/features/food/food-write-provider";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { formatDate, formatTime, number } from "@/lib/format";
@@ -20,6 +23,8 @@ export function MeasurementList({
   onEdit: (entry: Water | Weight) => void;
   showDate?: boolean;
 }) {
+  const api = useMeasurementApi();
+  const writePending = useFoodWritePending();
   const confirm = useConfirm();
 
   const {
@@ -66,14 +71,14 @@ export function MeasurementList({
               <div className="row">
                 <button
                   className="button"
-                  disabled={remove.isPending}
+                  disabled={writePending || remove.isPending}
                   onClick={() => onEdit(entry)}
                 >
                   Edit
                 </button>
                 <button
                   className="button danger"
-                  disabled={remove.isPending}
+                  disabled={writePending || remove.isPending}
                   onClick={async () => {
                     if (await confirm("Delete this " + kind + " entry?"))
                       remove.mutate(entry);

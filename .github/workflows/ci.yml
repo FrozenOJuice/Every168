@@ -129,6 +129,8 @@ jobs:
         run: pnpm build 2>&1 | tee ci-logs/build.log
       - name: Beta browser suite
         run: pnpm test:e2e:beta 2>&1 | tee ci-logs/browser.log
+      - name: Verify Food
+        run: pnpm test:e2e:food 2>&1 | tee ci-logs/food-browser.log
       - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

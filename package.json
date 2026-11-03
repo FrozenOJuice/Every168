@@ -46,7 +46,9 @@
     "verify:beta": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm test:integration && pnpm audit --prod && RELEASE_SCOPE=core pnpm build && pnpm test:e2e:beta",
     "brand:assets": "node scripts/brand-assets.mjs",
     "portfolio:capture": "playwright test --config playwright.portfolio.config.ts",
-    "portfolio:social": "node scripts/social-preview.mjs"
+    "portfolio:social": "node scripts/social-preview.mjs",
+    "food:import:cnf": "pnpm --filter @168hours/api exec tsx src/infrastructure/database/import-cnf.ts",
+    "test:e2e:food": "playwright test --config playwright.food.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

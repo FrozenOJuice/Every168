@@ -14,6 +14,22 @@ export const nutrientInput = z
   .max(100000)
   .nullable()
   .default(null);
+export const foodSourceSchema = z.object({
+  provider: z.string().regex(/^[a-z][a-z0-9-]{0,31}$/),
+  release: z.string().trim().min(1).max(40),
+  code: z.string().trim().min(1).max(100),
+  name: titleSchema,
+  modified: z.boolean(),
+});
+export type FoodSource = z.infer<typeof foodSourceSchema>;
+export const catalogueQuery = z
+  .object({
+    search: z.string().trim().max(100).default(""),
+    offset: z.coerce.number().int().min(0).max(10000).default(0),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .strict();
+export type CatalogueQuery = z.infer<typeof catalogueQuery>;
 export const foodInput = z
   .object({
     name: titleSchema,
@@ -28,16 +44,32 @@ export const foodInput = z
   })
   .strict();
 export const foodKind = z.enum(["food", "meal", "recipe"]);
-export const ingredientInput = z
-  .object({
-    foodId: idSchema,
-    quantity: z.number().finite().positive().max(1000),
-  })
-  .strict();
+export const foodQuantity = z.number().finite().positive().max(1000);
+export const portionId = z.string().trim().min(1).max(40);
+// These distinct wire identifiers are never interchangeable: owned references require owner lookup.
+export const ingredientInput = z.union([
+  z
+    .object({
+      foodId: idSchema,
+      catalogueId: z.never().optional(),
+      quantity: foodQuantity,
+    })
+    .strict(),
+  z
+    .object({
+      catalogueId: idSchema,
+      foodId: z.never().optional(),
+      quantity: z.number().finite().positive().max(100000),
+      portionId: portionId.optional(),
+    })
+    .strict(),
+]);
 export const ingredientSnapshotSchema = z.object({
   ...foodInput.omit({ favourite: true }).shape,
-  foodId: idSchema,
-  quantity: ingredientInput.shape.quantity,
+  foodId: idSchema.nullable(),
+  catalogueId: idSchema.nullish(),
+  source: foodSourceSchema.nullish(),
+  quantity: foodQuantity,
 });
 export type IngredientSnapshot = z.infer<typeof ingredientSnapshotSchema>;
 export const preparationInput = z
@@ -59,6 +91,7 @@ export type PreparationInput = z.infer<typeof preparationInput>;
 export const foodFavouriteInput = z.object({ favourite: z.boolean() }).strict();
 export const foodSchema = recordSchema.extend({
   ...foodInput.shape,
+  source: foodSourceSchema.nullish(),
   archivedAt: instantSchema.nullable(),
   favourite: z.boolean(),
   kind: foodKind,
@@ -92,21 +125,30 @@ export const foodEntryUpdate = z
     mealType: mealType.default("other"),
   })
   .strict();
-export const foodEntryInput = foodEntryUpdate
-  .extend({
-    foodId: idSchema,
-    foodVersion: z.number().int().positive().optional(),
-    ingredientQuantities: z
-      .array(ingredientInput.shape.quantity)
-      .min(1)
-      .max(50)
-      .optional(),
-  })
-  .refine((v) => !v.ingredientQuantities || v.foodVersion !== undefined, {
-    path: ["foodVersion"],
-    message:
-      "Review the saved preparation before changing ingredient quantities.",
-  });
+export const foodEntryInput = z.union([
+  foodEntryUpdate
+    .extend({
+      foodId: idSchema,
+      catalogueId: z.never().optional(),
+      foodVersion: z.number().int().positive().optional(),
+      ingredientQuantities: z.array(foodQuantity).min(1).max(50).optional(),
+    })
+    .strict()
+    .refine((v) => !v.ingredientQuantities || v.foodVersion !== undefined, {
+      path: ["foodVersion"],
+      message:
+        "Review the saved preparation before changing ingredient quantities.",
+    }),
+  foodEntryUpdate
+    .extend({
+      catalogueId: idSchema,
+      foodId: z.never().optional(),
+      quantity: z.number().finite().positive().max(100000),
+      portionId: portionId.optional(),
+      foodVersion: z.number().int().positive().optional(),
+    })
+    .strict(),
+]);
 export const quickFoodInput = foodEntryUpdate
   .extend({ food: foodInput.omit({ favourite: true }) })
   .strict();
@@ -115,6 +157,8 @@ export type QuickFoodInput = z.infer<typeof quickFoodInput>;
 export const foodEntrySchema = recordSchema.extend({
   ...foodEntryUpdate.shape,
   foodId: idSchema.nullable(),
+  catalogueId: idSchema.nullish(),
+  sourceSnapshot: foodSourceSchema.nullish(),
   nameSnapshot: z.string(),
   servingAmountSnapshot: z.number(),
   servingUnitSnapshot: z.string(),
@@ -163,3 +207,53 @@ export type FoodEntryUpdate = z.infer<typeof foodEntryUpdate>;
 export type FoodEntry = z.infer<typeof foodEntrySchema>;
 export type NutritionDaily = z.infer<typeof nutritionDailySchema>;
 export type NutritionTotals = z.infer<typeof nutritionTotalsSchema>;
+
+export const cataloguePortion = z.object({
+  id: portionId,
+  label: z.string().min(1).max(300),
+  grams: z.number().finite().positive().max(100000),
+});
+export const catalogueFoodSchema = foodInput.omit({ favourite: true }).extend({
+  id: idSchema,
+  version: z.number().int().positive(),
+  provider: foodSourceSchema.shape.provider,
+  code: z.string().min(1).max(100),
+  release: foodSourceSchema.shape.release,
+  nameFr: z.string(),
+  updatedAt: z.string(),
+  portions: z.array(cataloguePortion),
+});
+export type CatalogueFood = z.infer<typeof catalogueFoodSchema>;
+export type FoodSelection =
+  { type: "owned"; food: Food } | { type: "catalogue"; food: CatalogueFood };
+export const catalogueResultSchema = z.object({
+  items: z.array(catalogueFoodSchema),
+  nextOffset: z.number().int().nullable(),
+  total: z.number().int(),
+});
+export type CatalogueResult = z.infer<typeof catalogueResultSchema>;
+export const nutritionGoalsInput = z
+  .object({
+    calories: z
+      .number()
+      .finite()
+      .positive()
+      .max(100000)
+      .nullable()
+      .default(null),
+    proteinG: z
+      .number()
+      .finite()
+      .positive()
+      .max(100000)
+      .nullable()
+      .default(null),
+    carbsG: z.number().finite().positive().max(100000).nullable().default(null),
+    fatG: z.number().finite().positive().max(100000).nullable().default(null),
+  })
+  .strict();
+export const nutritionGoalsSchema = nutritionGoalsInput.extend({
+  version: z.number().int().positive(),
+});
+export type NutritionGoalsInput = z.infer<typeof nutritionGoalsInput>;
+export type NutritionGoals = z.infer<typeof nutritionGoalsSchema>;

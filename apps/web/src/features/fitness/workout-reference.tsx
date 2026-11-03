@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -36,7 +37,7 @@ export function WorkoutReference({
   const navigation = useFitnessNavigation();
   const date = sessionDate(startedAt, timezone);
   const when = showTime
-    ? `${date} · ${new Intl.DateTimeFormat("en", { timeZone: timezone, timeStyle: "short" }).format(new Date(startedAt))}`
+    ? `${date} · ${zonedDateTimeFormat(timezone, { timeStyle: "short" }).format(new Date(startedAt))}`
     : date;
   const returnTo = origin ? exerciseReturnPath(pathname, origin) : undefined;
   const params =

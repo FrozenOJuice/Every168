@@ -7,9 +7,10 @@ export function releaseFeatures(scope: ReleaseScope = "core") {
     routines: scope === "preview",
     unscheduled: scope === "preview",
     legacyCardio: scope === "preview",
+    legacyDashboard: scope === "preview",
     calendarTemplates: scope === "preview",
     tasks: scope === "preview",
-    food: scope === "preview",
+    food: true,
     assistant: scope === "preview",
     trainingPrograms: scope === "preview",
   };

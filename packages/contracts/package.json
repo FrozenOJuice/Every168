@@ -11,6 +11,7 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
+    "@168hours/domain-utils": "workspace:*",
     "zod": "4.6.7"
   }
 }

@@ -130,9 +130,9 @@ export function createApp({
     ...(features.routines ? [routinesRoutes(routines, writes)] : []),
     ...(features.tasks ? [tasksRoutes(tasks, writes)] : []),
     ...(features.goals ? [goalsRoutes(goals, writes)] : []),
+    ...(features.legacyDashboard ? [dashboardRoutes(dashboard)] : []),
     ...(features.food
       ? [
-          dashboardRoutes(dashboard),
           nutritionRoutes(nutrition, writes),
           hydrationRoutes(hydration, writes),
           bodyRoutes(body, writes),

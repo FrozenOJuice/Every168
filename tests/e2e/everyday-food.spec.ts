@@ -1,3 +1,4 @@
+import { foodView as view } from "./helpers/food-navigation";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -35,19 +36,13 @@ async function setup(page: Page) {
   await page.goto("/food?date=2026-10-23");
   return { write };
 }
-async function view(page: Page, name: string) {
-  await page
-    .getByRole("navigation", { name: "Food navigation" })
-    .getByRole("link", { name, exact: true })
-    .click();
-}
 const dialog = (page: Page) => page.getByRole("dialog");
 
 test("create food, recipe and saved meal, adjust a logged meal and retain historical nutrition", async ({
   page,
 }, info) => {
   await setup(page);
-  await view(page, "Food library");
+  await view(page, "Foods");
   await page.getByRole("button", { name: "Create food", exact: true }).click();
   await dialog(page).getByLabel("Food name", { exact: true }).fill("Rice");
   await dialog(page).getByLabel("Calories (kcal)", { exact: true }).fill("100");
@@ -82,7 +77,7 @@ test("create food, recipe and saved meal, adjust a logged meal and retain histor
   await expect(
     page.getByText("250 kcal per serving", { exact: true }),
   ).toBeVisible();
-  await view(page, "Saved meals");
+  await view(page, "Saved Meals");
   await page.getByRole("button", { name: "Create meal", exact: true }).click();
   await dialog(page)
     .getByLabel("Meal name", { exact: true })
@@ -130,17 +125,20 @@ test("create food, recipe and saved meal, adjust a logged meal and retain histor
   await expect(
     page.getByRole("heading", { name: "Rice lunch", exact: true }),
   ).toBeVisible();
-  const totals = page.locator(".food-daily-grid > div > section > details");
+  const totals = page.getByRole("region", {
+    name: "Daily nutrition",
+    exact: true,
+  });
   await expect(totals).toContainText("350 kcal");
   await expect(totals).toContainText("0 g");
-  await view(page, "Food library");
+  await view(page, "Foods");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await dialog(page).getByLabel("Calories (kcal)", { exact: true }).fill("200");
   await dialog(page)
     .getByRole("button", { name: "Save food", exact: true })
     .click();
   await expect(dialog(page)).toHaveCount(0);
-  await view(page, "Daily log");
+  await view(page, "Today");
   await expect(totals).toContainText("350 kcal");
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   expect(
@@ -207,7 +205,10 @@ test("quick entries, unknown nutrition, water and weight, history and archive ar
     .getByRole("button", { name: "Log food", exact: true })
     .click();
   await expect(dialog(page)).toHaveCount(0);
-  const totals = page.locator(".food-daily-grid > div > section > details");
+  const totals = page.getByRole("region", {
+    name: "Daily nutrition",
+    exact: true,
+  });
   await expect(totals).toContainText("Unknown");
   expect(
     (await (await page.request.get("/api/v1/foods?search=Restaurant")).json())
@@ -226,14 +227,14 @@ test("quick entries, unknown nutrition, water and weight, history and archive ar
   await expect(page.locator(".food-weight .measurement-total")).toContainText(
     "75 kg",
   );
-  await view(page, "History");
+  await view(page, "Search past entries");
   await page
     .getByLabel("Search recorded foods", { exact: true })
     .fill("Restaurant");
   await expect(
     page.getByRole("heading", { name: "Restaurant dinner", exact: true }),
   ).toBeVisible();
-  await view(page, "Food library");
+  await view(page, "Foods");
   await page.getByRole("button", { name: "Archive", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Coffee", exact: true }),
@@ -258,7 +259,7 @@ test("forms validate, protect unsaved changes and retry uncertain logs without d
   page,
 }) => {
   await setup(page);
-  await view(page, "Food library");
+  await view(page, "Foods");
   await page.getByRole("button", { name: "Create food", exact: true }).click();
   await dialog(page)
     .getByRole("button", { name: "Create food", exact: true })
@@ -285,7 +286,7 @@ test("forms validate, protect unsaved changes and retry uncertain logs without d
     .getByRole("button", { name: "Discard", exact: true })
     .click();
   await expect(dialog(page)).toHaveCount(0);
-  await view(page, "Daily log");
+  await view(page, "Today");
   await page.getByRole("button", { name: "Log food", exact: true }).click();
   await dialog(page)
     .getByRole("button", { name: "Quick entry", exact: true })
@@ -318,9 +319,10 @@ test("forms validate, protect unsaved changes and retry uncertain logs without d
   await expect(
     dialog(page).getByRole("button", { name: "Retry save", exact: true }),
   ).toBeVisible();
-  await dialog(page)
-    .getByRole("button", { name: "Close dialog", exact: true })
-    .click();
+  await expect(
+    dialog(page).getByRole("button", { name: "Close dialog", exact: true }),
+  ).toBeDisabled();
+  await page.keyboard.press("Escape");
   await expect(dialog(page)).toBeVisible();
   await dialog(page)
     .getByRole("button", { name: "Retry save", exact: true })

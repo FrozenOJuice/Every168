@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { formatFitnessDuration } from "./rest-duration";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fromKilograms, fromMeters } from "@168hours/domain-utils";
@@ -38,8 +39,7 @@ export function ExerciseHistory({ id }: { id: string }) {
           {entries.map((s) => (
             <li key={s.id}>
               <a href={`/fitness/session/${s.workoutId}`}>
-                {new Intl.DateTimeFormat("en", {
-                  timeZone: timezone,
+                {zonedDateTimeFormat(timezone, {
                   dateStyle: "medium",
                 }).format(new Date(s.startedAt))}
               </a>

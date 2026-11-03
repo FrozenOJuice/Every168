@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -34,8 +35,7 @@ export function ActiveWorkouts() {
               <span className="fitness-state">In progress</span>
               <strong>{workout.title}</strong>
               <small>
-                {new Intl.DateTimeFormat("en", {
-                  timeZone: timezone,
+                {zonedDateTimeFormat(timezone, {
                   dateStyle: "medium",
                   timeStyle: "short",
                 }).format(new Date(workout.startedAt))}

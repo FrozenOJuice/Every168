@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { workoutSeconds } from "@168hours/domain-utils";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
@@ -71,12 +72,10 @@ export function WorkoutReview({
   const performed = value.exercises.filter((exercise) =>
     exercise.sets.some((set) => set.completed && !set.skipped),
   ).length;
-  const dateFormat = new Intl.DateTimeFormat("en", {
-    timeZone: preferences.timezone,
+  const dateFormat = zonedDateTimeFormat(preferences.timezone, {
     dateStyle: "long",
   });
-  const timeFormat = new Intl.DateTimeFormat("en", {
-    timeZone: preferences.timezone,
+  const timeFormat = zonedDateTimeFormat(preferences.timezone, {
     timeStyle: "short",
   });
   const start = new Date(value.startedAt);

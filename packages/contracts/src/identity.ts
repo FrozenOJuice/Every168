@@ -1,17 +1,11 @@
+import { isTimezone } from "@168hours/domain-utils";
 import { z } from "zod";
 export const preferencesInput = z
   .object({
     timezone: z
       .string()
       .max(100)
-      .refine((value) => {
-        try {
-          new Intl.DateTimeFormat("en", { timeZone: value });
-          return true;
-        } catch {
-          return false;
-        }
-      }, "Choose a valid IANA timezone"),
+      .refine(isTimezone, "Choose a valid IANA timezone"),
     weekStartsOn: z.union([z.literal(0), z.literal(1)]),
     weightUnit: z.enum(["kg", "lb"]),
     durationUnit: z.enum(["min_sec", "s", "min", "h"]).default("min_sec"),

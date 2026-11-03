@@ -1,7 +1,10 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Water, Weight } from "@168hours/contracts";
-import { api } from "@/lib/api";
+import {
+  useMeasurementApi,
+  useFoodWritePending,
+} from "@/features/food/food-write-provider";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { ErrorState, Loading } from "@/components/ui/feedback";
@@ -20,6 +23,8 @@ export function WaterPanel({
   onEdit: (entry: Water | Weight) => void;
   onHistory: () => void;
 }) {
+  const api = useMeasurementApi();
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone },
   } = useMe();
@@ -47,7 +52,11 @@ export function WaterPanel({
     >
       <div className="row between">
         <h2 id="food-water-heading">Water</h2>
-        <button className="text-button" onClick={onHistory}>
+        <button
+          className="text-button"
+          disabled={writePending}
+          onClick={onHistory}
+        >
           Water history
         </button>
       </div>
@@ -74,7 +83,7 @@ export function WaterPanel({
           <button
             className="button"
             key={amount}
-            disabled={quick.isPending}
+            disabled={writePending || quick.isPending}
             onClick={() =>
               quick.mutate({
                 amountMl: amount,
@@ -85,7 +94,7 @@ export function WaterPanel({
             + {amount} ml
           </button>
         ))}
-        <button className="button" onClick={onLog}>
+        <button className="button" disabled={writePending} onClick={onLog}>
           Log water
         </button>
       </div>

@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { ScheduleWorkout } from "./schedule-workout";
 import { Toast, useToast } from "@/components/ui/toast";
 import { useDomainDay } from "@/features/workspace/domain-day-context";
@@ -128,8 +129,7 @@ export function PlanCard({
           <Link
             href={`/?date=${instantToLocalInput(blockData.startsAt, timezone).slice(0, 10)}&view=day`}
           >
-            {new Intl.DateTimeFormat("en", {
-              timeZone: timezone,
+            {zonedDateTimeFormat(timezone, {
               dateStyle: "medium",
               timeStyle: "short",
             }).format(new Date(blockData.startsAt))}
@@ -175,7 +175,7 @@ export function PlanCard({
             selectDate(localDate(schedule.startsAt, timezone));
             toast.show({
               kind: "success",
-              message: `${plan.title} scheduled for ${new Intl.DateTimeFormat("en", { timeZone: timezone, dateStyle: "medium", timeStyle: "short" }).format(new Date(schedule.startsAt))}.`,
+              message: `${plan.title} scheduled for ${zonedDateTimeFormat(timezone, { dateStyle: "medium", timeStyle: "short" }).format(new Date(schedule.startsAt))}.`,
               action: {
                 label: "View in Calendar",
                 onClick: async () => {

@@ -1,8 +1,9 @@
 "use client";
+import { useFoodWritePending } from "./food-write-provider";
 import { useQueryClient } from "@tanstack/react-query";
 import { foodInput, type Food } from "@168hours/contracts";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
-import { api } from "@/lib/api";
+import { foodApi as api } from "./food-write-recovery";
 import { invalidateFood, nutrients, useFoodDirty } from "./food-shared";
 export function FoodFields({ prefix = "" }: { prefix?: string }) {
   return (
@@ -66,10 +67,12 @@ export function FoodEditor({
     },
   );
   const cache = useQueryClient();
+  const writePending = useFoodWritePending();
   useFoodDirty(form.formState.isDirty);
   return (
     <Form
       form={form}
+      disabled={writePending}
       onSubmit={async (v, key) => {
         const saved = item
           ? await api.updateFood(item.id, v, item.version, key)

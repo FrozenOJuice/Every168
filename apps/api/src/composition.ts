@@ -46,6 +46,7 @@ import { bodyService } from "./modules/body/body.service.js";
 import { hydrationRepository } from "./modules/hydration/hydration.repository.js";
 import { hydrationService } from "./modules/hydration/hydration.service.js";
 import { nutritionRepository } from "./modules/nutrition/nutrition.repository.js";
+import { catalogueRepository } from "./modules/nutrition/catalogue.repository.js";
 import { nutritionService } from "./modules/nutrition/nutrition.service.js";
 import { goalsRepository } from "./modules/goals/goals.repository.js";
 import { goalsService } from "./modules/goals/goals.service.js";
@@ -143,6 +144,7 @@ export function compose(
     nutritionRepository(db),
     identity,
     runInTransaction,
+    catalogueRepository(db),
   );
   const hydration = hydrationService(hydrationRepository(db), identity);
   const body = bodyService(bodyRepository(db), identity);

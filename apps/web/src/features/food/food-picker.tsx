@@ -1,9 +1,12 @@
 "use client";
+import { RetainedReadError } from "@/components/ui/retained-read-error";
 import { useId, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import type { Food } from "@168hours/contracts";
-import { api } from "@/lib/api";
+import type { Food, FoodSelection } from "@168hours/contracts";
+import { foodApi as api } from "./food-write-recovery";
 import { Loading, ErrorState } from "@/components/ui/feedback";
+import { FoodCatalogue } from "./food-catalogue";
+import { useFoodWritePending } from "./food-write-provider";
 import { number } from "@/lib/format";
 export function FoodPicker({
   onChoose,
@@ -11,11 +14,12 @@ export function FoodPicker({
   excludeId,
   includeMeals = false,
 }: {
-  onChoose: (f: Food) => void;
+  onChoose: (f: FoodSelection) => void;
   kind?: Food["kind"];
   excludeId?: string;
   includeMeals?: boolean;
 }) {
+  const pending = useFoodWritePending();
   const [search, setSearch] = useState("");
   const id = useId();
   const q = useInfiniteQuery({
@@ -42,13 +46,17 @@ export function FoodPicker({
         <input
           id={id}
           type="search"
+          maxLength={100}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.preventDefault();
+          }}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </label>
       {q.isPending ? (
         <Loading />
-      ) : q.error ? (
+      ) : q.error && !q.data ? (
         <ErrorState error={q.error} retry={() => void q.refetch()} />
       ) : (
         <>
@@ -58,7 +66,8 @@ export function FoodPicker({
                 <button
                   type="button"
                   className="button"
-                  onClick={() => onChoose(f)}
+                  disabled={pending}
+                  onClick={() => onChoose({ type: "owned", food: f })}
                 >
                   {f.name}
                   <small>
@@ -68,16 +77,17 @@ export function FoodPicker({
               </li>
             ))}
           </ul>
-          {choices.length === 0 && (
+          {choices.length === 0 && !q.error && (
             <p>
               {q.hasNextPage
                 ? "No eligible ingredients on this page. Load more foods."
-                : "No matching foods. Create a food in the library first."}
+                : "No matching saved foods. Search the catalogue below or create a food."}
             </p>
           )}
         </>
       )}
-      {q.hasNextPage && (
+      <RetainedReadError query={q} label="foods" />
+      {q.hasNextPage && !q.error && (
         <button
           type="button"
           className="button"
@@ -87,6 +97,10 @@ export function FoodPicker({
           More foods
         </button>
       )}
+      <FoodCatalogue
+        search={search}
+        onChoose={(food) => onChoose({ type: "catalogue", food })}
+      />
     </div>
   );
 }

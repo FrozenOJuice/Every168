@@ -1,10 +1,13 @@
 "use client";
+import { FoodSourceNote } from "./food-source";
+import { RetainedReadError } from "@/components/ui/retained-read-error";
+import { useFoodWritePending } from "./food-write-provider";
 import { useConfirm } from "@/components/ui/confirmation-provider";
 
 import { useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import type { FoodEntryDetail } from "@168hours/contracts";
-import { api } from "@/lib/api";
+import { foodApi as api } from "./food-write-recovery";
 import { useMe } from "@/features/identity/me";
 import { useCommand, CommandError } from "@/lib/use-command";
 import { localDate } from "@168hours/domain-utils";
@@ -24,6 +27,7 @@ export function FoodEntries({
   const confirm = useConfirm();
 
   const cache = useQueryClient();
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone },
   } = useMe();
@@ -52,15 +56,23 @@ export function FoodEntries({
                 </p>
               </div>
               <div className="row">
-                <button className="button" onClick={() => onEdit(e)}>
+                <button
+                  className="button"
+                  disabled={writePending}
+                  onClick={() => onEdit(e)}
+                >
                   Edit entry
                 </button>
-                <button className="button" onClick={() => onRepeat(e)}>
+                <button
+                  className="button"
+                  disabled={writePending}
+                  onClick={() => onRepeat(e)}
+                >
                   Copy entry
                 </button>
                 <button
                   className="button"
-                  disabled={remove.isPending}
+                  disabled={writePending || remove.isPending}
                   onClick={async () => {
                     if (
                       await confirm(`Delete ${e.nameSnapshot} from your log?`)
@@ -74,6 +86,7 @@ export function FoodEntries({
             </div>
             <details>
               <summary>Recorded nutrition and portions</summary>
+              <FoodSourceNote source={e.sourceSnapshot} />
               <NutritionSummary totals={e.nutrition} />
               {e.ingredientsSnapshot.length > 0 && (
                 <ul>
@@ -84,6 +97,7 @@ export function FoodEntries({
                         (i.quantity * e.quantity) / e.yieldServingsSnapshot,
                       )}{" "}
                       × {i.servingAmount} {i.servingUnit}
+                      <FoodSourceNote source={i.source} />
                     </li>
                   ))}
                 </ul>
@@ -93,6 +107,56 @@ export function FoodEntries({
         ))}
       </ul>
     </>
+  );
+}
+export function FoodDayEntries({
+  entries,
+  onLogMeal,
+  ...actions
+}: Actions & {
+  entries: FoodEntryDetail[];
+  onLogMeal: (type: FoodEntryDetail["mealType"]) => void;
+}) {
+  const pending = useFoodWritePending();
+  return (
+    <div className="food-meal-groups">
+      {(
+        [
+          ["breakfast", "Breakfast"],
+          ["lunch", "Lunch"],
+          ["dinner", "Dinner"],
+          ["snack", "Snacks"],
+          ["other", "Other food & drinks"],
+        ] as const
+      ).map(([type, label]) => {
+        const items = entries.filter((entry) => entry.mealType === type);
+        if (type === "other" && !items.length) return null;
+        return (
+          <section className="food-meal-group" key={type} aria-label={label}>
+            <div className="row between">
+              <h3>{label}</h3>
+              <button
+                className="text-button"
+                disabled={pending}
+                onClick={() => onLogMeal(type)}
+              >
+                Log{" "}
+                {type === "other"
+                  ? "other food"
+                  : type === "snack"
+                    ? "snack"
+                    : type}
+              </button>
+            </div>
+            {items.length ? (
+              <FoodEntries entries={items} {...actions} />
+            ) : (
+              <p className="muted text-small">Nothing logged yet.</p>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 export function FoodHistory(actions: Actions) {
@@ -106,7 +170,7 @@ export function FoodHistory(actions: Actions) {
   });
   return (
     <section className="form-stack">
-      <h2>Food history</h2>
+      <h2>Search past entries</h2>
       <p className="muted">
         Most recently added entries first. Copy an entry to the selected day
         using its original nutrition.
@@ -121,19 +185,20 @@ export function FoodHistory(actions: Actions) {
       </label>
       {q.isPending ? (
         <Loading />
-      ) : q.error ? (
+      ) : q.error && !q.data ? (
         <ErrorState error={q.error} retry={() => void q.refetch()} />
       ) : (
         <FoodEntries
           {...actions}
-          entries={q.data.pages.flatMap((p) => p.items)}
+          entries={q.data!.pages.flatMap((p) => p.items)}
           showDate
         />
       )}
-      {q.data?.pages.every((p) => !p.items.length) && (
+      {!q.error && q.data?.pages.every((p) => !p.items.length) && (
         <p>No recorded food yet.</p>
       )}
-      {q.hasNextPage && (
+      <RetainedReadError query={q} label="food history" />
+      {q.hasNextPage && !q.error && (
         <button
           className="button"
           disabled={q.isFetchingNextPage}

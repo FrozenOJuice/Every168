@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { useState } from "react";
 import {
   useQuery,
@@ -13,7 +14,16 @@ import { Dialog } from "@/components/ui/dialog";
 import { ErrorState, PageHeading } from "@/components/ui/feedback";
 
 function date(value: string | null) {
-  return value ? new Date(value).toLocaleString() : "Not recorded";
+  return value
+    ? zonedDateTimeFormat(Intl.DateTimeFormat().resolvedOptions().timeZone, {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(value)
+    : "Not recorded";
 }
 type Action = {
   user: AdminUser;

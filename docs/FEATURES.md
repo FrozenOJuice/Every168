@@ -1,6 +1,6 @@
 # Features
 
-The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows. Current objective (2026-10-30): local Calendar/Fitness portfolio presentation; public deployment is deferred. Preview sections below remain the owner’s reference for retained functionality.
+The project at a glance: what each area has and what needs work. Keep descriptions short and update them as the app grows. Current objective (2026-11-03): normal Calendar/Fitness/Food development on develop; the original portfolio snapshot stays preserved and public deployment is deferred. Preview sections below remain the owner’s reference for retained functionality.
 
 Scope: the whole app, including account access, settings, Calendar, Unscheduled plans, Routines, daily measurements, Fitness, Food and Tasks, Goals, and Admin. The [product scope](SCOPE.md) describes the direction and future phases; feature bullets below describe current functionality.
 
@@ -10,7 +10,7 @@ Scope: the whole app, including account access, settings, Calendar, Unscheduled 
 - Keep notes as short, specific bullets; omit empty Needs work headings. These notes describe gaps and limits for review, not commitments to implement everything listed.
 - When an item is implemented, update the feature bullets and remove or revise its Needs work note.
 
-The default first-release scope is Calendar and Fitness workouts/exercises. Goals, Routines, Unscheduled plans, Calendar Templates, Tasks, Training Programs, Food (including water/weight logging), legacy cardio entry points and Assistant are retained for later. Their entry points and direct pages are disabled, along with deferred domain APIs and Calendar contributions/actions. Existing Calendar reservations and recorded time remain intact. `RELEASE_SCOPE=preview` explicitly enables the retained features; the detailed Templates/Tasks/Training programs/Food/Assistant bullets below describe that preview scope.
+Normal startup includes Calendar, Fitness and Food v1 with water/weight logging. Goals, Routines, Unscheduled plans, Calendar Templates, Tasks, Training Programs, legacy cardio entry points, the legacy aggregate dashboard and Assistant also remain in preview. Their entry points and direct pages are disabled, along with deferred domain APIs and Calendar contributions/actions. Existing Calendar reservations and recorded time remain intact. `RELEASE_SCOPE=preview` explicitly enables the retained features; the detailed Templates/Tasks/Training programs/Assistant bullets below describe that preview scope.
 
 ## Account access
 
@@ -54,7 +54,7 @@ The default first-release scope is Calendar and Fitness workouts/exercises. Goal
 - The Next plan card uses normal plan controls: click to select, double-click or press Enter to edit, and use copy/delete shortcuts or right-click actions.
 - Earlier, Now, and Coming up show the complete timed activity list. The highlighted Next activity also remains in Coming up. Plan cards omit repeated standalone Planned labels; recorded activity retains its identifying details.
 - If workout-completion lookup fails, the Day feed keeps its activity list and offers a retry while withholding unconfirmed Now/Next plan emphasis.
-- Workout activity opens its Fitness session for review or correction. Opening a recorded workout from Calendar’s grid, activity list or completed reservation gives its summary Back to Calendar, restoring the originating date, view and in-app scroll. History remains available through Fitness navigation. Workouts opened from History retain Back to History and its browse context; direct links default to History. In preview scope, Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
+- Workout activity opens its Fitness session for review or correction. Opening a recorded workout from Calendar’s grid, activity list or completed reservation gives its summary Back to Calendar, restoring the originating date, view and in-app scroll. History remains available through Fitness navigation. Workouts opened from History retain Back to History and its browse context; direct links default to History. Food activity opens its local-date Food log. Retained cardio activity stays visible without links to the retired pages.
 - A reservation whose linked scheduled workout is finished stays visible with Workout completed and keeps its planned time. It is omitted from Now/Next emphasis, allowing the next unfinished activity to take priority. Completion follows the linked session even when recorded time falls in another week; unrelated recorded time does not complete a workout reservation. This applies to Calendar and the shared domain Day panels.
 
 #### Week
@@ -355,7 +355,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Navigation and settings
 
-- Main navigation contains Calendar and Fitness on desktop and mobile. Preview scope adds Tasks, Food and Assistant; their code and existing data remain intact while disabled.
+- Main navigation contains Calendar, Fitness and Food on desktop and mobile. Preview scope adds Tasks and Assistant; their code and existing data remain intact while disabled.
 - Food, Fitness and Tasks share the same full-height Calendar-style Day panel on the right, aligned to the top without a domain title bar. The panel shares Calendar’s 350px side-panel width and responsive date typography (20px on desktop, 18px at 700px and below, 13px at 360px and below). Drawers cap at the same width and fit narrower screens. The panel starts with one plain date button matching Calendar and has one full-width outlined Open Calendar navigation button in the footer, with a Calendar icon and forward arrow, without a separate Your day header or repeated date. Today uses Calendar’s shared outlined button style beside the domain/All activities filter. Two-letter weekdays distinguish Tuesday/Thursday and Saturday/Sunday; domain-only empty states name the domain. It includes date/week navigation, domain-only or All activities, next-plan emphasis and a same-date Calendar link. The selected day carries between these workspaces during navigation; explicit date URLs take precedence. At 1150px and below, Day opens the panel as a drawer. Calendar retains its full workspace.
 - The shared Day activity list uses Calendar’s section headings, card typography, spacing and selection styling. Select a timed or all-day plan to reveal Actions for inline editing or deletion; double-click or Enter opens the same Calendar editor. Selection controls sit below the list without shifting cards or adding a separate divided section. Without a selection, available Undo/Redo controls replace the Actions menu and its label. Calendar Undo/Redo and repeating-occurrence scope choices work here too. Removing a reservation preserves reusable workouts and recorded activity; Undo restores the reservation and its links. Recorded activity opens its own domain record. Pending or uncertain changes block day/filter changes, navigation and drawer dismissal until confirmed or retried.
 - Unscheduled and Goals remain accessible by URL outside main navigation. Reusable Routines remain accessible directly; preview scope also exposes them within Tasks.
@@ -457,7 +457,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Daily measurements
 
-- Deferred with Food for the first release. The following logging features are available in preview scope.
+- Available by default alongside Food.
 - Log water or weight through Calendar quick actions, with a date and time.
 - Measurement logs appear as Calendar moments without allocating time.
 
@@ -469,7 +469,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 - Fitness has no toolbar Units button. Choose account-wide weight, distance and duration defaults in Settings; individual measurement fields keep their own unit selectors. Values convert for display without rewriting workouts or discarding recovered edits. Converted duration inputs use up to three decimal places, retaining significant digits for very small nonzero amounts. Explicitly typed precision remains visible and unchanged; display rounding never rewrites the stored seconds. Rest timers and whole-session elapsed time retain clock formatting.
 - My workouts initially shows six saved workouts on wider screens and four at browser widths of 900px and below; Load more workouts appends another page of the same size, and search covers all saved workout titles. Failed pagination or background refresh keeps loaded workout cards visible with an inline retry; retrying pagination appends the missing page without duplicating cards.
-- Fitness has Training, Exercises and History tabs in that order, with active-state navigation retained through exercise details. Training contains active sessions and saved workouts (plus deferred programs in preview scope). Exercises at `/fitness/exercises` owns the searchable library, favourites/hidden filters, custom exercise creation and management; the library is no longer appended beneath My workouts. History contains recorded sessions and permanent weekly totals. All three tabs fit alongside Day at 320px; the old in-page Jump to menu is removed. The shared Day panel remains available across ordinary Fitness views, while the shared workout editor uses the adjacent exercise library.
+- Fitness has Training, Exercises and History tabs in that order, with active-state navigation retained through exercise details. The view bar stays visible while scrolling, below the app header on phones, with larger matching Food/Fitness tab text, a clear active underline and visible keyboard focus. Tabs align with the content; the Day button stays separate. The workout editor keeps its existing header above its independently scrolling panes. Training contains active sessions and saved workouts (plus deferred programs in preview scope). Exercises at `/fitness/exercises` owns the searchable library, favourites/hidden filters, custom exercise creation and management; the library is no longer appended beneath My workouts. History contains recorded sessions and permanent weekly totals. All three tabs fit alongside Day at 320px; the old in-page Jump to menu is removed. The shared Day panel remains available across ordinary Fitness views, while the shared workout editor uses the adjacent exercise library.
 - Exercise details retain the Summary, Live workout, workout editor or Exercises library that opened them. Following a different source workout returns through the same exercise to that original parent; opening a workout or exercise already in the current path returns to its existing visit. Contextual Back controls and browser Back/Forward avoid stacked copies of the same screens. Same-tab refresh retains this account’s return path and editor mode. History/library filters, loaded results, scroll, the exact opening control and recoverable workout drafts return with the view; new interaction takes priority over delayed position restoration. Direct links use safe Fitness return destinations.
 - Fitness-only Day activity includes genuinely linked scheduled workouts and recorded workout/exercise activity. All activities also shows Calendar plans and other domains. Planned activities use Calendar’s selection, inline editor and delete/Undo actions without leaving Fitness; recorded workouts open their session, with unsaved-change protection before leaving.
 - Create/edit a reusable workout or start training in the main area, replacing its default content. Clicking an exercise card opens details. While a workout is open, a separate, always-visible Add to workout button sits below the equipment/muscle information; adding does not open details or hide that information. Exercises can also be added from details, each with an unfinished set. Titles, notes, ordered exercises and targets remain in place.
@@ -646,29 +646,35 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 
 ## Food
 
-- Deferred from the first release, including meals, recipes and water/weight logging. Routes and Calendar contributions are disabled by default, while code, schemas and stored records are retained. The following features remain available in preview scope.
+- Available with normal pnpm dev startup on develop, alongside Calendar and Fitness. Food navigation, APIs, Calendar contributions and water/weight quick actions are enabled without a preview switch.
 
-### Workspace and library
+### Today and Library
 
-- Open Food from main navigation. Daily log is the default; Food library, Saved meals, Recipes and History share compact navigation above the main workspace. Daily nutrition comes first, with up to four favourite shortcuts, the detailed log, and water/weight below.
+- Open Food on Today: a prominent calories card followed by equally readable protein, carbohydrates, fat and fibre cards, a chronological food log, and secondary water/weight tools. The four nutrient cards share a row on desktop and form a two-column grid on phones; fibre shows consumed grams. Nutrition remains visible on empty days; missing and partially known values are identified. Search past entries retains a return action and the selected day for copying.
+- Library is the second main destination, with Foods, Recipes and Saved Meals sections. Foods search shows shared catalogue matches alongside private foods using the backend; recipes and meals retain their creation, search and filtering. The two main tabs retain the sticky bar and separate mobile Day button.
 - The shared domain day panel sits on the right and uses Calendar’s date picker and activity cards. Choose a day using the week strip, date picker, previous/next or Today; the selected local date stays in the URL across Food views and carries into Fitness. Narrower screens open the same day view through the Day button.
 - Switch the panel between Food (food, water and weight records) and All activities (Calendar plans and recorded activity across domains). It highlights Calendar’s next activity and opens the full Calendar on the same date. Food records open their entry editor; water/weight records return to their daily section. Domain activity and its accounting record remain one activity.
-- Library Favourites and Archived use explicit toggle buttons with visible selected states.
+- Library Favourites and Archived use explicit toggle buttons with visible selected states for user-owned definitions. Catalogue foods stay read-only and separate from personal definitions.
+- Search the shared PostgreSQL CNF 2026 catalogue from Library, logging and ingredient selection. It contains 5,993 reference foods with names, source/release/code, bounded English/French/alias search and nutrition previews. Selection references the shared food directly; it creates no personal copy. An explicit idempotent import command loads the catalogue in batches; normal startup does not seed it.
+- Catalogue calories/protein/carbohydrates/fat/fibre use the verified 100 g edible-food basis, including liquids. Enter grams or an available source-defined portion with its actual gram weight. Refuse/yield records are excluded from usable portions. All 173 source nutrient definitions and available values are retained in PostgreSQL for future use. Missing remains unknown, including absent nutrient rows; zero remains zero. Searches stay local, with source/licence attribution in the catalogue.
 - Create private foods with a serving amount in grams, millilitres, items or servings. Calories, protein, carbs, fat and fibre are optional per-serving values; blank means unknown and zero remains zero.
 - Search foods, meals and recipes; favourite entries, filter favourites, and browse paginated results. Edit definitions or archive/restore them. Archived items remain in history and existing preparation snapshots, but cannot be newly selected for logging or ingredients.
-- Changes to library definitions never rewrite logged nutrition. Forms validate entered values, protect unsaved changes, retain uncertain-save payloads for same-key retry, and refuse stale writes.
+- Changes to library definitions never rewrite logged nutrition. Forms validate entered values, protect unsaved changes and refuse stale writes. Submitted Food, preparation, log, nutrition target and water/weight changes retain their exact input, request key and revision in account-scoped storage for this browser tab. Refresh restores a retry before another save; pending or uncertain changes block closing their editor or navigating away. Storage failure prevents sending an unrecoverable change.
+- Library, food history, ingredient pickers and measurement history retain loaded rows during later-page or background refresh failures, with a retry for the failed read. Search and selected ingredients stay in place.
 
 ### Saved meals and recipes
 
 - Create a saved meal by combining foods and recipes for one meal. Set each component’s serving quantity, reorder/remove ingredients, and add optional notes. Preparations contain up to 50 ingredient rows.
 - Create a recipe from food ingredients with their quantities, optional instructions and a yield of 1–1,000 portions. Review ingredients and nutrition per portion in the library.
 - Nutrition is calculated by the backend from ingredient snapshots and recipe yield. A nutrient remains unknown for a preparation if any ingredient’s value is missing; known values are never presented as a complete recipe total.
-- Saving edits refreshes ingredients from their current owned active definitions. Existing preparations and logged portions stay independent of later ingredient changes.
+- Saving edits refreshes ingredients from their current active owned definitions or shared catalogue references. Existing preparations and logged portions stay independent of later ingredient changes.
 - Log a saved meal or recipe in one action. Adjust the number of portions and, optionally, individual ingredient quantities for that entry. Adjustments preserve the saved definition; recipe ingredient adjustments describe the full batch before portion scaling. A changed source revision requires reviewing the latest definition before logging.
 
 ### Daily logging and review
 
-- Record a food, saved meal or recipe at a chosen date/time with a serving multiplier and optional Breakfast/Lunch/Dinner/Snack label. No label is also supported.
+- Use Today’s Targets action to edit independently optional daily calories, protein, carbohydrates and fat in the main workspace. Energy and Macronutrients group the fields, with explicit Save, Cancel and Back to Today actions. The selected date and shared Day panel remain available; leaving changed targets requires confirmation. Each open draft retains its original revision through background refreshes. Edit or clear each target explicitly. Consumed totals and progress retain accurate amounts over the target; incomplete nutrition is labelled partial. Targets are user-defined, without recommended defaults. Revision checks and exact-write recovery apply.
+- Record a catalogue food, custom food, saved meal or recipe at a chosen date/time. Catalogue amounts support grams/source portions; owned foods retain serving multipliers. Entries appear together chronologically with editable optional meal labels.
+- Log food offers favourite shortcuts and up to four distinct recently logged choices alongside search. Favourites use the current definition; recent choices retain their original snapshot and portion, with editable time/quantity/meal before saving.
 - Quick entry records a name, portion and optional nutrition without adding a library food. Create a library food from the logging flow when it should be reusable.
 - Review the day’s entries and daily calories/macronutrients/fibre. Totals use the account timezone, including clock-change days. Missing nutrients remain unknown, and partial totals identify entries with missing values.
 - Expand an entry to see its recorded nutrition and component portions. Logging a preparation creates one recorded Calendar moment and no duration; Calendar links back to the Food log.
@@ -681,14 +687,17 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Log weight in the preferred kg/lb unit, review the latest measurement through the selected day and its 30-day trend, and edit/delete or browse paginated history. Missing days do not become zero measurements.
 - Water and weight use the existing shared services and Calendar activity. Backdated quick water logs use local noon; today’s use the current time.
 
+#### Needs work
+
+- The owner prefers water as a lightweight diary shortcut; the retained water panel can be simplified in a later pass. Pop and other drinks use ordinary food entries. Weight’s longer-term placement within Food or a Body area remains undecided.
+
 ### Needs work
 
-- Meal planning, shopping lists, custom nutrition targets and nutrition trends beyond daily totals belong to the next pass.
-- Barcode scanning, external food lookup, pantry inventory and AI are not available.
+- Planner (daily/weekly meals) and Groceries (grocery lists) are subsequent phases and have no inactive screens in this phase.
+- Trends beyond daily totals are not available.
+- Catalogue favourites are not available; existing favourites apply to personal foods/meals/recipes. Source portions lacking a description are shown by their CNF measure code. Catalogue search shows English descriptions, with French names/aliases searchable. Inferred volume conversions, automatic source updates, barcode scanning, other providers, pantry and AI remain unavailable.
 - Recipes use foods; meals can use foods and recipes. Nested recipes and meals within meals are not supported; gram-to-millilitre conversion is not inferred.
 - Edits use explicit saves and discard protection; unsaved Food forms do not recover after refresh. Historical entry corrections change amount/time/label; replace an incorrect food by deleting and logging it again.
-- Submitted Food saves also lose their retry receipt on refresh. A desktop/phone review reproduced a committed food creation followed by a lost response, refresh and manual re-entry producing a duplicate. Pending and uncertain inline actions need navigation/recovery protection as well.
-- Food library, food history, ingredient pickers and measurement histories need to keep loaded results visible when pagination or background refresh fails; source review found their general error state currently replaces the list.
 
 ## Admin
 
@@ -743,7 +752,7 @@ Calendar shortcuts leave normal typing and text-field shortcuts available while 
 - Supported saves retain their request when a response is uncertain so retrying does not create duplicate records.
 - Conflicting edits are rejected instead of silently overwriting a newer saved version.
 - Confirmation actions and template renaming use shared styled dialogs across domains. Unsaved in-app navigation offers Discard changes / Keep editing, preserves the destination and browser history, and blocks pending writes. Refresh/tab closing never registers a native warning; existing recovery remains where supported. Task/Food forms without recovery may lose unsaved edits on refresh. Native alert/confirm/prompt calls are disallowed by lint.
-- Dates and local-day summaries follow the account timezone, including daylight-saving changes. Passive timezone-name labels are omitted across summaries, scheduling, Calendar and logging forms; functional timezone settings remain available. Detailed timestamps retain clock-change disambiguation.
+- Dates, clock labels, recurrence and local-day summaries use the same pinned IANA timezone rules in the API and browser, including daylight-saving and regional rule changes. Calendar dragging and saved positions agree with those clock times. Passive timezone-name labels are omitted across summaries, scheduling, Calendar and logging forms; functional timezone settings remain available. Detailed timestamps retain clock-change disambiguation.
 
 ### Assistant preview
 

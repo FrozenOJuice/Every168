@@ -1,5 +1,6 @@
 import {
   pgTable,
+  integer,
   boolean,
   jsonb,
   text,
@@ -15,12 +16,15 @@ import {
   ownedColumns,
   instant,
 } from "../../infrastructure/database/columns.js";
-import type { IngredientSnapshot } from "@168hours/contracts";
+import { catalogueFoods } from "./catalogue.table.js";
+import { user } from "../identity/identity.table.js";
+import type { IngredientSnapshot, FoodSource } from "@168hours/contracts";
 export const foods = pgTable(
   "foods",
   {
     ...ownedColumns(),
     name: text("name").notNull(),
+    source: jsonb("source").$type<FoodSource>(),
     servingAmount: doublePrecision("serving_amount").notNull(),
     servingUnit: text("serving_unit", {
       enum: ["g", "ml", "item", "serving"],
@@ -69,12 +73,14 @@ export const foodEntries = pgTable(
   {
     ...ownedColumns(),
     foodId: uuid("food_id"),
+    catalogueId: uuid("catalogue_id").references(() => catalogueFoods.id),
     consumedAt: instant("consumed_at").notNull(),
     quantity: doublePrecision("quantity").notNull(),
     mealType: text("meal_type", {
       enum: ["breakfast", "lunch", "dinner", "snack", "other"],
     }).notNull(),
     nameSnapshot: text("name_snapshot").notNull(),
+    sourceSnapshot: jsonb("source_snapshot").$type<FoodSource>(),
     servingAmountSnapshot: doublePrecision("serving_amount_snapshot").notNull(),
     servingUnitSnapshot: text("serving_unit_snapshot").notNull(),
     caloriesSnapshot: doublePrecision("calories_snapshot"),
@@ -94,6 +100,10 @@ export const foodEntries = pgTable(
     fiberGSnapshot: doublePrecision("fiber_g_snapshot"),
   },
   (t) => [
+    check(
+      "food_reference_exclusive",
+      sql`${t.foodId} is null or ${t.catalogueId} is null`,
+    ),
     check(
       "food_entry_preparation_bounds",
       sql`${t.kindSnapshot} in ('food','meal','recipe') and ${t.yieldServingsSnapshot} between 1 and 1000 and jsonb_typeof(${t.ingredientsSnapshot})='array' and jsonb_array_length(${t.ingredientsSnapshot})<=50`,
@@ -117,5 +127,25 @@ export const foodEntries = pgTable(
       foreignColumns: [foods.userId, foods.id],
     }),
     check("food_entry_positive_quantity", sql`${t.quantity}>0`),
+  ],
+);
+
+export const nutritionGoals = pgTable(
+  "nutrition_goals",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    version: integer("version").notNull().default(2),
+    calories: doublePrecision("calories"),
+    proteinG: doublePrecision("protein_g"),
+    carbsG: doublePrecision("carbs_g"),
+    fatG: doublePrecision("fat_g"),
+  },
+  (t) => [
+    check(
+      "nutrition_goals_bounds",
+      sql`${t.version}>0 and ${t.calories}>0 and ${t.calories}<=100000 and ${t.proteinG}>0 and ${t.proteinG}<=100000 and ${t.carbsG}>0 and ${t.carbsG}<=100000 and ${t.fatG}>0 and ${t.fatG}<=100000`,
+    ),
   ],
 );

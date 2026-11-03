@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { FitnessConfirm } from "./fitness-confirm";
 import { useWorkoutStart } from "./active-workouts";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
@@ -148,8 +149,7 @@ function ProgramDetail({ program: p }: { program: TrainingProgram }) {
           <p>
             Scheduled:{" "}
             <Link href={`/?date=${p.next.suggestedDate}&view=day`}>
-              {new Intl.DateTimeFormat("en", {
-                timeZone: timezone,
+              {zonedDateTimeFormat(timezone, {
                 dateStyle: "medium",
                 timeStyle: "short",
               }).format(new Date(p.next.block.startsAt))}

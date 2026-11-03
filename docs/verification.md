@@ -2,6 +2,8 @@
 
 Every168 uses the existing private workspace package names and isolated test databases. For the identity assets and compatibility decisions, see the [brand guide](BRAND.md). The core browser and production-web configurations include the branding regression across account access, metadata/icons and the authenticated shell. `pnpm portfolio:capture` verifies visible identity while recreating genuine synthetic-data screenshots.
 
+The normal/default gate includes Calendar, Fitness and Food and asserts that unrelated deferred workspaces/APIs remain unavailable. The separate `pnpm test:e2e:food` gate covers Food catalogue/targets, library/preparations, daily logging, measurements, interrupted-save recovery, shared Day navigation and responsive navigation. CI runs this gate in the same default scope after the main browser checks, sequentially against isolated test services. The broader preview suite also exercises the retained deferred features.
+
 ## Automated commands
 
 From the repository root, after following README setup:

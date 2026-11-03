@@ -3,6 +3,8 @@ import type { WritesService } from "../../infrastructure/writes/writes.service.j
 import { Router } from "express";
 import {
   foodInput,
+  catalogueQuery,
+  nutritionGoalsInput,
   preparationInput,
   quickFoodInput,
   foodFavouriteInput,
@@ -17,6 +19,22 @@ import { currentUser } from "../../shared/auth/middleware.js";
 import type { NutritionService } from "./nutrition.service.js";
 export function nutritionRoutes(s: NutritionService, writes: WritesService) {
   const r = Router();
+  r.get("/food-catalogue", async (req, res) =>
+    res.json(await s.searchCatalogue(catalogueQuery.parse(req.query))),
+  );
+  r.get("/nutrition-goals", async (req, res) =>
+    res.json(await s.getGoals(currentUser(res).id)),
+  );
+  r.put(
+    "/nutrition-goals",
+    mutation(
+      writes,
+      nutritionGoalsInput,
+      ({ userId, input, version, context }) =>
+        s.saveGoals(userId, input, version, context),
+      { versioned: true },
+    ),
+  );
   r.get("/foods", async (req, res) =>
     res.json(
       await s.listFoods(currentUser(res).id, libraryQuery.parse(req.query)),

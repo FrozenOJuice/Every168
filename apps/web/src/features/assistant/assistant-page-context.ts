@@ -23,10 +23,10 @@ function usePageLabel() {
   if (path === "/food") {
     const views: Record<string, string> = {
       day: "Daily log",
-      food: "Food library",
+      food: "Foods & drinks",
       meal: "Saved meals",
       recipe: "Recipes",
-      history: "History",
+      history: "Search past entries",
     };
     return {
       page: `Food · ${views[params.get("view") ?? "day"] ?? "Daily log"}`,

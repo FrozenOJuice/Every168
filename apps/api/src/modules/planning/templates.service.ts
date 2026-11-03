@@ -80,7 +80,7 @@ export function templatesService(
       from,
       to,
       selectedDates,
-      prefs.timezone,
+      selectedDates?.map((date) => dayRange(date, prefs.timezone)),
       ctx,
     );
     if (rows.blocks.length + rows.items.length > 100)

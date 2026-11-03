@@ -1,3 +1,4 @@
+import { AppError, found } from "../../shared/errors/app-error.js";
 import type { NutritionTotals } from "@168hours/contracts";
 import { mealType } from "@168hours/contracts";
 type Snapshot = {
@@ -59,4 +60,36 @@ export function preparationNutrients(
     fatG: total("fatG"),
     fiberG: total("fiberG"),
   };
+}
+
+/** Convert only documented gram weights; the result is a multiplier of the captured basis. */
+export function catalogueQuantity(
+  amount: number,
+  portionId: string | undefined,
+  food: Pick<
+    import("@168hours/contracts").CatalogueFood,
+    "servingAmount" | "servingUnit" | "portions"
+  >,
+) {
+  let result = amount;
+  if (portionId) {
+    if (food.servingUnit !== "g")
+      throw new AppError(
+        422,
+        "BUSINESS_RULE",
+        "This food does not support gram portions.",
+      );
+    const grams =
+      portionId === "g"
+        ? 1
+        : found(food.portions.find((p) => p.id === portionId)).grams;
+    result = (amount * grams) / food.servingAmount;
+  }
+  if (!Number.isFinite(result) || result <= 0 || result > 1000)
+    throw new AppError(
+      422,
+      "BUSINESS_RULE",
+      "Choose an amount up to 1,000 reference servings.",
+    );
+  return result;
 }

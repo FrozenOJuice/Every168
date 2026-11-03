@@ -1,10 +1,14 @@
 import {
   CALENDAR_ACTIVITY_LIMIT,
+  type CatalogueFood,
+  type NutritionGoalsInput,
+  type IngredientSnapshot,
+  type CatalogueQuery,
+  type FoodSource,
   foodInput,
   preparationInput,
   type PreparationInput,
   type QuickFoodInput,
-  type IngredientSnapshot,
   type CalendarContribution,
 } from "@168hours/contracts";
 import { localDate } from "@168hours/domain-utils";
@@ -24,17 +28,21 @@ import { found, AppError } from "../../shared/errors/app-error.js";
 import type { IdentityService } from "../identity/identity.service.js";
 import type { nutritionRepository } from "./nutrition.repository.js";
 import {
+  catalogueQuantity,
   nutritionTotals,
   preparationNutrients,
   entryDetail,
   mealSummaries,
 } from "./nutrition.calculations.js";
+import type { catalogueRepository } from "./catalogue.repository.js";
 export function nutritionService(
   repo: ReturnType<typeof nutritionRepository>,
   identity: IdentityService,
   runInTransaction: RunInTransaction,
+  catalogue: ReturnType<typeof catalogueRepository>,
 ) {
   const snapshot = (food: {
+    source?: FoodSource | null;
     name: string;
     servingAmount: number;
     servingUnit: string;
@@ -44,6 +52,7 @@ export function nutritionService(
     fatG: number | null;
     fiberG: number | null;
   }) => ({
+    sourceSnapshot: food.source ?? null,
     nameSnapshot: food.name,
     servingAmountSnapshot: food.servingAmount,
     servingUnitSnapshot: food.servingUnit,
@@ -53,6 +62,46 @@ export function nutritionService(
     fatGSnapshot: food.fatG,
     fiberGSnapshot: food.fiberG,
   });
+  async function resolve(
+    u: string,
+    ref: { foodId?: string; catalogueId?: string },
+    context?: TransactionContext,
+  ) {
+    if (ref.catalogueId) {
+      const f = found(await catalogue.get(ref.catalogueId, context));
+      return {
+        ...f,
+        foodId: null,
+        catalogueId: f.id,
+        servingAmount: f.basisAmount,
+        servingUnit: f.basisUnit as "g" | "ml",
+        kind: "food" as const,
+        ingredients: [] as IngredientSnapshot[],
+        yieldServings: 1,
+        archivedAt: null,
+        source: {
+          provider: f.provider,
+          release: f.release,
+          code: f.code,
+          name: f.name,
+          modified: false,
+        },
+      };
+    }
+    const f = found(await repo.getFood(u, ref.foodId!, context));
+    return { ...f, foodId: f.id, catalogueId: null };
+  }
+  function quantity(
+    v: { quantity: number; portionId?: string; catalogueId?: string },
+    f: Awaited<ReturnType<typeof resolve>>,
+  ) {
+    if (!v.catalogueId) return v.quantity;
+    if (!("portions" in f))
+      throw new AppError(422, "BUSINESS_RULE", "Choose a catalogue food.");
+    return catalogueQuantity(v.quantity, v.portionId, f);
+  }
+  const referenceKey = (ref: { foodId?: string; catalogueId?: string }) =>
+    ref.catalogueId ? `catalogue:${ref.catalogueId}` : `owned:${ref.foodId}`;
   async function prepare(
     u: string,
     input: PreparationInput,
@@ -60,18 +109,17 @@ export function nutritionService(
     ownId?: string,
   ) {
     const v = preparationInput.parse(input);
-    const definitions = new Map<
-      string,
-      Awaited<ReturnType<typeof repo.getFood>>
-    >();
-    for (const id of [...new Set(v.ingredients.map((i) => i.foodId))].sort()) {
-      if (id === ownId)
+    const definitions = new Map<string, Awaited<ReturnType<typeof resolve>>>();
+    for (const i of [...v.ingredients].sort((a, b) =>
+      (a.foodId ?? a.catalogueId!).localeCompare(b.foodId ?? b.catalogueId!),
+    )) {
+      if (i.foodId === ownId && ownId)
         throw new AppError(
           422,
           "BUSINESS_RULE",
           "A preparation cannot include itself.",
         );
-      const food = found(await repo.getFood(u, id, context));
+      const food = await resolve(u, i, context);
       if (
         food.archivedAt ||
         food.kind === "meal" ||
@@ -82,10 +130,10 @@ export function nutritionService(
           "BUSINESS_RULE",
           "Recipes use active foods. Saved meals can use active foods and recipes.",
         );
-      definitions.set(id, food);
+      definitions.set(referenceKey(i), food);
     }
     const ingredients: IngredientSnapshot[] = v.ingredients.map((i) => {
-      const f = found(definitions.get(i.foodId));
+      const f = found(definitions.get(referenceKey(i)));
       return {
         ...foodInput.omit({ favourite: true }).parse({
           name: f.name,
@@ -97,7 +145,10 @@ export function nutritionService(
           fatG: f.fatG,
           fiberG: f.fiberG,
         }),
-        ...i,
+        foodId: f.foodId,
+        catalogueId: f.catalogueId,
+        source: f.source,
+        quantity: quantity(i, f),
       };
     });
     return {
@@ -143,6 +194,17 @@ export function nutritionService(
         })),
       };
     },
+    async searchCatalogue(q: CatalogueQuery) {
+      const result = await catalogue.search(q);
+      return { ...result, items: result.items.map(catalogueDto) };
+    },
+    getGoals: repo.getGoals,
+    saveGoals: (
+      u: string,
+      v: NutritionGoalsInput,
+      version: number,
+      context?: TransactionContext,
+    ) => repo.saveGoals(u, v, version, context),
     platformUsage: repo.platformUsage,
     listFoods: repo.listFoods,
     async getFood(u: string, id: string) {
@@ -210,7 +272,20 @@ export function nutritionService(
           "BUSINESS_RULE",
           "Edit the ingredients of this saved meal or recipe instead.",
         );
-      return found(await repo.updateFood(u, id, v, version, context));
+      return found(
+        await repo.updateFood(
+          u,
+          id,
+          {
+            ...v,
+            source: previous.source
+              ? { ...previous.source, modified: true }
+              : null,
+          },
+          version,
+          context,
+        ),
+      );
     },
     async archiveFood(
       u: string,
@@ -250,7 +325,7 @@ export function nutritionService(
     },
     async logFood(u: string, v: FoodEntryInput, context?: TransactionContext) {
       return runInTransaction(async (scope) => {
-        const food = found(await repo.getFood(u, v.foodId, scope));
+        const food = await resolve(u, v, scope);
         if (food.archivedAt)
           throw new AppError(
             422,
@@ -258,9 +333,10 @@ export function nutritionService(
             "This food is archived. Choose an active food.",
           );
         if (
-          v.ingredientQuantities &&
+          ("ingredientQuantities" in v ? v.ingredientQuantities : undefined) &&
           (food.kind === "food" ||
-            v.ingredientQuantities.length !== food.ingredients.length)
+            ("ingredientQuantities" in v ? v.ingredientQuantities : undefined)!
+              .length !== food.ingredients.length)
         )
           throw new AppError(
             422,
@@ -270,9 +346,14 @@ export function nutritionService(
         if (v.foodVersion !== undefined) assertRevision(food, v.foodVersion);
         const ingredients = food.ingredients.map((i, index) => ({
           ...i,
-          quantity: v.ingredientQuantities?.[index] ?? i.quantity,
+          quantity:
+            ("ingredientQuantities" in v
+              ? v.ingredientQuantities
+              : undefined)?.[index] ?? i.quantity,
         }));
-        const nutrients = v.ingredientQuantities
+        const nutrients = (
+          "ingredientQuantities" in v ? v.ingredientQuantities : undefined
+        )
           ? preparationNutrients(ingredients, food.yieldServings)
           : food;
         // Bound adjusted nutrition with the same public food rules.
@@ -289,10 +370,11 @@ export function nutritionService(
         return repo.createEntry(
           u,
           {
-            ...snapshot(adjusted),
-            foodId: food.id,
+            ...snapshot({ ...adjusted, source: food.source }),
+            foodId: food.foodId,
+            catalogueId: food.catalogueId,
             consumedAt: new Date(v.consumedAt),
-            quantity: v.quantity,
+            quantity: quantity(v, food),
             mealType: v.mealType,
             kindSnapshot: food.kind,
             ingredientsSnapshot: ingredients,
@@ -312,7 +394,9 @@ export function nutritionService(
       return repo.createEntry(
         u,
         {
+          sourceSnapshot: e.sourceSnapshot,
           foodId: e.foodId,
+          catalogueId: e.catalogueId,
           kindSnapshot: e.kindSnapshot,
           ingredientsSnapshot: e.ingredientsSnapshot,
           yieldServingsSnapshot: e.yieldServingsSnapshot,
@@ -368,3 +452,27 @@ export function nutritionService(
   };
 }
 export type NutritionService = ReturnType<typeof nutritionService>;
+
+function catalogueDto(
+  f: Awaited<ReturnType<ReturnType<typeof catalogueRepository>["get"]>>,
+): CatalogueFood {
+  if (!f) throw new Error("Missing catalogue row");
+  return {
+    id: f.id,
+    version: f.version,
+    provider: f.provider,
+    release: f.release,
+    code: f.code,
+    name: f.name,
+    nameFr: f.nameFr,
+    updatedAt: f.sourceUpdatedAt,
+    servingAmount: f.basisAmount,
+    servingUnit: f.basisUnit as "g" | "ml",
+    calories: f.calories,
+    proteinG: f.proteinG,
+    carbsG: f.carbsG,
+    fatG: f.fatG,
+    fiberG: f.fiberG,
+    portions: f.portions,
+  };
+}

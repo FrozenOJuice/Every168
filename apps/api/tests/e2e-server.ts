@@ -1,5 +1,9 @@
 import express from "express";
-import { authInput, authUserSchema } from "@168hours/contracts";
+import {
+  authInput,
+  authUserSchema,
+  releaseFeatures,
+} from "@168hours/contracts";
 import { createApp } from "../src/app.js";
 import type { AccountEmail } from "../src/infrastructure/email/delivery.js";
 import "dotenv/config";
@@ -34,6 +38,12 @@ const deps = compose(
   },
 );
 await migrate(deps.db, { migrationsFolder: "./drizzle" });
+// Explicit catalogue fixture provisioning only in the isolated test executable.
+if (releaseFeatures(deps.config.RELEASE_SCOPE).food) {
+  const { importCnf, readCnfDataset } =
+    await import("../src/modules/nutrition/catalogue-import.repository.js");
+  await importCnf(deps.db, await readCnfDataset());
+}
 // Fixture provisioning is part of the isolated test executable only, never createApp.
 const app = express();
 app.use("/api/__test", express.json({ limit: "256kb", inflate: false }));

@@ -1,5 +1,5 @@
 import { CALENDAR_ACTIVITY_LIMIT } from "@168hours/contracts";
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { changed } from "../../shared/errors/revision.js";
 import { databaseFor } from "../../infrastructure/database/transactions.js";
 import type { TransactionContext } from "../../shared/transactions.js";
@@ -24,13 +24,62 @@ import {
   cursorCondition,
   pageResult,
 } from "../../infrastructure/database/pagination.js";
-import { foods, foodEntries } from "./nutrition.table.js";
+import type { NutritionGoalsInput } from "@168hours/contracts";
+import { staleRevision } from "../../shared/errors/revision.js";
+import { foods, foodEntries, nutritionGoals } from "./nutrition.table.js";
 export function nutritionRepository(db: Database) {
   const foodOwner = (u: string, id: string) =>
     and(eq(foods.userId, u), eq(foods.id, id));
   const entryOwner = (u: string, id: string) =>
     and(eq(foodEntries.userId, u), eq(foodEntries.id, id));
   return {
+    async getGoals(u: string, context?: TransactionContext) {
+      return (
+        (
+          await databaseFor(db, context)
+            .select()
+            .from(nutritionGoals)
+            .where(eq(nutritionGoals.userId, u))
+        )[0] ?? {
+          version: 1,
+          calories: null,
+          proteinG: null,
+          carbsG: null,
+          fatG: null,
+        }
+      );
+    },
+    async saveGoals(
+      u: string,
+      values: NutritionGoalsInput,
+      version: number,
+      context?: TransactionContext,
+    ) {
+      const scope = databaseFor(db, context);
+      const row =
+        version === 1
+          ? (
+              await scope
+                .insert(nutritionGoals)
+                .values({ ...values, userId: u, version: 2 })
+                .onConflictDoNothing()
+                .returning()
+            )[0]
+          : (
+              await scope
+                .update(nutritionGoals)
+                .set({ ...values, version: sql`${nutritionGoals.version}+1` })
+                .where(
+                  and(
+                    eq(nutritionGoals.userId, u),
+                    eq(nutritionGoals.version, version),
+                  ),
+                )
+                .returning()
+            )[0];
+      if (!row) throw staleRevision();
+      return row;
+    },
     activityRange: (u: string, start: string, end: string) =>
       db
         .select()

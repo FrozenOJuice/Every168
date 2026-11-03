@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-test("first release exposes Calendar and Fitness without deferred entry points", async ({
+test("normal scope exposes Calendar, Fitness and Food while unfinished areas stay unavailable", async ({
   page,
 }, info) => {
   test.skip(
@@ -26,11 +26,10 @@ test("first release exposes Calendar and Fitness without deferred entry points",
   await expect(navigation.getByRole("link")).toHaveText([
     "Calendar",
     "Fitness",
+    "Food",
   ]);
   await expect(page.locator(".assistant-launcher")).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: /^Quick actions on/ }),
-  ).toHaveCount(0);
+  await expect(page.locator(".slot-quick-add")).toHaveCount(24);
   await page
     .locator(".calendar-toolbar")
     .getByRole("button", { name: "Actions", exact: true })
@@ -40,10 +39,7 @@ test("first release exposes Calendar and Fitness without deferred entry points",
   ).toHaveCount(0);
   await expect(
     page.getByRole("menuitem", { name: /Quick actions/ }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("menuitem", { name: "Templates…", exact: true }),
-  ).toHaveCount(0);
+  ).toBeVisible();
   await page.keyboard.press("Escape");
   await navigation.getByRole("link", { name: "Fitness", exact: true }).click();
   await expect(
@@ -75,9 +71,25 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     path: info.outputPath("release-navigation.png"),
     fullPage: true,
   });
+  await navigation.getByRole("link", { name: "Food", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Daily nutrition", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Food navigation", exact: true })
+      .getByRole("link"),
+  ).toHaveText(["Today", "Library"]);
+  for (const resource of [
+    "foods",
+    "food-catalogue?search=oats",
+    "nutrition-goals",
+    "nutrition/daily?date=2026-10-27",
+    "water-entries",
+    "weight-entries",
+  ])
+    expect((await page.request.get(`/api/v1/${resource}`)).status()).toBe(200);
   for (const path of [
-    "/food",
-    "/food?view=recipe",
     "/assistant",
     "/goals",
     "/routines",
@@ -97,10 +109,6 @@ test("first release exposes Calendar and Fitness without deferred entry points",
     await expect(page.locator(".assistant-launcher")).toHaveCount(0);
   }
   for (const path of [
-    "foods",
-    "food-entries",
-    "water-entries",
-    "weight-entries",
     "dashboard",
     "tasks?date=2026-10-27&view=all",
     "task-projects",

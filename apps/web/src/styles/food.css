@@ -347,3 +347,256 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.food-log-tools,
+.food-log-date,
+.food-log-actions,
+.food-sections {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.food-log-tools {
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 12px;
+}
+.food-log-date {
+  gap: 4px;
+}
+.food-log-date > .button,
+.food-log-date > .text-button {
+  font-size: 0.875rem;
+  padding-inline: 8px;
+}
+.food-saved-area > div:first-child h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+  margin: 0 0 6px;
+}
+.food-saved-area > div:first-child p {
+  margin: 0;
+}
+.food-sections a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 0.875rem;
+}
+.food-sections a[aria-current="page"] {
+  background: var(--muted);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 650;
+}
+.food-meal-groups {
+  display: grid;
+  gap: 24px;
+}
+.food-meal-group > .row {
+  margin-bottom: 12px;
+}
+.food-meal-group > .row h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.food-meal-group > .food-entry-list {
+  margin: 0;
+}
+.food-log-tools > .text-button {
+  min-height: 44px;
+}
+.food-recent h3 {
+  font-size: 0.9rem;
+  margin: 0 0 8px;
+}
+.food-recent > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.food-recent .button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+.food-recent small {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.food-recent strong {
+  overflow-wrap: anywhere;
+}
+.dialog .food-favourites {
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .food-section-heading {
+    flex-wrap: wrap;
+  }
+  .food-recent > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.food-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.food-nutrition-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.food-nutrition-metric h3 {
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.food-progress-grid h3,
+.food-progress-grid p {
+  margin: 0;
+}
+.food-consumed {
+  font-variant-numeric: tabular-nums;
+}
+.food-consumed strong {
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.food-consumed span {
+  font-size: 0.875rem;
+}
+.food-calories {
+  grid-column: 1 / -1;
+  padding: 20px;
+}
+.food-calories .food-consumed strong {
+  font-size: 2.25rem;
+}
+.food-target-caption,
+.food-nutrition-incomplete {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+.food-nutrition-incomplete {
+  line-height: 1.5;
+}
+.food-progress-grid progress {
+  width: 100%;
+  accent-color: var(--primary);
+  appearance: none;
+  border: 0;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--muted);
+}
+.food-progress-grid progress::-webkit-progress-bar {
+  background: var(--muted);
+  border-radius: 4px;
+}
+.food-progress-grid progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 4px;
+}
+.food-progress-grid progress::-moz-progress-bar {
+  background: var(--primary);
+  border-radius: 4px;
+}
+.food-measurements {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.food-target-editor {
+  max-width: 760px;
+  margin-inline: auto;
+  gap: 24px;
+}
+.food-editor-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  align-self: flex-start;
+  font-size: 0.875rem;
+  color: var(--primary);
+}
+.food-target-editor .page-heading {
+  margin: 0;
+}
+.food-target-editor .page-heading h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+.food-target-editor .page-heading p {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+.food-target-group {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.food-target-group h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+.food-target-group > .field {
+  max-width: 260px;
+}
+.food-target-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.food-target-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+@media (max-width: 600px) {
+  .food-progress-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .food-nutrition-metric {
+    padding: 14px;
+  }
+  .food-calories {
+    padding: 18px;
+  }
+  .food-target-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .food-target-group > .field {
+    max-width: none;
+  }
+  .food-target-group {
+    padding: 16px;
+  }
+}
+
+.food-daily-section > .food-empty {
+  margin-top: 24px;
+}

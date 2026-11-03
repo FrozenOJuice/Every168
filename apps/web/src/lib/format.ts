@@ -1,5 +1,6 @@
 import {
   instantToLocalInput,
+  zonedDateTimeFormat,
   localInputToInstant,
 } from "@168hours/domain-utils";
 import { z } from "zod";
@@ -15,8 +16,7 @@ export function hours(seconds: number) {
   );
 }
 export function formatTime(value: string, timezone: string, showZone = false) {
-  return new Intl.DateTimeFormat("en", {
-    timeZone: timezone,
+  return zonedDateTimeFormat(timezone, {
     hour: "numeric",
     minute: "2-digit",
     ...(showZone ? { timeZoneName: "short" as const } : {}),

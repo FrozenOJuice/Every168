@@ -1,10 +1,15 @@
 "use client";
+import { useFoodWritePending } from "./food-write-provider";
 import { useState } from "react";
 import { useFieldArray } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { preparationInput, type Food } from "@168hours/contracts";
+import {
+  preparationInput,
+  type CatalogueFood,
+  type Food,
+} from "@168hours/contracts";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
-import { api } from "@/lib/api";
+import { foodApi as api } from "./food-write-recovery";
 import { FoodPicker } from "./food-picker";
 import { invalidateFood, useFoodDirty } from "./food-shared";
 export function PreparationEditor({
@@ -21,8 +26,13 @@ export function PreparationEditor({
     kind,
     ingredients:
       item?.ingredients.map((i) => ({
-        foodId: i.foodId,
-        quantity: i.quantity,
+        ...(i.catalogueId
+          ? {
+              catalogueId: i.catalogueId,
+              portionId: "g",
+              quantity: i.quantity * i.servingAmount,
+            }
+          : { foodId: i.foodId!, quantity: i.quantity }),
       })) ?? [],
     yieldServings: item?.yieldServings ?? 1,
     instructions: item?.instructions ?? null,
@@ -35,16 +45,21 @@ export function PreparationEditor({
   const [labels, setLabels] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       (item?.ingredients ?? []).map((i) => [
-        i.foodId,
+        i.foodId ?? i.catalogueId!,
         `${i.name} · ${i.servingAmount} ${i.servingUnit}`,
       ]),
     ),
   );
+  const [portions, setPortions] = useState<
+    Record<string, CatalogueFood["portions"]>
+  >({});
   const cache = useQueryClient();
+  const writePending = useFoodWritePending();
   useFoodDirty(form.formState.isDirty);
   return (
     <Form
       form={form}
+      disabled={writePending}
       onSubmit={async (v, key) => {
         const saved = await api.savePreparation(
           v,
@@ -75,15 +90,32 @@ export function PreparationEditor({
             key={f.id}
             aria-label={`Ingredient ${i + 1}`}
           >
-            <h3>{labels[f.foodId] ?? "Ingredient"}</h3>
+            <h3>{labels[f.foodId ?? f.catalogueId!] ?? "Ingredient"}</h3>
             <Field
               name={`ingredients.${i}.quantity`}
-              label={`Servings of ${labels[f.foodId] ?? "ingredient"}`}
+              label={
+                f.catalogueId
+                  ? `Amount of ${labels[f.catalogueId] ?? "ingredient"}`
+                  : `Servings of ${labels[f.foodId!] ?? "ingredient"}`
+              }
               type="number"
               min="0.001"
-              max={1000}
+              max={f.catalogueId ? 100000 : 1000}
               step="any"
             />
+            {f.catalogueId && (
+              <Field
+                name={`ingredients.${i}.portionId`}
+                label={`Unit for ingredient ${i + 1}`}
+              >
+                <option value="g">Grams</option>
+                {(portions[f.catalogueId] ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.grams} g)
+                  </option>
+                ))}
+              </Field>
+            )}
             <div className="row">
               <button
                 type="button"
@@ -114,13 +146,20 @@ export function PreparationEditor({
         <FoodPicker
           kind={kind === "recipe" ? "food" : undefined}
           excludeId={item?.id}
-          onChoose={(f) => {
+          onChoose={(selection) => {
+            const f = selection.food;
+            if (selection.type === "catalogue")
+              setPortions((v) => ({ ...v, [f.id]: selection.food.portions }));
             if (fields.length >= 50) return;
             setLabels((v) => ({
               ...v,
               [f.id]: `${f.name} · ${f.servingAmount} ${f.servingUnit}`,
             }));
-            append({ foodId: f.id, quantity: 1 });
+            append(
+              selection.type === "catalogue"
+                ? { catalogueId: f.id, quantity: 100, portionId: "g" }
+                : { foodId: f.id, quantity: 1 },
+            );
           }}
         />
       </details>

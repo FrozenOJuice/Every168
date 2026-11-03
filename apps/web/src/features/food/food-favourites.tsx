@@ -2,9 +2,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Star } from "lucide-react";
 import type { Food } from "@168hours/contracts";
-import { api } from "@/lib/api";
+import { foodApi as api } from "./food-write-recovery";
+import { useFoodWritePending } from "./food-write-provider";
 import { number } from "@/lib/format";
 export function FoodFavourites({ onLog }: { onLog: (food: Food) => void }) {
+  const writePending = useFoodWritePending();
   const q = useQuery({
     queryKey: ["food", "quick-favourites"],
     queryFn: () => api.getFoods({ favourite: "true", limit: 4 }),
@@ -19,6 +21,7 @@ export function FoodFavourites({ onLog }: { onLog: (food: Food) => void }) {
         {q.data.items.map((food) => (
           <button
             key={food.id}
+            disabled={writePending}
             onClick={() => onLog(food)}
             aria-label={`Log ${food.name}`}
           >

@@ -4,7 +4,7 @@
 
 **Plan your week. Record your training. Review what actually happened.**
 
-Every168 is a full-stack Calendar and Fitness web application that connects weekly planning with detailed workout logging. Scheduled time, reusable workouts and recorded sessions stay separate, so a plan never silently becomes a completed activity.
+Every168 is a full-stack Calendar, Fitness and Food web application that connects weekly planning with workout and daily food logging. Scheduled time, reusable workouts and recorded sessions stay separate, so a plan never silently becomes a completed activity.
 
 **Status:** open-source portfolio project under MIT; no hosted deployment. The screenshots below are genuine application captures using synthetic data.
 
@@ -19,6 +19,7 @@ Calendar planning and live workout logging. Open either image for the full-size 
 
 - **Calendar:** Day, Week and Month views; timed and all-day plans; finite daily/weekly repetition; drag, resize, copy/paste, search, and Undo/Redo. Dates follow the account's timezone and week-start preference.
 - **Fitness:** a curated exercise library and custom exercises, reusable workout drafts, Basic/Advanced set editing, live set logging, rest timers, pause/resume, completed summaries and explicit result corrections.
+- **Food:** nutrition-first Today with optional daily targets and a chronological log; Library with shared PostgreSQL CNF foods, private foods, recipes and saved meals; gram/source-portion logging, favourite/recent shortcuts, secondary water/weight and shared Calendar Day context.
 - **Connected review:** schedule a workout into Calendar, start it from its reservation, then review its actual results in History. Exercise records and previous-workout comparisons derive from completed sets; editing a reusable workout does not rewrite old sessions.
 
 <details>
@@ -115,13 +116,13 @@ pnpm build
 
 Browser checks require Chromium (`pnpm exec playwright install chromium`) and the separate test database; run database/browser suites sequentially.
 
-`pnpm verify:beta` runs the ordered Calendar/Fitness verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main` or `develop`, pull requests targeting either branch and manual dispatch. A Quality job checks lint/import boundaries, formatting, types, unit/architecture tests and production dependencies. A separate job runs integration tests, a production build and the beta browser suite sequentially against isolated PostgreSQL 18. Both use Node.js 24 LTS and pnpm 9.15.9; no real credentials or email provider are needed. Failed runs retain command logs and available Playwright reports, traces and screenshots for seven days. The badge reports pull-request runs.
+`pnpm verify:beta` runs the ordered Calendar/Fitness/Food verification gate, including formatting and a production dependency scan. The command name is retained from the earlier release-preparation work; it does not deploy anything. The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pushes to `main` or `develop`, pull requests targeting either branch and manual dispatch. A Quality job checks lint/import boundaries, formatting, types, unit/architecture tests and production dependencies. A separate job runs integration tests, a production build and the beta browser suite sequentially against isolated PostgreSQL 18. Both use Node.js 24 LTS and pnpm 9.15.9; no real credentials or email provider are needed. Failed runs retain command logs and available Playwright reports, traces and screenshots for seven days. The badge reports pull-request runs.
 
 Coverage includes two-account isolation, real PostgreSQL transactions, DST boundaries, interrupted-response recovery, concurrent workout corrections, keyboard/focus behavior and responsive layouts. See the [verification guide](docs/verification.md) for commands and the [dated remediation report](docs/FIRST_RELEASE_REMEDIATION.md) for recorded results and limitations. Test counts are evidence from those runs, not continuously updated badges.
 
 ## Status and limits
 
-Calendar, Fitness, authentication and settings are the presented scope. Goals, Routines, Templates, Training Programs, Tasks, Food and Assistant remain in the repository behind explicit `preview` scope. They are not part of this showcase.
+Current development includes Calendar, Fitness, Food, authentication and settings. Goals, Routines, Templates, Training Programs, Tasks and Assistant remain behind explicit `preview` scope. The original Calendar/Fitness showcase is preserved on `main` and `portfolio-v1`; the existing screenshots document that baseline.
 
 Exercise illustrations and a larger catalogue are deferred; the current interface uses visible placeholders. Recovery is scoped to the browser tab, not offline or cross-device synchronization. Physical-device Safari and screen-reader acceptance are not established by Chromium automation. Public hosting, real delivery acceptance and operational backup/restore verification are deferred.
 
@@ -138,3 +139,13 @@ Exercise illustrations and a larger catalogue are deferred; the current interfac
 ## License
 
 [MIT](LICENSE). Third-party dependencies retain their licenses. The [screenshot provenance and icon notices](docs/media/README.md#provenance-and-licensing) document the visual assets shown here; future artwork needs its own rights review. The [publication and licensing review](docs/PUBLICATION_REVIEW.md) records the dependency inventory, safety findings and verification results.
+
+### Food catalogue data
+
+The Food workspace uses a shared PostgreSQL catalogue from Health Canada’s [Canadian Nutrient File 2026](https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/nutrient-data/canadian-nutrient-file-about-us.html), with 5,993 reference foods. Contains information licensed under the [Open Government Licence – Canada](https://open.canada.ca/en/open-government-licence-canada). Not endorsed by Health Canada. [Dataset mapping and reproduction](apps/api/src/modules/nutrition/data/README.md).
+
+### Food v1 Phase 1 locally
+
+Apply migrations with `pnpm db:migrate`, then explicitly load the checked-in enriched dataset with `pnpm food:import:cnf`. Repeating the command is safe and reports unchanged rows. Restart the local API and web development servers with `pnpm dev`, then open `/food`: Today shows daily nutrition, optional personal targets and the chronological log; Library contains Foods, Recipes and Saved Meals. Search Foods or a logging/ingredient picker for “cheese souffle” to try CNF grams and real source portions. No private copy is required.
+
+Food is enabled by default on develop. Planner, Groceries, Pantry, other providers and AI are outside this phase. Run `pnpm test:e2e:food` for the isolated Food browser gate; `pnpm test:e2e:beta` retains the normal Calendar/Fitness/Food boundary gate.

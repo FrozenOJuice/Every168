@@ -2,18 +2,17 @@
 
 The public-facing product name is Every168. Clone `FrozenOJuice/Every168` into `Every168`. Existing local checkout folders may keep their name; `@168hours/*` package filters, `hours_*` database roles/volumes and recovery keys remain technical identifiers, not alternate product names. No domain or sender address is implied by the rebrand. See [brand identity and compatibility](BRAND.md).
 
-Current presentation scope: Calendar and Fitness. Public deployment is deferred. Use synthetic accounts and never point tests or capture tooling at personal or production data.
+Current development: Calendar, Fitness and Food v1 on develop. Start normally with pnpm dev. The original Calendar/Fitness showcase remains preserved on main and portfolio-v1. Public deployment is deferred. Use synthetic accounts and never point tests or capture tooling at personal or production data.
 
 ## Portfolio and development branches
 
-`main` holds the stable Calendar/Fitness portfolio. The annotated `portfolio-v1` tag preserves the merged portfolio baseline at `a86a4fd`; keep that tag fixed. Ongoing work starts from `develop`, with short-lived feature branches merged back into `develop` after review and relevant checks. Release changes reach `main` only when explicitly approved and verified. GitHub Actions checks pushes and pull requests targeting both branches; it does not deploy.
+`main` holds the stable Calendar/Fitness portfolio. The annotated `portfolio-v1` tag preserves the merged portfolio baseline at `a86a4fd`; keep that tag fixed. The owner works directly on `develop`; feature branches and pull requests are optional when explicitly requested. Commit and sync verified changes there only with authorization. Release changes reach `main` only when explicitly approved and verified. GitHub Actions checks pushes and pull requests targeting both branches; it does not deploy.
 
 Start a development session with a clean working tree:
 
 ```bash
 git switch develop
 git pull --ff-only
-git switch -c feature/food-reliability
 ```
 
 Use a separate checkout to run the original portfolio while working on development:
@@ -22,7 +21,7 @@ Use a separate checkout to run the original portfolio while working on developme
 git worktree add --detach ../Every168-portfolio portfolio-v1
 ```
 
-Each checkout needs its own dependency/environment setup. Worktrees do not isolate databases or ports; use separate local database configuration and available ports if running both at once. The normal development setup below remains unchanged. The next proposed milestone is the [Food assessment](FOOD_ASSESSMENT.md); its recommendations require a separately requested implementation slice.
+Each checkout needs its own dependency/environment setup. Worktrees do not isolate databases or ports; use separate local database configuration and available ports if running both at once. The normal development setup below remains unchanged. The [Food assessment](FOOD_ASSESSMENT.md) records the bounded Food reliability milestone and subsequent review scope.
 
 ## Requirements and installation
 
@@ -39,6 +38,8 @@ pnpm db:provision
 `setup:env` creates missing `apps/api/.env` and `apps/web/.env.local` files, generates a random auth secret, and preserves existing files. Both files are ignored by Git; `.env.example` files are safe templates. Keep web/auth origins identical and browse using `http://localhost:3000`, not a mixture of localhost and 127.0.0.1.
 
 `db:up` starts separate development and test services. Development data uses the `hours_pg` volume; test storage is ephemeral. `db:provision` is an explicit local operator command: it preserves records, creates the restricted runtime role, updates the local API environment and retains a separate migration connection. Later migrations refresh runtime grants. Restart the API after changing its environment.
+
+Account-zone calculations and labels use the pinned `moment-timezone` dataset shared by browser and API, rather than each runtime’s installed timezone rules. Keep that dependency current when IANA publishes relevant rule changes; upgrading Node alone does not update an already built browser bundle. Stored records retain their exact UTC instants.
 
 ## Normal development and account email
 
@@ -104,7 +105,7 @@ To regenerate the checked-in SVG/ICO/Apple icons after an intentional mark chang
 
 On Linux, install browser system dependencies with `pnpm exec playwright install --with-deps chromium`. Do not overlap integration, browser or capture runs against the same test database. The isolated API validates `_test` naming and separation from `DATABASE_URL`; the portfolio config additionally requires a loopback host. Existing local-only Compose passwords are disposable examples, not credentials for any public service.
 
-Keep `RELEASE_SCOPE=core` in both applications for this showcase. To inspect retained features, explicitly choose `preview` in both environment files and restart/rebuild both applications. This changes local feature visibility; it is not authorization to publish those features.
+The original showcase is preserved on main and portfolio-v1. Normal develop startup includes Calendar, Fitness and Food. To inspect retained features, explicitly choose `preview` in both environment files and restart/rebuild both applications. This changes local feature visibility; it is not authorization to publish those features.
 
 ## Troubleshooting
 
@@ -116,3 +117,9 @@ Keep `RELEASE_SCOPE=core` in both applications for this showcase. To inspect ret
 - **Preview links unavailable:** confirm matching build/runtime `RELEASE_SCOPE`; core deliberately returns unavailable/404 for deferred features.
 
 For the built-web security smoke, follow [verification](verification.md). Its test-origin build is for local testing, not a deployment. The [earlier deployment runbook](PUBLIC_BETA_DEPLOYMENT.md) is preserved as deferred operational reference.
+
+## Food v1
+
+After `pnpm db:migrate`, run `pnpm food:import:cnf` explicitly. It validates and imports the repository’s enriched CNF JSON into shared PostgreSQL tables; repeated runs leave unchanged food rows alone. No automatic development/production catalogue seed is installed. The command accepts only local dev/test databases and uses the configured migration identity, while runtime catalogue permissions are read-only.
+
+Restart the development servers with `pnpm dev` and open `/food`. No special release-scope setting is needed for Food; unrelated unfinished areas remain gated. Today contains nutrition/targets and consumption, Library contains Foods/Recipes/Saved Meals, and the shared Day rail/drawer owns selected dates. Run `pnpm test:e2e:food` for the isolated desktop/phone Food gate.

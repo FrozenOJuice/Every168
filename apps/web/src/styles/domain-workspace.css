@@ -2053,3 +2053,87 @@ body:has(dialog[open] > .fitness-reset-confirmation) .assistant-launcher {
     padding-inline: 8px;
   }
 }
+
+/* Workspace navigation stays available as the domain content scrolls. */
+.fitness-workspace {
+  --workspace-nav-inset: 16px;
+}
+.food-workspace {
+  --workspace-nav-inset: 32px;
+}
+:is(.fitness-workspace, .food-workspace) .domain-workspace-tools {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--background);
+  padding-right: 0;
+}
+.domain-workspace-tools > :is(.fitness-domain-nav, .food-nav) {
+  padding-inline: var(--workspace-nav-inset);
+  gap: 24px;
+}
+.domain-workspace-tools > .food-nav {
+  max-width: 1200px;
+  margin-inline: auto;
+}
+.domain-workspace-tools > :is(.fitness-domain-nav, .food-nav) a {
+  min-height: 54px;
+  font-size: 0.9375rem;
+  font-weight: 550;
+}
+.domain-workspace-tools > :is(.fitness-domain-nav, .food-nav) a:hover {
+  color: var(--foreground);
+}
+.domain-workspace-tools
+  > :is(.fitness-domain-nav, .food-nav)
+  a[aria-current="page"] {
+  color: var(--primary);
+  font-weight: 650;
+}
+.domain-workspace-tools > :is(.fitness-domain-nav, .food-nav) a:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -4px;
+  border-radius: 4px;
+}
+/* The workout editor already pins its header above its own scrolling panes. */
+.fitness-creation-experiment .domain-workspace-tools {
+  position: relative;
+  top: auto;
+}
+@media (max-width: 1150px) {
+  :is(.fitness-workspace, .food-workspace) .domain-workspace-tools {
+    padding-right: var(--workspace-nav-inset);
+  }
+}
+@media (max-width: 900px) {
+  .fitness-workspace {
+    --workspace-nav-inset: 12px;
+  }
+  .food-workspace {
+    --workspace-nav-inset: 20px;
+  }
+  :is(.fitness-workspace, .food-workspace) .domain-workspace-tools {
+    top: 64px;
+  }
+  .fitness-creation-experiment .domain-workspace-tools {
+    top: auto;
+  }
+}
+@media (max-width: 600px) {
+  .domain-workspace-tools > :is(.fitness-domain-nav, .food-nav) {
+    gap: 12px;
+  }
+}
+/* Native focus, fragment links and scrollIntoView must clear the sticky bar. */
+html:has(.fitness-workspace, .food-workspace):not(
+    :has(.fitness-creation-experiment)
+  ) {
+  scroll-padding-top: 56px;
+}
+@media (max-width: 900px) {
+  html:has(.fitness-workspace, .food-workspace):not(
+      :has(.fitness-creation-experiment)
+    ) {
+    scroll-padding-top: 120px;
+  }
+}

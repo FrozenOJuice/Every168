@@ -1,4 +1,5 @@
 "use client";
+import { useFoodWritePending } from "@/features/food/food-write-provider";
 import { useQuery } from "@tanstack/react-query";
 import type { Water, Weight } from "@168hours/contracts";
 import { fromKilograms, localDate } from "@168hours/domain-utils";
@@ -20,6 +21,7 @@ export function WeightPanel({
   onEdit: (entry: Water | Weight) => void;
   onHistory: () => void;
 }) {
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone, weightUnit },
   } = useMe();
@@ -35,7 +37,11 @@ export function WeightPanel({
     >
       <div className="row between">
         <h2 id="food-weight-heading">Weight</h2>
-        <button className="text-button" onClick={onHistory}>
+        <button
+          className="text-button"
+          disabled={writePending}
+          onClick={onHistory}
+        >
           Weight history
         </button>
       </div>
@@ -93,7 +99,7 @@ export function WeightPanel({
           />
         </>
       )}
-      <button className="button" onClick={onLog}>
+      <button className="button" disabled={writePending} onClick={onLog}>
         Log weight
       </button>
     </section>

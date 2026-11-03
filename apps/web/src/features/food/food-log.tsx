@@ -1,13 +1,17 @@
 "use client";
+import { useFoodWritePending } from "./food-write-provider";
 import { useState } from "react";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   foodInput,
   foodEntryUpdate,
-  ingredientInput,
+  foodQuantity,
+  type FoodSelection,
+  type CatalogueFood,
   type Food,
   type FoodEntry,
+  type FoodEntryDetail,
 } from "@168hours/contracts";
 import {
   instantToLocalInput,
@@ -16,25 +20,43 @@ import {
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { useMe } from "@/features/identity/me";
 import { timeForLogDate } from "@/features/measurements/log-time";
-import { localTimeField } from "@/lib/format";
-import { api } from "@/lib/api";
+import { number, localTimeField } from "@/lib/format";
+import { foodApi as api } from "./food-write-recovery";
+import { FoodSourceNote } from "./food-source";
+import { FoodRecent } from "./food-recent";
+import { FoodFavourites } from "./food-favourites";
 import { FoodPicker } from "./food-picker";
 import { FoodEditor, FoodFields } from "./food-editor";
 import { invalidateFood, useFoodDirty } from "./food-shared";
 export function FoodLog({
   date,
   initialFood,
+  initialCatalogue,
+  initialMeal,
   entry,
   repeat = false,
   onSaved,
 }: {
   date: string;
   initialFood?: Food;
+  initialCatalogue?: CatalogueFood;
+  initialMeal?: FoodEntry["mealType"];
   entry?: FoodEntry;
   repeat?: boolean;
   onSaved: (entry: FoodEntry) => void;
 }) {
-  const [food, setFood] = useState(initialFood);
+  const [selection, setSelection] = useState<FoodSelection | undefined>(
+    initialCatalogue
+      ? { type: "catalogue", food: initialCatalogue }
+      : initialFood
+        ? { type: "owned", food: initialFood }
+        : undefined,
+  );
+  const food = selection?.type === "owned" ? selection.food : undefined;
+  const catalogue =
+    selection?.type === "catalogue" ? selection.food : undefined;
+  const setFood = (food: Food) => setSelection({ type: "owned", food });
+  const [recent, setRecent] = useState<FoodEntryDetail>();
   const [mode, setMode] = useState<"choose" | "quick" | "create">("choose");
   if (mode === "create")
     return (
@@ -45,7 +67,7 @@ export function FoodLog({
         }}
       />
     );
-  if (!food && !entry && mode === "choose")
+  if (!selection && !entry && !recent && mode === "choose")
     return (
       <div className="form-stack">
         <div className="row">
@@ -56,16 +78,20 @@ export function FoodLog({
             Create a food
           </button>
         </div>
-        <FoodPicker includeMeals onChoose={setFood} />
+        <FoodFavourites onLog={setFood} />
+        <FoodRecent onChoose={setRecent} />
+        <FoodPicker includeMeals onChoose={setSelection} />
       </div>
     );
   return (
     <FoodLogForm
-      key={food?.id ?? entry?.id ?? "quick"}
+      key={food?.id ?? catalogue?.id ?? entry?.id ?? recent?.id ?? "quick"}
       date={date}
       food={food}
-      entry={entry}
-      repeat={repeat}
+      catalogue={catalogue}
+      initialMeal={initialMeal}
+      entry={entry ?? recent}
+      repeat={repeat || !!recent}
       quick={mode === "quick"}
       onSaved={onSaved}
     />
@@ -74,6 +100,8 @@ export function FoodLog({
 function FoodLogForm({
   date,
   food,
+  catalogue,
+  initialMeal,
   entry,
   repeat,
   quick,
@@ -81,6 +109,8 @@ function FoodLogForm({
 }: {
   date: string;
   food?: Food;
+  catalogue?: CatalogueFood;
+  initialMeal?: FoodEntry["mealType"];
   entry?: FoodEntry;
   repeat: boolean;
   quick: boolean;
@@ -90,18 +120,30 @@ function FoodLogForm({
     preferences: { timezone },
   } = useMe();
   const cache = useQueryClient();
+  const writePending = useFoodWritePending();
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const recordedCatalogue = !!entry?.catalogueId;
   const recorded = entry && !repeat ? entry.consumedAt : undefined;
   const schema = z.object({
-    quantity: foodEntryUpdate.shape.quantity,
+    quantity: z
+      .number()
+      .finite()
+      .positive()
+      .max(catalogue || recordedCatalogue ? 100000 : 1000),
+    portionId: z.string().default("g"),
     mealType: foodEntryUpdate.shape.mealType,
     at: localTimeField(timezone, recorded),
-    ingredientQuantities: z.array(ingredientInput.shape.quantity).optional(),
+    ingredientQuantities: z.array(foodQuantity).optional(),
     food: foodInput.omit({ favourite: true }).optional(),
   });
   const form = useZodForm(schema, {
-    quantity: entry?.quantity ?? 1,
-    mealType: entry?.mealType ?? "other",
+    quantity: entry
+      ? entry.quantity * (recordedCatalogue ? entry.servingAmountSnapshot : 1)
+      : catalogue
+        ? 100
+        : 1,
+    portionId: "g",
+    mealType: initialMeal ?? entry?.mealType ?? "other",
     at: recorded
       ? instantToLocalInput(recorded, timezone)
       : timeForLogDate(date, timezone),
@@ -125,9 +167,12 @@ function FoodLogForm({
   return (
     <Form
       form={form}
+      disabled={writePending}
       onSubmit={async (v, key) => {
         const input = {
-          quantity: v.quantity,
+          quantity: recordedCatalogue
+            ? v.quantity / entry!.servingAmountSnapshot
+            : v.quantity,
           mealType: v.mealType,
           consumedAt:
             recorded && v.at === instantToLocalInput(recorded, timezone)
@@ -138,19 +183,29 @@ function FoodLogForm({
           ? repeat
             ? await api.repeatFoodEntry(entry.id, input, key)
             : await api.updateFoodEntry(entry.id, input, entry.version, key)
-          : quick
-            ? await api.quickLogFood({ ...input, food: v.food! }, key)
-            : await api.logFood(
+          : catalogue
+            ? await api.logFood(
                 {
                   ...input,
-                  foodId: food!.id,
-                  foodVersion: food!.version,
-                  ...(food!.ingredients.length > 0
-                    ? { ingredientQuantities: v.ingredientQuantities }
-                    : {}),
+                  catalogueId: catalogue.id,
+                  foodVersion: catalogue.version,
+                  portionId: v.portionId,
                 },
                 key,
-              );
+              )
+            : quick
+              ? await api.quickLogFood({ ...input, food: v.food! }, key)
+              : await api.logFood(
+                  {
+                    ...input,
+                    foodId: food!.id,
+                    foodVersion: food!.version,
+                    ...(food!.ingredients.length > 0
+                      ? { ingredientQuantities: v.ingredientQuantities }
+                      : {}),
+                  },
+                  key,
+                );
         await invalidateFood(cache);
         onSaved(saved);
       }}
@@ -158,26 +213,53 @@ function FoodLogForm({
       {quick ? (
         <FoodFields prefix="food." />
       ) : (
-        <h3>{food?.name ?? entry?.nameSnapshot}</h3>
+        <h3>{food?.name ?? catalogue?.name ?? entry?.nameSnapshot}</h3>
       )}
+      <FoodSourceNote
+        source={
+          catalogue
+            ? {
+                provider: catalogue.provider,
+                release: catalogue.release,
+                code: catalogue.code,
+                name: catalogue.name,
+                modified: false,
+              }
+            : (food?.source ?? entry?.sourceSnapshot)
+        }
+      />
       {repeat && (
         <p className="muted">
-          Copies the original recorded food and nutrition, even if its library
+          Copies the original recorded food and nutrition, even if the saved
           definition has changed.
         </p>
       )}
       <Field
         name="quantity"
         label={
-          quick
-            ? "Number of servings"
-            : `Number of servings (${amount} ${unit} each)`
+          catalogue
+            ? "Amount eaten"
+            : recordedCatalogue
+              ? `Amount eaten (${entry!.servingUnitSnapshot})`
+              : quick
+                ? "Number of servings"
+                : `Number of servings (${amount} ${unit} each)`
         }
         type="number"
         min="0.001"
-        max={1000}
+        max={catalogue || recordedCatalogue ? 100000 : 1000}
         step="any"
       />
+      {catalogue && (
+        <Field name="portionId" label="Amount unit">
+          <option value="g">Grams</option>
+          {catalogue.portions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label} ({number(p.grams)} g)
+            </option>
+          ))}
+        </Field>
+      )}
       <Field name="mealType" label="Meal label (optional)">
         {["other", "breakfast", "lunch", "dinner", "snack"].map((m) => (
           <option key={m} value={m}>

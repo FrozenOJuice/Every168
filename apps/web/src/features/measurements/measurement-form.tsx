@@ -13,7 +13,10 @@ import {
   instantToLocalInput,
   localInputToInstant,
 } from "@168hours/domain-utils";
-import { api } from "@/lib/api";
+import {
+  useMeasurementApi,
+  useFoodWritePending,
+} from "@/features/food/food-write-provider";
 import { useMe } from "@/features/identity/me";
 import { Field, Form, Submit, useZodForm } from "@/components/ui/form";
 import { localTimeField } from "@/lib/format";
@@ -33,6 +36,8 @@ export function MeasurementForm({
   onSaved: (item: Water | Weight) => void;
   onCreated?: (item: Water | Weight, key: string) => void;
 }) {
+  const api = useMeasurementApi();
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone, weightUnit },
   } = useMe();
@@ -81,6 +86,7 @@ export function MeasurementForm({
   return (
     <Form
       form={form}
+      disabled={writePending}
       onSubmit={async (v, key) => {
         const at = localInputToInstant(v.at, timezone);
         let saved: Water | Weight;

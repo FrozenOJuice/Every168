@@ -1,4 +1,5 @@
 "use client";
+import { zonedDateTimeFormat } from "@168hours/domain-utils";
 import { fromKilograms, fromMeters } from "@168hours/domain-utils";
 import {
   exerciseLoggingTypeSchema,
@@ -35,8 +36,7 @@ export function volumeText(
   return `${load(metrics.volumeKg, unit, true)}${metrics.missingVolumeSets ? ` · ${metrics.missingVolumeSets} incomplete ${metrics.missingVolumeSets === 1 ? "set" : "sets"}` : ""}`;
 }
 export function sessionDate(value: string, timezone: string) {
-  return new Intl.DateTimeFormat("en", {
-    timeZone: timezone,
+  return zonedDateTimeFormat(timezone, {
     dateStyle: "medium",
   }).format(new Date(value));
 }

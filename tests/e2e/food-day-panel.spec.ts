@@ -1,3 +1,4 @@
+import { foodView } from "./helpers/food-navigation";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -143,10 +144,7 @@ test("Food keeps a shared Calendar day beside its workspace", async ({
     }),
   ).toBeVisible();
   await editor.getByRole("button", { name: "Close dialog" }).click();
-  await page
-    .getByRole("navigation", { name: "Food navigation" })
-    .getByRole("link", { name: "Recipes", exact: true })
-    .click();
+  await foodView(page, "Recipes");
   await expect(
     main.getByRole("heading", { name: "Weekend breakfast", exact: true }),
   ).toBeVisible();

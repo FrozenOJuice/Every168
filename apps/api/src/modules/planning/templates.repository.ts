@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, desc, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, lt, desc, inArray, or, sql } from "drizzle-orm";
 import type {
   PageQuery,
   TemplateCaptureInput,
@@ -57,7 +57,7 @@ export function templatesRepository(db: Database) {
       from: string,
       to: string,
       selectedDates?: string[],
-      timezone?: string,
+      selectedRanges?: { startsAt: string; endsAt: string }[],
       ctx?: TransactionContext,
     ) {
       return transactionRunner(db)(async (scope) => {
@@ -70,11 +70,15 @@ export function templatesRepository(db: Database) {
               eq(timeBlocks.userId, u),
               gte(timeBlocks.startsAt, new Date(start)),
               lt(timeBlocks.startsAt, new Date(end)),
-              selectedDates && timezone
-                ? inArray(
-                    sql<string>`(${timeBlocks.startsAt} AT TIME ZONE ${timezone})::date`,
-                    selectedDates,
-                  )
+              selectedRanges
+                ? (or(
+                    ...selectedRanges.map((range) =>
+                      and(
+                        gte(timeBlocks.startsAt, new Date(range.startsAt)),
+                        lt(timeBlocks.startsAt, new Date(range.endsAt)),
+                      ),
+                    ),
+                  ) ?? sql`false`)
                 : undefined,
             ),
           )

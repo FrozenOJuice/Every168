@@ -14,6 +14,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { FormBusyContext } from "@/components/ui/form";
 import { useUnsavedChanges } from "@/lib/use-unsaved-changes";
 import { number } from "@/lib/format";
+import { useFoodWritePending } from "./food-write-provider";
 const DirtyContext = createContext<(dirty: boolean) => void>(() => {});
 export function useFoodDirty(dirty: boolean) {
   const report = useContext(DirtyContext);
@@ -32,19 +33,25 @@ export function FoodDialog({
   children: ReactNode;
 }) {
   const confirm = useConfirm();
+  const writePending = useFoodWritePending();
 
   const [busy, setBusy] = useState(false),
     [dirty, setDirty] = useState(false);
   useUnsavedChanges(
-    dirty || busy,
+    dirty || busy || writePending,
     "Your unsaved food changes will be discarded.",
-    busy,
+    busy || writePending,
   );
   return (
     <Dialog
       title={title}
+      busy={busy || writePending}
       onClose={async () => {
-        if (!busy && (!dirty || (await confirm("Discard unsaved changes?"))))
+        if (
+          !busy &&
+          !writePending &&
+          (!dirty || (await confirm("Discard unsaved changes?")))
+        )
           onClose();
       }}
     >

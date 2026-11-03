@@ -5,89 +5,59 @@ import { testApp, origin, commandHeaders } from "./helpers.js";
 const { app, deps, serve, signUp } = testApp("core");
 const previewApp = testApp("preview").app;
 
-it("keeps deferred APIs unavailable and excludes retained Food activity without deleting data", async () => {
+it("enables Food in normal scope while other unfinished areas remain gated", async () => {
   const { cookie } = await signUp();
-  const preview = await serve({
-    config: { ...deps.config, RELEASE_SCOPE: "preview" },
-  });
-  const post = (path: string, data: object) =>
-    request(preview)
-      .post(`/api/v1/${path}`)
+  const write = (path: string, data: object, method: "post" | "put" = "post") =>
+    request(app)
+      [method](`/api/v1/${path}`)
       .set("Cookie", cookie)
       .set("Origin", origin)
       .set(commandHeaders())
       .send(data);
   const food = (
-    await post("foods", {
-      name: "Retained oats",
-      servingAmount: 40,
+    await write("foods", {
+      name: "Development oats",
+      servingAmount: 100,
       servingUnit: "g",
       calories: 100,
     }).expect(201)
   ).body;
-  await post("food-entries", {
+  await write("food-entries", {
     foodId: food.id,
     quantity: 1,
     consumedAt: "2026-10-27T12:00:00Z",
   }).expect(201);
-  const water = (
-    await post("water-entries", {
-      amountMl: 250,
-      consumedAt: "2026-10-27T12:00:00Z",
-    }).expect(201)
-  ).body;
-  await post("weight-entries", {
-    weightKg: 70,
-    measuredAt: "2026-10-27T12:00:00Z",
-  }).expect(201);
-
   for (const path of [
     "foods",
     `foods/${food.id}`,
-    "food-preparations",
+    "food-catalogue?search=oats",
     "food-entries",
+    "nutrition-goals",
     "nutrition/daily?date=2026-10-27",
     "water-entries",
     "hydration/daily?date=2026-10-27",
     "weight-entries",
     "body/weight-review?date=2026-10-27",
-    "dashboard",
-  ]) {
-    await request(app).get(`/api/v1/${path}`).set("Cookie", cookie).expect(404);
-  }
-  for (const method of ["post", "put", "delete"] as const) {
-    await request(app)
-      [method](`/api/v1/foods${method === "post" ? "" : `/${food.id}`}`)
-      .set("Cookie", cookie)
-      .set("Origin", origin)
-      .set(commandHeaders(food.version))
-      .send({})
-      .expect(404);
-  }
-  const activity = (
+  ])
+    await request(app).get(`/api/v1/${path}`).set("Cookie", cookie).expect(200);
+  await write("nutrition-goals", { calories: 2000 }, "put").expect(200);
+  const feed = (
     await request(app)
       .get("/api/v1/calendar/activity?from=2026-10-27&to=2026-10-27")
       .set("Cookie", cookie)
       .expect(200)
   ).body;
-  expect(activity.entries).toEqual([]);
-  expect(activity.truncatedSources).toEqual([]);
-  await request(preview)
-    .get(`/api/v1/foods/${food.id}`)
-    .set("Cookie", cookie)
-    .expect(200);
-  await request(preview)
-    .get(`/api/v1/water-entries/${water.id}`)
-    .set("Cookie", cookie)
-    .expect(200);
-  await request(app)
-    .get("/api/v1/tasks?date=2026-10-27&view=all")
-    .set("Cookie", cookie)
-    .expect(404);
-  await request(app)
-    .get("/api/v1/strength-plans")
-    .set("Cookie", cookie)
-    .expect(200);
+  expect(
+    feed.entries.map((e: { source: { type: string } }) => e.source.type),
+  ).toContain("food_entry");
+  for (const path of [
+    "dashboard",
+    "tasks?date=2026-10-27&view=all",
+    "goals",
+    "routines",
+    "training-programs",
+  ])
+    await request(app).get(`/api/v1/${path}`).set("Cookie", cookie).expect(404);
 });
 
 it("defers program APIs while retaining preview programs and ordinary workouts", async () => {

@@ -452,7 +452,7 @@ test("quick chat remains available inside a modal editor and honors cancelled na
     .click();
   await expect(page).toHaveURL(/\/assistant$/);
   await expect(message(page)).toHaveValue("Help me with this food");
-  await expect(context(page)).toContainText("Food · Food library");
+  await expect(context(page)).toContainText("Food · Foods & drinks");
   await expect(
     page.getByRole("link", { name: "Return to Food", exact: true }),
   ).toBeVisible();

@@ -13,6 +13,9 @@ export async function grantRuntimeAccess(pool: Pool, runtimeUrl: string) {
     `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${role}`,
   );
   await pool.query(
+    `REVOKE INSERT, UPDATE, DELETE ON food_catalogue, food_catalogue_releases FROM ${role}`,
+  );
+  await pool.query(
     `GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${role}`,
   );
   await pool.query(

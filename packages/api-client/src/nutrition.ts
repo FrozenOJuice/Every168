@@ -1,5 +1,9 @@
 import type {
   Food,
+  CatalogueQuery,
+  CatalogueResult,
+  NutritionGoals,
+  NutritionGoalsInput,
   PreparationInput,
   QuickFoodInput,
   FoodInput,
@@ -15,6 +19,19 @@ import type {
 import { writeHeaders, body, query, type Http } from "./http";
 export function nutritionClient(http: Http) {
   return {
+    searchFoodCatalogue: (q: Partial<CatalogueQuery> = {}) =>
+      http<CatalogueResult>("/api/v1/food-catalogue" + query(q)),
+    getNutritionGoals: () => http<NutritionGoals>("/api/v1/nutrition-goals"),
+    saveNutritionGoals: (
+      v: NutritionGoalsInput,
+      version: number,
+      key?: string,
+    ) =>
+      http<NutritionGoals>("/api/v1/nutrition-goals", {
+        method: "PUT",
+        headers: writeHeaders(key, version),
+        body: body(v),
+      }),
     getFoodEntry: (id: string) => http<FoodEntry>("/api/v1/food-entries/" + id),
     getFood: (id: string) => http<Food>("/api/v1/foods/" + id),
     savePreparation: (

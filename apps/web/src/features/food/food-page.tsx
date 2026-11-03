@@ -1,51 +1,74 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Plus, Utensils } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  Plus,
+  SlidersHorizontal,
+  Utensils,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   type CalendarActivity,
   type Food,
+  type CatalogueFood,
   type FoodEntry,
   type FoodEntryDetail,
   type Water,
   type Weight,
 } from "@168hours/contracts";
 import { localDate } from "@168hours/domain-utils";
+import { canNavigateAway } from "@/lib/use-unsaved-changes";
 import { api } from "@/lib/api";
 import { useMe } from "@/features/identity/me";
-import { ErrorState, Loading } from "@/components/ui/feedback";
+import { ErrorState, Loading, PageHeading } from "@/components/ui/feedback";
 import { WaterPanel } from "@/features/measurements/water-panel";
 import { WeightPanel } from "@/features/measurements/weight-panel";
 import { MeasurementForm } from "@/features/measurements/measurement-form";
 import { MeasurementHistory } from "@/features/measurements/measurement-history";
-import { FoodDialog, NutritionSummary } from "./food-shared";
+import { FoodDialog } from "./food-shared";
 import { Dialog } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/format";
 import { DomainDayPanel } from "@/features/workspace/domain-day-panel";
 import { useDomainDay } from "@/features/workspace/domain-day-context";
-import { FoodFavourites } from "./food-favourites";
 import { FoodEditor } from "./food-editor";
 import { PreparationEditor } from "./preparation-editor";
 import { FoodLog } from "./food-log";
 import { FoodLibrary } from "./food-library";
+import { FoodNutrition, NutritionGoalsEditor } from "./food-nutrition";
 import { FoodEntries, FoodHistory } from "./food-entries";
+import { FoodWriteProvider, useFoodWritePending } from "./food-write-provider";
 
 type Modal =
   | { type: "editFood"; kind: Food["kind"]; food?: Food }
   | { type: "entry"; id: string }
-  | { type: "log"; food?: Food; entry?: FoodEntry; repeat?: boolean }
+  | {
+      type: "log";
+      food?: Food;
+      catalogue?: CatalogueFood;
+      entry?: FoodEntry;
+      repeat?: boolean;
+      mealType?: FoodEntry["mealType"];
+    }
   | { type: "measurement"; kind: "water" | "weight"; item?: Water | Weight }
   | { type: "measurementHistory"; kind: "water" | "weight" };
-const views = [
-  ["day", "Daily log"],
-  ["food", "Food library"],
-  ["meal", "Saved meals"],
+const foodSections = [
+  ["food", "Foods"],
   ["recipe", "Recipes"],
-  ["history", "History"],
+  ["meal", "Saved Meals"],
 ] as const;
 export function FoodPage() {
+  const { user } = useMe();
+  return (
+    <FoodWriteProvider key={user.id}>
+      <FoodWorkspace />
+    </FoodWriteProvider>
+  );
+}
+function FoodWorkspace() {
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone },
   } = useMe();
@@ -54,7 +77,13 @@ export function FoodPage() {
   const today = localDate(new Date(), timezone);
   const { date } = useDomainDay();
   const selected = params.get("view") ?? "day";
-  const view = views.some(([v]) => v === selected) ? selected : "day";
+  const view =
+    selected === "history" ||
+    selected === "targets" ||
+    foodSections.some(([v]) => v === selected)
+      ? selected
+      : "day";
+  const myFoods = foodSections.some(([v]) => v === view);
   const [dayOpen, setDayOpen] = useState(false);
   const [dayBusy, setDayBusy] = useState(false);
   const [modal, setModal] = useState<Modal | null>(null);
@@ -72,13 +101,17 @@ export function FoodPage() {
   };
   const logged = (entry: FoodEntry) => {
     setModal(null);
-    router.push(url("day", localDate(entry.consumedAt, timezone)));
+    const savedDate = localDate(entry.consumedAt, timezone);
+    if (view !== "day" || date !== savedDate)
+      router.push(url("day", savedDate));
   };
-  const openLog = () => {
+  const openLog = async () => {
+    if (writePending || !(await canNavigateAway())) return;
     setDayOpen(false);
     setModal({ type: "log" });
   };
-  const openActivity = (activity: CalendarActivity) => {
+  const openActivity = async (activity: CalendarActivity) => {
+    if (writePending || !(await canNavigateAway())) return;
     setDayOpen(false);
     if (activity.source.type === "food_entry")
       setModal({ type: "entry", id: activity.source.id });
@@ -110,11 +143,18 @@ export function FoodPage() {
         <h1 className="sr-only">Food</h1>
         <div className="domain-workspace-tools">
           <nav className="food-nav" aria-label="Food navigation">
-            {views.map(([v, label]) => (
+            {(
+              [
+                ["day", "Today"],
+                ["food", "Library"],
+              ] as const
+            ).map(([v, label]) => (
               <Link
                 key={v}
                 href={url(v)}
-                aria-current={view === v ? "page" : undefined}
+                aria-current={
+                  (v === "food" ? myFoods : !myFoods) ? "page" : undefined
+                }
               >
                 {label}
               </Link>
@@ -122,6 +162,7 @@ export function FoodPage() {
           </nav>
           <button
             className="button domain-mobile-day"
+            disabled={writePending}
             onClick={() => setDayOpen(true)}
             aria-haspopup="dialog"
           >
@@ -130,29 +171,54 @@ export function FoodPage() {
           </button>
         </div>
         <div className="food-content">
-          {view === "day" ? (
+          {view === "targets" ? (
+            <section
+              className="food-target-editor form-stack"
+              aria-label="Nutrition targets"
+            >
+              <Link className="food-editor-back" href={url("day")}>
+                <ArrowLeft size={18} aria-hidden="true" />
+                Back to Today
+              </Link>
+              <PageHeading
+                level={2}
+                title="Nutrition targets"
+                description="Choose your daily targets. Leave a field blank to track without a target."
+              />
+              <NutritionGoalsEditor
+                onSaved={() => router.push(url("day"))}
+                onCancel={() => router.push(url("day"))}
+              />
+            </section>
+          ) : view === "day" ? (
             <div className="food-daily-grid">
               <div className="food-daily-main">
                 <section className="food-daily-section">
                   <div className="food-section-heading">
                     <div>
-                      <p className="food-eyebrow">
-                        {formatDate(date, {
-                          weekday: "long",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </p>
                       <h2>
-                        {date === today ? "Today’s food" : "Food for this day"}
+                        {date === today
+                          ? "Today’s nutrition"
+                          : `Nutrition for ${formatDate(date, { month: "short", day: "numeric", year: "numeric" })}`}
                       </h2>
                     </div>
-                    <button
-                      className="button primary"
-                      onClick={() => setModal({ type: "log" })}
-                    >
-                      <Plus size={17} aria-hidden="true" /> Log food
-                    </button>
+                    <div className="food-log-actions">
+                      <Link
+                        className="button"
+                        href={url("targets")}
+                        aria-label="Edit nutrition targets"
+                      >
+                        <SlidersHorizontal size={17} aria-hidden="true" />
+                        Targets
+                      </Link>
+                      <button
+                        className="button primary"
+                        disabled={writePending}
+                        onClick={() => setModal({ type: "log" })}
+                      >
+                        <Plus size={17} aria-hidden="true" /> Log food
+                      </button>
+                    </div>
                   </div>
                   {q.isPending ? (
                     <Loading />
@@ -163,23 +229,9 @@ export function FoodPage() {
                     />
                   ) : (
                     <>
+                      <FoodNutrition daily={q.data} />
                       {q.data.entries.length ? (
                         <>
-                          <details className="food-nutrition-overview" open>
-                            <summary>Daily nutrition</summary>
-                            <NutritionSummary totals={q.data.totals} />
-                            {Object.values(q.data.totals).some(
-                              (total) => total.unknownCount > 0,
-                            ) && (
-                              <p className="muted text-small">
-                                Partial totals exclude entries with missing
-                                values.
-                              </p>
-                            )}
-                          </details>
-                          <FoodFavourites
-                            onLog={(food) => setModal({ type: "log", food })}
-                          />
                           <div className="food-log-heading">
                             <h2>Food log</h2>
                             <span>
@@ -193,9 +245,6 @@ export function FoodPage() {
                         </>
                       ) : (
                         <>
-                          <FoodFavourites
-                            onLog={(food) => setModal({ type: "log", food })}
-                          />
                           <div className="food-empty">
                             <Utensils size={28} aria-hidden="true" />
                             <h3>Start with something you ate</h3>
@@ -209,6 +258,11 @@ export function FoodPage() {
                       )}
                     </>
                   )}
+                  <div className="food-log-tools">
+                    <Link className="text-button" href={url("history")}>
+                      Search past entries
+                    </Link>
+                  </div>
                 </section>
               </div>
               <aside
@@ -240,19 +294,55 @@ export function FoodPage() {
               </aside>
             </div>
           ) : view === "history" ? (
-            <FoodHistory {...actions} />
+            <div className="form-stack">
+              <Link className="text-button" href={url("day")}>
+                Back to Today
+              </Link>
+              <p className="muted">
+                Copy an entry to{" "}
+                {formatDate(date, {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                , or choose another time when logging.
+              </p>
+              <FoodHistory {...actions} />
+            </div>
           ) : (
-            <FoodLibrary
-              key={view}
-              kind={view as Food["kind"]}
-              onCreate={() =>
-                setModal({ type: "editFood", kind: view as Food["kind"] })
-              }
-              onEdit={(food) =>
-                setModal({ type: "editFood", kind: food.kind, food })
-              }
-              onLog={(food) => setModal({ type: "log", food })}
-            />
+            <div className="food-saved-area form-stack">
+              <div>
+                <h2>Library</h2>
+                <p className="muted">
+                  Keep the foods, drinks and meals you use again.
+                </p>
+              </div>
+              <nav className="food-sections" aria-label="Library sections">
+                {foodSections.map(([kind, label]) => (
+                  <Link
+                    key={kind}
+                    href={url(kind)}
+                    aria-current={view === kind ? "page" : undefined}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+              <FoodLibrary
+                key={view}
+                kind={view as Food["kind"]}
+                onCreate={() =>
+                  setModal({ type: "editFood", kind: view as Food["kind"] })
+                }
+                onEdit={(food) =>
+                  setModal({ type: "editFood", kind: food.kind, food })
+                }
+                onCatalogue={(catalogue) =>
+                  setModal({ type: "log", catalogue })
+                }
+                onLog={(food) => setModal({ type: "log", food })}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -301,6 +391,8 @@ export function FoodPage() {
             <FoodLog
               date={date}
               initialFood={modal.food}
+              initialCatalogue={modal.catalogue}
+              initialMeal={modal.mealType}
               entry={modal.entry}
               repeat={modal.repeat}
               onSaved={logged}

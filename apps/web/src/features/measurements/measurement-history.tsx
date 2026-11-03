@@ -1,4 +1,6 @@
 "use client";
+import { RetainedReadError } from "@/components/ui/retained-read-error";
+import { useFoodWritePending } from "@/features/food/food-write-provider";
 import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import type { Water, Weight, Page } from "@168hours/contracts";
@@ -16,6 +18,7 @@ export function MeasurementHistory({
   kind: "water" | "weight";
   through?: string;
 }) {
+  const writePending = useFoodWritePending();
   const {
     preferences: { timezone },
   } = useMe();
@@ -32,7 +35,11 @@ export function MeasurementHistory({
   if (editing)
     return (
       <div className="stack">
-        <button className="button" onClick={() => setEditing(null)}>
+        <button
+          className="button"
+          disabled={writePending}
+          onClick={() => setEditing(null)}
+        >
           Back to history
         </button>
         <MeasurementForm
@@ -58,19 +65,20 @@ export function MeasurementHistory({
       </p>
       {query.isPending ? (
         <Loading />
-      ) : query.error ? (
+      ) : query.error && !query.data ? (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
-      ) : !query.data.pages[0]?.items.length ? (
-        <Empty>No {kind} entries in this history.</Empty>
+      ) : !query.data!.pages[0]?.items.length ? (
+        <>{!query.error && <Empty>No {kind} entries in this history.</Empty>}</>
       ) : (
         <MeasurementList
           kind={kind}
-          entries={query.data.pages.flatMap((page) => page.items)}
+          entries={query.data!.pages.flatMap((page) => page.items)}
           onEdit={setEditing}
           showDate
         />
       )}
-      {query.hasNextPage && (
+      <RetainedReadError query={query} label={`${kind} history`} />
+      {query.hasNextPage && !query.error && (
         <button
           className="button"
           disabled={query.isFetchingNextPage}
